@@ -66,6 +66,7 @@ export default async function PanelSayfasi() {
           <div className="flex items-center gap-2">
             <Button nativeButton={false} render={<Link href="/panel/musteriler">Müşteriler</Link>} />
             <Button nativeButton={false} render={<Link href="/panel/randevular">Randevular</Link>} />
+            <Button nativeButton={false} render={<Link href="/panel/kaynaklar">Oda/Cihaz</Link>} />
             <form action={cikisYap}>
               <Button type="submit" variant="outline">
                 Çıkış yap

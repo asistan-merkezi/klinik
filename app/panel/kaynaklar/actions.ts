@@ -1,0 +1,99 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+
+type SonucDurumu = { success: boolean; message: string } | null;
+
+const tabloSemasi = z.enum(["oda", "cihaz"]);
+export type KaynakTablosu = z.infer<typeof tabloSemasi>;
+
+const ETIKET: Record<KaynakTablosu, string> = {
+  oda: "Oda",
+  cihaz: "Cihaz",
+};
+
+async function klinikIdGetir() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("klinik_id")
+    .eq("id", user.id)
+    .single();
+
+  return { supabase, klinikId: kullanici?.klinik_id ?? null };
+}
+
+export async function kaynakOlustur(
+  tablo: KaynakTablosu,
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const gecerliTablo = tabloSemasi.safeParse(tablo);
+  if (!gecerliTablo.success) {
+    return { success: false, message: "Geçersiz kaynak türü." };
+  }
+
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+
+  const adSemasi = z.string().trim().min(2, "Ad en az 2 karakter olmalı.");
+  const ayristirma = adSemasi.safeParse(formData.get("ad"));
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { error } = await supabase
+    .from(gecerliTablo.data)
+    .insert({ klinik_id: klinikId, ad: ayristirma.data });
+
+  if (error) {
+    console.error(`${gecerliTablo.data} oluşturulamadı:`, error);
+    return { success: false, message: `${ETIKET[gecerliTablo.data]} eklenemedi, lütfen tekrar deneyin.` };
+  }
+
+  revalidatePath("/panel/kaynaklar");
+  revalidatePath("/panel/randevular");
+  return { success: true, message: `${ETIKET[gecerliTablo.data]} eklendi.` };
+}
+
+export async function kaynakAktifDurumDegistir(
+  tablo: KaynakTablosu,
+  kaynakId: string,
+  yeniDurum: boolean
+) {
+  const gecerliTablo = tabloSemasi.safeParse(tablo);
+  if (!gecerliTablo.success) {
+    return;
+  }
+
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from(gecerliTablo.data)
+    .update({ aktif: yeniDurum })
+    .eq("id", kaynakId);
+
+  if (error) {
+    console.error(`${gecerliTablo.data} durumu güncellenemedi:`, error);
+    return;
+  }
+
+  revalidatePath("/panel/kaynaklar");
+  revalidatePath("/panel/randevular");
+}
