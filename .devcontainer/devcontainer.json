@@ -1,0 +1,17 @@
+{
+  "name": "Muayene Asistanı",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:latest",
+  "customizations": {
+    "codespaces": {
+      "repositories": {
+        "hakansenipek/claude-config": {
+          "permissions": {
+            "contents": "read"
+          }
+        }
+      }
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postAttachCommand": "bash ~/.claude/setup-mcp.sh"
+}
