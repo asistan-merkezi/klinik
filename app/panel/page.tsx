@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir } from "@/types/randevu";
+import { gunAraligi } from "@/lib/utils";
 import { cikisYap } from "./actions";
 
 const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
@@ -12,14 +13,6 @@ const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
   iptal: "İptal",
   gelmedi: "Gelmedi",
 };
-
-function gunAraligi() {
-  const simdi = new Date();
-  const baslangic = new Date(Date.UTC(simdi.getUTCFullYear(), simdi.getUTCMonth(), simdi.getUTCDate()));
-  const bitis = new Date(baslangic);
-  bitis.setUTCDate(bitis.getUTCDate() + 1);
-  return { baslangic: baslangic.toISOString(), bitis: bitis.toISOString() };
-}
 
 export default async function PanelSayfasi() {
   const supabase = await createClient();
@@ -67,6 +60,7 @@ export default async function PanelSayfasi() {
             <Button nativeButton={false} render={<Link href="/panel/musteriler">Müşteriler</Link>} />
             <Button nativeButton={false} render={<Link href="/panel/randevular">Randevular</Link>} />
             <Button nativeButton={false} render={<Link href="/panel/kaynaklar">Oda/Cihaz</Link>} />
+            <Button nativeButton={false} render={<Link href="/panel/tablet">Tablet</Link>} />
             <form action={cikisYap}>
               <Button type="submit" variant="outline">
                 Çıkış yap

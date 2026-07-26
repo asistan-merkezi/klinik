@@ -80,6 +80,11 @@ export default async function RandevularSayfasi() {
             <Button
               variant="outline"
               nativeButton={false}
+              render={<Link href="/panel/tablet">Tablet</Link>}
+            />
+            <Button
+              variant="outline"
+              nativeButton={false}
               render={<Link href="/panel">Panele dön</Link>}
             />
           </div>
