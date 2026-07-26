@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { BugunkuRandevu } from "@/types/randevu";
+import type { RandevuSatir } from "@/types/randevu";
 import { cikisYap } from "./actions";
 
-const DURUM_ETIKET: Record<BugunkuRandevu["durum"], string> = {
+const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
   planlandi: "Planlandı",
   geldi: "Geldi",
   iptal: "İptal",
@@ -46,7 +47,7 @@ export default async function PanelSayfasi() {
     .gte("baslangic", baslangic)
     .lt("baslangic", bitis)
     .order("baslangic")
-    .returns<BugunkuRandevu[]>();
+    .returns<RandevuSatir[]>();
 
   if (error) {
     console.error("Bugünkü randevular çekilemedi:", error);
@@ -62,11 +63,14 @@ export default async function PanelSayfasi() {
               {kullanici?.ad_soyad ?? user.email} — {kullanici?.rol ?? "rol atanmamış"}
             </p>
           </div>
-          <form action={cikisYap}>
-            <Button type="submit" variant="outline">
-              Çıkış yap
-            </Button>
-          </form>
+          <div className="flex items-center gap-2">
+            <Button nativeButton={false} render={<Link href="/panel/randevular">Randevular</Link>} />
+            <form action={cikisYap}>
+              <Button type="submit" variant="outline">
+                Çıkış yap
+              </Button>
+            </form>
+          </div>
         </header>
 
         <Card>
