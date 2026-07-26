@@ -4,7 +4,7 @@
 Fizyoterapi kliniği için muayene yönetim SaaS'ı. Asistan Merkezi çatısı altında çoklu klinik kullanacak multi-tenant yapıda. Müşteri kaydı, randevu takibi, muayene odalarına Android tabletle anlık hasta/işlem gösterimi, terapist performans/maaş takibi, ödeme-paket yönetimi, müşteri self-servis portalı ve WhatsApp/Paraşüt entegrasyonlarını kapsar.
 
 ## Stack ve Altyapı
-Next.js 14 (App Router) + TypeScript + Tailwind + Supabase + Vercel (Frankfurt), Cloudflare DNS — standart Asistan Merkezi stack'i.
+Next.js 16 (App Router) + TypeScript + Tailwind + Supabase + Vercel (Frankfurt), Cloudflare DNS — standart Asistan Merkezi stack'i. (Not: ilk sürümde "Next.js 14" olarak yazılmıştı; 2026-07-26'da ilk vertical slice kurulurken güncel latest sürüm (16) ile devam edilmesine karar verildi — middleware→proxy geçişi ve `useActionState`/React 19 kullanıldığını unutma.)
 Projeye özgü ek entegrasyonlar:
 - **Paraşüt**: resmi fatura kesimi (faturalı işlemde otomatik tetiklenir)
 - **WhatsApp**: randevu, paket durumu, bakiye bildirimi — Meta (WhatsApp Business/Graph API) üzerinden kurulacak (`meta-integration` skill'i geçerli)
