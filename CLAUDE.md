@@ -145,12 +145,10 @@ Projeye özgü ek entegrasyonlar:
 - i18n-next altyapısı baştan kurulacak (en az TR+EN — temel disiplin, tam çeviri şimdilik şart değil); WCAG 2.2 AA temel kuralları (özellikle tablet kiosk kontrast/font) baştan gözetilecek, tam denetim kapsam dışı
 
 ## Yol Haritası / Durum
-Aktif: `001_cekirdek_sema.sql` yazıldı (klinik, kullanıcı/rol, personel/terapist, müşteri, oda/cihaz, randevu + çakışma/kapasite/izin kontrolü, terapist izin/vardiya, audit_log, RLS, helper fonksiyonlar). Henüz Supabase'e uygulanmadı.
-Sprint önceliği (kullanıcı tarafından belirlendi):
-1. Temel CRUD + Randevu + Tablet Realtime (en kritik)
-2. Ödeme + Paraşüt + WhatsApp entegrasyonu (para akışı)
-3. Terapist maaş + performans modülü + Müşteri Portalı
-Sprint 4+ fikirleri: çok kanallı bildirim merkezi (WhatsApp/portal/e-posta/SMS), AI destekli seans önerisi, çalışan puantaj+vardiya yönetimi, beyaz etiket tema özelleştirme.
+Sprint 1 tamamlandı: çekirdek şema Supabase'e uygulandı (klinik, kullanıcı/rol, personel/terapist, müşteri, oda/cihaz, randevu +çakışma/kapasite/izin kontrolü, RLS, helper fonksiyonlar); `randevu` tablosu `supabase_realtime` yayınına eklendi (ayrı migration). Panelde çalışan ekranlar: giriş, randevu CRUD (liste/oluşturma/check-in-iptal), müşteri CRUD (liste/arama/oluşturma/düzenleme/KVKK onayı), oda-cihaz yönetimi (ekleme/aktif-pasif), oda bazlı tablet realtime ekranı (`/panel/tablet/[odaId]`) — check-in postgres_changes ile sayfa yenilenmeden yansıyor. Tablet ekranı bilinçli olarak MVP kapsamında: staff login arkasında, device_token/kiosk-PIN/gizlilik modu bu turda yok (kullanıcı kararıyla ertelendi, CLAUDE.md'deki "Randevu & Tablet" iş kuralları hâlâ hedef durumu tanımlıyor).
+Not (teknik keşif): `@supabase/ssr` browser client'ı realtime bağlantısına oturum JWT'sini otomatik geçirmiyor; RLS'li postgres_changes için `supabase.realtime.setAuth(session.access_token)` manuel çağrılması gerekiyor, yoksa abonelik "SUBSCRIBED" görünür ama hiç event gelmez.
+Sıradaki (sprint 2, aktif): Ödeme + Paraşüt + WhatsApp entegrasyonu (para akışı). `islem_tanimi`/`paket`/`odeme` tabloları henüz migration'a yazılmadı.
+Sprint 3+ fikirleri: Terapist maaş + performans modülü + Müşteri Portalı; çok kanallı bildirim merkezi (WhatsApp/portal/e-posta/SMS), AI destekli seans önerisi, çalışan puantaj+vardiya yönetimi, beyaz etiket tema özelleştirme.
 Açık sorular: WhatsApp sağlayıcı hesabı (Meta Business/numara) kurulumu yapılmadı; yüz tanıma ile check-in fikri (opsiyonel) değerlendirme aşamasında; sarf malzeme stok yönetimi kapsamı (fiziksel envanter mi, sadece uyarı mı) netleşmedi; çoklu şube modeli ertelendi — şimdilik tek şube varsayılıyor, ileride karar verilecek (öneri: şube = ayrı klinik kaydı, parent_klinik_id ile gruplama).
 Onaylandı: `islem_tanimi`'ye kategori alanı eklendi; klinikte uygulanan tedaviler netleşti (Fizyoterapi ve rehabilitasyon, Manuel terapi, Sporcu Recovery, G8 Terapi, Emscult Terapi, Footbalance ayak taban analizi, 3D Skolyoz Terapi). G8, Emscult, Footbalance ve 3D Skolyoz için `cihaz` kayıtlarının açılması gerekiyor — henüz cihaz modelleri/marka bilgisi netleşmedi.
 
@@ -181,4 +179,4 @@ Bu gap analizindeki maddeler henüz sprint'e alınmadı — önceliklendirme kul
 - Asistan Merkezi çatısı altında kliniklerden anonimleştirilmiş veri toplayıp pazarlama amaçlı sektör istatistik raporu çıkarma fikri var
 - İleride React Native ile terapist+hasta mobil uygulaması düşünülüyor (PWA temelinden native'e geçiş)
 
-Son güncelleme: 2026-07-22 (tedavi listesi + islem_kategori + rakip gap analizi eklendi)
+Son güncelleme: 2026-07-26 (sprint 1 tamamlandı: müşteri/oda-cihaz CRUD + tablet realtime; migration uygulandı)
