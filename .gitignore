@@ -150,3 +150,4 @@ next-env.d.ts
 
 # Supabase local
 supabase/.temp
+.playwright-mcp/

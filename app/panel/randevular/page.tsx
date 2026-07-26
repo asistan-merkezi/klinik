@@ -66,11 +66,18 @@ export default async function RandevularSayfasi() {
               Yaklaşan randevuları görüntüle ve yeni randevu oluştur.
             </p>
           </div>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/panel">Panele dön</Link>}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/panel/musteriler">Müşteriler</Link>}
+            />
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/panel">Panele dön</Link>}
+            />
+          </div>
         </header>
 
         <Card>

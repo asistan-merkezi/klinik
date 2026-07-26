@@ -64,6 +64,7 @@ export default async function PanelSayfasi() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button nativeButton={false} render={<Link href="/panel/musteriler">Müşteriler</Link>} />
             <Button nativeButton={false} render={<Link href="/panel/randevular">Randevular</Link>} />
             <form action={cikisYap}>
               <Button type="submit" variant="outline">
