@@ -3,12 +3,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { MusteriSatir } from "@/types/musteri";
+import type { MusteriDetay } from "@/types/musteri";
+import type { MusteriHassasSatir } from "@/types/musteri-hassas";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import { OdemeFormu } from "./odeme-formu";
 import { FaturaDurum } from "./fatura-durum";
 import { PortalErisimKarti } from "./portal-erisim-karti";
+import { DetayliBilgilerKarti } from "./detayli-bilgiler-karti";
 
 export default async function MusteriDetaySayfasi({
   params,
@@ -28,9 +30,11 @@ export default async function MusteriDetaySayfasi({
 
   const { data: musteri } = await supabase
     .from("musteri")
-    .select("id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu")
+    .select(
+      "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi"
+    )
     .eq("id", id)
-    .single<MusteriSatir>();
+    .single<MusteriDetay>();
 
   if (!musteri) {
     notFound();
@@ -44,11 +48,12 @@ export default async function MusteriDetaySayfasi({
 
   const duzenlenebilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
 
-  const { data: musteriKullanici } = await supabase
-    .from("musteri_kullanici")
-    .select("aktif")
-    .eq("musteri_id", id)
-    .maybeSingle();
+  const [musteriKullaniciSonucu, musteriHassasSonucu] = await Promise.all([
+    supabase.from("musteri_kullanici").select("aktif").eq("musteri_id", id).maybeSingle(),
+    supabase.from("musteri_hassas").select("*").eq("musteri_id", id).maybeSingle<MusteriHassasSatir>(),
+  ]);
+  const musteriKullanici = musteriKullaniciSonucu.data;
+  const musteriHassas = musteriHassasSonucu.data;
 
   const [paketSatisSonucu, odemeSonucu, islemTanimiSonucu, paketSonucu] = await Promise.all([
     supabase
@@ -146,6 +151,17 @@ export default async function MusteriDetaySayfasi({
                 musteriId={musteri.id}
                 durum={{ var: musteriKullanici != null, aktif: musteriKullanici?.aktif ?? false }}
               />
+            </CardContent>
+          </Card>
+        )}
+
+        {duzenlenebilir && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Detaylı Bilgiler & Anamnez</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DetayliBilgilerKarti musteri={musteri} hassas={musteriHassas} />
             </CardContent>
           </Card>
         )}

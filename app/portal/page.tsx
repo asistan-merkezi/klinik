@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,11 +93,14 @@ export default async function PortalSayfasi() {
             <h1 className="text-xl font-semibold">{musteri?.ad_soyad ?? "Portalım"}</h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">{musteri?.telefon}</p>
           </div>
-          <form action={portalCikisYap}>
-            <Button type="submit" variant="outline">
-              Çıkış yap
-            </Button>
-          </form>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" nativeButton={false} render={<Link href="/portal/bilgilerim">Bilgilerim</Link>} />
+            <form action={portalCikisYap}>
+              <Button type="submit" variant="outline">
+                Çıkış yap
+              </Button>
+            </form>
+          </div>
         </header>
 
         <Card>

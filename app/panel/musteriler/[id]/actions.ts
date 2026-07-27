@@ -253,6 +253,105 @@ export async function portalSifreSifirla(musteriId: string): Promise<PortalSonuc
   return { success: true, message: "Yeni geçici şifre oluşturuldu.", geciciSifre };
 }
 
+function bosIseNull2(deger: FormDataEntryValue | null) {
+  if (deger == null) return null;
+  const s = String(deger).trim();
+  return s === "" ? null : s;
+}
+
+const detayliSemasi = z.object({
+  cinsiyet: z.enum(["kadin", "erkek", "belirtilmemis"]).nullable(),
+  eposta: z.string().trim().email("Geçersiz e-posta.").nullable(),
+  referans_kanali: z.string().nullable(),
+  kimlik_no: z.string().nullable(),
+  kimlik_no_tipi: z.enum(["tc", "pasaport"]).nullable(),
+  adres: z.string().nullable(),
+  acil_durum_ad_soyad: z.string().nullable(),
+  acil_durum_yakinlik: z.string().nullable(),
+  acil_durum_telefon: z.string().nullable(),
+  kronik_hastaliklar: z.string().nullable(),
+  surekli_ilaclar: z.string().nullable(),
+  alerjiler: z.string().nullable(),
+  gecirilmis_ameliyatlar: z.string().nullable(),
+  gelis_sebebi: z.string().nullable(),
+});
+
+export async function detayliBilgileriGuncelle(
+  musteriId: string,
+  _onceki: PortalSonucu,
+  formData: FormData
+): Promise<PortalSonucu> {
+  const { supabase, musteri, yetkisiz } = await yetkiliMusteriGetir(musteriId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const ayristirma = detayliSemasi.safeParse({
+    cinsiyet: bosIseNull2(formData.get("cinsiyet")),
+    eposta: bosIseNull2(formData.get("eposta")),
+    referans_kanali: bosIseNull2(formData.get("referans_kanali")),
+    kimlik_no: bosIseNull2(formData.get("kimlik_no")),
+    kimlik_no_tipi: bosIseNull2(formData.get("kimlik_no_tipi")),
+    adres: bosIseNull2(formData.get("adres")),
+    acil_durum_ad_soyad: bosIseNull2(formData.get("acil_durum_ad_soyad")),
+    acil_durum_yakinlik: bosIseNull2(formData.get("acil_durum_yakinlik")),
+    acil_durum_telefon: bosIseNull2(formData.get("acil_durum_telefon")),
+    kronik_hastaliklar: bosIseNull2(formData.get("kronik_hastaliklar")),
+    surekli_ilaclar: bosIseNull2(formData.get("surekli_ilaclar")),
+    alerjiler: bosIseNull2(formData.get("alerjiler")),
+    gecirilmis_ameliyatlar: bosIseNull2(formData.get("gecirilmis_ameliyatlar")),
+    gelis_sebebi: bosIseNull2(formData.get("gelis_sebebi")),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { cinsiyet, eposta, referans_kanali, ...hassas } = ayristirma.data;
+
+  const [musteriSonucu, hassasSonucu] = await Promise.all([
+    supabase.from("musteri").update({ cinsiyet, eposta, referans_kanali }).eq("id", musteriId),
+    supabase.from("musteri_hassas").upsert({ musteri_id: musteriId, ...hassas }, { onConflict: "musteri_id" }),
+  ]);
+
+  if (musteriSonucu.error || hassasSonucu.error) {
+    console.error("Detaylı bilgiler güncellenemedi:", musteriSonucu.error, hassasSonucu.error);
+    if (hassasSonucu.error?.code === "23505") {
+      return { success: false, message: "Bu kimlik no başka bir müşteride kayıtlı." };
+    }
+    return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  return { success: true, message: "Detaylı bilgiler kaydedildi." };
+}
+
+export async function ozelNitelikliOnayVer(musteriId: string): Promise<PortalSonucu> {
+  const { supabase, musteri, yetkisiz } = await yetkiliMusteriGetir(musteriId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const { error } = await supabase
+    .from("musteri")
+    .update({ ozel_nitelikli_veri_onay_tarihi: new Date().toISOString() })
+    .eq("id", musteriId);
+
+  if (error) {
+    console.error("Özel nitelikli veri onayı kaydedilemedi:", error);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  return { success: true, message: "Sağlık verisi işleme onayı kaydedildi." };
+}
+
 export async function portalErisimDurumDegistir(musteriId: string, yeniDurum: boolean): Promise<PortalSonucu> {
   const { supabase, musteri, yetkisiz } = await yetkiliMusteriGetir(musteriId);
   if (yetkisiz) {

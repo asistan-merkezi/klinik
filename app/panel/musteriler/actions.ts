@@ -21,6 +21,12 @@ const musteriSemasi = z.object({
   whatsapp_izin_durumu: z.coerce.boolean().optional(),
 });
 
+const kimlikOlusturSemasi = z.object({
+  kimlik_no: z.string().trim().optional(),
+  kimlik_no_tipi: z.enum(["tc", "pasaport"]).optional(),
+  ticari_ileti_onay: z.coerce.boolean().optional(),
+});
+
 async function klinikIdGetir() {
   const supabase = await createClient();
   const {
@@ -61,19 +67,54 @@ export async function musteriOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad_soyad, telefon, dogum_tarihi, whatsapp_izin_durumu } = ayristirma.data;
-
-  const { error } = await supabase.from("musteri").insert({
-    klinik_id: klinikId,
-    ad_soyad,
-    telefon,
-    dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
-    whatsapp_izin_durumu: whatsapp_izin_durumu ?? false,
+  const kimlikAyristirma = kimlikOlusturSemasi.safeParse({
+    kimlik_no: formData.get("kimlik_no") ?? "",
+    kimlik_no_tipi: formData.get("kimlik_no_tipi") || undefined,
+    ticari_ileti_onay: formData.get("ticari_ileti_onay") === "on",
   });
 
-  if (error) {
+  if (!kimlikAyristirma.success) {
+    return { success: false, message: kimlikAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { ad_soyad, telefon, dogum_tarihi, whatsapp_izin_durumu } = ayristirma.data;
+  const { kimlik_no, kimlik_no_tipi, ticari_ileti_onay } = kimlikAyristirma.data;
+
+  const { data: yeniMusteri, error } = await supabase
+    .from("musteri")
+    .insert({
+      klinik_id: klinikId,
+      ad_soyad,
+      telefon,
+      dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
+      whatsapp_izin_durumu: whatsapp_izin_durumu ?? false,
+      ticari_ileti_onay_tarihi: ticari_ileti_onay ? new Date().toISOString() : null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !yeniMusteri) {
     console.error("Müşteri oluşturulamadı:", error);
     return { success: false, message: "Müşteri oluşturulamadı, lütfen tekrar deneyin." };
+  }
+
+  if (kimlik_no) {
+    const { error: hassasError } = await supabase.from("musteri_hassas").insert({
+      musteri_id: yeniMusteri.id,
+      kimlik_no,
+      kimlik_no_tipi: kimlik_no_tipi ?? "tc",
+    });
+    if (hassasError) {
+      console.error("Kimlik bilgisi kaydedilemedi:", hassasError);
+      revalidatePath("/panel/musteriler");
+      return {
+        success: true,
+        message:
+          hassasError.code === "23505"
+            ? "Müşteri kaydedildi ama bu kimlik no başka bir müşteride kayıtlı, kimlik bilgisi eklenemedi."
+            : "Müşteri kaydedildi ama kimlik bilgisi eklenemedi, Müşteri Detay'dan tekrar deneyin.",
+      };
+    }
   }
 
   revalidatePath("/panel/musteriler");
