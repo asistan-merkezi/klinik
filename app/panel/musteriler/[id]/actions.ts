@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -143,4 +144,134 @@ export async function faturaTetikle(faturaId: string): Promise<SonucDurumu> {
   }
 
   return { success: false, message: "Fatura kesilemedi, lütfen tekrar deneyin." };
+}
+
+type PortalSonucu = { success: boolean; message: string; geciciSifre?: string } | null;
+
+const KARAKTER_HAVUZU = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+function geciciSifreUret(): string {
+  let sifre = "";
+  for (let i = 0; i < 10; i++) {
+    sifre += KARAKTER_HAVUZU[Math.floor(Math.random() * KARAKTER_HAVUZU.length)];
+  }
+  return sifre;
+}
+
+async function yetkiliMusteriGetir(musteriId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol")
+    .eq("id", user.id)
+    .single();
+
+  if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "resepsiyon") {
+    return { supabase, musteri: null, yetkisiz: true as const };
+  }
+
+  // RLS klinik_id = current_klinik_id() ile sınırlar; sonuç dönerse müşteri kendi kliniğindendir.
+  const { data: musteri } = await supabase.from("musteri").select("id").eq("id", musteriId).single();
+
+  return { supabase, musteri, yetkisiz: false as const };
+}
+
+export async function portalErisimiAc(musteriId: string): Promise<PortalSonucu> {
+  const { musteri, yetkisiz } = await yetkiliMusteriGetir(musteriId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const adminClient = createAdminClient();
+  const geciciSifre = geciciSifreUret();
+  const eposta = `m-${musteri.id}@portal.local`;
+
+  const { data: yeniKullanici, error: createError } = await adminClient.auth.admin.createUser({
+    email: eposta,
+    password: geciciSifre,
+    email_confirm: true,
+  });
+
+  if (createError || !yeniKullanici.user) {
+    console.error("Portal kullanıcısı oluşturulamadı:", createError);
+    return { success: false, message: "Portal erişimi açılamadı, lütfen tekrar deneyin." };
+  }
+
+  const { error: insertError } = await adminClient
+    .from("musteri_kullanici")
+    .insert({ id: yeniKullanici.user.id, musteri_id: musteri.id });
+
+  if (insertError) {
+    console.error("musteri_kullanici eklenemedi:", insertError);
+    await adminClient.auth.admin.deleteUser(yeniKullanici.user.id);
+    return { success: false, message: "Portal erişimi açılamadı, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  return { success: true, message: "Portal erişimi açıldı.", geciciSifre };
+}
+
+export async function portalSifreSifirla(musteriId: string): Promise<PortalSonucu> {
+  const { supabase, musteri, yetkisiz } = await yetkiliMusteriGetir(musteriId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const { data: mk } = await supabase
+    .from("musteri_kullanici")
+    .select("id")
+    .eq("musteri_id", musteriId)
+    .single();
+
+  if (!mk) {
+    return { success: false, message: "Portal erişimi bulunamadı." };
+  }
+
+  const adminClient = createAdminClient();
+  const geciciSifre = geciciSifreUret();
+  const { error } = await adminClient.auth.admin.updateUserById(mk.id, { password: geciciSifre });
+
+  if (error) {
+    console.error("Portal şifresi sıfırlanamadı:", error);
+    return { success: false, message: "Şifre sıfırlanamadı, lütfen tekrar deneyin." };
+  }
+
+  return { success: true, message: "Yeni geçici şifre oluşturuldu.", geciciSifre };
+}
+
+export async function portalErisimDurumDegistir(musteriId: string, yeniDurum: boolean): Promise<PortalSonucu> {
+  const { supabase, musteri, yetkisiz } = await yetkiliMusteriGetir(musteriId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const { error } = await supabase
+    .from("musteri_kullanici")
+    .update({ aktif: yeniDurum })
+    .eq("musteri_id", musteriId);
+
+  if (error) {
+    console.error("Portal erişim durumu güncellenemedi:", error);
+    return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  return { success: true, message: yeniDurum ? "Portal erişimi açıldı." : "Portal erişimi kapatıldı." };
 }

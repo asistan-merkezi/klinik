@@ -119,3 +119,57 @@ export async function randevuDurumGuncelle(randevuId: string, yeniDurum: Randevu
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
 }
+
+type SonucDurumu2 = { success: boolean; message: string } | null;
+
+export async function iptalTalebiOnayla(talepId: string, randevuId: string): Promise<SonucDurumu2> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const [randevuSonucu, talepSonucu] = await Promise.all([
+    supabase.from("randevu").update({ durum: "iptal" }).eq("id", randevuId),
+    supabase
+      .from("randevu_iptal_talebi")
+      .update({ durum: "onaylandi", yanit_kullanici_id: user.id, yanit_tarihi: new Date().toISOString() })
+      .eq("id", talepId),
+  ]);
+
+  if (randevuSonucu.error || talepSonucu.error) {
+    console.error("İptal talebi onaylanamadı:", randevuSonucu.error, talepSonucu.error);
+    return { success: false, message: "İptal talebi onaylanamadı, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  return { success: true, message: "Randevu iptal edildi." };
+}
+
+export async function iptalTalebiReddet(talepId: string): Promise<SonucDurumu2> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { error } = await supabase
+    .from("randevu_iptal_talebi")
+    .update({ durum: "reddedildi", yanit_kullanici_id: user.id, yanit_tarihi: new Date().toISOString() })
+    .eq("id", talepId);
+
+  if (error) {
+    console.error("İptal talebi reddedilemedi:", error);
+    return { success: false, message: "İşlem başarısız, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  return { success: true, message: "İptal talebi reddedildi." };
+}

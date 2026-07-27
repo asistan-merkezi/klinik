@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
+import type { BekleyenIptalTalebiSatir } from "@/types/portal";
 import { RandevuFormu } from "./randevu-formu";
 import { DurumButonlari } from "./durum-butonlari";
+import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
 
 const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
   planlandi: "Planlandı",
@@ -25,7 +27,7 @@ export default async function RandevularSayfasi() {
     redirect("/giris");
   }
 
-  const [randevularSonucu, musteriSonucu, terapistSonucu, odaSonucu, cihazSonucu] =
+  const [randevularSonucu, musteriSonucu, terapistSonucu, odaSonucu, cihazSonucu, iptalTalepleriSonucu] =
     await Promise.all([
       supabase
         .from("randevu")
@@ -43,9 +45,16 @@ export default async function RandevularSayfasi() {
         .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
       supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
+      supabase
+        .from("randevu_iptal_talebi")
+        .select("id, durum, created_at, randevu(id, baslangic, durum, musteri(ad_soyad))")
+        .eq("durum", "bekliyor")
+        .order("created_at")
+        .returns<BekleyenIptalTalebiSatir[]>(),
     ]);
 
   const randevular = randevularSonucu.data ?? [];
+  const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
   const musteriler: SecenekSatir[] = (musteriSonucu.data ?? []).map((m) => ({
     id: m.id,
     ad: m.ad_soyad,
@@ -89,6 +98,17 @@ export default async function RandevularSayfasi() {
             />
           </div>
         </header>
+
+        {bekleyenIptalTalepleri.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Bekleyen İptal Talepleri</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BekleyenIptalTalepleri talepler={bekleyenIptalTalepleri} />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

@@ -27,11 +27,20 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isKorumaliRota = request.nextUrl.pathname.startsWith("/panel");
+  const isPanelRotasi = request.nextUrl.pathname.startsWith("/panel");
+  const isPortalRotasi =
+    request.nextUrl.pathname.startsWith("/portal") &&
+    request.nextUrl.pathname !== "/portal/giris";
 
-  if (!user && isKorumaliRota) {
+  if (!user && isPanelRotasi) {
     const url = request.nextUrl.clone();
     url.pathname = "/giris";
+    return NextResponse.redirect(url);
+  }
+
+  if (!user && isPortalRotasi) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/portal/giris";
     return NextResponse.redirect(url);
   }
 

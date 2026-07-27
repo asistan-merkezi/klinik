@@ -8,6 +8,7 @@ import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import { OdemeFormu } from "./odeme-formu";
 import { FaturaDurum } from "./fatura-durum";
+import { PortalErisimKarti } from "./portal-erisim-karti";
 
 export default async function MusteriDetaySayfasi({
   params,
@@ -42,6 +43,12 @@ export default async function MusteriDetaySayfasi({
     .single();
 
   const duzenlenebilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
+
+  const { data: musteriKullanici } = await supabase
+    .from("musteri_kullanici")
+    .select("aktif")
+    .eq("musteri_id", id)
+    .maybeSingle();
 
   const [paketSatisSonucu, odemeSonucu, islemTanimiSonucu, paketSonucu] = await Promise.all([
     supabase
@@ -125,6 +132,20 @@ export default async function MusteriDetaySayfasi({
             </CardHeader>
             <CardContent>
               <OdemeFormu musteriId={musteri.id} urunler={satilabilirUrunler} />
+            </CardContent>
+          </Card>
+        )}
+
+        {duzenlenebilir && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Müşteri Portalı Erişimi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PortalErisimKarti
+                musteriId={musteri.id}
+                durum={{ var: musteriKullanici != null, aktif: musteriKullanici?.aktif ?? false }}
+              />
             </CardContent>
           </Card>
         )}
