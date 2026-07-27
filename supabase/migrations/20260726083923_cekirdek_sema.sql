@@ -1,4 +1,4 @@
--- Muayene Asistanı — Çekirdek Şema (Sprint 1 alt kümesi)
+-- Klinik Asistanı — Çekirdek Şema (Sprint 1 alt kümesi)
 -- klinik (tenant), kullanici/rol, personel/terapist, musteri, oda/cihaz, randevu (+ çakışma kontrolü),
 -- klinik_ayarlar, audit_log, current_klinik_id() helper + RLS. İdempotent, tek blok.
 

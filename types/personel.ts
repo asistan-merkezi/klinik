@@ -16,7 +16,18 @@ export type PersonelDetay = {
   maas: number | null;
   aktif: boolean;
   kullanici_id: string | null;
+  tc_kimlik_no: string | null;
+  uzmanlik_tescil_no: string | null;
 };
+
+export type KullaniciRol = "klinik_admin" | "resepsiyon" | "terapist" | "muhasebe";
+
+export const ROL_SECENEKLERI: { value: KullaniciRol; label: string }[] = [
+  { value: "klinik_admin", label: "Klinik Yöneticisi" },
+  { value: "resepsiyon", label: "Resepsiyon / Banko" },
+  { value: "terapist", label: "Terapist" },
+  { value: "muhasebe", label: "Muhasebe / Finans" },
+];
 
 export type TerapistAyarlari = {
   id: string;

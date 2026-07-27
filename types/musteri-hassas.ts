@@ -13,4 +13,5 @@ export type MusteriHassasSatir = {
   alerjiler: string | null;
   gecirilmis_ameliyatlar: string | null;
   gelis_sebebi: string | null;
+  kan_sulandirici_kullanimi: boolean;
 };

@@ -1,4 +1,4 @@
-# Muayene Asistanı
+# Klinik Asistanı
 
 ## Proje Özeti
 Fizyoterapi kliniği için muayene yönetim SaaS'ı. Asistan Merkezi çatısı altında çoklu klinik kullanacak multi-tenant yapıda. Müşteri kaydı, randevu takibi, muayene odalarına Android tabletle anlık hasta/işlem gösterimi, terapist performans/maaş takibi, ödeme-paket yönetimi, müşteri self-servis portalı ve WhatsApp/Paraşüt entegrasyonlarını kapsar.

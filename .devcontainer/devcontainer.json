@@ -1,5 +1,5 @@
 {
-  "name": "Muayene Asistanı",
+  "name": "Klinik Asistanı",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:latest",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postAttachCommand": "bash ~/.claude/setup-mcp.sh"

@@ -1,0 +1,63 @@
+/* app/(marketing)/globals.css */
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: theme("colors.canvas.DEFAULT");
+    color: theme("colors.ink.DEFAULT");
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Çizelgede saat/rakam hizası kaymasın */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /*
+   * Çizelge geometrisi: dakika başına piksel.
+   * Slot yükseklikleri ve konumları buradan türetilir; ölçü JS'e taşınmaz.
+   */
+  .schedule-track {
+    --pxpm: 1.6px;
+  }
+
+  @media (min-width: 768px) {
+    .schedule-track {
+      --pxpm: 1.9px;
+    }
+  }
+
+  /* Nokta grid dokusu — jenerik gradyan yerine, düşük kontrastlı */
+  .bg-dot-grid {
+    background-image: radial-gradient(rgba(148, 163, 184, 0.16) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .thin-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .thin-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
