@@ -12,23 +12,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SecenekSatir } from "@/types/randevu";
-import type { IslemTanimiSatir } from "@/types/islem-tanimi";
-import { islemTanimiAktifDurumDegistir, islemTanimiGuncelle } from "./actions";
+import type { PaketSatir } from "@/types/paket";
+import { paketAktifDurumDegistir, paketGuncelle } from "./actions";
 
-export function IslemSatiri({
-  islem,
-  kategoriler,
-  cihazlar,
+export function PaketSatiri({
+  paket,
+  islemTanimlari,
   duzenlenebilir,
 }: {
-  islem: IslemTanimiSatir;
-  kategoriler: SecenekSatir[];
-  cihazlar: SecenekSatir[];
+  paket: PaketSatir;
+  islemTanimlari: SecenekSatir[];
   duzenlenebilir: boolean;
 }) {
   const [duzenleniyor, setDuzenleniyor] = useState(false);
-  const [duzenleForm, setDuzenleForm] = useState(islem);
-  const guncelleAction = islemTanimiGuncelle.bind(null, islem.id);
+  const [duzenleForm, setDuzenleForm] = useState(paket);
+  const guncelleAction = paketGuncelle.bind(null, paket.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const [aktifPending, startAktifTransition] = useTransition();
   const [gorulenDurum, setGorulenDurum] = useState(durum);
@@ -46,34 +44,60 @@ export function IslemSatiri({
         <form action={formAction} className="flex flex-col gap-3 text-sm">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`ad-${islem.id}`}>İşlem Adı</Label>
-              <Input id={`ad-${islem.id}`} name="ad" defaultValue={duzenleForm.ad} required disabled={isPending} />
+              <Label htmlFor={`ad-${paket.id}`}>Paket Adı</Label>
+              <Input id={`ad-${paket.id}`} name="ad" defaultValue={duzenleForm.ad} required disabled={isPending} />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`kategori-${islem.id}`}>Kategori</Label>
+              <Label htmlFor={`islem-${paket.id}`}>İşlem</Label>
               <Select
-                name="islem_kategori_id"
+                name="islem_tanimi_id"
                 required
                 disabled={isPending}
-                defaultValue={kategoriler.find((k) => k.ad === duzenleForm.islem_kategori?.ad)?.id}
-                items={kategoriler.map((k) => ({ value: k.id, label: k.ad }))}
+                defaultValue={islemTanimlari.find((i) => i.ad === duzenleForm.islem_tanimi?.ad)?.id}
+                items={islemTanimlari.map((i) => ({ value: i.id, label: i.ad }))}
               >
-                <SelectTrigger id={`kategori-${islem.id}`} className="w-full">
-                  <SelectValue placeholder="Kategori seçin" />
+                <SelectTrigger id={`islem-${paket.id}`} className="w-full">
+                  <SelectValue placeholder="İşlem seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  {kategoriler.map((k) => (
-                    <SelectItem key={k.id} value={k.id}>
-                      {k.ad}
+                  {islemTanimlari.map((i) => (
+                    <SelectItem key={i.id} value={i.id}>
+                      {i.ad}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`fiyat-${islem.id}`}>Fiyat (₺)</Label>
+              <Label htmlFor={`seans-${paket.id}`}>Seans Sayısı</Label>
               <Input
-                id={`fiyat-${islem.id}`}
+                id={`seans-${paket.id}`}
+                name="seans_sayisi"
+                type="number"
+                min={1}
+                step="1"
+                defaultValue={duzenleForm.seans_sayisi}
+                required
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`gecerlilik-${paket.id}`}>Geçerlilik (gün)</Label>
+              <Input
+                id={`gecerlilik-${paket.id}`}
+                name="gecerlilik_gun"
+                type="number"
+                min={1}
+                step="1"
+                defaultValue={duzenleForm.gecerlilik_gun}
+                required
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`fiyat-${paket.id}`}>Fiyat (₺)</Label>
+              <Input
+                id={`fiyat-${paket.id}`}
                 name="fiyat"
                 type="number"
                 min={0}
@@ -84,9 +108,9 @@ export function IslemSatiri({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`kdv-${islem.id}`}>KDV (%)</Label>
+              <Label htmlFor={`kdv-${paket.id}`}>KDV (%)</Label>
               <Input
-                id={`kdv-${islem.id}`}
+                id={`kdv-${paket.id}`}
                 name="kdv_orani"
                 type="number"
                 min={0}
@@ -94,35 +118,6 @@ export function IslemSatiri({
                 step="0.01"
                 defaultValue={duzenleForm.kdv_orani}
                 required
-                disabled={isPending}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`cihaz-${islem.id}`}>Gerekli Cihaz (opsiyonel)</Label>
-              <Select
-                name="gerekli_cihaz_id"
-                disabled={isPending || cihazlar.length === 0}
-                defaultValue={cihazlar.find((c) => c.ad === duzenleForm.cihaz?.ad)?.id}
-                items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
-              >
-                <SelectTrigger id={`cihaz-${islem.id}`} className="w-full">
-                  <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {cihazlar.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.ad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`parasut-${islem.id}`}>Paraşüt Hizmet Kodu</Label>
-              <Input
-                id={`parasut-${islem.id}`}
-                name="parasut_hizmet_kodu"
-                defaultValue={duzenleForm.parasut_hizmet_kodu ?? ""}
                 disabled={isPending}
               />
             </div>
@@ -156,15 +151,13 @@ export function IslemSatiri({
   return (
     <li className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col">
-        <span className={`font-medium ${islem.aktif ? "" : "text-zinc-400 line-through"}`}>
-          {islem.ad}
+        <span className={`font-medium ${paket.aktif ? "" : "text-zinc-400 line-through"}`}>
+          {paket.ad}
         </span>
         <span className="text-zinc-600 dark:text-zinc-400">
-          {islem.islem_kategori?.ad ?? "—"} · {islem.fiyat.toLocaleString("tr-TR", {
-            style: "currency",
-            currency: "TRY",
-          })}{" "}
-          (KDV %{islem.kdv_orani})
+          {paket.islem_tanimi?.ad ?? "—"} · {paket.seans_sayisi} seans · {paket.gecerlilik_gun} gün ·{" "}
+          {paket.fiyat.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })} (KDV %
+          {paket.kdv_orani})
         </span>
       </div>
       {duzenlenebilir && (
@@ -175,17 +168,17 @@ export function IslemSatiri({
             variant="outline"
             disabled={aktifPending}
             onClick={() =>
-              startAktifTransition(() => islemTanimiAktifDurumDegistir(islem.id, !islem.aktif))
+              startAktifTransition(() => paketAktifDurumDegistir(paket.id, !paket.aktif))
             }
           >
-            {islem.aktif ? "Pasife al" : "Aktifleştir"}
+            {paket.aktif ? "Pasife al" : "Aktifleştir"}
           </Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
             onClick={() => {
-              setDuzenleForm(islem);
+              setDuzenleForm(paket);
               setDuzenleniyor(true);
             }}
           >

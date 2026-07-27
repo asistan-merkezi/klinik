@@ -33,7 +33,12 @@ export function IslemFormu({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="islem_kategori_id">Kategori</Label>
-          <Select name="islem_kategori_id" required disabled={isPending}>
+          <Select
+            name="islem_kategori_id"
+            required
+            disabled={isPending}
+            items={kategoriler.map((k) => ({ value: k.id, label: k.ad }))}
+          >
             <SelectTrigger id="islem_kategori_id" className="w-full">
               <SelectValue placeholder="Kategori seçin" />
             </SelectTrigger>
@@ -69,7 +74,11 @@ export function IslemFormu({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="gerekli_cihaz_id">Gerekli Cihaz (opsiyonel)</Label>
-          <Select name="gerekli_cihaz_id" disabled={isPending || cihazlar.length === 0}>
+          <Select
+            name="gerekli_cihaz_id"
+            disabled={isPending || cihazlar.length === 0}
+            items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
+          >
             <SelectTrigger id="gerekli_cihaz_id" className="w-full">
               <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
             </SelectTrigger>
