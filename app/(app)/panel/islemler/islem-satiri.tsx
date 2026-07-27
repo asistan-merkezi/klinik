@@ -126,6 +126,15 @@ export function IslemSatiri({
                 disabled={isPending}
               />
             </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`muhasebe-${islem.id}`}>Muhasebe Hizmet İsmi</Label>
+              <Input
+                id={`muhasebe-${islem.id}`}
+                name="muhasebe_hizmet_ismi"
+                defaultValue={duzenleForm.muhasebe_hizmet_ismi ?? ""}
+                disabled={isPending}
+              />
+            </div>
           </div>
 
           {durum && (

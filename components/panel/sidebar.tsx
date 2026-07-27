@@ -20,7 +20,8 @@ import {
   MessageCircle,
   Tablet,
   ShieldCheck,
-  CreditCard,
+  RefreshCw,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cikisYap } from "@/app/(app)/panel/actions";
@@ -50,7 +51,8 @@ const GRUPLAR = [
     label: "Ayarlar",
     icon: Settings,
     ogeler: [
-      { href: "/panel/ayarlar/parasut", label: "Paraşüt", icon: CreditCard },
+      { href: "/panel/ayarlar/sirket-bilgileri", label: "Şirket Bilgileri", icon: Building2 },
+      { href: "/panel/ayarlar/muhasebe-sync", label: "Muhasebe Sync", icon: RefreshCw },
       { href: "/panel/ayarlar/whatsapp", label: "WhatsApp", icon: MessageCircle },
       { href: "/panel/tablet", label: "Tablet", icon: Tablet },
       { href: "/panel/ayarlar/yetkilendirme", label: "Yetkilendirme", icon: ShieldCheck },

@@ -96,6 +96,11 @@ export function IslemFormu({
           <Label htmlFor="parasut_hizmet_kodu">Paraşüt Hizmet Kodu (opsiyonel)</Label>
           <Input id="parasut_hizmet_kodu" name="parasut_hizmet_kodu" disabled={isPending} />
         </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="muhasebe_hizmet_ismi">Muhasebe Hizmet İsmi (opsiyonel)</Label>
+          <Input id="muhasebe_hizmet_ismi" name="muhasebe_hizmet_ismi" disabled={isPending} />
+        </div>
       </div>
 
       {durum && (

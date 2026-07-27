@@ -4,6 +4,7 @@ export type IslemTanimiSatir = {
   fiyat: number;
   kdv_orani: number;
   parasut_hizmet_kodu: string | null;
+  muhasebe_hizmet_ismi: string | null;
   aktif: boolean;
   islem_kategori: { ad: string } | null;
   cihaz: { ad: string } | null;

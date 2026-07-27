@@ -14,6 +14,7 @@ const islemSemasi = z.object({
   fiyat: z.coerce.number().min(0, "Fiyat 0'dan küçük olamaz."),
   kdv_orani: z.coerce.number().min(0, "KDV 0-100 arasında olmalı.").max(100, "KDV 0-100 arasında olmalı."),
   parasut_hizmet_kodu: z.string().trim().optional(),
+  muhasebe_hizmet_ismi: z.string().trim().optional(),
 });
 
 async function klinikIdGetir() {
@@ -43,6 +44,7 @@ function ayristir(formData: FormData) {
     fiyat: formData.get("fiyat"),
     kdv_orani: formData.get("kdv_orani"),
     parasut_hizmet_kodu: formData.get("parasut_hizmet_kodu") ?? "",
+    muhasebe_hizmet_ismi: formData.get("muhasebe_hizmet_ismi") ?? "",
   });
 }
 
@@ -60,8 +62,15 @@ export async function islemTanimiOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, islem_kategori_id, gerekli_cihaz_id, fiyat, kdv_orani, parasut_hizmet_kodu } =
-    ayristirma.data;
+  const {
+    ad,
+    islem_kategori_id,
+    gerekli_cihaz_id,
+    fiyat,
+    kdv_orani,
+    parasut_hizmet_kodu,
+    muhasebe_hizmet_ismi,
+  } = ayristirma.data;
 
   const { error } = await supabase.from("islem_tanimi").insert({
     klinik_id: klinikId,
@@ -71,6 +80,7 @@ export async function islemTanimiOlustur(
     fiyat,
     kdv_orani,
     parasut_hizmet_kodu: parasut_hizmet_kodu ? parasut_hizmet_kodu : null,
+    muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
   });
 
   if (error) {
@@ -100,8 +110,15 @@ export async function islemTanimiGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, islem_kategori_id, gerekli_cihaz_id, fiyat, kdv_orani, parasut_hizmet_kodu } =
-    ayristirma.data;
+  const {
+    ad,
+    islem_kategori_id,
+    gerekli_cihaz_id,
+    fiyat,
+    kdv_orani,
+    parasut_hizmet_kodu,
+    muhasebe_hizmet_ismi,
+  } = ayristirma.data;
 
   const { error } = await supabase
     .from("islem_tanimi")
@@ -112,6 +129,7 @@ export async function islemTanimiGuncelle(
       fiyat,
       kdv_orani,
       parasut_hizmet_kodu: parasut_hizmet_kodu ? parasut_hizmet_kodu : null,
+      muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
     })
     .eq("id", islemId);
 

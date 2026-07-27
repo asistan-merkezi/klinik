@@ -137,17 +137,26 @@ export async function faturaTetikle(faturaId: string): Promise<SonucDurumu> {
     return { success: false, message: "Fatura bulunamadı." };
   }
 
-  // Paraşüt hesap/kimlik bilgisi henüz yok (bkz. CLAUDE.md); gerçek entegrasyon
-  // yazılana kadar fatura durumu "bekliyor" kalır, otomatik/varsayılan bir
-  // yeniden deneme yapılmaz (accounting-sync kuralı).
-  if (!process.env.PARASUT_CLIENT_ID) {
+  const { data: entegrasyon } = await supabase
+    .from("klinik_muhasebe_entegrasyonu")
+    .select("baglanti_durumu")
+    .maybeSingle();
+
+  if (entegrasyon?.baglanti_durumu !== "baglandi") {
     return {
       success: false,
-      message: "Paraşüt bağlantısı henüz kurulmadı. Hesap bilgileri eklenince bu buton faturayı otomatik kesecek.",
+      message: "Muhasebe Sync henüz bağlı değil. Ayarlar > Muhasebe Sync'ten Paraşüt bilgilerini girin.",
     };
   }
 
-  return { success: false, message: "Fatura kesilemedi, lütfen tekrar deneyin." };
+  // Kimlik bilgisi girilmiş olsa da gerçek Paraşüt API client'ı henüz yazılmadı
+  // (bkz. CLAUDE.md — resmi API dokümantasyonu bu ortamdan doğrulanamadı);
+  // fatura durumu "bekliyor" kalır, otomatik/varsayılan bir yeniden deneme
+  // yapılmaz (accounting-sync kuralı).
+  return {
+    success: false,
+    message: "Muhasebe Sync bağlı ama Paraşüt API entegrasyonu henüz yazılmadı, fatura otomatik kesilemiyor.",
+  };
 }
 
 type PortalSonucu = { success: boolean; message: string; geciciSifre?: string } | null;
