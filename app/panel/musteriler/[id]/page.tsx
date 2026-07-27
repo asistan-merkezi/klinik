@@ -1,0 +1,176 @@
+import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { MusteriSatir } from "@/types/musteri";
+import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
+import { YONTEM_ETIKETLERI } from "@/types/odeme";
+import { OdemeFormu } from "./odeme-formu";
+
+export default async function MusteriDetaySayfasi({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: musteri } = await supabase
+    .from("musteri")
+    .select("id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu")
+    .eq("id", id)
+    .single<MusteriSatir>();
+
+  if (!musteri) {
+    notFound();
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol")
+    .eq("id", user.id)
+    .single();
+
+  const duzenlenebilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
+
+  const [paketSatisSonucu, odemeSonucu, islemTanimiSonucu, paketSonucu] = await Promise.all([
+    supabase
+      .from("paket_satis")
+      .select("id, kalan_adet, gecerlilik_bitis_tarihi, durum, paket(ad, seans_sayisi)")
+      .eq("musteri_id", id)
+      .eq("durum", "aktif")
+      .order("gecerlilik_bitis_tarihi")
+      .returns<PaketSatisSatir[]>(),
+    supabase
+      .from("odeme")
+      .select(
+        "id, created_at, iskonto_tutari, faturali, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad), paket_satis(paket(ad))), odeme_satiri(yontem, tutar)"
+      )
+      .eq("musteri_id", id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .returns<OdemeGecmisSatir[]>(),
+    supabase.from("islem_tanimi").select("id, ad, fiyat, kdv_orani").eq("aktif", true).order("ad"),
+    supabase.from("paket").select("id, ad, fiyat, kdv_orani").eq("aktif", true).order("ad"),
+  ]);
+
+  const aktifPaketler = paketSatisSonucu.data ?? [];
+  const odemeGecmisi = odemeSonucu.data ?? [];
+
+  const satilabilirUrunler: SatilabilirUrun[] = [
+    ...(islemTanimiSonucu.data ?? []).map((i) => ({
+      id: i.id,
+      ad: i.ad,
+      tur: "islem" as const,
+      fiyat: i.fiyat,
+      kdv_orani: i.kdv_orani,
+    })),
+    ...(paketSonucu.data ?? []).map((p) => ({
+      id: p.id,
+      ad: p.ad,
+      tur: "paket" as const,
+      fiyat: p.fiyat,
+      kdv_orani: p.kdv_orani,
+    })),
+  ];
+
+  return (
+    <div className="flex-1 bg-zinc-50 dark:bg-black p-4 sm:p-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold">{musteri.ad_soyad}</h1>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">{musteri.telefon}</p>
+          </div>
+          <Button variant="outline" nativeButton={false} render={<Link href="/panel/musteriler">Müşterilere dön</Link>} />
+        </header>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Aktif Paketler</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {aktifPaketler.length === 0 ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">Aktif paketi yok.</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+                {aktifPaketler.map((ps) => (
+                  <li key={ps.id} className="flex items-center justify-between py-3 text-sm">
+                    <span className="font-medium">{ps.paket?.ad ?? "—"}</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      {ps.kalan_adet}/{ps.paket?.seans_sayisi ?? "?"} hak kaldı · son kullanım{" "}
+                      {new Date(ps.gecerlilik_bitis_tarihi).toLocaleDateString("tr-TR")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        {duzenlenebilir && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Ödeme Al</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <OdemeFormu musteriId={musteri.id} urunler={satilabilirUrunler} />
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Ödeme Geçmişi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {odemeGecmisi.length === 0 ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">Henüz ödeme yok.</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+                {odemeGecmisi.map((odeme) => {
+                  const kalemAdlari = odeme.odeme_kalemi
+                    .map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—")
+                    .join(", ");
+                  const toplam = odeme.odeme_satiri.reduce((acc, s) => acc + s.tutar, 0);
+                  const yontemler = odeme.odeme_satiri
+                    .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
+                    .join(" + ");
+
+                  return (
+                    <li key={odeme.id} className="flex flex-col gap-1 py-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{kalemAdlari}</span>
+                        <span>
+                          {toplam.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
+                        </span>
+                      </div>
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                        {new Date(odeme.created_at).toLocaleString("tr-TR")} · {yontemler || "—"} ·{" "}
+                        {odeme.faturali ? "Faturalı" : "Faturasız"}
+                        {odeme.iskonto_tutari > 0 &&
+                          ` · İskonto ${odeme.iskonto_tutari.toLocaleString("tr-TR", {
+                            style: "currency",
+                            currency: "TRY",
+                          })}`}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

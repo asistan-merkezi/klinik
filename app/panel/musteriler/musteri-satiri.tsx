@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,6 +120,12 @@ export function MusteriSatiri({ musteri }: { musteri: MusteriSatir }) {
             KVKK onayı al
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          nativeButton={false}
+          render={<Link href={`/panel/musteriler/${musteri.id}`}>Detay</Link>}
+        />
         <Button
           type="button"
           size="sm"
