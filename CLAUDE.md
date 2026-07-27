@@ -21,7 +21,8 @@ Projeye özgü ek entegrasyonlar:
 - `klinik` — tenant; her klinik ayrı kayıt; subdomain/custom_domain (beyaz etiket), created_at, plan_turu (starter/pro/enterprise), plan_bitis_tarihi, logo_url, marka_renkleri (JSONB)
 - `kullanici` — roller kesinleşti: `super_admin` (platform yöneticisi), `klinik_admin` (klinik sahibi — finans/rapor/personel), `resepsiyon` (kayıt/randevu/ödeme/check-in/WhatsApp), `terapist` (kendi randevuları/seans notları/VAS/hakedişleri); last_active_at (aktiflik takibi)
 - `personel` — tüm çalışanlar (terapist dahil): görev, maaş, ekstra ücretler, fazla mesai, rol ve yetkilendirme
-- `terapist` — personelin terapist rolündeki alt kümesi; performans metrikleri (günlük/haftalık/aylık işlem) ve maaş hesaplama parametreleri burada tutulur
+- `terapist` — personelin terapist rolündeki alt kümesi; maaş hesaplama parametreleri (`maas_hesaplama_modeli`, `prim_sabit_tutar`, `baraj_seans_sayisi`, `baraj_bonus_tutari`) burada tutulur
+- `personel_ekstra_hakedis` — bordroya eklenen yol/yemek/mesai/diğer ek hakedişler; personel + tarih + tutar
 - `musteri` — hasta kaydı; `kvkk_onay_tarihi`, `ozel_nitelikli_veri_onay_tarihi` (sağlık verisi için ayrı rıza), `whatsapp_izin_durumu`, `dogum_tarihi`, `vergi_no`/`vergi_dairesi`/`unvan` (kurumsal hasta), `parasut_contact_id` (cari eşleme — tekrar oluşturulmaz) alanları (ilk kayıtta SMS/QR ile tek tıkla onay)
 - `musteri_veli` — 18 yaş altı hasta için veli bilgisi (ad, telefon, yakınlık); onam formunda veli imzası desteklenir
 - `musteri_veri_talebi` — KVKK silme/anonimleştirme talebi + durum + tarih; `klinik_ayarlar`'da `veri_saklama_suresi_yil`
@@ -152,35 +153,34 @@ Paraşüt fatura kuyruğu kuruldu (`fatura` tablosu + `odeme_olustur`'a faturali
 Not (teknik keşif): Bu sandbox'tan Supabase Postgres'ine doğrudan bağlantı (`supabase db push --db-url`) IPv6 kısıtlaması ve yanlış pooler domaini (`.co` değil `.com` olmalı, örn. `aws-0-eu-central-1.pooler.supabase.com`) yüzünden başarısız oluyordu; doğru pooler host + port 5432 (session mode, 6543 transaction-mode "prepared statement already exists" hatası veriyor) ile migration'lar buradan da push edilebiliyor — artık Dashboard SQL Editor'e elle yapıştırmaya gerek yok.
 Not (teknik keşif): Base UI `Select`, değer programatik set edildiğinde (düzenleme formu, submit sonrası) `items` prop'u verilmeden ham value/UUID gösteriyor — yeni her Select kullanımında `items={liste.map(x => ({ value: x.id, label: x.ad }))}` eklenmeli, yoksa etiket bozuk görünür (veri doğru kaydedilir, sadece görünüm bozuk).
 Not (mimari): Uygulamada ilk kez çoklu tablo yazan bir işlem (`odeme_olustur`) gerektiği için Postgres RPC fonksiyonu (plpgsql, SECURITY DEFINER) kullanıldı — önceki tüm mutasyonlar tek tablo insert/update'ti (randevu çakışması bile DB exclusion constraint + tek insert ile çözülüyor). Gelecekte benzer çok-tablolu atomik ihtiyaçlarda (örn. paket iade akışı) aynı RPC deseni izlenmeli.
-Sprint 3+ fikirleri: Terapist maaş + performans modülü + Müşteri Portalı; çok kanallı bildirim merkezi (WhatsApp/portal/e-posta/SMS), AI destekli seans önerisi, çalışan puantaj+vardiya yönetimi, beyaz etiket tema özelleştirme.
+Terapist Maaş + Performans modülü tamamlandı (migration `20260727180000`): `terapist`e prim/baraj kolonları, `personel_ekstra_hakedis` tablosu (yol/yemek/mesai/diğer) + RLS eklendi. Panel: `/panel/personel` (liste) ve `/panel/personel/[id]` (terapist için gün/hafta/seçili-ay tamamlanan seans sayısı, maaş breakdown, maaş ayarları formu ve hakediş ekleme klinik_admin'e açık, kendi verisini görme terapistin kendisine açık). Prim hesabı bilinçli olarak SEANS SAYISI bazlı (sabit ₺X/seans veya baraj-üstü bonus) — `odeme_kalemi` herhangi bir randevu/terapiste bağlı değil (ödeme müşteri bazında alınır, seans bazında değil), bu yüzden ciro yüzdesi (%X) prim modeli bu turda kapsam dışı (kullanıcı kararı); gerekirse ileride `odeme_kalemi`ye `randevu_id` eklenerek çözülebilir.
+Sprint 3+ fikirleri: Müşteri Portalı; çok kanallı bildirim merkezi (WhatsApp/portal/e-posta/SMS), AI destekli seans önerisi, çalışan puantaj+vardiya yönetimi, beyaz etiket tema özelleştirme.
 Açık sorular: WhatsApp sağlayıcı hesabı (Meta Business/numara) kurulumu yapılmadı; yüz tanıma ile check-in fikri (opsiyonel) değerlendirme aşamasında; sarf malzeme stok yönetimi kapsamı (fiziksel envanter mi, sadece uyarı mı) netleşmedi; çoklu şube modeli ertelendi — şimdilik tek şube varsayılıyor, ileride karar verilecek (öneri: şube = ayrı klinik kaydı, parent_klinik_id ile gruplama).
 Onaylandı: `islem_tanimi`'ye kategori alanı eklendi; klinikte uygulanan tedaviler netleşti (Fizyoterapi ve rehabilitasyon, Manuel terapi, Sporcu Recovery, G8 Terapi, Emscult Terapi, Footbalance ayak taban analizi, 3D Skolyoz Terapi). G8, Emscult, Footbalance ve 3D Skolyoz için `cihaz` kayıtlarının açılması gerekiyor — henüz cihaz modelleri/marka bilgisi netleşmedi.
 
-## Rakip Analizi — Özellik Gap Analizi (Medicasimple benzeri diş/klinik yazılımı plan karşılaştırması incelendi)
+## Rakip Analizi — Özellik Gap Analizi (Medicasimple benzeri diş/klinik yazılımı incelendi)
 
-**Zaten karşılanıyor** (şemada/kurallarda karşılığı var, ek iş gerekmiyor): Takvim/randevu yönetimi, mobil PWA, onam formları, randevu hatırlatıcıları (WhatsApp kademeli), e-fatura (Paraşüt), self servis müşteri portalı, çoklu klinik (multi-tenant), IP/erişim kısıtlaması yerine RLS+rol bazlı yetkilendirme, hasta profilleri/dosyaları, akıllı arama (pg_trgm), hekim/terapist prim hesaplayıcı (3 model), stok yönetimi, gider tarafı kısmen (kasa_kapanis), raporlama (KPI dashboard), self check-in (QR/NFC), online randevu, beyaz etiket (subdomain/custom_domain), CRM/3.parti entegrasyon altyapısı kısmen (Paraşüt, WhatsApp).
+Zaten karşılanıyor: Takvim/randevu, mobil PWA, onam formları, kademeli WhatsApp hatırlatıcı, e-fatura (Paraşüt), müşteri portalı, multi-tenant, RLS+rol bazlı yetkilendirme, hasta profilleri, pg_trgm arama, 3 model prim hesaplayıcı, stok yönetimi, kısmi gider takibi (kasa_kapanis), KPI dashboard, QR/NFC self check-in, online randevu, beyaz etiket, kısmi 3.parti entegrasyon (Paraşüt, WhatsApp).
 
-**Gerçek eksikler — değerlendirilecek/eklenecek:**
-- **E-Nabız Entegrasyonu**: T.C. Sağlık Bakanlığı sistemine hasta verisi/rapor paylaşımı; fizyoterapi kliniği için mevzuat açısından önemli olabilir — araştırılmalı, kapsam netleşince `api-integration` skill'iyle planlanacak
-- **Recall otomasyonu**: belirli süredir gelmeyen/paketi biten hastaya otomatik "geri kazanım" mesajı — `bekleme_listesi`den farklı, ayrı bir otomasyon (örn. `mv_hasta_aktiflik` churn view'ından beslenebilir)
-- **Randevu Anketi Otomasyonu**: seans sonrası memnuniyet anketi (WhatsApp/portal üzerinden)
-- **İtibar Yönetimi**: memnun hastadan otomatik Google/harita yorumu isteme akışı
-- **Fırsat Raporları**: bitmek üzere olan paket/yenileme potansiyeli olan hasta listesi (satış fırsatı raporu — mevcut "paket biterse yenileme teklif mesajı" iş kuralının raporlama tarafı eksik)
-- **Hasta Segmentleri**: pazarlama amaçlı hasta gruplama (örn. şikayet bölgesi, sadakat seviyesi, son ziyaret) — kampanya/toplu mesaj hedeflemede kullanılabilir
-- **Online Ödeme Linki / SMS-QR ile Ödeme**: mevcut ödeme akışı kliniğe fiziksel gelişi varsayıyor; uzaktan ödeme linki (WhatsApp/SMS ile gönderilen ödeme linki) eksik — `payment-integration` skill kapsamında değerlendirilecek
-- **Gider Modülü / Ön Muhasebe Modülü**: şu an sadece `kasa_kapanis` var; genel gider takibi (kira, malzeme alımı, personel dışı harcama) ve basit ön muhasebe raporu yok
-- **Çok Dilli Tedavi Planı**: i18n genel arayüz için planlı ama hasta tedavi planı/raporunun çok dilli çıktısı ayrı bir ihtiyaç (yabancı hasta senaryosu)
-- **Özel SMS Başlığı / Özel E-posta Alan Adı**: beyaz etiket kapsamına bildirim gönderici kimliği (sender ID/domain) eklenmemiş
-- **API Erişimi (dış geliştiriciye)** / **Zapier & Make Entegrasyonu**: şu an sadece dahili entegrasyonlar (Paraşüt, WhatsApp) planlı; üçüncü taraf otomasyon platformlarına açık API yok
-- **Üçüncü Taraf Santral (çağrı merkezi) Entegrasyonu**: gelen çağrıda otomatik hasta kartı açma — küçük klinik için düşük öncelik, not olarak bırakıldı
+Gerçek eksikler (henüz sprint'e alınmadı, önceliklendirme kullanıcıyla yapılacak):
+- E-Nabız entegrasyonu (mevzuat açısından araştırılmalı, kapsam netleşince `api-integration`)
+- Recall otomasyonu: paketi biten/uzun süredir gelmeyen hastaya otomatik mesaj (`bekleme_listesi`den ayrı; `mv_hasta_aktiflik` churn view'ından beslenebilir)
+- Seans sonrası memnuniyet anketi otomasyonu
+- İtibar yönetimi: memnun hastadan otomatik Google/harita yorumu isteme
+- Fırsat raporu: bitmek üzere olan paket/yenileme potansiyeli olan hasta listesi
+- Hasta segmentleri (pazarlama amaçlı gruplama — şikayet bölgesi, sadakat, son ziyaret)
+- Online ödeme linki / SMS-QR ile ödeme (`payment-integration`)
+- Gider/ön muhasebe modülü (şu an sadece kasa_kapanis var)
+- Çok dilli tedavi planı/rapor çıktısı (yabancı hasta senaryosu)
+- Beyaz etikette özel SMS başlığı/e-posta alan adı
+- Dış geliştiriciye API erişimi / Zapier-Make entegrasyonu
+- Çağrı merkezi entegrasyonu (düşük öncelik)
 
-**İlgisiz (atlanacak)**: incelenen ürün diş kliniği odaklı olduğundan "Diş Şeması", "Laboratuvar Vaka Takibi" gibi diş hekimliğine özgü maddeler Muayene Asistanı kapsamı dışında (fizyoterapi eşdeğeri zaten `seans_notu`'ndaki vücut haritası ile karşılanıyor).
-
-Bu gap analizindeki maddeler henüz sprint'e alınmadı — önceliklendirme kullanıcıyla birlikte yapılacak.
+İlgisiz: diş hekimliğine özgü maddeler (Diş Şeması, Lab Vaka Takibi) kapsam dışı — fizyoterapi eşdeğeri `seans_notu` vücut haritasıyla zaten karşılanıyor.
 
 ## İş Modeli Notları
 - SaaS fiyatlandırması klinik büyüklüğüne göre kademeli olacak (1-3 / 4-8 / 9+ terapist); beyaz etiket seçeneği düşünülüyor
 - Asistan Merkezi çatısı altında kliniklerden anonimleştirilmiş veri toplayıp pazarlama amaçlı sektör istatistik raporu çıkarma fikri var
 - İleride React Native ile terapist+hasta mobil uygulaması düşünülüyor (PWA temelinden native'e geçiş)
 
-Son güncelleme: 2026-07-27 (sprint 2 tamamlandı + Paraşüt fatura kuyruğu altyapısı kuruldu, gerçek client hesap/doküman bekliyor)
+Son güncelleme: 2026-07-27 (Terapist Maaş + Performans modülü tamamlandı; sprint 2 + Paraşüt fatura kuyruğu önceki turdan)

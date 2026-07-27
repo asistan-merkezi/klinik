@@ -62,6 +62,7 @@ export default async function PanelSayfasi() {
             <Button nativeButton={false} render={<Link href="/panel/kaynaklar">Oda/Cihaz</Link>} />
             <Button nativeButton={false} render={<Link href="/panel/islemler">İşlemler</Link>} />
             <Button nativeButton={false} render={<Link href="/panel/paketler">Paketler</Link>} />
+            <Button nativeButton={false} render={<Link href="/panel/personel">Personel</Link>} />
             <Button nativeButton={false} render={<Link href="/panel/tablet">Tablet</Link>} />
             <form action={cikisYap}>
               <Button type="submit" variant="outline">
