@@ -106,3 +106,41 @@ export async function odemeAl(
   revalidatePath(`/panel/musteriler/${musteriId}`);
   return { success: true, message: "Ödeme alındı." };
 }
+
+export async function faturaTetikle(faturaId: string): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol")
+    .eq("id", user.id)
+    .single();
+
+  if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "resepsiyon") {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { data: fatura } = await supabase.from("fatura").select("id").eq("id", faturaId).single();
+  if (!fatura) {
+    return { success: false, message: "Fatura bulunamadı." };
+  }
+
+  // Paraşüt hesap/kimlik bilgisi henüz yok (bkz. CLAUDE.md); gerçek entegrasyon
+  // yazılana kadar fatura durumu "bekliyor" kalır, otomatik/varsayılan bir
+  // yeniden deneme yapılmaz (accounting-sync kuralı).
+  if (!process.env.PARASUT_CLIENT_ID) {
+    return {
+      success: false,
+      message: "Paraşüt bağlantısı henüz kurulmadı. Hesap bilgileri eklenince bu buton faturayı otomatik kesecek.",
+    };
+  }
+
+  return { success: false, message: "Fatura kesilemedi, lütfen tekrar deneyin." };
+}

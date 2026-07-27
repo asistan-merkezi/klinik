@@ -7,6 +7,7 @@ import type { MusteriSatir } from "@/types/musteri";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import { OdemeFormu } from "./odeme-formu";
+import { FaturaDurum } from "./fatura-durum";
 
 export default async function MusteriDetaySayfasi({
   params,
@@ -53,7 +54,7 @@ export default async function MusteriDetaySayfasi({
     supabase
       .from("odeme")
       .select(
-        "id, created_at, iskonto_tutari, faturali, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad), paket_satis(paket(ad))), odeme_satiri(yontem, tutar)"
+        "id, created_at, iskonto_tutari, faturali, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad), paket_satis(paket(ad))), odeme_satiri(yontem, tutar), fatura(id, durum, e_arsiv_pdf_url, hata_mesaji)"
       )
       .eq("musteri_id", id)
       .order("created_at", { ascending: false })
@@ -163,6 +164,7 @@ export default async function MusteriDetaySayfasi({
                             currency: "TRY",
                           })}`}
                       </span>
+                      {odeme.fatura.length > 0 && <FaturaDurum fatura={odeme.fatura[0]} />}
                     </li>
                   );
                 })}

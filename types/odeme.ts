@@ -22,6 +22,15 @@ export type PaketSatisSatir = {
   paket: { ad: string; seans_sayisi: number } | null;
 };
 
+export type FaturaDurumu = "bekliyor" | "kesildi" | "hata";
+
+export type FaturaSatir = {
+  id: string;
+  durum: FaturaDurumu;
+  e_arsiv_pdf_url: string | null;
+  hata_mesaji: string | null;
+};
+
 export type OdemeGecmisSatir = {
   id: string;
   created_at: string;
@@ -34,4 +43,5 @@ export type OdemeGecmisSatir = {
     paket_satis: { paket: { ad: string } | null } | null;
   }[];
   odeme_satiri: { yontem: OdemeYontemi; tutar: number }[];
+  fatura: FaturaSatir[];
 };
