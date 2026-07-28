@@ -39,6 +39,9 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-primary-hover: var(--primary-hover);
+  --color-surface-2: var(--surface-2);
+  --color-input-bg: var(--input-bg);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,38 +52,44 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  /* Açık tema paleti (kullanıcı kararı, 2026-07-28) — krem zemin + adaçayı
+     sidebar + mavi vurgu. .dark bu bloktan tamamen bağımsız, dokunulmadı. */
+  --background: #F6F1E4;
+  --foreground: #1B2430;
+  --card: #E9F0F6;
+  --card-foreground: #1B2430;
+  --popover: #FFFFFF;
+  --popover-foreground: #1B2430;
+  --primary: #2E6FB7;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #255C9A;
+  --secondary: #E9F0F6;
+  --secondary-foreground: #1B2430;
+  --muted: #E9F0F6;
+  --muted-foreground: #5B6672;
+  /* Belirtilmemiş, primary'den türetildi (hover/odak vurgusu için soluk mavi). */
+  --accent: #DCEAF5;
+  --accent-foreground: #1B2430;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: #D6DEE6;
+  --input: #D6DEE6;
+  --input-bg: #FFFFFF;
+  --ring: #2E6FB7;
+  --surface-2: #FFFFFF;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #DCE8DD;
+  --sidebar-foreground: #1B2430;
+  --sidebar-primary: #BFD4C2;
+  --sidebar-primary-foreground: #1B2430;
+  --sidebar-accent: #CDDECF;
+  --sidebar-accent-foreground: #1B2430;
+  --sidebar-border: #CDDECF;
+  --sidebar-ring: #2E6FB7;
 }
 
 .dark {
@@ -94,6 +103,7 @@
   --popover-foreground: #f8fafc;
   --primary: #00f2fe;
   --primary-foreground: #090d16;
+  --primary-hover: #22d3ee;
   --secondary: #0f172a;
   --secondary-foreground: #f8fafc;
   --muted: #0f172a;
@@ -103,7 +113,9 @@
   --destructive: #f43f5e;
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
+  --input-bg: transparent;
   --ring: #00f2fe;
+  --surface-2: #1e293b;
   --chart-1: #22d3ee;
   --chart-2: #10b981;
   --chart-3: #f59e0b;
@@ -113,7 +125,10 @@
   --sidebar-foreground: #f8fafc;
   --sidebar-primary: #00f2fe;
   --sidebar-primary-foreground: #090d16;
-  --sidebar-accent: #24344a;
+  /* Eskiden bu sidebar hover'ı bg-muted kullanıyordu; aynı görünümü korumak
+     için --muted ile aynı değer (stok #24344a'dan farklıydı, değiştirmeyip
+     korumak amacıyla eşitlendi). */
+  --sidebar-accent: #0f172a;
   --sidebar-accent-foreground: #f8fafc;
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #00f2fe;

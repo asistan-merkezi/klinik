@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MusteriSatir } from "@/types/musteri";
 import { MusteriFormu } from "./musteri-formu";
 import { MusteriSatiri } from "./musteri-satiri";
+import { MusteriAramaKutusu } from "./musteri-arama-kutusu";
 
 export default async function MusterilerSayfasi({
   searchParams,
@@ -76,18 +77,7 @@ export default async function MusterilerSayfasi({
             <CardTitle>Kayıtlı Müşteriler</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <form method="get" className="flex gap-2">
-              <Input
-                name="q"
-                type="search"
-                placeholder="Ad soyad veya telefon ile ara"
-                defaultValue={arama}
-                className="max-w-sm"
-              />
-              <Button type="submit" variant="outline">
-                Ara
-              </Button>
-            </form>
+            <MusteriAramaKutusu baslangic={arama} />
 
             {error && (
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>

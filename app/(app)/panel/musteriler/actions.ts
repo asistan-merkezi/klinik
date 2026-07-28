@@ -81,6 +81,19 @@ export async function musteriOlustur(
   const { ad_soyad, telefon, dogum_tarihi, whatsapp_izin_durumu } = ayristirma.data;
   const { kimlik_no, kimlik_no_tipi, ticari_ileti_onay } = kimlikAyristirma.data;
 
+  if (kimlik_no) {
+    const { data: mevcutKimlik } = await supabase
+      .from("musteri_hassas")
+      .select("musteri_id")
+      .eq("klinik_id", klinikId)
+      .eq("kimlik_no", kimlik_no)
+      .maybeSingle();
+
+    if (mevcutKimlik) {
+      return { success: false, message: "Bu kimlik numarasına sahip bir müşteri zaten kayıtlı." };
+    }
+  }
+
   const { data: yeniMusteri, error } = await supabase
     .from("musteri")
     .insert({
@@ -106,14 +119,16 @@ export async function musteriOlustur(
       kimlik_no_tipi: kimlik_no_tipi ?? "tc",
     });
     if (hassasError) {
+      // Ön kontrole rağmen eşzamanlı kayıt yüzünden yine de çakıştıysa, yarım kalmış
+      // (kimliksiz) müşteri kaydını bırakmamak için oluşturulan musteri satırı geri alınır.
+      await supabase.from("musteri").delete().eq("id", yeniMusteri.id);
       console.error("Kimlik bilgisi kaydedilemedi:", hassasError);
-      revalidatePath("/panel/musteriler");
       return {
-        success: true,
+        success: false,
         message:
           hassasError.code === "23505"
-            ? "Müşteri kaydedildi ama bu kimlik no başka bir müşteride kayıtlı, kimlik bilgisi eklenemedi."
-            : "Müşteri kaydedildi ama kimlik bilgisi eklenemedi, Müşteri Detay'dan tekrar deneyin.",
+            ? "Bu kimlik numarasına sahip bir müşteri zaten kayıtlı."
+            : "Müşteri oluşturulamadı, lütfen tekrar deneyin.",
       };
     }
   }

@@ -11,6 +11,7 @@ import { OdemeFormu } from "./odeme-formu";
 import { FaturaDurum } from "./fatura-durum";
 import { PortalErisimKarti } from "./portal-erisim-karti";
 import { DetayliBilgilerKarti } from "./detayli-bilgiler-karti";
+import { MusteriBasligi } from "./musteri-basligi";
 
 export default async function MusteriDetaySayfasi({
   params,
@@ -99,12 +100,11 @@ export default async function MusteriDetaySayfasi({
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">{musteri.ad_soyad}</h1>
-            <p className="text-sm text-muted-foreground">{musteri.telefon}</p>
+        <header className="flex flex-col gap-3">
+          <div className="flex justify-end">
+            <Button variant="outline" nativeButton={false} render={<Link href="/panel/musteriler">Müşterilere dön</Link>} />
           </div>
-          <Button variant="outline" nativeButton={false} render={<Link href="/panel/musteriler">Müşterilere dön</Link>} />
+          <MusteriBasligi musteri={musteri} duzenlenebilir={duzenlenebilir} />
         </header>
 
         <Card>

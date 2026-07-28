@@ -58,7 +58,7 @@ export default async function IslemlerSayfasi() {
           </Card>
         ) : null}
 
-        <Card>
+        <Card className="bg-surface-2">
           <CardHeader>
             <CardTitle>Kayıtlı Tedaviler</CardTitle>
           </CardHeader>

@@ -89,8 +89,8 @@ export function PanelSidebar({
   }
 
   return (
-    <aside className="flex h-svh w-60 shrink-0 flex-col border-r border-border bg-card">
-      <div className="border-b border-border px-4 py-4">
+    <aside className="flex h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="border-b border-sidebar-border px-4 py-4">
         <p className="text-sm font-semibold">Klinik Asistanı</p>
         <p className="truncate text-xs text-muted-foreground">
           {kullaniciAdi} — {kullaniciRolu}
@@ -105,8 +105,8 @@ export function PanelSidebar({
             className={cn(
               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               girdiAktifMi(pathname, oge.href)
-                ? "bg-primary text-primary-foreground"
-                : "text-foreground hover:bg-muted"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent"
             )}
           >
             <oge.icon className="size-4 shrink-0" aria-hidden />
@@ -125,7 +125,7 @@ export function PanelSidebar({
                 onClick={() => grubuAcKapat(grup.key)}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  grupAktif ? "text-foreground" : "text-foreground hover:bg-muted"
+                  grupAktif ? "text-sidebar-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent"
                 )}
               >
                 <grup.icon className="size-4 shrink-0" aria-hidden />
@@ -137,7 +137,7 @@ export function PanelSidebar({
               </button>
 
               {acik && (
-                <div className="ml-4 flex flex-col gap-0.5 border-l border-border pl-3">
+                <div className="ml-4 flex flex-col gap-0.5 border-l border-sidebar-border pl-3">
                   {grup.ogeler.map((oge) => (
                     <Link
                       key={oge.href}
@@ -145,8 +145,8 @@ export function PanelSidebar({
                       className={cn(
                         "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors",
                         girdiAktifMi(pathname, oge.href)
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <oge.icon className="size-3.5 shrink-0" aria-hidden />
@@ -160,10 +160,10 @@ export function PanelSidebar({
         })}
       </nav>
 
-      <form action={cikisYap} className="border-t border-border p-3">
+      <form action={cikisYap} className="border-t border-sidebar-border p-3">
         <button
           type="submit"
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <LogOut className="size-4 shrink-0" aria-hidden />
           Çıkış yap
