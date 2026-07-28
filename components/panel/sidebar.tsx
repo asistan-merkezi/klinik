@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Home,
   Users,
   CalendarDays,
   ClipboardList,
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { cikisYap } from "@/app/(app)/panel/actions";
 
 const ANA_OGELER = [
+  { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
   { href: "/panel/musteriler", label: "Müşteriler", icon: Users },
   { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
   { href: "/panel/paketler", label: "Paketler", icon: Package },
@@ -60,7 +62,10 @@ const GRUPLAR = [
   },
 ];
 
-function girdiAktifMi(pathname: string, href: string) {
+function girdiAktifMi(pathname: string, href: string, tamEslesme?: boolean) {
+  if (tamEslesme) {
+    return pathname === href;
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -104,7 +109,7 @@ export function PanelSidebar({
             href={oge.href}
             className={cn(
               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              girdiAktifMi(pathname, oge.href)
+              girdiAktifMi(pathname, oge.href, oge.tamEslesme)
                 ? "bg-sidebar-primary text-sidebar-primary-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent"
             )}
