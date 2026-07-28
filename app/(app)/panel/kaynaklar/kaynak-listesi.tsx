@@ -9,6 +9,7 @@ import type { KaynakSatir } from "@/types/kaynak";
 import {
   kaynakAdGuncelle,
   kaynakAdetGuncelle,
+  kaynakKapasiteGuncelle,
   kaynakAktifDurumDegistir,
   type KaynakTablosu,
 } from "./actions";
@@ -29,6 +30,30 @@ function AdetAlani({ kaynak }: { kaynak: KaynakSatir }) {
         onBlur={() => {
           if (adet >= 1 && adet !== kaynak.adet) {
             startTransition(() => kaynakAdetGuncelle(kaynak.id, adet));
+          }
+        }}
+        className="h-7 w-16 px-2 text-sm"
+      />
+    </div>
+  );
+}
+
+function KapasiteAlani({ kaynak }: { kaynak: KaynakSatir }) {
+  const [kapasite, setKapasite] = useState(kaynak.kapasite ?? 1);
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-muted-foreground">Kapasite</span>
+      <Input
+        type="number"
+        min={1}
+        value={kapasite}
+        disabled={isPending}
+        onChange={(e) => setKapasite(Number(e.target.value))}
+        onBlur={() => {
+          if (kapasite >= 1 && kapasite !== kaynak.kapasite) {
+            startTransition(() => kaynakKapasiteGuncelle(kaynak.id, kapasite));
           }
         }}
         className="h-7 w-16 px-2 text-sm"
@@ -95,6 +120,7 @@ function KaynakSatiri({ tablo, kaynak }: { tablo: KaynakTablosu; kaynak: KaynakS
       <span className={kaynak.aktif ? "" : "text-muted-foreground line-through"}>{kaynak.ad}</span>
       <div className="flex items-center gap-3">
         {tablo === "cihaz" && <AdetAlani kaynak={kaynak} />}
+        {tablo === "oda" && <KapasiteAlani kaynak={kaynak} />}
         <Button
           type="button"
           size="icon-sm"

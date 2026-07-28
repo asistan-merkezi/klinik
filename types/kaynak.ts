@@ -3,4 +3,5 @@ export type KaynakSatir = {
   ad: string;
   aktif: boolean;
   adet?: number;
+  kapasite?: number;
 };

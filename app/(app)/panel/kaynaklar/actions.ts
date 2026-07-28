@@ -56,7 +56,7 @@ export async function kaynakOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const kayit: { klinik_id: string; ad: string; adet?: number } = {
+  const kayit: { klinik_id: string; ad: string; adet?: number; kapasite?: number } = {
     klinik_id: klinikId,
     ad: isimBasHarfBuyukYap(ayristirma.data),
   };
@@ -68,6 +68,15 @@ export async function kaynakOlustur(
       return { success: false, message: adetAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
     }
     kayit.adet = adetAyristirma.data;
+  }
+
+  if (gecerliTablo.data === "oda") {
+    const kapasiteSemasi = z.coerce.number().int().min(1, "Kapasite en az 1 olmalı.");
+    const kapasiteAyristirma = kapasiteSemasi.safeParse(formData.get("kapasite") || 1);
+    if (!kapasiteAyristirma.success) {
+      return { success: false, message: kapasiteAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+    }
+    kayit.kapasite = kapasiteAyristirma.data;
   }
 
   const { error } = await supabase.from(gecerliTablo.data).insert(kayit);
@@ -134,6 +143,29 @@ export async function kaynakAdetGuncelle(kaynakId: string, yeniAdet: number) {
 
   if (error) {
     console.error("Cihaz adedi güncellenemedi:", error);
+    return;
+  }
+
+  revalidatePath("/panel/kaynaklar");
+  revalidatePath("/panel/randevular");
+}
+
+export async function kaynakKapasiteGuncelle(kaynakId: string, yeniKapasite: number) {
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return;
+  }
+
+  const kapasiteSemasi = z.coerce.number().int().min(1);
+  const ayristirma = kapasiteSemasi.safeParse(yeniKapasite);
+  if (!ayristirma.success) {
+    return;
+  }
+
+  const { error } = await supabase.from("oda").update({ kapasite: ayristirma.data }).eq("id", kaynakId);
+
+  if (error) {
+    console.error("Oda kapasitesi güncellenemedi:", error);
     return;
   }
 

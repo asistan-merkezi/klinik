@@ -14,6 +14,7 @@ export function KaynakFormu({ tablo, etiket }: { tablo: KaynakTablosu; etiket: s
   const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [formKey, setFormKey] = useState(0);
   const cihazMi = tablo === "cihaz";
+  const odaMi = tablo === "oda";
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
@@ -43,6 +44,20 @@ export function KaynakFormu({ tablo, etiket }: { tablo: KaynakTablosu; etiket: s
             <Input
               id={`adet-${tablo}`}
               name="adet"
+              type="number"
+              min={1}
+              defaultValue={1}
+              required
+              disabled={isPending}
+            />
+          </div>
+        )}
+        {odaMi && (
+          <div className="flex w-24 flex-col gap-2">
+            <Label htmlFor={`kapasite-${tablo}`}>Kapasite</Label>
+            <Input
+              id={`kapasite-${tablo}`}
+              name="kapasite"
               type="number"
               min={1}
               defaultValue={1}
