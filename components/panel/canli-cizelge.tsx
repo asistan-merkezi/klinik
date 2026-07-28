@@ -132,7 +132,7 @@ export function CanliCizelge({ baslangicRandevular }: { baslangicRandevular: Ran
 
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card text-card-foreground">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+      <header className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
         <div className="flex items-center gap-2">
           <Activity className="size-4 text-primary" aria-hidden />
           <h2 className="text-sm font-semibold">Günün Çizelgesi</h2>
@@ -151,74 +151,52 @@ export function CanliCizelge({ baslangicRandevular }: { baslangicRandevular: Ran
         {duyuruMetni}
       </p>
 
-      <div className="max-h-[70vh] overflow-y-auto px-4 py-4 sm:px-5">
+      <div className="max-h-[70vh] overflow-y-auto px-4 py-4 [-webkit-overflow-scrolling:touch] sm:px-5">
         {randevular.length === 0 ? (
           <p className="py-3 text-sm text-muted-foreground">Bugün için randevu yok.</p>
         ) : (
-          <>
-            {/* ≥lg: saat ızgaralı yerleşim */}
-            <div
-              className="relative hidden lg:block"
-              style={{ height: `${TOPLAM_DAKIKA * PX_PER_DAKIKA}px` }}
-            >
-              {SAAT_ETIKETLERI.map((saat, i) => (
-                <div
-                  key={saat}
-                  className="absolute inset-x-0 flex items-center"
-                  style={{ top: `${i * 60 * PX_PER_DAKIKA}px` }}
-                  aria-hidden
-                >
-                  <span className="tabular-nums w-12 shrink-0 font-mono text-xs text-muted-foreground">
-                    {String(saat).padStart(2, "0")}:00
-                  </span>
-                  <span className="h-px flex-1 bg-border" />
-                </div>
-              ))}
-
-              <div className="relative ml-12 h-full">
-                {gorunumler.map(({ randevu, durum }) => {
-                  const top = dakikaFarki(gunBaslangicMs, randevu.baslangic) * PX_PER_DAKIKA;
-                  const bitisFarki = dakikaFarki(gunBaslangicMs, randevu.bitis);
-                  const baslangicFarki = dakikaFarki(gunBaslangicMs, randevu.baslangic);
-                  const yukseklik = Math.max((bitisFarki - baslangicFarki) * PX_PER_DAKIKA - 6, 32);
-
-                  return (
-                    <div
-                      key={randevu.id}
-                      className="absolute inset-x-0"
-                      style={{ top: `${top}px`, height: `${yukseklik}px` }}
-                    >
-                      <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
-                    </div>
-                  );
-                })}
-
-                {simdi && (
-                  <SuAnCizgisi
-                    gunBaslangicMs={gunBaslangicMs}
-                    pxPerDakika={PX_PER_DAKIKA}
-                    toplamDakika={TOPLAM_DAKIKA}
-                  />
-                )}
+          <div className="relative" style={{ height: `${TOPLAM_DAKIKA * PX_PER_DAKIKA}px` }}>
+            {SAAT_ETIKETLERI.map((saat, i) => (
+              <div
+                key={saat}
+                className="absolute inset-x-0 flex items-center"
+                style={{ top: `${i * 60 * PX_PER_DAKIKA}px` }}
+                aria-hidden
+              >
+                <span className="tabular-nums w-12 shrink-0 font-mono text-xs text-muted-foreground">
+                  {String(saat).padStart(2, "0")}:00
+                </span>
+                <span className="h-px flex-1 bg-border" />
               </div>
-            </div>
+            ))}
 
-            {/* <lg: dikey liste */}
-            <ul className="flex flex-col gap-2 lg:hidden">
-              {gorunumler.map(({ randevu, durum }) => (
-                <li key={randevu.id}>
-                  {durum === "seansta" && (
-                    <div className="mb-1 flex items-center gap-2 px-1 text-xs font-semibold text-primary">
-                      <span className="h-px flex-1 bg-primary/40" />
-                      Şu an
-                      <span className="h-px flex-1 bg-primary/40" />
-                    </div>
-                  )}
-                  <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
-                </li>
-              ))}
-            </ul>
-          </>
+            <div className="relative ml-12 h-full">
+              {gorunumler.map(({ randevu, durum }) => {
+                const top = dakikaFarki(gunBaslangicMs, randevu.baslangic) * PX_PER_DAKIKA;
+                const bitisFarki = dakikaFarki(gunBaslangicMs, randevu.bitis);
+                const baslangicFarki = dakikaFarki(gunBaslangicMs, randevu.baslangic);
+                const yukseklik = Math.max((bitisFarki - baslangicFarki) * PX_PER_DAKIKA - 6, 32);
+
+                return (
+                  <div
+                    key={randevu.id}
+                    className="absolute inset-x-0"
+                    style={{ top: `${top}px`, height: `${yukseklik}px` }}
+                  >
+                    <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
+                  </div>
+                );
+              })}
+
+              {simdi && (
+                <SuAnCizgisi
+                  gunBaslangicMs={gunBaslangicMs}
+                  pxPerDakika={PX_PER_DAKIKA}
+                  toplamDakika={TOPLAM_DAKIKA}
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
 

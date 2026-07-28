@@ -83,8 +83,8 @@ export const RandevuKutusu = memo(function RandevuKutusu({
     >
       <span className={cn("absolute inset-y-0 left-0 w-[3px]", stil.serit)} aria-hidden />
 
-      <div className="flex items-start justify-between gap-2">
-        <p className={cn("truncate text-sm font-semibold text-foreground", stil.adSinif)}>
+      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+        <p className={cn("min-w-0 truncate text-base font-semibold text-foreground sm:text-sm", stil.adSinif)}>
           {randevu.musteri?.ad_soyad ?? "—"}
           <span className="tabular-nums ml-2 font-mono text-xs font-normal text-muted-foreground">
             {formatTime(randevu.baslangic)}
