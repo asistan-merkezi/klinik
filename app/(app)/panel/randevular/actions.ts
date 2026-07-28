@@ -13,6 +13,7 @@ const randevuSemasi = z.object({
   musteri_id: z.string().uuid("Müşteri seçilmeli."),
   terapist_id: z.string().uuid("Terapist seçilmeli."),
   oda_id: z.string().uuid("Oda seçilmeli."),
+  islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
   cihaz_id: z.union([z.string().uuid(), z.literal("")]).optional(),
   tarih: z.string().min(1, "Tarih gerekli."),
   saat: z.string().min(1, "Saat gerekli."),
@@ -46,6 +47,7 @@ export async function randevuOlustur(
     musteri_id: formData.get("musteri_id"),
     terapist_id: formData.get("terapist_id"),
     oda_id: formData.get("oda_id"),
+    islem_tanimi_id: formData.get("islem_tanimi_id"),
     cihaz_id: formData.get("cihaz_id") ?? "",
     tarih: formData.get("tarih"),
     saat: formData.get("saat"),
@@ -56,7 +58,7 @@ export async function randevuOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { musteri_id, terapist_id, oda_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
+  const { musteri_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
 
   let baslangicIso: string;
   try {
@@ -71,6 +73,7 @@ export async function randevuOlustur(
     musteri_id,
     terapist_id,
     oda_id,
+    islem_tanimi_id,
     cihaz_id: cihaz_id ? cihaz_id : null,
     baslangic: baslangicIso,
     bitis: bitisIso,
@@ -111,6 +114,7 @@ export async function randevuGuncelle(
     musteri_id: formData.get("musteri_id"),
     terapist_id: formData.get("terapist_id"),
     oda_id: formData.get("oda_id"),
+    islem_tanimi_id: formData.get("islem_tanimi_id"),
     cihaz_id: formData.get("cihaz_id") ?? "",
     tarih: formData.get("tarih"),
     saat: formData.get("saat"),
@@ -121,7 +125,7 @@ export async function randevuGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { musteri_id, terapist_id, oda_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
+  const { musteri_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
 
   let baslangicIso: string;
   try {
@@ -137,6 +141,7 @@ export async function randevuGuncelle(
       musteri_id,
       terapist_id,
       oda_id,
+      islem_tanimi_id,
       cihaz_id: cihaz_id ? cihaz_id : null,
       baslangic: baslangicIso,
       bitis: bitisIso,

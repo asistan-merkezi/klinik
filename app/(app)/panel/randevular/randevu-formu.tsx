@@ -21,9 +21,10 @@ type Props = {
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
+  tedaviler: SecenekSatir[];
 };
 
-export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar }: Props) {
+export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedaviler }: Props) {
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
   const bugun = formatDateForInput(new Date().toISOString());
 
@@ -61,6 +62,22 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar }: Prop
               {odalar.map((o) => (
                 <SelectItem key={o.id} value={o.id}>
                   {o.ad}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="islem_tanimi_id">Tedavi</Label>
+          <Select name="islem_tanimi_id" required disabled={isPending}>
+            <SelectTrigger id="islem_tanimi_id" className="w-full">
+              <SelectValue placeholder="Tedavi seçin" />
+            </SelectTrigger>
+            <SelectContent>
+              {tedaviler.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.ad}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -18,12 +18,19 @@ export default async function RandevularSayfasi() {
     redirect("/giris");
   }
 
-  const [randevularSonucu, musteriSonucu, terapistSonucu, odaSonucu, cihazSonucu, iptalTalepleriSonucu] =
-    await Promise.all([
+  const [
+    randevularSonucu,
+    musteriSonucu,
+    terapistSonucu,
+    odaSonucu,
+    cihazSonucu,
+    tedaviSonucu,
+    iptalTalepleriSonucu,
+  ] = await Promise.all([
       supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, created_at, musteri_id, musteri(ad_soyad), terapist_id, terapist(personel(ad_soyad)), oda_id, oda(ad), cihaz_id, olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
+          "id, baslangic, bitis, durum, created_at, musteri_id, musteri(ad_soyad), terapist_id, terapist(personel(ad_soyad)), oda_id, oda(ad), cihaz_id, islem_tanimi_id, islem_tanimi(id, ad), olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
         )
         .gte("bitis", new Date().toISOString())
         .order("baslangic")
@@ -36,6 +43,7 @@ export default async function RandevularSayfasi() {
         .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
       supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
+      supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
       supabase
         .from("randevu_iptal_talebi")
         .select("id, durum, created_at, randevu(id, baslangic, durum, musteri(ad_soyad))")
@@ -55,6 +63,7 @@ export default async function RandevularSayfasi() {
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
+  const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -82,9 +91,12 @@ export default async function RandevularSayfasi() {
             <CardTitle>Yeni Randevu</CardTitle>
           </CardHeader>
           <CardContent>
-            {musteriler.length === 0 || terapistler.length === 0 || odalar.length === 0 ? (
+            {musteriler.length === 0 ||
+            terapistler.length === 0 ||
+            odalar.length === 0 ||
+            tedaviler.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Randevu oluşturabilmek için önce müşteri, terapist ve oda kaydı gerekli.
+                Randevu oluşturabilmek için önce müşteri, terapist, oda ve tedavi tanımı kaydı gerekli.
               </p>
             ) : (
               <RandevuFormu
@@ -92,6 +104,7 @@ export default async function RandevularSayfasi() {
                 terapistler={terapistler}
                 odalar={odalar}
                 cihazlar={cihazlar}
+                tedaviler={tedaviler}
               />
             )}
           </CardContent>
@@ -120,6 +133,7 @@ export default async function RandevularSayfasi() {
                     terapistler={terapistler}
                     odalar={odalar}
                     cihazlar={cihazlar}
+                    tedaviler={tedaviler}
                   />
                 ))}
               </ul>

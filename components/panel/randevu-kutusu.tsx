@@ -17,96 +17,115 @@ export function gorunumDurumuHesapla(randevu: RandevuSatir, simdi: Date): Gorunu
 
 const DURUM_STIL: Record<
   GorunumDurumu,
-  { etiket: string; rozet: string; kart: string; serit: string; adSinif?: string }
+  { etiket: string; rozet: string; adSinif?: string; soluk?: boolean; vurgu?: string }
 > = {
-  planlandi: {
-    etiket: "Planlandı",
-    rozet: "bg-muted text-muted-foreground",
-    kart: "border-border bg-card",
-    serit: "bg-border",
-  },
-  geldi: {
-    etiket: "Geldi",
-    rozet: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    kart: "border-border bg-card",
-    serit: "bg-emerald-500",
-  },
+  planlandi: { etiket: "Planlandı", rozet: "bg-muted text-muted-foreground" },
+  geldi: { etiket: "Geldi", rozet: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   seansta: {
     etiket: "Seansta",
     rozet: "bg-primary/10 text-primary",
-    kart: "border-primary bg-primary/5",
-    serit: "bg-primary",
+    vurgu: "ring-2 ring-primary ring-offset-1 ring-offset-background",
   },
-  tamamlandi: {
-    etiket: "Tamamlandı",
-    rozet: "bg-muted text-muted-foreground",
-    kart: "border-border bg-muted/30 opacity-50",
-    serit: "bg-muted-foreground/30",
-  },
+  tamamlandi: { etiket: "Tamamlandı", rozet: "bg-muted text-muted-foreground", soluk: true },
   iptal: {
     etiket: "İptal",
     rozet: "bg-destructive/10 text-destructive",
-    kart: "border-destructive/30 bg-destructive/5 opacity-70",
-    serit: "bg-destructive",
-    adSinif: "text-muted-foreground line-through",
+    adSinif: "line-through",
+    soluk: true,
   },
   gelmedi: {
     etiket: "Gelmedi",
     rozet: "bg-destructive/10 text-destructive",
-    kart: "border-destructive/30 bg-destructive/5 opacity-70",
-    serit: "bg-destructive",
-    adSinif: "text-muted-foreground line-through",
+    adSinif: "line-through",
+    soluk: true,
   },
 };
+
+// Tedavi (islem_tanimi) başına sabit, tutarlı bir renk — id'den türetilir,
+// elle renk seçimi/ekstra alan gerekmez. Sınıflar tam literal yazılır
+// (şablon string ile üretilmez), yoksa Tailwind'in statik taraması bunları
+// göremez ve stil hiç üretilmez.
+const TEDAVI_PALETI = [
+  { serit: "bg-blue-500", dolgu: "bg-blue-500/10", kenar: "border-blue-300 dark:border-blue-500/40" },
+  { serit: "bg-violet-500", dolgu: "bg-violet-500/10", kenar: "border-violet-300 dark:border-violet-500/40" },
+  { serit: "bg-amber-500", dolgu: "bg-amber-500/10", kenar: "border-amber-300 dark:border-amber-500/40" },
+  { serit: "bg-rose-500", dolgu: "bg-rose-500/10", kenar: "border-rose-300 dark:border-rose-500/40" },
+  { serit: "bg-teal-500", dolgu: "bg-teal-500/10", kenar: "border-teal-300 dark:border-teal-500/40" },
+  { serit: "bg-indigo-500", dolgu: "bg-indigo-500/10", kenar: "border-indigo-300 dark:border-indigo-500/40" },
+  { serit: "bg-orange-500", dolgu: "bg-orange-500/10", kenar: "border-orange-300 dark:border-orange-500/40" },
+  { serit: "bg-fuchsia-500", dolgu: "bg-fuchsia-500/10", kenar: "border-fuchsia-300 dark:border-fuchsia-500/40" },
+  { serit: "bg-cyan-500", dolgu: "bg-cyan-500/10", kenar: "border-cyan-300 dark:border-cyan-500/40" },
+  { serit: "bg-lime-500", dolgu: "bg-lime-500/10", kenar: "border-lime-300 dark:border-lime-500/40" },
+] as const;
+
+const TEDAVI_NOTR = { serit: "bg-muted-foreground/40", dolgu: "bg-muted/40", kenar: "border-border" };
+
+export function tedaviRengi(islemTanimiId: string | undefined | null) {
+  if (!islemTanimiId) return TEDAVI_NOTR;
+  let toplam = 0;
+  for (let i = 0; i < islemTanimiId.length; i++) {
+    toplam = (toplam + islemTanimiId.charCodeAt(i)) % 9973;
+  }
+  return TEDAVI_PALETI[toplam % TEDAVI_PALETI.length];
+}
 
 type RandevuKutusuProps = {
   randevu: RandevuSatir;
   gorunumDurumu: GorunumDurumu;
-  className?: string;
 };
 
 export const RandevuKutusu = memo(function RandevuKutusu({
   randevu,
   gorunumDurumu,
-  className,
 }: RandevuKutusuProps) {
   const stil = DURUM_STIL[gorunumDurumu];
+  const renk = tedaviRengi(randevu.islem_tanimi?.id);
+  const baslikMetni = [
+    randevu.musteri?.ad_soyad,
+    formatTime(randevu.baslangic),
+    randevu.terapist?.personel?.ad_soyad,
+    randevu.islem_tanimi?.ad,
+    stil.etiket,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <article
       id={`randevu-${randevu.id}`}
+      title={baslikMetni}
       className={cn(
-        "relative h-full overflow-hidden rounded-xl border p-3 pl-4 transition-colors",
-        stil.kart,
-        className
+        "relative flex h-full w-full flex-col justify-center gap-0.5 overflow-hidden rounded-lg border pl-2.5 pr-1.5 py-1 transition-colors",
+        renk.dolgu,
+        renk.kenar,
+        stil.soluk && "opacity-50",
+        stil.vurgu
       )}
     >
-      <span className={cn("absolute inset-y-0 left-0 w-[3px]", stil.serit)} aria-hidden />
+      <span className={cn("absolute inset-y-0 left-0 w-[3px]", renk.serit)} aria-hidden />
 
-      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-        <p className={cn("min-w-0 truncate text-base font-semibold text-foreground sm:text-sm", stil.adSinif)}>
+      <div className="flex items-center gap-1">
+        <p className={cn("min-w-0 flex-1 truncate text-xs font-semibold text-foreground sm:text-sm", stil.adSinif)}>
           {randevu.musteri?.ad_soyad ?? "—"}
-          <span className="tabular-nums ml-2 font-mono text-xs font-normal text-muted-foreground">
-            {formatTime(randevu.baslangic)}
-          </span>
+        </p>
+        {gorunumDurumu === "seansta" && (
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-primary" aria-hidden />
+        )}
+      </div>
+
+      <div className="flex items-center gap-1">
+        <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+          {formatTime(randevu.baslangic)} · {randevu.terapist?.personel?.ad_soyad ?? "—"}
         </p>
         <span
           className={cn(
-            "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold leading-tight",
+            "hidden shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight sm:inline-block",
             stil.rozet
           )}
         >
-          {gorunumDurumu === "seansta" && (
-            <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
-          )}
           {stil.etiket}
         </span>
       </div>
-
-      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-        {randevu.terapist?.personel?.ad_soyad ?? "—"}
-        <span> · {randevu.oda?.ad ?? "—"}</span>
-      </p>
     </article>
   );
 });

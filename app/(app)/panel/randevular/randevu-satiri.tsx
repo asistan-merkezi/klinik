@@ -35,12 +35,14 @@ export function RandevuSatiri({
   terapistler,
   odalar,
   cihazlar,
+  tedaviler,
 }: {
   randevu: RandevuSatir;
   musteriler: SecenekSatir[];
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
+  tedaviler: SecenekSatir[];
 }) {
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const guncelleAction = randevuGuncelle.bind(null, randevu.id);
@@ -109,6 +111,28 @@ export function RandevuSatiri({
                   {odalar.map((o) => (
                     <SelectItem key={o.id} value={o.id}>
                       {o.ad}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`tedavi-${randevu.id}`}>Tedavi</Label>
+              <Select
+                name="islem_tanimi_id"
+                required
+                disabled={isPending}
+                defaultValue={randevu.islem_tanimi?.id}
+                items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
+              >
+                <SelectTrigger id={`tedavi-${randevu.id}`} className="w-full">
+                  <SelectValue placeholder="Tedavi seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tedaviler.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.ad}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -206,6 +230,7 @@ export function RandevuSatiri({
         <span className="font-medium">{randevu.musteri?.ad_soyad ?? "—"}</span>
         <span className="text-muted-foreground">
           {randevu.terapist?.personel?.ad_soyad ?? "—"} · {randevu.oda?.ad ?? "—"}
+          {randevu.islem_tanimi?.ad ? ` · ${randevu.islem_tanimi.ad}` : ""}
         </span>
         <span className="text-xs text-muted-foreground">Randevu: {formatDateTime(randevu.baslangic)}</span>
         {randevu.created_at && (
