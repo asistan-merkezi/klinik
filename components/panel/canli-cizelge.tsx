@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
-import { startOfDayUTC } from "@/lib/datetime";
+import { startOfDayUTC, formatDateForInput, formatTimeForInput } from "@/lib/datetime";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { Activity, Users } from "lucide-react";
 import { CanliSaat } from "@/components/panel/canli-saat";
 import { SuAnCizgisi } from "@/components/panel/su-an-cizgisi";
 import { RandevuKutusu, gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
+import { RandevuDetayPaneli } from "@/components/panel/randevu-detay-paneli";
 
 const GUN_BASLANGIC_SAAT = 8;
 const GUN_BITIS_SAAT = 20;
@@ -34,18 +36,32 @@ function dakikaFarki(baslangicMs: number, tarih: string) {
   return (new Date(tarih).getTime() - baslangicMs) / 60_000;
 }
 
+/** Boş alana tıklanınca en yakın 15 dakikaya yuvarlar (daha kullanışlı varsayılan saat). */
+function dakikaYuvarla(dakika: number) {
+  return Math.round(dakika / 15) * 15;
+}
+
 const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, oda_id, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)";
+  "id, baslangic, bitis, durum, musteri_id, terapist_id, oda_id, cihaz_id, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)";
 
 export function CanliCizelge({
   baslangicRandevular,
   odalar,
+  terapistler,
+  cihazlar,
+  tedaviler,
 }: {
   baslangicRandevular: RandevuSatir[];
   odalar: SecenekSatir[];
+  terapistler: SecenekSatir[];
+  cihazlar: SecenekSatir[];
+  tedaviler: SecenekSatir[];
 }) {
+  const router = useRouter();
   const [randevular, setRandevular] = useState(baslangicRandevular);
   const [simdi, setSimdi] = useState<Date | null>(null);
+  const [seciliRandevu, setSeciliRandevu] = useState<RandevuSatir | null>(null);
+  const [detayAcik, setDetayAcik] = useState(false);
   const kaydirildiRef = useRef(false);
   const kaydirmaKapRef = useRef<HTMLDivElement>(null);
 
@@ -107,6 +123,22 @@ export function CanliCizelge({
   }, []);
 
   const gunBaslangicMs = useMemo(() => gunBaslangiciMs(simdi ?? new Date()), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function bosAlanaTiklandi(e: React.MouseEvent<HTMLDivElement>, odaId: string) {
+    const dikdortgen = e.currentTarget.getBoundingClientRect();
+    const gorecelKonum = e.clientY - dikdortgen.top;
+    const dakika = Math.min(Math.max(dakikaYuvarla(gorecelKonum / PX_PER_DAKIKA), 0), TOPLAM_DAKIKA);
+    const tiklananIso = new Date(gunBaslangicMs + dakika * 60_000).toISOString();
+    const tarih = formatDateForInput(tiklananIso);
+    const saat = formatTimeForInput(tiklananIso);
+    router.push(`/panel/randevular?oda_id=${odaId}&tarih=${tarih}&saat=${saat}`);
+  }
+
+  function randevuKutusunaTiklandi(e: React.MouseEvent | React.KeyboardEvent, randevu: RandevuSatir) {
+    e.stopPropagation();
+    setSeciliRandevu(randevu);
+    setDetayAcik(true);
+  }
 
   const gorunumler = useMemo(() => {
     if (!simdi) return [];
@@ -192,10 +224,12 @@ export function CanliCizelge({
           Aktif oda tanımlı değil. Donanım ekranından oda ekleyin.
         </p>
       ) : (
-        <div ref={kaydirmaKapRef} className="max-h-[70vh] overflow-y-auto">
-          <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
-            <div style={{ width: `${SAAT_SUTUN_GENISLIK + sutunlar.length * ODA_SUTUN_GENISLIK}px` }}>
-              {/* oda başlığı — dikey kaydırmada yapışkan */}
+        <div
+          ref={kaydirmaKapRef}
+          className="max-h-[70vh] overflow-auto [-webkit-overflow-scrolling:touch]"
+        >
+          <div style={{ width: `${SAAT_SUTUN_GENISLIK + sutunlar.length * ODA_SUTUN_GENISLIK}px` }}>
+              {/* oda başlığı — dikey kaydırmada yapışkan (tek scroll konteyneri sayesinde) */}
               <div className="sticky top-0 z-30 flex border-b border-border bg-card">
                 <div
                   className="shrink-0 border-r border-border"
@@ -236,8 +270,10 @@ export function CanliCizelge({
                   {sutunlar.map((oda) => (
                     <div
                       key={oda.id}
-                      className="relative shrink-0 border-l border-border"
+                      className="relative shrink-0 cursor-crosshair border-l border-border"
                       style={{ width: `${ODA_SUTUN_GENISLIK}px` }}
+                      onClick={(e) => bosAlanaTiklandi(e, oda.id)}
+                      title="Randevu oluşturmak için tıklayın"
                     >
                       {SAAT_ETIKETLERI.map((saat, i) => (
                         <div
@@ -257,8 +293,17 @@ export function CanliCizelge({
                         return (
                           <div
                             key={randevu.id}
-                            className="absolute inset-x-1"
+                            className="absolute inset-x-1 cursor-pointer"
                             style={{ top: `${ustKonum}px`, height: `${yukseklik}px` }}
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => randevuKutusunaTiklandi(e, randevu)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                randevuKutusunaTiklandi(e, randevu);
+                              }
+                            }}
                           >
                             <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
                           </div>
@@ -278,7 +323,6 @@ export function CanliCizelge({
               </div>
             </div>
           </div>
-        </div>
       )}
 
       <footer className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs text-muted-foreground sm:px-5">
@@ -289,6 +333,16 @@ export function CanliCizelge({
             : "Şu an aktif seans yok"}
         </span>
       </footer>
+
+      <RandevuDetayPaneli
+        open={detayAcik}
+        onOpenChange={setDetayAcik}
+        randevu={seciliRandevu}
+        terapistler={terapistler}
+        odalar={odalar}
+        cihazlar={cihazlar}
+        tedaviler={tedaviler}
+      />
     </div>
   );
 }

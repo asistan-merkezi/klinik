@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,12 @@ type Props = {
 
 export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedaviler }: Props) {
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
+  const searchParams = useSearchParams();
   const bugun = formatDateForInput(new Date().toISOString());
+  // Günün Çizelgesi'nde boş alana tıklanınca oda/tarih/saat buradan gelir.
+  const onOdaId = searchParams.get("oda_id") ?? undefined;
+  const onTarih = searchParams.get("tarih") ?? bugun;
+  const onSaat = searchParams.get("saat") ?? undefined;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -37,7 +43,7 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="terapist_id">Terapist</Label>
+          <Label htmlFor="terapist_id">Dr / Terapist</Label>
           <Select
             name="terapist_id"
             required
@@ -45,7 +51,7 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
             items={terapistler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="terapist_id" className="w-full">
-              <SelectValue placeholder="Terapist seçin" />
+              <SelectValue placeholder="Dr / Terapist seçin" />
             </SelectTrigger>
             <SelectContent>
               {terapistler.map((t) => (
@@ -63,6 +69,7 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
             name="oda_id"
             required
             disabled={isPending}
+            defaultValue={onOdaId}
             items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
           >
             <SelectTrigger id="oda_id" className="w-full">
@@ -127,7 +134,7 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
             id="tarih"
             name="tarih"
             type="date"
-            defaultValue={bugun}
+            defaultValue={onTarih}
             required
             disabled={isPending}
           />
@@ -135,7 +142,7 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="saat">Saat</Label>
-          <Input id="saat" name="saat" type="time" required disabled={isPending} />
+          <Input id="saat" name="saat" type="time" defaultValue={onSaat} required disabled={isPending} />
         </div>
 
         <div className="flex flex-col gap-2">
