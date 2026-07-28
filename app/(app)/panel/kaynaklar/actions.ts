@@ -82,6 +82,42 @@ export async function kaynakOlustur(
   return { success: true, message: `${ETIKET[gecerliTablo.data]} eklendi.` };
 }
 
+export async function kaynakAdGuncelle(
+  tablo: KaynakTablosu,
+  kaynakId: string,
+  yeniAd: string
+): Promise<SonucDurumu> {
+  const gecerliTablo = tabloSemasi.safeParse(tablo);
+  if (!gecerliTablo.success) {
+    return { success: false, message: "Geçersiz kaynak türü." };
+  }
+
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+
+  const adSemasi = z.string().trim().min(2, "Ad en az 2 karakter olmalı.");
+  const ayristirma = adSemasi.safeParse(yeniAd);
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { error } = await supabase
+    .from(gecerliTablo.data)
+    .update({ ad: isimBasHarfBuyukYap(ayristirma.data) })
+    .eq("id", kaynakId);
+
+  if (error) {
+    console.error(`${gecerliTablo.data} adı güncellenemedi:`, error);
+    return { success: false, message: `${ETIKET[gecerliTablo.data]} adı güncellenemedi, lütfen tekrar deneyin.` };
+  }
+
+  revalidatePath("/panel/kaynaklar");
+  revalidatePath("/panel/randevular");
+  return { success: true, message: `${ETIKET[gecerliTablo.data]} adı güncellendi.` };
+}
+
 export async function kaynakAdetGuncelle(kaynakId: string, yeniAdet: number) {
   const { supabase, klinikId } = await klinikIdGetir();
   if (!klinikId) {

@@ -11,10 +11,20 @@ export function KaynakFormu({ tablo, etiket }: { tablo: KaynakTablosu; etiket: s
   const olusturAction = kaynakOlustur.bind(null, tablo);
   const [durum, formAction, isPending] = useActionState(olusturAction, null);
   const [ad, setAd] = useState("");
+  const [gorulenDurum, setGorulenDurum] = useState(durum);
+  const [formKey, setFormKey] = useState(0);
   const cihazMi = tablo === "cihaz";
 
+  if (durum !== gorulenDurum) {
+    setGorulenDurum(durum);
+    if (durum?.success) {
+      setAd("");
+      setFormKey((k) => k + 1);
+    }
+  }
+
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form key={formKey} action={formAction} className="flex flex-col gap-3">
       <div className="flex items-end gap-2">
         <div className="flex flex-1 flex-col gap-2">
           <Label htmlFor={`ad-${tablo}`}>{etiket} adı</Label>
