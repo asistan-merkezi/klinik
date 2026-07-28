@@ -29,8 +29,8 @@ import { cikisYap } from "@/app/(app)/panel/actions";
 const ANA_OGELER = [
   { href: "/panel/musteriler", label: "Müşteriler", icon: Users },
   { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
-  { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
   { href: "/panel/paketler", label: "Paketler", icon: Package },
+  { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
   { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
 ];
 
