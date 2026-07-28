@@ -20,12 +20,11 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     .single();
 
   return (
-    <div className="flex min-h-svh">
-      <PanelSidebar
-        kullaniciAdi={kullanici?.ad_soyad ?? user.email ?? ""}
-        kullaniciRolu={kullanici?.rol ?? "rol atanmamış"}
-      />
-      <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
-    </div>
+    <PanelSidebar
+      kullaniciAdi={kullanici?.ad_soyad ?? user.email ?? ""}
+      kullaniciRolu={kullanici?.rol ?? "rol atanmamış"}
+    >
+      {children}
+    </PanelSidebar>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -23,6 +23,8 @@ import {
   ShieldCheck,
   RefreshCw,
   Building2,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cikisYap } from "@/app/(app)/panel/actions";
@@ -69,32 +71,23 @@ function girdiAktifMi(pathname: string, href: string, tamEslesme?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function PanelSidebar({
+function SidebarIcerik({
   kullaniciAdi,
   kullaniciRolu,
+  pathname,
+  acikGruplar,
+  grubuAcKapat,
+  linkTiklandi,
 }: {
   kullaniciAdi: string;
   kullaniciRolu: string;
+  pathname: string;
+  acikGruplar: Set<string>;
+  grubuAcKapat: (key: string) => void;
+  linkTiklandi?: () => void;
 }) {
-  const pathname = usePathname();
-  const [acikGruplar, setAcikGruplar] = useState<Set<string>>(
-    () => new Set(GRUPLAR.filter((g) => g.ogeler.some((o) => girdiAktifMi(pathname, o.href))).map((g) => g.key))
-  );
-
-  function grubuAcKapat(key: string) {
-    setAcikGruplar((onceki) => {
-      const yeni = new Set(onceki);
-      if (yeni.has(key)) {
-        yeni.delete(key);
-      } else {
-        yeni.add(key);
-      }
-      return yeni;
-    });
-  }
-
   return (
-    <aside className="flex h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <>
       <div className="border-b border-sidebar-border px-4 py-4">
         <p className="text-sm font-semibold">Klinik Asistanı</p>
         <p className="truncate text-xs text-muted-foreground">
@@ -107,6 +100,7 @@ export function PanelSidebar({
           <Link
             key={oge.href}
             href={oge.href}
+            onClick={linkTiklandi}
             className={cn(
               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               girdiAktifMi(pathname, oge.href, oge.tamEslesme)
@@ -147,6 +141,7 @@ export function PanelSidebar({
                     <Link
                       key={oge.href}
                       href={oge.href}
+                      onClick={linkTiklandi}
                       className={cn(
                         "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors",
                         girdiAktifMi(pathname, oge.href)
@@ -174,6 +169,102 @@ export function PanelSidebar({
           Çıkış yap
         </button>
       </form>
-    </aside>
+    </>
+  );
+}
+
+export function PanelSidebar({
+  kullaniciAdi,
+  kullaniciRolu,
+  children,
+}: {
+  kullaniciAdi: string;
+  kullaniciRolu: string;
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const [menuAcik, setMenuAcik] = useState(false);
+  const [acikGruplar, setAcikGruplar] = useState<Set<string>>(
+    () => new Set(GRUPLAR.filter((g) => g.ogeler.some((o) => girdiAktifMi(pathname, o.href))).map((g) => g.key))
+  );
+
+  useEffect(() => {
+    setMenuAcik(false);
+  }, [pathname]);
+
+  function grubuAcKapat(key: string) {
+    setAcikGruplar((onceki) => {
+      const yeni = new Set(onceki);
+      if (yeni.has(key)) {
+        yeni.delete(key);
+      } else {
+        yeni.add(key);
+      }
+      return yeni;
+    });
+  }
+
+  return (
+    <div className="flex min-h-svh w-full">
+      {/* Masaüstü: sabit sidebar */}
+      <aside className="hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
+        <SidebarIcerik
+          kullaniciAdi={kullaniciAdi}
+          kullaniciRolu={kullaniciRolu}
+          pathname={pathname}
+          acikGruplar={acikGruplar}
+          grubuAcKapat={grubuAcKapat}
+        />
+      </aside>
+
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        {/* Mobil: üst bar + 3 çizgi (hamburger) menü butonu */}
+        <header className="flex items-center gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMenuAcik(true)}
+            aria-label="Menüyü aç"
+            className="rounded-lg p-1.5 transition-colors hover:bg-sidebar-accent"
+          >
+            <Menu className="size-5" aria-hidden />
+          </button>
+          <p className="text-sm font-semibold">Klinik Asistanı</p>
+        </header>
+
+        {children}
+      </div>
+
+      {/* Mobil: çekmece (drawer) */}
+      {menuAcik && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMenuAcik(false)}
+            aria-hidden
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl">
+            <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-4">
+              <p className="text-sm font-semibold">Menü</p>
+              <button
+                type="button"
+                onClick={() => setMenuAcik(false)}
+                aria-label="Menüyü kapat"
+                className="rounded-lg p-1.5 transition-colors hover:bg-sidebar-accent"
+              >
+                <X className="size-5" aria-hidden />
+              </button>
+            </div>
+            <SidebarIcerik
+              kullaniciAdi={kullaniciAdi}
+              kullaniciRolu={kullaniciRolu}
+              pathname={pathname}
+              acikGruplar={acikGruplar}
+              grubuAcKapat={grubuAcKapat}
+              linkTiklandi={() => setMenuAcik(false)}
+            />
+          </aside>
+        </div>
+      )}
+    </div>
   );
 }
