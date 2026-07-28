@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsPanel } from "@/components/ui/tabs";
 import type { MusteriDetay } from "@/types/musteri";
 import type { MusteriOzet } from "@/types/musteri-detay";
@@ -9,6 +10,7 @@ import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
 import type { MusteriBakiyeHareket } from "@/types/musteri-detay";
 import { RiskBandi } from "./risk-bandi";
 import { OzetKart } from "./ozet-kart";
+import { MobilHub } from "./mobil-hub";
 import { GenelBilgilerSekmesi } from "./sekmeler/genel-bilgiler-sekmesi";
 import { RandevuSeansSekmesi } from "./sekmeler/randevu-seans-sekmesi";
 import { TedaviAnamnezSekmesi } from "./sekmeler/tedavi-anamnez-sekmesi";
@@ -16,18 +18,8 @@ import { GelisimOlcumlerSekmesi } from "./sekmeler/gelisim-olcumler-sekmesi";
 import { CariOdemeSekmesi } from "./sekmeler/cari-odeme-sekmesi";
 import { BelgelerMedyaSekmesi } from "./sekmeler/belgeler-medya-sekmesi";
 import { PlaceholderSekmesi } from "./sekmeler/placeholder-sekmesi";
-
-type SekmeAnahtari = "genel" | "randevu" | "tedavi" | "gelisim" | "cari" | "belgeler" | "iletisim";
-
-const SEKMELER: { deger: SekmeAnahtari; etiket: string; terapisteKapali?: boolean }[] = [
-  { deger: "genel", etiket: "Genel Bilgiler" },
-  { deger: "randevu", etiket: "Randevu & Seans" },
-  { deger: "tedavi", etiket: "Tedavi & Anamnez" },
-  { deger: "gelisim", etiket: "Gelişim & Ölçümler" },
-  { deger: "cari", etiket: "Cari & Ödeme", terapisteKapali: true },
-  { deger: "belgeler", etiket: "Belgeler & Medya" },
-  { deger: "iletisim", etiket: "İletişim & Bildirimler" },
-];
+import { useMusteriDetayOzet } from "./queries";
+import { SEKMELER, type SekmeAnahtari } from "./sekme-tanimlari";
 
 export function MusteriDetayIcerik({
   musteri,
@@ -57,12 +49,12 @@ export function MusteriDetayIcerik({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { data: detayOzet, isLoading: detayOzetYukleniyor } = useMusteriDetayOzet(musteri.id);
 
   const gecerliDegerler = SEKMELER.map((s) => s.deger);
   const urlTab = searchParams.get("tab");
-  const aktifSekme: SekmeAnahtari = gecerliDegerler.includes(urlTab as SekmeAnahtari)
-    ? (urlTab as SekmeAnahtari)
-    : "genel";
+  const tabParamGecerli = gecerliDegerler.includes(urlTab as SekmeAnahtari);
+  const aktifSekme: SekmeAnahtari = tabParamGecerli ? (urlTab as SekmeAnahtari) : "genel";
 
   const terapistMi = rol === "terapist";
   const gorunurSekmeler = SEKMELER.filter((s) => !(s.terapisteKapali && terapistMi));
@@ -73,6 +65,75 @@ export function MusteriDetayIcerik({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
+  function mobilKartTikla(deger: SekmeAnahtari) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", deger);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function sekmeIcerigi(sekme: SekmeAnahtari) {
+    switch (sekme) {
+      case "genel":
+        return (
+          <GenelBilgilerSekmesi
+            musteri={musteri}
+            aktif={aktifSekme === "genel"}
+            duzenlenebilir={duzenlenebilir}
+            portalDurumu={portalDurumu}
+          />
+        );
+      case "randevu":
+        return aktifSekme === "randevu" ? (
+          <RandevuSeansSekmesi
+            musteriId={musteri.id}
+            duzenlenebilir={duzenlenebilir}
+            periyodikRandevular={periyodikRandevular}
+          />
+        ) : null;
+      case "tedavi":
+        return (
+          <TedaviAnamnezSekmesi
+            musteri={musteri}
+            aktif={aktifSekme === "tedavi"}
+            duzenlenebilir={duzenlenebilir || terapistMi}
+            sonVasSkoru={ozet?.son_vas_skoru ?? null}
+          />
+        );
+      case "gelisim":
+        return (
+          <GelisimOlcumlerSekmesi
+            musteriId={musteri.id}
+            sonVasSkoru={ozet?.son_vas_skoru ?? null}
+            aktif={aktifSekme === "gelisim"}
+          />
+        );
+      case "cari":
+        return !terapistMi && aktifSekme === "cari" ? (
+          <CariOdemeSekmesi
+            musteriId={musteri.id}
+            duzenlenebilir={duzenlenebilir}
+            aktifPaketler={aktifPaketler}
+            satilabilirUrunler={satilabilirUrunler}
+            odemeGecmisi={odemeGecmisi}
+            bakiyeHareketleri={bakiyeHareketleri}
+          />
+        ) : null;
+      case "belgeler":
+        return <BelgelerMedyaSekmesi musteriId={musteri.id} rol={rol} aktif={aktifSekme === "belgeler"} />;
+      case "iletisim":
+        return aktifSekme === "iletisim" ? (
+          <PlaceholderSekmesi
+            baslik="İletişim & Bildirimler"
+            aciklama="Bu sekme yakında eklenecek: iletişim geçmişi, hızlı WhatsApp/SMS, anket sonuçları, randevu öncesi form cevapları."
+          />
+        ) : null;
+      default:
+        return null;
+    }
+  }
+
+  const aktifSekmeEtiket = SEKMELER.find((s) => s.deger === aktifSekme)?.etiket ?? "";
+
   return (
     <div className="flex flex-col gap-4">
       <RiskBandi musteriId={musteri.id} riskBayraklari={musteri.risk_bayraklari} eklenebilir={duzenlenebilir || terapistMi} />
@@ -81,83 +142,57 @@ export function MusteriDetayIcerik({
         adSoyad={musteri.ad_soyad}
         telefon={musteri.telefon}
         dogumTarihi={musteri.dogum_tarihi}
+        cinsiyet={musteri.cinsiyet}
         ozet={ozet}
         vasTrend={vasTrend}
+        programAktif={detayOzetYukleniyor ? null : Boolean(detayOzet?.aktif_protokol_ad)}
       />
 
-      <Tabs value={aktifSekme} onValueChange={(v) => sekmeDegistir(v as string)}>
-        <TabsList>
-          {gorunurSekmeler.map((s) => (
-            <TabsTrigger key={s.deger} value={s.deger}>
-              {s.etiket}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsPanel value="genel">
-          <GenelBilgilerSekmesi
+      {/* Mobil hub (md altı): sekme barı yerine özet kart grid'i */}
+      <div className="md:hidden">
+        {tabParamGecerli ? (
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="size-4" />
+              Geri
+            </button>
+            <h2 className="text-base font-semibold">{aktifSekmeEtiket}</h2>
+            {sekmeIcerigi(aktifSekme)}
+          </div>
+        ) : (
+          <MobilHub
             musteri={musteri}
-            aktif={aktifSekme === "genel"}
-            duzenlenebilir={duzenlenebilir}
-            portalDurumu={portalDurumu}
+            ozet={ozet}
+            detayOzet={detayOzet}
+            yukleniyor={detayOzetYukleniyor}
+            gorunurSekmeler={gorunurSekmeler}
+            onKartTikla={mobilKartTikla}
           />
-        </TabsPanel>
-
-        <TabsPanel value="randevu">
-          {aktifSekme === "randevu" && (
-            <RandevuSeansSekmesi
-              musteriId={musteri.id}
-              duzenlenebilir={duzenlenebilir}
-              periyodikRandevular={periyodikRandevular}
-            />
-          )}
-        </TabsPanel>
-
-        <TabsPanel value="tedavi">
-          <TedaviAnamnezSekmesi
-            musteri={musteri}
-            aktif={aktifSekme === "tedavi"}
-            duzenlenebilir={duzenlenebilir || terapistMi}
-            sonVasSkoru={ozet?.son_vas_skoru ?? null}
-          />
-        </TabsPanel>
-
-        <TabsPanel value="gelisim">
-          <GelisimOlcumlerSekmesi
-            musteriId={musteri.id}
-            sonVasSkoru={ozet?.son_vas_skoru ?? null}
-            aktif={aktifSekme === "gelisim"}
-          />
-        </TabsPanel>
-
-        {!terapistMi && (
-          <TabsPanel value="cari">
-            {aktifSekme === "cari" && (
-              <CariOdemeSekmesi
-                musteriId={musteri.id}
-                duzenlenebilir={duzenlenebilir}
-                aktifPaketler={aktifPaketler}
-                satilabilirUrunler={satilabilirUrunler}
-                odemeGecmisi={odemeGecmisi}
-                bakiyeHareketleri={bakiyeHareketleri}
-              />
-            )}
-          </TabsPanel>
         )}
+      </div>
 
-        <TabsPanel value="belgeler">
-          <BelgelerMedyaSekmesi musteriId={musteri.id} rol={rol} aktif={aktifSekme === "belgeler"} />
-        </TabsPanel>
+      {/* Masaüstü sekmeler (md ve üzeri): mevcut 7 sekmeli yapı */}
+      <div className="hidden md:block">
+        <Tabs value={aktifSekme} onValueChange={(v) => sekmeDegistir(v as string)}>
+          <TabsList>
+            {gorunurSekmeler.map((s) => (
+              <TabsTrigger key={s.deger} value={s.deger}>
+                {s.etiket}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        <TabsPanel value="iletisim">
-          {aktifSekme === "iletisim" && (
-            <PlaceholderSekmesi
-              baslik="İletişim & Bildirimler"
-              aciklama="Bu sekme yakında eklenecek: iletişim geçmişi, hızlı WhatsApp/SMS, anket sonuçları, randevu öncesi form cevapları."
-            />
-          )}
-        </TabsPanel>
-      </Tabs>
+          {gorunurSekmeler.map((s) => (
+            <TabsPanel key={s.deger} value={s.deger}>
+              {sekmeIcerigi(s.deger)}
+            </TabsPanel>
+          ))}
+        </Tabs>
+      </div>
     </div>
   );
 }

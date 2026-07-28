@@ -2,6 +2,7 @@ import { ArrowDown, ArrowRight, ArrowUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { MusteriOzet } from "@/types/musteri-detay";
+import type { Cinsiyet } from "@/types/musteri";
 
 function yasHesapla(dogumTarihi: string | null): number | null {
   if (!dogumTarihi) return null;
@@ -14,6 +15,12 @@ function yasHesapla(dogumTarihi: string | null): number | null {
   }
   return yas;
 }
+
+const CINSIYET_ETIKETLERI: Record<Cinsiyet, string | null> = {
+  kadin: "Kadın",
+  erkek: "Erkek",
+  belirtilmemis: null,
+};
 
 function Stat({ etiket, deger, vurgu }: { etiket: string; deger: React.ReactNode; vurgu?: boolean }) {
   return (
@@ -28,29 +35,58 @@ export function OzetKart({
   adSoyad,
   telefon,
   dogumTarihi,
+  cinsiyet,
   ozet,
   vasTrend,
+  programAktif,
 }: {
   adSoyad: string;
   telefon: string;
   dogumTarihi: string | null;
+  cinsiyet: Cinsiyet | null;
   ozet: MusteriOzet | null;
   vasTrend: "yukari" | "asagi" | "sabit" | null;
+  programAktif: boolean | null;
 }) {
   const yas = yasHesapla(dogumTarihi);
+  const cinsiyetEtiketi = cinsiyet ? CINSIYET_ETIKETLERI[cinsiyet] : null;
 
   return (
     <Card>
       <CardContent className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">{adSoyad}</h1>
-          <p className="text-sm text-muted-foreground">
-            {telefon}
-            {yas != null && ` · ${yas} yaşında`}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold">{adSoyad}</h1>
+              {cinsiyetEtiketi && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {cinsiyetEtiketi}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              <a href={`tel:${telefon}`} className="underline decoration-dotted underline-offset-2 hover:text-foreground">
+                {telefon}
+              </a>
+              {yas != null && ` · ${yas} yaşında`}
+            </p>
+          </div>
+
+          {programAktif != null && (
+            <span
+              className={cn(
+                "shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold",
+                programAktif
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-muted text-muted-foreground"
+              )}
+            >
+              {programAktif ? "Aktif Program" : "Program Yok"}
+            </span>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
           <Stat
             etiket="Son Seans"
             deger={ozet?.son_seans_tarihi ? new Date(ozet.son_seans_tarihi).toLocaleDateString("tr-TR") : "—"}
@@ -61,9 +97,8 @@ export function OzetKart({
             deger={(ozet?.bakiye ?? 0).toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
             vurgu={(ozet?.bakiye ?? 0) !== 0}
           />
-          <Stat etiket="Aktif Hedef" deger={ozet?.aktif_hedef_sayisi ?? 0} />
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">Son VAS Skoru</span>
+            <span className="text-xs text-muted-foreground">Son VAS</span>
             <span className="flex items-center gap-1.5 text-base font-semibold">
               {ozet?.son_vas_skoru ?? "—"}
               {vasTrend === "yukari" && <ArrowUp className="size-4 text-destructive" aria-label="Ağrı arttı" />}
@@ -71,7 +106,7 @@ export function OzetKart({
               {vasTrend === "sabit" && <ArrowRight className="size-4 text-muted-foreground" aria-label="Değişmedi" />}
             </span>
           </div>
-          <Stat etiket="No-show Sayısı" deger={ozet?.no_show_sayisi ?? 0} />
+          <Stat etiket="No-show" deger={ozet?.no_show_sayisi ?? 0} />
         </div>
       </CardContent>
     </Card>

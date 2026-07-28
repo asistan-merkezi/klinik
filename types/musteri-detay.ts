@@ -44,6 +44,14 @@ export type MusteriOzet = {
   no_show_sayisi: number;
 };
 
+export type MusteriDetayOzet = MusteriOzet & {
+  sonraki_randevu_tarihi: string | null;
+  aktif_protokol_ad: string | null;
+  olcum_sayisi: number;
+  belge_sayisi: number;
+  son_iletisim_tarihi: string | null;
+};
+
 export type HedefTipi = "vas" | "rom" | "fonksiyonel" | "serbest";
 export type HedefDurumu = "aktif" | "ulasildi" | "basarisiz" | "iptal";
 

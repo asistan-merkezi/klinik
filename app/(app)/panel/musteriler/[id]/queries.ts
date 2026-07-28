@@ -12,7 +12,24 @@ import type {
   VucutHaritasiIsareti,
   IslemKontrendikasyon,
   MusteriKarsilastirma,
+  MusteriDetayOzet,
 } from "@/types/musteri-detay";
+
+export function useMusteriDetayOzet(musteriId: string) {
+  return useQuery({
+    queryKey: ["musteri_detay_ozet", musteriId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("v_musteri_detay_ozet")
+        .select("*")
+        .eq("musteri_id", musteriId)
+        .maybeSingle<MusteriDetayOzet>();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
 
 export function useMusteriHassas(musteriId: string, aktif: boolean) {
   return useQuery({
