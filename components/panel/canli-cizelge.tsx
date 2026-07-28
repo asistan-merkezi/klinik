@@ -47,6 +47,7 @@ export function CanliCizelge({
   const [randevular, setRandevular] = useState(baslangicRandevular);
   const [simdi, setSimdi] = useState<Date | null>(null);
   const kaydirildiRef = useRef(false);
+  const kaydirmaKapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSimdi(new Date());
@@ -146,16 +147,15 @@ export function CanliCizelge({
     [gorunumler]
   );
 
-  const aktifRandevuId = devamEdenler[0]?.randevu.id ?? null;
-
   useEffect(() => {
-    if (kaydirildiRef.current || !aktifRandevuId) return;
-    const el = document.getElementById(`randevu-${aktifRandevuId}`);
-    if (el) {
-      el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
-      kaydirildiRef.current = true;
-    }
-  }, [aktifRandevuId]);
+    if (kaydirildiRef.current || !simdi) return;
+    const kap = kaydirmaKapRef.current;
+    if (!kap) return;
+    const gecenDakika = (simdi.getTime() - gunBaslangicMs) / 60_000;
+    const suAnUst = gecenDakika * PX_PER_DAKIKA;
+    kap.scrollTop = suAnUst - kap.clientHeight / 2;
+    kaydirildiRef.current = true;
+  }, [simdi, gunBaslangicMs]);
 
   const duyuruMetni =
     devamEdenler.length > 0
@@ -192,7 +192,7 @@ export function CanliCizelge({
           Aktif oda tanımlı değil. Donanım ekranından oda ekleyin.
         </p>
       ) : (
-        <div className="max-h-[70vh] overflow-y-auto">
+        <div ref={kaydirmaKapRef} className="max-h-[70vh] overflow-y-auto">
           <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
             <div style={{ width: `${SAAT_SUTUN_GENISLIK + sutunlar.length * ODA_SUTUN_GENISLIK}px` }}>
               {/* oda başlığı — dikey kaydırmada yapışkan */}
