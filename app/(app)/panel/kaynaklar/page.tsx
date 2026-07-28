@@ -18,7 +18,7 @@ export default async function KaynaklarSayfasi() {
 
   const [odaSonucu, cihazSonucu] = await Promise.all([
     supabase.from("oda").select("id, ad, aktif").order("ad").returns<KaynakSatir[]>(),
-    supabase.from("cihaz").select("id, ad, aktif").order("ad").returns<KaynakSatir[]>(),
+    supabase.from("cihaz").select("id, ad, aktif, adet").order("ad").returns<KaynakSatir[]>(),
   ]);
 
   return (
