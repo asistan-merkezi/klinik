@@ -19,9 +19,21 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
   const [ad, setAd] = useState("");
   const [muhasebeHizmetIsmi, setMuhasebeHizmetIsmi] = useState("");
   const [muhasebeDokunuldu, setMuhasebeDokunuldu] = useState(false);
+  const [gorulenDurum, setGorulenDurum] = useState(durum);
+  const [formKey, setFormKey] = useState(0);
+
+  if (durum !== gorulenDurum) {
+    setGorulenDurum(durum);
+    if (durum?.success) {
+      setAd("");
+      setMuhasebeHizmetIsmi("");
+      setMuhasebeDokunuldu(false);
+      setFormKey((k) => k + 1);
+    }
+  }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form key={formKey} action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="ad">Tedavi Adı</Label>
