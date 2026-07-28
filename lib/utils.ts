@@ -17,6 +17,17 @@ export function isimBasHarfBuyukYap(deger: string): string {
     .join(" ")
 }
 
+/** Yerel (0xxx...) veya uluslararası formatlı telefonu wa.me linki için 90xxxxxxxxxx biçimine çevirir. */
+export function whatsappLinkOlustur(telefon: string, mesaj: string): string {
+  const rakamlar = telefon.replace(/\D/g, "");
+  const uluslararasi = rakamlar.startsWith("90")
+    ? rakamlar
+    : rakamlar.startsWith("0")
+      ? `90${rakamlar.slice(1)}`
+      : `90${rakamlar}`;
+  return `https://wa.me/${uluslararasi}?text=${encodeURIComponent(mesaj)}`;
+}
+
 export function gunAraligi(tarih: Date = new Date()) {
   const baslangic = new Date(Date.UTC(tarih.getUTCFullYear(), tarih.getUTCMonth(), tarih.getUTCDate()));
   const bitis = new Date(baslangic);

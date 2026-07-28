@@ -149,6 +149,7 @@ export default async function MusteriDetaySayfasi({
             <CardContent>
               <PortalErisimKarti
                 musteriId={musteri.id}
+                telefon={musteri.telefon}
                 durum={{ var: musteriKullanici != null, aktif: musteriKullanici?.aktif ?? false }}
               />
             </CardContent>

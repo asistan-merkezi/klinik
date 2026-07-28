@@ -161,12 +161,10 @@ export async function faturaTetikle(faturaId: string): Promise<SonucDurumu> {
 
 type PortalSonucu = { success: boolean; message: string; geciciSifre?: string } | null;
 
-const KARAKTER_HAVUZU = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-
 function geciciSifreUret(): string {
   let sifre = "";
-  for (let i = 0; i < 10; i++) {
-    sifre += KARAKTER_HAVUZU[Math.floor(Math.random() * KARAKTER_HAVUZU.length)];
+  for (let i = 0; i < 6; i++) {
+    sifre += Math.floor(Math.random() * 10).toString();
   }
   return sifre;
 }

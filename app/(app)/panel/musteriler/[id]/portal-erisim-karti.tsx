@@ -2,12 +2,21 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { whatsappLinkOlustur } from "@/lib/utils";
 import { portalErisimiAc, portalSifreSifirla, portalErisimDurumDegistir } from "./actions";
 
 type Durum = { var: boolean; aktif: boolean };
 type Sonuc = { success: boolean; message: string; geciciSifre?: string } | null;
 
-export function PortalErisimKarti({ musteriId, durum }: { musteriId: string; durum: Durum }) {
+export function PortalErisimKarti({
+  musteriId,
+  telefon,
+  durum,
+}: {
+  musteriId: string;
+  telefon: string;
+  durum: Durum;
+}) {
   const [pending, startTransition] = useTransition();
   const [mesaj, setMesaj] = useState<Sonuc>(null);
 
@@ -79,16 +88,38 @@ export function PortalErisimKarti({ musteriId, durum }: { musteriId: string; dur
       </div>
 
       {mesaj && (
-        <p role="alert" className={mesaj.success ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
-          {mesaj.message}
+        <div className="flex flex-col gap-2">
+          <p role="alert" className={mesaj.success ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+            {mesaj.message}
+            {mesaj.geciciSifre && (
+              <>
+                {" "}
+                Geçici şifre: <span className="font-mono font-semibold">{mesaj.geciciSifre}</span> — müşteriye
+                iletin, bir daha gösterilmeyecek.
+              </>
+            )}
+          </p>
           {mesaj.geciciSifre && (
-            <>
-              {" "}
-              Geçici şifre: <span className="font-mono font-semibold">{mesaj.geciciSifre}</span> — müşteriye iletin,
-              bir daha gösterilmeyecek.
-            </>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-fit"
+              nativeButton={false}
+              render={
+                <a
+                  href={whatsappLinkOlustur(
+                    telefon,
+                    `Merhaba, Müşteri Portalı geçici şifreniz: ${mesaj.geciciSifre}. Telefon numaranız ve bu şifreyle giriş yapabilirsiniz.`
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  WhatsApp&apos;tan Gönder
+                </a>
+              }
+            />
           )}
-        </p>
+        </div>
       )}
 
       {durum.var && (
