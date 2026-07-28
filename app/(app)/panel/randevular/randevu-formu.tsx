@@ -38,7 +38,12 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="terapist_id">Terapist</Label>
-          <Select name="terapist_id" required disabled={isPending}>
+          <Select
+            name="terapist_id"
+            required
+            disabled={isPending}
+            items={terapistler.map((t) => ({ value: t.id, label: t.ad }))}
+          >
             <SelectTrigger id="terapist_id" className="w-full">
               <SelectValue placeholder="Terapist seçin" />
             </SelectTrigger>
@@ -54,7 +59,12 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="oda_id">Oda</Label>
-          <Select name="oda_id" required disabled={isPending}>
+          <Select
+            name="oda_id"
+            required
+            disabled={isPending}
+            items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
+          >
             <SelectTrigger id="oda_id" className="w-full">
               <SelectValue placeholder="Oda seçin" />
             </SelectTrigger>
@@ -70,7 +80,12 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="islem_tanimi_id">Tedavi</Label>
-          <Select name="islem_tanimi_id" required disabled={isPending}>
+          <Select
+            name="islem_tanimi_id"
+            required
+            disabled={isPending}
+            items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
+          >
             <SelectTrigger id="islem_tanimi_id" className="w-full">
               <SelectValue placeholder="Tedavi seçin" />
             </SelectTrigger>
@@ -86,7 +101,11 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="cihaz_id">Cihaz (opsiyonel)</Label>
-          <Select name="cihaz_id" disabled={isPending || cihazlar.length === 0}>
+          <Select
+            name="cihaz_id"
+            disabled={isPending || cihazlar.length === 0}
+            items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
+          >
             <SelectTrigger id="cihaz_id" className="w-full">
               <SelectValue
                 placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"}
