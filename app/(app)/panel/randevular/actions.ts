@@ -71,6 +71,7 @@ export async function randevuOlustur(
     cihaz_id: cihaz_id ? cihaz_id : null,
     baslangic: baslangic.toISOString(),
     bitis: bitis.toISOString(),
+    olusturan_kullanici_id: user.id,
   });
 
   if (error) {

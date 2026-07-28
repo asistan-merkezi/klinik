@@ -30,7 +30,7 @@ export default async function RandevularSayfasi() {
       supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad))"
+          "id, baslangic, bitis, durum, created_at, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad)), olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
         )
         .gte("bitis", new Date().toISOString())
         .order("baslangic")
@@ -129,21 +129,34 @@ export default async function RandevularSayfasi() {
                       <span className="text-muted-foreground">
                         {randevu.terapist?.personel?.ad_soyad ?? "—"} · {randevu.oda?.ad ?? "—"}
                       </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:justify-start">
-                      <div className="flex flex-col sm:items-end">
-                        <span>
-                          {new Date(randevu.baslangic).toLocaleString("tr-TR", {
+                      <span className="text-xs text-muted-foreground">
+                        Randevu:{" "}
+                        {new Date(randevu.baslangic).toLocaleString("tr-TR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {randevu.created_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Oluşturma:{" "}
+                          {new Date(randevu.created_at).toLocaleString("tr-TR", {
                             day: "2-digit",
                             month: "2-digit",
+                            year: "numeric",
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
+                          {randevu.olusturan_kullanici?.ad_soyad
+                            ? ` · ${randevu.olusturan_kullanici.ad_soyad}`
+                            : ""}
                         </span>
-                        <span className="text-muted-foreground">
-                          {DURUM_ETIKET[randevu.durum]}
-                        </span>
-                      </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:justify-start">
+                      <span className="text-muted-foreground">{DURUM_ETIKET[randevu.durum]}</span>
                       <DurumButonlari randevuId={randevu.id} durum={randevu.durum} />
                     </div>
                   </li>
