@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PanelSidebar } from "@/components/panel/sidebar";
+import { QueryProvider } from "@/components/panel/query-provider";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -20,11 +21,13 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     .single();
 
   return (
-    <PanelSidebar
-      kullaniciAdi={kullanici?.ad_soyad ?? user.email ?? ""}
-      kullaniciRolu={kullanici?.rol ?? "rol atanmamış"}
-    >
-      {children}
-    </PanelSidebar>
+    <QueryProvider>
+      <PanelSidebar
+        kullaniciAdi={kullanici?.ad_soyad ?? user.email ?? ""}
+        kullaniciRolu={kullanici?.rol ?? "rol atanmamış"}
+      >
+        {children}
+      </PanelSidebar>
+    </QueryProvider>
   );
 }

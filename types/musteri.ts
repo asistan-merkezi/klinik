@@ -1,3 +1,5 @@
+import type { RiskBayragi } from "./musteri-detay";
+
 export type Cinsiyet = "kadin" | "erkek" | "belirtilmemis";
 
 export type MusteriSatir = {
@@ -15,4 +17,5 @@ export type MusteriDetay = MusteriSatir & {
   referans_kanali: string | null;
   ozel_nitelikli_veri_onay_tarihi: string | null;
   ticari_ileti_onay_tarihi: string | null;
+  risk_bayraklari: RiskBayragi[];
 };

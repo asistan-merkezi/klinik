@@ -314,7 +314,10 @@ export async function detayliBilgileriGuncelle(
   _onceki: PortalSonucu,
   formData: FormData
 ): Promise<PortalSonucu> {
-  const { supabase, musteri, yetkisiz } = await yetkiliMusteriGetir(musteriId);
+  // Anamnez klinik/tedavi içeriğidir — terapist de düzenleyebilir (klinik_admin/
+  // resepsiyon'un yanı sıra). Diğer portal/idari aksiyonlar (KVKK onayı, portal
+  // erişimi) hâlâ sadece klinik_admin/resepsiyon'a açık, bkz. yetkiliMusteriGetir.
+  const { supabase, musteri, yetkisiz } = await terapistDahilYetkiliMusteriGetir(musteriId);
   if (yetkisiz) {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
@@ -400,6 +403,184 @@ export async function ozelNitelikliOnayVer(musteriId: string): Promise<PortalSon
 
   revalidatePath(`/panel/musteriler/${musteriId}`);
   return { success: true, message: "Sağlık verisi işleme onayı kaydedildi." };
+}
+
+const riskBayragiSemasi = z.object({
+  tip: z.enum([
+    "alerji",
+    "kalp_pili",
+    "kan_sulandirici",
+    "dusme_riski",
+    "hamilelik",
+    "diyabet",
+    "epilepsi",
+    "metal_implant",
+    "diger",
+  ]),
+  aciklama: z.string().trim().min(1, "Açıklama gerekli."),
+  seviye: z.enum(["yuksek", "orta", "dusuk"]),
+});
+
+async function terapistDahilYetkiliMusteriGetir(musteriId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol")
+    .eq("id", user.id)
+    .single();
+
+  if (!kullanici || !["klinik_admin", "resepsiyon", "terapist"].includes(kullanici.rol)) {
+    return { supabase, userId: user.id, musteri: null, yetkisiz: true as const };
+  }
+
+  const { data: musteri } = await supabase
+    .from("musteri")
+    .select("id, risk_bayraklari")
+    .eq("id", musteriId)
+    .single();
+
+  return { supabase, userId: user.id, musteri, yetkisiz: false as const };
+}
+
+export async function riskBayragiEkle(
+  musteriId: string,
+  _onceki: PortalSonucu,
+  formData: FormData
+): Promise<PortalSonucu> {
+  const { supabase, userId, musteri, yetkisiz } = await terapistDahilYetkiliMusteriGetir(musteriId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const ayristirma = riskBayragiSemasi.safeParse({
+    tip: formData.get("tip"),
+    aciklama: formData.get("aciklama"),
+    seviye: formData.get("seviye"),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const mevcutBayraklar = Array.isArray(musteri.risk_bayraklari) ? musteri.risk_bayraklari : [];
+  const yeniBayrak = {
+    ...ayristirma.data,
+    eklenme_tarihi: new Date().toISOString(),
+    ekleyen_id: userId,
+  };
+
+  const { error } = await supabase
+    .from("musteri")
+    .update({ risk_bayraklari: [...mevcutBayraklar, yeniBayrak] })
+    .eq("id", musteriId);
+
+  if (error) {
+    console.error("Risk bayrağı eklenemedi:", error);
+    return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  return { success: true, message: "Risk bayrağı eklendi." };
+}
+
+const hedefSemasi = z.object({
+  hedef_tipi: z.enum(["vas", "rom", "fonksiyonel", "serbest"]),
+  hedef_metrik: z.string().trim().min(1, "Hedef metriği gerekli."),
+  baslangic_deger: z.coerce.number().nullable(),
+  hedef_deger: z.coerce.number().nullable(),
+  hedef_tarihi: z.string().trim().nullable(),
+  notlar: z.string().trim().nullable(),
+});
+
+export async function musteriHedefEkle(
+  musteriId: string,
+  _onceki: PortalSonucu,
+  formData: FormData
+): Promise<PortalSonucu> {
+  const { supabase, userId, musteri, yetkisiz } = await terapistDahilYetkiliMusteriGetir(musteriId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const bosIseNull = (deger: FormDataEntryValue | null) => {
+    if (deger == null) return null;
+    const s = String(deger).trim();
+    return s === "" ? null : s;
+  };
+
+  const ayristirma = hedefSemasi.safeParse({
+    hedef_tipi: formData.get("hedef_tipi"),
+    hedef_metrik: formData.get("hedef_metrik"),
+    baslangic_deger: bosIseNull(formData.get("baslangic_deger")),
+    hedef_deger: bosIseNull(formData.get("hedef_deger")),
+    hedef_tarihi: bosIseNull(formData.get("hedef_tarihi")),
+    notlar: bosIseNull(formData.get("notlar")),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { error } = await supabase.from("musteri_hedef").insert({
+    musteri_id: musteriId,
+    olusturan_id: userId,
+    ...ayristirma.data,
+  });
+
+  if (error) {
+    console.error("Hedef eklenemedi:", error);
+    return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  return { success: true, message: "Hedef eklendi." };
+}
+
+export async function belgeSignedUrlAl(belgeId: string): Promise<{ url: string } | { error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  // musteri_belge_goruntule RPC'si audit_log'a 'select' satırı yazar ve yetki
+  // kontrolünü kendi içinde yapar (Postgres'te SELECT trigger olmadığı için
+  // bu görüntüleme logu buradan yazılıyor — bkz. migration 20260729100000).
+  const { data: belge, error: rpcError } = await supabase
+    .rpc("musteri_belge_goruntule", { p_id: belgeId })
+    .single<{ storage_path: string }>();
+
+  if (rpcError || !belge) {
+    return { error: "Belge bulunamadı veya erişim yetkiniz yok." };
+  }
+
+  const { data: signed, error: signError } = await supabase.storage
+    .from("musteri-belge")
+    .createSignedUrl(belge.storage_path, 300);
+
+  if (signError || !signed) {
+    console.error("Signed URL üretilemedi:", signError);
+    return { error: "Görüntüleme bağlantısı oluşturulamadı." };
+  }
+
+  return { url: signed.signedUrl };
 }
 
 export async function portalErisimDurumDegistir(musteriId: string, yeniDurum: boolean): Promise<PortalSonucu> {
