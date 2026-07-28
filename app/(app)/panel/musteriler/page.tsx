@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,11 +44,22 @@ export default async function MusterilerSayfasi({
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Müşteriler</h1>
-          <p className="text-sm text-muted-foreground">
-            Hasta kayıtlarını görüntüle, ekle ve düzenle.
-          </p>
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">Müşteriler</h1>
+            <p className="text-sm text-muted-foreground">
+              Hasta kayıtlarını görüntüle, ekle ve düzenle.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={
+              <Link href="/panel/musteriler/kayit-formu" target="_blank">
+                <FileText /> Kayıt Formu (PDF)
+              </Link>
+            }
+          />
         </header>
 
         <Card>
