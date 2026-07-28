@@ -4,15 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir } from "@/types/portal";
 import { RandevuFormu } from "./randevu-formu";
-import { DurumButonlari } from "./durum-butonlari";
+import { RandevuSatiri } from "./randevu-satiri";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
-
-const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
-  planlandi: "Planlandı",
-  geldi: "Geldi",
-  iptal: "İptal",
-  gelmedi: "Gelmedi",
-};
 
 export default async function RandevularSayfasi() {
   const supabase = await createClient();
@@ -30,7 +23,7 @@ export default async function RandevularSayfasi() {
       supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, created_at, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad)), olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
+          "id, baslangic, bitis, durum, created_at, musteri_id, musteri(ad_soyad), terapist_id, terapist(personel(ad_soyad)), oda_id, oda(ad), cihaz_id, olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
         )
         .gte("bitis", new Date().toISOString())
         .order("baslangic")
@@ -120,46 +113,14 @@ export default async function RandevularSayfasi() {
             {!randevularSonucu.error && randevular.length > 0 && (
               <ul className="flex flex-col divide-y divide-border">
                 {randevular.map((randevu) => (
-                  <li
+                  <RandevuSatiri
                     key={randevu.id}
-                    className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{randevu.musteri?.ad_soyad ?? "—"}</span>
-                      <span className="text-muted-foreground">
-                        {randevu.terapist?.personel?.ad_soyad ?? "—"} · {randevu.oda?.ad ?? "—"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Randevu:{" "}
-                        {new Date(randevu.baslangic).toLocaleString("tr-TR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {randevu.created_at && (
-                        <span className="text-xs text-muted-foreground">
-                          Oluşturma:{" "}
-                          {new Date(randevu.created_at).toLocaleString("tr-TR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                          {randevu.olusturan_kullanici?.ad_soyad
-                            ? ` · ${randevu.olusturan_kullanici.ad_soyad}`
-                            : ""}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:justify-start">
-                      <span className="text-muted-foreground">{DURUM_ETIKET[randevu.durum]}</span>
-                      <DurumButonlari randevuId={randevu.id} durum={randevu.durum} />
-                    </div>
-                  </li>
+                    randevu={randevu}
+                    musteriler={musteriler}
+                    terapistler={terapistler}
+                    odalar={odalar}
+                    cihazlar={cihazlar}
+                  />
                 ))}
               </ul>
             )}

@@ -90,6 +90,70 @@ export async function randevuOlustur(
   return { success: true, message: "Randevu oluşturuldu." };
 }
 
+export async function randevuGuncelle(
+  randevuId: string,
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const ayristirma = randevuSemasi.safeParse({
+    musteri_id: formData.get("musteri_id"),
+    terapist_id: formData.get("terapist_id"),
+    oda_id: formData.get("oda_id"),
+    cihaz_id: formData.get("cihaz_id") ?? "",
+    tarih: formData.get("tarih"),
+    saat: formData.get("saat"),
+    sure_dakika: formData.get("sure_dakika"),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { musteri_id, terapist_id, oda_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
+
+  const baslangic = new Date(`${tarih}T${saat}:00`);
+  if (Number.isNaN(baslangic.getTime())) {
+    return { success: false, message: "Tarih/saat geçersiz." };
+  }
+  const bitis = new Date(baslangic.getTime() + sure_dakika * 60_000);
+
+  const { error } = await supabase
+    .from("randevu")
+    .update({
+      musteri_id,
+      terapist_id,
+      oda_id,
+      cihaz_id: cihaz_id ? cihaz_id : null,
+      baslangic: baslangic.toISOString(),
+      bitis: bitis.toISOString(),
+    })
+    .eq("id", randevuId);
+
+  if (error) {
+    console.error("Randevu güncellenemedi:", error);
+    if (error.code === "23P01") {
+      return {
+        success: false,
+        message: "Seçilen terapist, oda veya cihaz bu saatte dolu.",
+      };
+    }
+    return { success: false, message: "Randevu güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  return { success: true, message: "Randevu güncellendi." };
+}
+
 const durumSemasi = z.enum(["planlandi", "geldi", "iptal", "gelmedi"]);
 
 export async function randevuDurumGuncelle(randevuId: string, yeniDurum: RandevuDurum) {

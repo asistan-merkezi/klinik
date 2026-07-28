@@ -16,15 +16,19 @@ export function MusteriArama({
   id,
   required,
   disabled,
+  varsayilanId,
+  varsayilanAd,
 }: {
   musteriler: SecenekSatir[];
   name?: string;
   id?: string;
   required?: boolean;
   disabled?: boolean;
+  varsayilanId?: string;
+  varsayilanAd?: string;
 }) {
-  const [sorgu, setSorgu] = useState("");
-  const [seciliId, setSeciliId] = useState("");
+  const [sorgu, setSorgu] = useState(varsayilanAd ? isimBasHarfBuyukYap(varsayilanAd) : "");
+  const [seciliId, setSeciliId] = useState(varsayilanId ?? "");
   const [acik, setAcik] = useState(false);
   const kapsayiciRef = useRef<HTMLDivElement>(null);
 
