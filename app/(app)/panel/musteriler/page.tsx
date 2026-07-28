@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MusteriSatir } from "@/types/musteri";
 import { MusteriFormu } from "./musteri-formu";

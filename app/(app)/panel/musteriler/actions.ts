@@ -177,6 +177,7 @@ export async function musteriGuncelle(
   }
 
   revalidatePath("/panel/musteriler");
+  revalidatePath(`/panel/musteriler/${musteriId}`);
   revalidatePath("/panel/randevular");
   return { success: true, message: "Müşteri güncellendi." };
 }
