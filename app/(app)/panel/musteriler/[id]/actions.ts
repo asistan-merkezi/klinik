@@ -270,6 +270,11 @@ function bosIseNull2(deger: FormDataEntryValue | null) {
   return s === "" ? null : s;
 }
 
+const evetHayirSemasi = z
+  .union([z.literal("evet"), z.literal("hayir"), z.literal("")])
+  .optional()
+  .transform((deger) => (deger === "evet" ? true : deger === "hayir" ? false : null));
+
 const detayliSemasi = z.object({
   cinsiyet: z.enum(["kadin", "erkek", "belirtilmemis"]).nullable(),
   eposta: z.string().trim().email("Geçersiz e-posta.").nullable(),
@@ -280,12 +285,28 @@ const detayliSemasi = z.object({
   acil_durum_ad_soyad: z.string().nullable(),
   acil_durum_yakinlik: z.string().nullable(),
   acil_durum_telefon: z.string().nullable(),
-  kronik_hastaliklar: z.string().nullable(),
-  surekli_ilaclar: z.string().nullable(),
+
+  alerji_var: evetHayirSemasi,
   alerjiler: z.string().nullable(),
+  kan_sulandirici_kullanimi: evetHayirSemasi,
+  kan_sulandirici_detay: z.string().nullable(),
+  kronik_hastalik_var: evetHayirSemasi,
+  kronik_hastaliklar: z.string().nullable(),
+  surekli_ilac_var: evetHayirSemasi,
+  surekli_ilaclar: z.string().nullable(),
+  ameliyat_var: evetHayirSemasi,
   gecirilmis_ameliyatlar: z.string().nullable(),
+  bulasici_hastalik_var: evetHayirSemasi,
+  bulasici_hastalik_detay: z.string().nullable(),
+  protez_implant_var: evetHayirSemasi,
+  protez_implant_detay: z.string().nullable(),
+  hamilelik_emzirme_var: evetHayirSemasi,
+  hamilelik_emzirme_detay: z.string().nullable(),
+  sigara_alkol_madde_var: evetHayirSemasi,
+  sigara_alkol_madde_detay: z.string().nullable(),
+
   gelis_sebebi: z.string().nullable(),
-  kan_sulandirici_kullanimi: z.coerce.boolean(),
+  oncelik_durumu: z.enum(["normal", "oncelikli", "acil"]),
 });
 
 export async function detayliBilgileriGuncelle(
@@ -311,12 +332,28 @@ export async function detayliBilgileriGuncelle(
     acil_durum_ad_soyad: bosIseNull2(formData.get("acil_durum_ad_soyad")),
     acil_durum_yakinlik: bosIseNull2(formData.get("acil_durum_yakinlik")),
     acil_durum_telefon: bosIseNull2(formData.get("acil_durum_telefon")),
-    kronik_hastaliklar: bosIseNull2(formData.get("kronik_hastaliklar")),
-    surekli_ilaclar: bosIseNull2(formData.get("surekli_ilaclar")),
+
+    alerji_var: formData.get("alerji_var") ?? "",
     alerjiler: bosIseNull2(formData.get("alerjiler")),
+    kan_sulandirici_kullanimi: formData.get("kan_sulandirici_kullanimi") ?? "",
+    kan_sulandirici_detay: bosIseNull2(formData.get("kan_sulandirici_detay")),
+    kronik_hastalik_var: formData.get("kronik_hastalik_var") ?? "",
+    kronik_hastaliklar: bosIseNull2(formData.get("kronik_hastaliklar")),
+    surekli_ilac_var: formData.get("surekli_ilac_var") ?? "",
+    surekli_ilaclar: bosIseNull2(formData.get("surekli_ilaclar")),
+    ameliyat_var: formData.get("ameliyat_var") ?? "",
     gecirilmis_ameliyatlar: bosIseNull2(formData.get("gecirilmis_ameliyatlar")),
+    bulasici_hastalik_var: formData.get("bulasici_hastalik_var") ?? "",
+    bulasici_hastalik_detay: bosIseNull2(formData.get("bulasici_hastalik_detay")),
+    protez_implant_var: formData.get("protez_implant_var") ?? "",
+    protez_implant_detay: bosIseNull2(formData.get("protez_implant_detay")),
+    hamilelik_emzirme_var: formData.get("hamilelik_emzirme_var") ?? "",
+    hamilelik_emzirme_detay: bosIseNull2(formData.get("hamilelik_emzirme_detay")),
+    sigara_alkol_madde_var: formData.get("sigara_alkol_madde_var") ?? "",
+    sigara_alkol_madde_detay: bosIseNull2(formData.get("sigara_alkol_madde_detay")),
+
     gelis_sebebi: bosIseNull2(formData.get("gelis_sebebi")),
-    kan_sulandirici_kullanimi: formData.get("kan_sulandirici_kullanimi") === "on",
+    oncelik_durumu: formData.get("oncelik_durumu") || "normal",
   });
 
   if (!ayristirma.success) {

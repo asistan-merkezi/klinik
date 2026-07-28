@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { MusteriDetay } from "@/types/musteri";
 import type { MusteriHassasSatir } from "@/types/musteri-hassas";
 import { detayliBilgileriGuncelle, ozelNitelikliOnayVer } from "./actions";
@@ -18,13 +19,136 @@ import { detayliBilgileriGuncelle, ozelNitelikliOnayVer } from "./actions";
 const CINSIYET_SECENEKLERI = [
   { value: "kadin", label: "Kadın" },
   { value: "erkek", label: "Erkek" },
-  { value: "belirtilmemis", label: "Belirtilmemiş" },
+  { value: "belirtilmemis", label: "Belirtmek İstemiyor" },
 ];
 
 const KIMLIK_TIPI_SECENEKLERI = [
   { value: "tc", label: "T.C. Kimlik No" },
   { value: "pasaport", label: "Pasaport No" },
 ];
+
+const REFERANS_SECENEKLERI_TABAN = [
+  { value: "sosyal_medya", label: "Sosyal Medya" },
+  { value: "tavsiye", label: "Tavsiye" },
+  { value: "google", label: "Google" },
+  { value: "reklam", label: "Reklam" },
+  { value: "diger", label: "Diğer" },
+];
+
+const ONCELIK_SECENEKLERI = [
+  { value: "normal", label: "Normal" },
+  { value: "oncelikli", label: "Öncelikli" },
+  { value: "acil", label: "🔴 Acil" },
+];
+
+function textAlaniSinifi(kritikMi?: boolean) {
+  return cn(
+    "rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+    kritikMi ? "border-red-300" : "border-input"
+  );
+}
+
+function EvetHayirAlan({
+  ad,
+  detayAdi,
+  baslik,
+  detayPlaceholder,
+  varDegeri,
+  detayDegeri,
+  hizliEtiketler,
+  kritik,
+  disabled,
+}: {
+  ad: string;
+  detayAdi: string;
+  baslik: string;
+  detayPlaceholder: string;
+  varDegeri: boolean | null;
+  detayDegeri: string | null;
+  hizliEtiketler?: string[];
+  kritik?: boolean;
+  disabled?: boolean;
+}) {
+  const [secim, setSecim] = useState<"evet" | "hayir" | null>(
+    varDegeri === true ? "evet" : varDegeri === false ? "hayir" : null
+  );
+  const [detay, setDetay] = useState(detayDegeri ?? "");
+  const kritikVeEvet = Boolean(kritik) && secim === "evet";
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-2 rounded-lg border p-3",
+        kritikVeEvet ? "border-red-300 bg-red-50 dark:bg-red-950/20" : "border-border"
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className={cn("text-sm font-medium", kritikVeEvet && "text-destructive")}>{baslik}</span>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setSecim("evet")}
+            className={cn(
+              "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+              secim === "evet"
+                ? "border-destructive bg-destructive/10 text-destructive"
+                : "border-input text-muted-foreground hover:bg-muted"
+            )}
+          >
+            Evet
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setSecim("hayir")}
+            className={cn(
+              "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+              secim === "hayir"
+                ? "border-emerald-400 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "border-input text-muted-foreground hover:bg-muted"
+            )}
+          >
+            Hayır
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" name={ad} value={secim ?? ""} />
+
+      {secim === "evet" && (
+        <div className="flex flex-col gap-1.5">
+          <textarea
+            name={detayAdi}
+            rows={2}
+            placeholder={detayPlaceholder}
+            value={detay}
+            onChange={(e) => setDetay(e.target.value)}
+            disabled={disabled}
+            className={textAlaniSinifi(kritik)}
+          />
+          {hizliEtiketler && (
+            <div className="flex flex-wrap gap-1.5">
+              {hizliEtiketler.map((etiket) => (
+                <button
+                  key={etiket}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() =>
+                    setDetay((onceki) => (onceki.trim() ? `${onceki.trim()}, ${etiket}` : etiket))
+                  }
+                  className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  + {etiket}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function DetayliBilgilerKarti({
   musteri,
@@ -36,6 +160,11 @@ export function DetayliBilgilerKarti({
   const guncelleAction = detayliBilgileriGuncelle.bind(null, musteri.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const [onayPending, startOnayTransition] = useTransition();
+
+  const referansSecenekleri =
+    !musteri.referans_kanali || REFERANS_SECENEKLERI_TABAN.some((s) => s.value === musteri.referans_kanali)
+      ? REFERANS_SECENEKLERI_TABAN
+      : [{ value: musteri.referans_kanali, label: musteri.referans_kanali }, ...REFERANS_SECENEKLERI_TABAN];
 
   return (
     <div className="flex flex-col gap-4">
@@ -100,13 +229,23 @@ export function DetayliBilgilerKarti({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="referans_kanali">Bizi Nereden Duydunuz?</Label>
-            <Input
-              id="referans_kanali"
+            <Select
               name="referans_kanali"
-              placeholder="Sosyal medya, tavsiye, Google..."
-              defaultValue={musteri.referans_kanali ?? ""}
               disabled={isPending}
-            />
+              defaultValue={musteri.referans_kanali ?? undefined}
+              items={referansSecenekleri}
+            >
+              <SelectTrigger id="referans_kanali" className="w-full">
+                <SelectValue placeholder="Seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {referansSecenekleri.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div />
           <div className="flex flex-col gap-2">
@@ -142,7 +281,7 @@ export function DetayliBilgilerKarti({
             rows={2}
             defaultValue={hassas?.adres ?? ""}
             disabled={isPending}
-            className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className={textAlaniSinifi()}
           />
         </fieldset>
 
@@ -179,76 +318,136 @@ export function DetayliBilgilerKarti({
 
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-1 text-sm font-medium">Tıbbi Ön Geçmiş</legend>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="alerjiler" className="text-destructive">
-              ⚠ Alerjiler
-            </Label>
-            <textarea
-              id="alerjiler"
-              name="alerjiler"
-              rows={2}
-              placeholder="İlaç, lateks, anestezi vb."
-              defaultValue={hassas?.alerjiler ?? ""}
+
+          <EvetHayirAlan
+            ad="alerji_var"
+            detayAdi="alerjiler"
+            baslik="⚠ Alerji Durumu"
+            detayPlaceholder="İlaç, lateks, lokal/genel anestezi, gıda vb. detaylar..."
+            varDegeri={hassas?.alerji_var ?? null}
+            detayDegeri={hassas?.alerjiler ?? null}
+            hizliEtiketler={["Penisilin Alerjisi", "Lateks Alerjisi", "Anestezi Alerjisi", "Gıda Alerjisi"]}
+            kritik
+            disabled={isPending}
+          />
+
+          <EvetHayirAlan
+            ad="kan_sulandirici_kullanimi"
+            detayAdi="kan_sulandirici_detay"
+            baslik="🩸 Kan Sulandırıcı Kullanımı"
+            detayPlaceholder="İlaç adı, dozu ve en son ne zaman alındığı..."
+            varDegeri={hassas?.kan_sulandirici_kullanimi ?? null}
+            detayDegeri={hassas?.kan_sulandirici_detay ?? null}
+            kritik
+            disabled={isPending}
+          />
+
+          <EvetHayirAlan
+            ad="kronik_hastalik_var"
+            detayAdi="kronik_hastaliklar"
+            baslik="Kronik Hastalıklar"
+            detayPlaceholder="Hipertansiyon, diyabet, kalp, astım vb. detayı..."
+            varDegeri={hassas?.kronik_hastalik_var ?? null}
+            detayDegeri={hassas?.kronik_hastaliklar ?? null}
+            hizliEtiketler={["Diyabet", "Tansiyon (Hipertansiyon)", "Kalp Hastalığı", "Astım"]}
+            disabled={isPending}
+          />
+
+          <EvetHayirAlan
+            ad="surekli_ilac_var"
+            detayAdi="surekli_ilaclar"
+            baslik="Sürekli Kullanılan İlaçlar"
+            detayPlaceholder="Düzenli alınan tüm ilaçların adları..."
+            varDegeri={hassas?.surekli_ilac_var ?? null}
+            detayDegeri={hassas?.surekli_ilaclar ?? null}
+            disabled={isPending}
+          />
+
+          <EvetHayirAlan
+            ad="ameliyat_var"
+            detayAdi="gecirilmis_ameliyatlar"
+            baslik="Geçirilmiş Ameliyatlar"
+            detayPlaceholder="Ameliyat türü ve yılları..."
+            varDegeri={hassas?.ameliyat_var ?? null}
+            detayDegeri={hassas?.gecirilmis_ameliyatlar ?? null}
+            disabled={isPending}
+          />
+
+          <EvetHayirAlan
+            ad="bulasici_hastalik_var"
+            detayAdi="bulasici_hastalik_detay"
+            baslik="Bulaşıcı / Enfeksiyöz Hastalık"
+            detayPlaceholder="Hepatit, HIV, tüberküloz vb. detayı..."
+            varDegeri={hassas?.bulasici_hastalik_var ?? null}
+            detayDegeri={hassas?.bulasici_hastalik_detay ?? null}
+            disabled={isPending}
+          />
+
+          <EvetHayirAlan
+            ad="protez_implant_var"
+            detayAdi="protez_implant_detay"
+            baslik="Protez / Kalp Pili / İmplant"
+            detayPlaceholder="Vücutta bulunan protez veya tıbbi cihazlar..."
+            varDegeri={hassas?.protez_implant_var ?? null}
+            detayDegeri={hassas?.protez_implant_detay ?? null}
+            disabled={isPending}
+          />
+
+          {musteri.cinsiyet === "kadin" && (
+            <EvetHayirAlan
+              ad="hamilelik_emzirme_var"
+              detayAdi="hamilelik_emzirme_detay"
+              baslik="Hamilelik / Emzirme Durumu"
+              detayPlaceholder="Hafta/ay bilgisi veya özel durumlar..."
+              varDegeri={hassas?.hamilelik_emzirme_var ?? null}
+              detayDegeri={hassas?.hamilelik_emzirme_detay ?? null}
               disabled={isPending}
-              className="rounded-lg border border-red-300 bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
-          </div>
-          <div className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2">
-            <input
-              id="kan_sulandirici_kullanimi"
-              name="kan_sulandirici_kullanimi"
-              type="checkbox"
-              defaultChecked={hassas?.kan_sulandirici_kullanimi ?? false}
-              disabled={isPending}
-              className="h-4 w-4 rounded border-input"
-            />
-            <Label htmlFor="kan_sulandirici_kullanimi" className="font-normal text-destructive">
-              ⚠ Kan sulandırıcı kullanıyor
-            </Label>
-          </div>
+          )}
+
+          <EvetHayirAlan
+            ad="sigara_alkol_madde_var"
+            detayAdi="sigara_alkol_madde_detay"
+            baslik="Sigara / Alkol / Madde Kullanımı"
+            detayPlaceholder="Tüketim sıklığı ve miktarı..."
+            varDegeri={hassas?.sigara_alkol_madde_var ?? null}
+            detayDegeri={hassas?.sigara_alkol_madde_detay ?? null}
+            disabled={isPending}
+          />
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-3">
+          <legend className="mb-1 text-sm font-medium">Geliş Sebebi & Klinik Notlar</legend>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="kronik_hastaliklar">Kronik Hastalıklar</Label>
-            <textarea
-              id="kronik_hastaliklar"
-              name="kronik_hastaliklar"
-              rows={2}
-              defaultValue={hassas?.kronik_hastaliklar ?? ""}
-              disabled={isPending}
-              className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="surekli_ilaclar">Sürekli Kullanılan İlaçlar</Label>
-            <textarea
-              id="surekli_ilaclar"
-              name="surekli_ilaclar"
-              rows={2}
-              defaultValue={hassas?.surekli_ilaclar ?? ""}
-              disabled={isPending}
-              className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="gecirilmis_ameliyatlar">Geçirilmiş Ameliyatlar</Label>
-            <textarea
-              id="gecirilmis_ameliyatlar"
-              name="gecirilmis_ameliyatlar"
-              rows={2}
-              defaultValue={hassas?.gecirilmis_ameliyatlar ?? ""}
-              disabled={isPending}
-              className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="gelis_sebebi">Geliş Sebebi / Şikayeti</Label>
+            <Label htmlFor="gelis_sebebi">Şikayet / Geliş Sebebi</Label>
             <textarea
               id="gelis_sebebi"
               name="gelis_sebebi"
               rows={2}
               defaultValue={hassas?.gelis_sebebi ?? ""}
               disabled={isPending}
-              className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className={textAlaniSinifi()}
             />
+          </div>
+          <div className="flex flex-col gap-2 sm:w-64">
+            <Label htmlFor="oncelik_durumu">Öncelik / Aciliyet Durumu</Label>
+            <Select
+              name="oncelik_durumu"
+              disabled={isPending}
+              defaultValue={hassas?.oncelik_durumu ?? "normal"}
+              items={ONCELIK_SECENEKLERI}
+            >
+              <SelectTrigger id="oncelik_durumu" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ONCELIK_SECENEKLERI.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </fieldset>
 

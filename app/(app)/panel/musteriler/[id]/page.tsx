@@ -105,6 +105,33 @@ export default async function MusteriDetaySayfasi({
             <Button variant="outline" nativeButton={false} render={<Link href="/panel/musteriler">Müşterilere dön</Link>} />
           </div>
           <MusteriBasligi musteri={musteri} duzenlenebilir={duzenlenebilir} />
+          {(musteriHassas?.alerji_var ||
+            musteriHassas?.kan_sulandirici_kullanimi ||
+            musteriHassas?.oncelik_durumu === "acil" ||
+            musteriHassas?.oncelik_durumu === "oncelikli") && (
+            <div className="flex flex-wrap gap-2">
+              {musteriHassas?.alerji_var && (
+                <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                  ⚠️ ALERJİ VAR
+                </span>
+              )}
+              {musteriHassas?.kan_sulandirici_kullanimi && (
+                <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                  🩸 KAN SULANDIRICI
+                </span>
+              )}
+              {musteriHassas?.oncelik_durumu === "acil" && (
+                <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                  🔴 ACİL
+                </span>
+              )}
+              {musteriHassas?.oncelik_durumu === "oncelikli" && (
+                <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  ÖNCELİKLİ
+                </span>
+              )}
+            </div>
+          )}
         </header>
 
         <Card>

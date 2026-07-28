@@ -42,6 +42,28 @@ function Onay({ etiket }: { etiket: string }) {
   );
 }
 
+function EvetHayirSatiri({ etiket, aciklamaEtiketi }: { etiket: string; aciklamaEtiketi?: string }) {
+  return (
+    <div className="col-span-2 flex flex-col gap-2 border-b border-black/10 pb-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm">{etiket}</span>
+        <div className="flex items-center gap-4 text-xs">
+          <span className="flex items-center gap-1">
+            <span className="size-3.5 shrink-0 border border-black/60" /> Evet
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="size-3.5 shrink-0 border border-black/60" /> Hayır
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-black/70">{aciklamaEtiketi ?? "Açıklama"}</span>
+        <span className="h-6 border-b border-black/40" />
+      </div>
+    </div>
+  );
+}
+
 export default async function KayitFormuSayfasi() {
   const supabase = await createClient();
 
@@ -111,12 +133,33 @@ export default async function KayitFormuSayfasi() {
           </Bolum>
 
           <Bolum baslik="Tıbbi Ön Geçmiş">
-            <Alan etiket="Kronik Hastalıklar" genis satir={2} />
-            <Alan etiket="Sürekli Kullanılan İlaçlar" genis satir={2} />
-            <Onay etiket="Kan sulandırıcı kullanıyorum." />
-            <Alan etiket="Alerjiler (ilaç, lateks, anestezi vb.)" genis satir={2} />
-            <Alan etiket="Geçirilmiş Ameliyatlar" genis satir={2} />
-            <Alan etiket="Geliş Sebebi / Şikayeti" genis satir={2} />
+            <EvetHayirSatiri etiket="⚠ Alerji Durumu" aciklamaEtiketi="İlaç, lateks, lokal/genel anestezi, gıda vb. detaylar" />
+            <EvetHayirSatiri etiket="🩸 Kan Sulandırıcı Kullanımı" aciklamaEtiketi="İlaç adı, dozu ve en son ne zaman alındığı" />
+            <EvetHayirSatiri etiket="Kronik Hastalıklar" aciklamaEtiketi="Hipertansiyon, diyabet, kalp, astım vb. detayı" />
+            <EvetHayirSatiri etiket="Sürekli Kullanılan İlaçlar" aciklamaEtiketi="Düzenli alınan tüm ilaçların adları" />
+            <EvetHayirSatiri etiket="Geçirilmiş Ameliyatlar" aciklamaEtiketi="Ameliyat türü ve yılları" />
+            <EvetHayirSatiri etiket="Bulaşıcı / Enfeksiyöz Hastalık" aciklamaEtiketi="Hepatit, HIV, tüberküloz vb. detayı" />
+            <EvetHayirSatiri etiket="Protez / Kalp Pili / İmplant" aciklamaEtiketi="Vücutta bulunan protez veya tıbbi cihazlar" />
+            <EvetHayirSatiri etiket="Hamilelik / Emzirme Durumu (kadın hastalar için)" aciklamaEtiketi="Hafta/ay bilgisi veya özel durumlar" />
+            <EvetHayirSatiri etiket="Sigara / Alkol / Madde Kullanımı" aciklamaEtiketi="Tüketim sıklığı ve miktarı" />
+          </Bolum>
+
+          <Bolum baslik="Geliş Sebebi & Klinik Notları">
+            <Alan etiket="Şikayet / Geliş Sebebi" genis satir={2} />
+            <div className="col-span-2 flex items-center justify-between text-sm">
+              <span>Öncelik / Aciliyet Durumu</span>
+              <div className="flex items-center gap-4 text-xs">
+                <span className="flex items-center gap-1">
+                  <span className="size-3.5 shrink-0 border border-black/60" /> Normal
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="size-3.5 shrink-0 border border-black/60" /> Öncelikli
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="size-3.5 shrink-0 border border-black/60" /> Acil
+                </span>
+              </div>
+            </div>
           </Bolum>
 
           <Bolum baslik="Onaylar">
