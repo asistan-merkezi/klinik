@@ -89,7 +89,7 @@ export function YuklemeDialogu({
     const gecerliler: DosyaGirisi[] = [];
     for (const dosya of Array.from(yeniDosyalar)) {
       if (!dosyaBoyutuGecerliMi(dosya)) {
-        setGenelHata(`${dosya.name}: dosya boyutu 15MB sınırını aşıyor.`);
+        setGenelHata(`${dosya.name}: dosya boyutu çok büyük.`);
         continue;
       }
       gecerliler.push({ dosya, durum: "bekliyor" });
@@ -178,7 +178,9 @@ export function YuklemeDialogu({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Belge / Fotoğraf Yükle</DialogTitle>
-          <DialogDescription>jpg, jpeg, png, heic, webp, pdf · max 15MB</DialogDescription>
+          <DialogDescription>
+            jpg, jpeg, png, heic, webp, pdf · her boyutta fotoğraf otomatik küçültülür
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
