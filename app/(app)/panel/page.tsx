@@ -32,7 +32,7 @@ export default async function PanelSayfasi() {
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex max-w-4xl flex-col gap-6">
         {error ? (
           <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
         ) : (

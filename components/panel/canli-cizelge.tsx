@@ -1,35 +1,41 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
-import { cn } from "@/lib/utils";
 import type { RandevuSatir } from "@/types/randevu";
-import { Activity } from "lucide-react";
+import { Activity, Users } from "lucide-react";
+import { CanliSaat } from "@/components/panel/canli-saat";
+import { SuAnCizgisi } from "@/components/panel/su-an-cizgisi";
+import { RandevuKutusu, gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
 
-const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
-  planlandi: "Planlandı",
-  geldi: "Geldi",
-  iptal: "İptal",
-  gelmedi: "Gelmedi",
-};
+const GUN_BASLANGIC_SAAT = 8;
+const GUN_BITIS_SAAT = 20;
+const PX_PER_DAKIKA = 2;
+const TOPLAM_DAKIKA = (GUN_BITIS_SAAT - GUN_BASLANGIC_SAAT) * 60;
+const SAAT_ETIKETLERI = Array.from(
+  { length: GUN_BITIS_SAAT - GUN_BASLANGIC_SAAT + 1 },
+  (_, i) => GUN_BASLANGIC_SAAT + i
+);
 
-function saatFormat(tarih: string) {
-  return new Date(tarih).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+function gunBaslangiciMs(baz: Date) {
+  const tarih = new Date(baz);
+  tarih.setHours(GUN_BASLANGIC_SAAT, 0, 0, 0);
+  return tarih.getTime();
+}
+
+function dakikaFarki(baslangicMs: number, tarih: string) {
+  return (new Date(tarih).getTime() - baslangicMs) / 60_000;
 }
 
 export function CanliCizelge({ baslangicRandevular }: { baslangicRandevular: RandevuSatir[] }) {
   const [randevular, setRandevular] = useState(baslangicRandevular);
   const [simdi, setSimdi] = useState<Date | null>(null);
-  const [saat, setSaat] = useState<string | null>(null);
+  const kaydirildiRef = useRef(false);
 
   useEffect(() => {
     setSimdi(new Date());
-    setSaat(new Date().toLocaleTimeString("tr-TR"));
-    const id = setInterval(() => {
-      setSimdi(new Date());
-      setSaat(new Date().toLocaleTimeString("tr-TR"));
-    }, 1000);
+    const id = setInterval(() => setSimdi(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -86,84 +92,138 @@ export function CanliCizelge({ baslangicRandevular }: { baslangicRandevular: Ran
     };
   }, []);
 
-  const devamEdenSayisi = useMemo(() => {
-    if (!simdi) return 0;
-    return randevular.filter(
-      (r) =>
-        r.durum === "geldi" &&
-        new Date(r.baslangic) <= simdi &&
-        new Date(r.bitis) >= simdi
-    ).length;
+  const gunBaslangicMs = useMemo(() => gunBaslangiciMs(simdi ?? new Date()), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const gorunumler = useMemo(() => {
+    if (!simdi) return [];
+    return randevular.map((randevu) => ({
+      randevu,
+      durum: gorunumDurumuHesapla(randevu, simdi),
+    }));
   }, [randevular, simdi]);
 
+  const devamEdenler = useMemo(
+    () => gorunumler.filter((g) => g.durum === "seansta"),
+    [gorunumler]
+  );
+
+  const aktifRandevuId = devamEdenler[0]?.randevu.id ?? null;
+
+  useEffect(() => {
+    if (kaydirildiRef.current || !aktifRandevuId) return;
+    const el = document.getElementById(`randevu-${aktifRandevuId}`);
+    if (el) {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      kaydirildiRef.current = true;
+    }
+  }, [aktifRandevuId]);
+
+  const duyuruMetni =
+    devamEdenler.length > 0
+      ? `Şu an seansta: ${devamEdenler
+          .map((g) => g.randevu.musteri?.ad_soyad ?? "—")
+          .join(", ")}`
+      : "Şu an aktif seans yok";
+
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card text-card-foreground">
+    <div className="flex flex-col rounded-2xl border border-border bg-card text-card-foreground">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
         <div className="flex items-center gap-2">
           <Activity className="size-4 text-primary" aria-hidden />
-          <h2 className="text-sm font-semibold">Bugünün Çizelgesi</h2>
+          <h2 className="text-sm font-semibold">Günün Çizelgesi</h2>
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-primary ring-1 ring-inset ring-primary/30">
             <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
-            Canlı
+            <span className="hidden sm:inline">Canlı senkronizasyon</span>
+            <span className="sm:hidden">Canlı</span>
           </span>
-          <time suppressHydrationWarning className="font-mono text-sm tabular-nums text-muted-foreground">
-            {saat ?? "--:--:--"}
-          </time>
+          <CanliSaat />
         </div>
       </header>
 
-      <div className="px-4 pb-4 sm:px-5">
+      <p aria-live="polite" className="sr-only">
+        {duyuruMetni}
+      </p>
+
+      <div className="max-h-[70vh] overflow-y-auto px-4 py-4 sm:px-5">
         {randevular.length === 0 ? (
           <p className="py-3 text-sm text-muted-foreground">Bugün için randevu yok.</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-border">
-            {randevular.map((randevu) => {
-              const baslangicTarih = new Date(randevu.baslangic);
-              const bitisTarih = new Date(randevu.bitis);
-              const devamEdiyor =
-                simdi !== null &&
-                randevu.durum === "geldi" &&
-                baslangicTarih <= simdi &&
-                bitisTarih >= simdi;
-              const gecmis = simdi !== null && bitisTarih < simdi;
-
-              return (
-                <li
-                  key={randevu.id}
-                  className={cn(
-                    "flex items-center justify-between gap-3 rounded-lg px-2 py-3 text-sm transition-colors",
-                    devamEdiyor && "bg-primary/5 ring-1 ring-inset ring-primary/30",
-                    gecmis && randevu.durum !== "geldi" && "opacity-60"
-                  )}
+          <>
+            {/* ≥lg: saat ızgaralı yerleşim */}
+            <div
+              className="relative hidden lg:block"
+              style={{ height: `${TOPLAM_DAKIKA * PX_PER_DAKIKA}px` }}
+            >
+              {SAAT_ETIKETLERI.map((saat, i) => (
+                <div
+                  key={saat}
+                  className="absolute inset-x-0 flex items-center"
+                  style={{ top: `${i * 60 * PX_PER_DAKIKA}px` }}
+                  aria-hidden
                 >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{randevu.musteri?.ad_soyad ?? "—"}</span>
-                    <span className="text-muted-foreground">
-                      {randevu.terapist?.personel?.ad_soyad ?? "—"} · {randevu.oda?.ad ?? "—"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="tabular-nums">{saatFormat(randevu.baslangic)}</span>
-                    <span
-                      className={cn(
-                        "text-xs",
-                        devamEdiyor ? "font-semibold text-primary" : "text-muted-foreground"
-                      )}
+                  <span className="tabular-nums w-12 shrink-0 font-mono text-xs text-muted-foreground">
+                    {String(saat).padStart(2, "0")}:00
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              ))}
+
+              <div className="relative ml-12 h-full">
+                {gorunumler.map(({ randevu, durum }) => {
+                  const top = dakikaFarki(gunBaslangicMs, randevu.baslangic) * PX_PER_DAKIKA;
+                  const bitisFarki = dakikaFarki(gunBaslangicMs, randevu.bitis);
+                  const baslangicFarki = dakikaFarki(gunBaslangicMs, randevu.baslangic);
+                  const yukseklik = Math.max((bitisFarki - baslangicFarki) * PX_PER_DAKIKA - 6, 32);
+
+                  return (
+                    <div
+                      key={randevu.id}
+                      className="absolute inset-x-0"
+                      style={{ top: `${top}px`, height: `${yukseklik}px` }}
                     >
-                      {devamEdiyor ? "Seansta" : DURUM_ETIKET[randevu.durum]}
-                    </span>
-                  </div>
+                      <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
+                    </div>
+                  );
+                })}
+
+                {simdi && (
+                  <SuAnCizgisi
+                    gunBaslangicMs={gunBaslangicMs}
+                    pxPerDakika={PX_PER_DAKIKA}
+                    toplamDakika={TOPLAM_DAKIKA}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* <lg: dikey liste */}
+            <ul className="flex flex-col gap-2 lg:hidden">
+              {gorunumler.map(({ randevu, durum }) => (
+                <li key={randevu.id}>
+                  {durum === "seansta" && (
+                    <div className="mb-1 flex items-center gap-2 px-1 text-xs font-semibold text-primary">
+                      <span className="h-px flex-1 bg-primary/40" />
+                      Şu an
+                      <span className="h-px flex-1 bg-primary/40" />
+                    </div>
+                  )}
+                  <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          </>
         )}
       </div>
 
-      <footer className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground sm:px-5">
-        {devamEdenSayisi > 0 ? `${devamEdenSayisi} muayene devam ediyor` : "Şu an aktif seans yok"}
+      <footer className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs text-muted-foreground sm:px-5">
+        <span className="flex items-center gap-1.5">
+          <Users className="size-3.5" aria-hidden />
+          {devamEdenler.length > 0
+            ? `${devamEdenler.length} muayene devam ediyor`
+            : "Şu an aktif seans yok"}
+        </span>
       </footer>
     </div>
   );
