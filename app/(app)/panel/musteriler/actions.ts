@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -84,7 +85,7 @@ export async function musteriOlustur(
     .from("musteri")
     .insert({
       klinik_id: klinikId,
-      ad_soyad,
+      ad_soyad: isimBasHarfBuyukYap(ad_soyad),
       telefon,
       dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
       whatsapp_izin_durumu: whatsapp_izin_durumu ?? false,
@@ -148,7 +149,7 @@ export async function musteriGuncelle(
   const { error } = await supabase
     .from("musteri")
     .update({
-      ad_soyad,
+      ad_soyad: isimBasHarfBuyukYap(ad_soyad),
       telefon,
       dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
       whatsapp_izin_durumu: whatsapp_izin_durumu ?? false,

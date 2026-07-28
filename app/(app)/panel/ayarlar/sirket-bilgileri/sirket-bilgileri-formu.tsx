@@ -74,7 +74,7 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="telefon">Telefon</Label>
+          <Label htmlFor="telefon">Şirket Telefonu</Label>
           <Input id="telefon" name="telefon" disabled={isPending} defaultValue={bilgiler?.telefon ?? ""} />
         </div>
         <div className="flex flex-col gap-2">
@@ -86,9 +86,25 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
           <Label htmlFor="eposta">E-posta</Label>
           <Input id="eposta" name="eposta" type="email" disabled={isPending} defaultValue={bilgiler?.eposta ?? ""} />
         </div>
-        <div className="flex flex-col gap-2">
+        <div />
+
+        <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="yetkili_kisi">Yetkili Kişi</Label>
           <Input id="yetkili_kisi" name="yetkili_kisi" disabled={isPending} defaultValue={bilgiler?.yetkili_kisi ?? ""} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="yetkili_telefon">Yetkili Telefon Numarası</Label>
+          <Input id="yetkili_telefon" name="yetkili_telefon" disabled={isPending} defaultValue={bilgiler?.yetkili_telefon ?? ""} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="yetkili_eposta">Yetkili Mail Adresi</Label>
+          <Input
+            id="yetkili_eposta"
+            name="yetkili_eposta"
+            type="email"
+            disabled={isPending}
+            defaultValue={bilgiler?.yetkili_eposta ?? ""}
+          />
         </div>
       </div>
 

@@ -5,6 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Her kelimenin ilk harfini büyütür, gerisini küçültür (Türkçe İ/ı duyarlı). */
+export function isimBasHarfBuyukYap(deger: string): string {
+  return deger
+    .split(" ")
+    .map((kelime) =>
+      kelime.length === 0
+        ? kelime
+        : kelime.charAt(0).toLocaleUpperCase("tr-TR") + kelime.slice(1).toLocaleLowerCase("tr-TR")
+    )
+    .join(" ")
+}
+
 export function gunAraligi(tarih: Date = new Date()) {
   const baslangic = new Date(Date.UTC(tarih.getUTCFullYear(), tarih.getUTCMonth(), tarih.getUTCDate()));
   const bitis = new Date(baslangic);

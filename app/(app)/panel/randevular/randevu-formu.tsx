@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import type { SecenekSatir } from "@/types/randevu";
 import { randevuOlustur } from "./actions";
+import { MusteriArama } from "./musteri-arama";
 
 type Props = {
   musteriler: SecenekSatir[];
@@ -29,19 +30,8 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar }: Prop
     <form action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="musteri_id">Müşteri</Label>
-          <Select name="musteri_id" required disabled={isPending}>
-            <SelectTrigger id="musteri_id" className="w-full">
-              <SelectValue placeholder="Müşteri seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {musteriler.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.ad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="musteri_arama">Müşteri</Label>
+          <MusteriArama id="musteri_arama" musteriler={musteriler} required disabled={isPending} />
         </div>
 
         <div className="flex flex-col gap-2">

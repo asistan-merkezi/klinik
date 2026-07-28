@@ -7,5 +7,7 @@ export type SirketBilgileri = {
   whatsapp_no: string | null;
   eposta: string | null;
   yetkili_kisi: string | null;
+  yetkili_telefon: string | null;
+  yetkili_eposta: string | null;
   logo_url: string | null;
 };

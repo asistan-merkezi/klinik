@@ -53,6 +53,8 @@ const sirketSemasi = z.object({
   whatsapp_no: z.string().nullable(),
   eposta: z.string().email("Geçersiz e-posta.").nullable(),
   yetkili_kisi: z.string().nullable(),
+  yetkili_telefon: z.string().nullable(),
+  yetkili_eposta: z.string().email("Geçersiz yetkili e-postası.").nullable(),
 });
 
 export async function sirketBilgileriGuncelle(
@@ -73,6 +75,8 @@ export async function sirketBilgileriGuncelle(
     whatsapp_no: bosIseNull(formData.get("whatsapp_no")),
     eposta: bosIseNull(formData.get("eposta")),
     yetkili_kisi: bosIseNull(formData.get("yetkili_kisi")),
+    yetkili_telefon: bosIseNull(formData.get("yetkili_telefon")),
+    yetkili_eposta: bosIseNull(formData.get("yetkili_eposta")),
   });
 
   if (!ayristirma.success) {

@@ -25,7 +25,9 @@ export default async function SirketBilgileriSayfasi() {
 
   const { data: bilgiler } = await supabase
     .from("klinik")
-    .select("unvan, adres, vergi_dairesi, vergi_no, telefon, whatsapp_no, eposta, yetkili_kisi, logo_url")
+    .select(
+      "unvan, adres, vergi_dairesi, vergi_no, telefon, whatsapp_no, eposta, yetkili_kisi, yetkili_telefon, yetkili_eposta, logo_url"
+    )
     .eq("id", kullanici?.klinik_id ?? "")
     .maybeSingle<SirketBilgileri>();
 
