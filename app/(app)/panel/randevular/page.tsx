@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir } from "@/types/portal";
 import { RandevuFormu } from "./randevu-formu";
+import { PeriyodikRandevuFormu } from "./periyodik-randevu-formu";
 import { RandevuSatiri } from "./randevu-satiri";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
 
@@ -100,6 +101,30 @@ export default async function RandevularSayfasi() {
               </p>
             ) : (
               <RandevuFormu
+                musteriler={musteriler}
+                terapistler={terapistler}
+                odalar={odalar}
+                cihazlar={cihazlar}
+                tedaviler={tedaviler}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Periyodik Randevu</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {musteriler.length === 0 ||
+            terapistler.length === 0 ||
+            odalar.length === 0 ||
+            tedaviler.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Periyodik randevu oluşturabilmek için önce müşteri, terapist, oda ve tedavi tanımı kaydı gerekli.
+              </p>
+            ) : (
+              <PeriyodikRandevuFormu
                 musteriler={musteriler}
                 terapistler={terapistler}
                 odalar={odalar}

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { toUTC } from "@/lib/datetime";
+import { whatsappLinkOlustur } from "@/lib/utils";
 import type { RandevuDurum } from "@/types/randevu";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -247,4 +248,533 @@ export async function iptalTalebiReddet(talepId: string): Promise<SonucDurumu2> 
 
   revalidatePath("/panel/randevular");
   return { success: true, message: "İptal talebi reddedildi." };
+}
+
+type PeriyodikSonucu = {
+  success: boolean;
+  message: string;
+  cakismalar?: { tarihEtiketi: string; whatsappLink: string }[];
+} | null;
+
+/** Periyodik randevu serisinin varsayılan/yenileme süresi (ay). */
+const PERIYODIK_SURE_AY = 5;
+
+const periyodikSemasi = z.object({
+  musteri_id: z.string().uuid("Müşteri seçilmeli."),
+  terapist_id: z.string().uuid("Dr / Terapist seçilmeli."),
+  oda_id: z.string().uuid("Oda seçilmeli."),
+  islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
+  cihaz_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+  haftanin_gunu: z.coerce.number().int().min(0).max(6),
+  saat: z.string().min(1, "Saat gerekli."),
+  sure_dakika: z.coerce
+    .number()
+    .int()
+    .min(5, "Süre en az 5 dakika olmalı.")
+    .max(480, "Süre en fazla 480 dakika olabilir."),
+});
+
+const periyodikGuncelleSemasi = z.object({
+  haftanin_gunu: z.coerce.number().int().min(0).max(6),
+  saat: z.string().min(1, "Saat gerekli."),
+  uzat: z.union([z.literal("on"), z.literal("")]).optional(),
+});
+
+const ISTANBUL_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+type TarihBilesen = { yil: number; ay: number; gun: number };
+
+/** Türkiye sabit UTC+3 (DST yok) — bir UTC anının İstanbul takvim bileşenleri. */
+function istanbulTarihBilesenleri(d: Date): TarihBilesen {
+  const kaydirilmis = new Date(d.getTime() + ISTANBUL_OFFSET_MS);
+  return {
+    yil: kaydirilmis.getUTCFullYear(),
+    ay: kaydirilmis.getUTCMonth(),
+    gun: kaydirilmis.getUTCDate(),
+  };
+}
+
+function tarihStr(yil: number, ay: number, gun: number) {
+  const d = new Date(Date.UTC(yil, ay, gun));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+function tarihStrAyristir(deger: string): TarihBilesen {
+  const [yil, ay, gun] = deger.split("-").map(Number);
+  return { yil, ay: ay - 1, gun };
+}
+
+function bilesenKarsilastir(a: TarihBilesen, b: TarihBilesen) {
+  return Date.UTC(a.yil, a.ay, a.gun) - Date.UTC(b.yil, b.ay, b.gun);
+}
+
+function enSonBilesen(a: TarihBilesen, b: TarihBilesen) {
+  return bilesenKarsilastir(a, b) >= 0 ? a : b;
+}
+
+function gunEkle(bilesen: TarihBilesen, n: number): TarihBilesen {
+  const d = new Date(Date.UTC(bilesen.yil, bilesen.ay, bilesen.gun + n));
+  return { yil: d.getUTCFullYear(), ay: d.getUTCMonth(), gun: d.getUTCDate() };
+}
+
+function ayEkle(bilesen: TarihBilesen, ayAdedi: number): TarihBilesen {
+  const d = new Date(Date.UTC(bilesen.yil, bilesen.ay + ayAdedi, bilesen.gun));
+  return { yil: d.getUTCFullYear(), ay: d.getUTCMonth(), gun: d.getUTCDate() };
+}
+
+type SupabaseSunucu = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Verilen [baslangicBilesen, bitisBilesen] tarih aralığında haftaninGunu'na
+ * denk gelen her gün için somut bir randevu satırı üretir. Bir gün oda/
+ * terapist/cihaz çakışması nedeniyle oluşturulamazsa (23P01) o gün atlanır
+ * ve müşteriye saat değişikliği için tıkla-gönder WhatsApp linki üretilir
+ * (gerçek WhatsApp Business API entegrasyonu henüz kurulmadı, bkz.
+ * lib/utils.ts whatsappLinkOlustur — portal geçici şifre akışıyla aynı
+ * desen). Geçmişte kalan adaylar sessizce atlanır.
+ */
+async function periyodikSatirlariUret(params: {
+  supabase: SupabaseSunucu;
+  klinikId: string;
+  periyodikId: string;
+  musteriId: string;
+  musteriAdSoyad: string;
+  musteriTelefon: string;
+  terapistId: string;
+  odaId: string;
+  cihazId: string | null;
+  islemTanimiId: string;
+  haftaninGunu: number;
+  saat: string;
+  sureDakika: number;
+  baslangicBilesen: TarihBilesen;
+  bitisBilesen: TarihBilesen;
+  userId: string;
+}) {
+  const {
+    supabase,
+    klinikId,
+    periyodikId,
+    musteriId,
+    musteriAdSoyad,
+    musteriTelefon,
+    terapistId,
+    odaId,
+    cihazId,
+    islemTanimiId,
+    haftaninGunu,
+    saat,
+    sureDakika,
+    baslangicBilesen,
+    bitisBilesen,
+    userId,
+  } = params;
+
+  const simdi = new Date();
+  const basariliTarihler: string[] = [];
+  const cakismalar: { tarihEtiketi: string; whatsappLink: string }[] = [];
+
+  const gunSayisi =
+    Math.round(
+      (Date.UTC(bitisBilesen.yil, bitisBilesen.ay, bitisBilesen.gun) -
+        Date.UTC(baslangicBilesen.yil, baslangicBilesen.ay, baslangicBilesen.gun)) /
+        86_400_000
+    ) + 1;
+
+  for (let i = 0; i < gunSayisi; i++) {
+    const adayTarih = new Date(Date.UTC(baslangicBilesen.yil, baslangicBilesen.ay, baslangicBilesen.gun + i));
+    if (adayTarih.getUTCDay() !== haftaninGunu) continue;
+
+    const tarihStrDeger = tarihStr(adayTarih.getUTCFullYear(), adayTarih.getUTCMonth(), adayTarih.getUTCDate());
+
+    let baslangicIso: string;
+    try {
+      baslangicIso = toUTC(`${tarihStrDeger}T${saat}:00`);
+    } catch {
+      continue;
+    }
+
+    if (new Date(baslangicIso).getTime() < simdi.getTime()) continue;
+
+    const bitisIso = new Date(new Date(baslangicIso).getTime() + sureDakika * 60_000).toISOString();
+
+    const { error: randevuHata } = await supabase.from("randevu").insert({
+      klinik_id: klinikId,
+      musteri_id: musteriId,
+      terapist_id: terapistId,
+      oda_id: odaId,
+      cihaz_id: cihazId,
+      islem_tanimi_id: islemTanimiId,
+      periyodik_randevu_id: periyodikId,
+      baslangic: baslangicIso,
+      bitis: bitisIso,
+      olusturan_kullanici_id: userId,
+    });
+
+    const tarihEtiketi = new Date(baslangicIso).toLocaleString("tr-TR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Istanbul",
+    });
+
+    if (randevuHata) {
+      if (randevuHata.code === "23P01") {
+        const mesaj = `Merhaba ${musteriAdSoyad}, ${tarihEtiketi} için planladığımız periyodik randevunuzda o saatte oda/terapist uygun değil. Sizinle birlikte bu hafta için alternatif bir saat belirleyebilir miyiz?`;
+        cakismalar.push({ tarihEtiketi, whatsappLink: whatsappLinkOlustur(musteriTelefon, mesaj) });
+        continue;
+      }
+      console.error("Periyodik randevu satırı oluşturulamadı:", randevuHata);
+      continue;
+    }
+
+    basariliTarihler.push(tarihEtiketi);
+  }
+
+  return { basariliTarihler, cakismalar };
+}
+
+/**
+ * Periyodik randevu: haftanın belirli günü+saatinde tekrar eden randevu.
+ * Gerçek "iptal edilene kadar sonsuza dek otomatik üret" için pg_cron/Edge
+ * Function gerekir — bu proje henüz böyle bir zamanlanmış iş altyapısı
+ * kurmadı (bkz. migration notu, Paraşüt'teki aynı gerekçe). Bunun yerine
+ * seri sabit PERIYODIK_SURE_AY (5 ay) süreyle açılır; bu pencere içindeki
+ * her gün için somut randevu satırı üretilir. Süre bitimine 2 hafta kala
+ * Müşteri Detay'daki kart bir uyarı gösterir (bkz. periyodikRandevuGuncelle).
+ */
+export async function periyodikRandevuOlustur(
+  _onceki: PeriyodikSonucu,
+  formData: FormData
+): Promise<PeriyodikSonucu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("klinik_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!kullanici?.klinik_id) {
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+
+  const ayristirma = periyodikSemasi.safeParse({
+    musteri_id: formData.get("musteri_id"),
+    terapist_id: formData.get("terapist_id"),
+    oda_id: formData.get("oda_id"),
+    islem_tanimi_id: formData.get("islem_tanimi_id"),
+    cihaz_id: formData.get("cihaz_id") ?? "",
+    haftanin_gunu: formData.get("haftanin_gunu"),
+    saat: formData.get("saat"),
+    sure_dakika: formData.get("sure_dakika"),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { musteri_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, haftanin_gunu, saat, sure_dakika } =
+    ayristirma.data;
+
+  const { data: musteri } = await supabase
+    .from("musteri")
+    .select("ad_soyad, telefon")
+    .eq("id", musteri_id)
+    .single();
+
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const bugun = istanbulTarihBilesenleri(new Date());
+  const bitisBilesen = ayEkle(bugun, PERIYODIK_SURE_AY);
+  const bitisTarihiStr = tarihStr(bitisBilesen.yil, bitisBilesen.ay, bitisBilesen.gun);
+  const cihazIdDegeri = cihaz_id ? cihaz_id : null;
+
+  const { data: periyodik, error: periyodikHata } = await supabase
+    .from("periyodik_randevu")
+    .insert({
+      klinik_id: kullanici.klinik_id,
+      musteri_id,
+      terapist_id,
+      oda_id,
+      cihaz_id: cihazIdDegeri,
+      islem_tanimi_id,
+      haftanin_gunu,
+      saat,
+      sure_dakika,
+      bitis_tarihi: bitisTarihiStr,
+      olusturan_kullanici_id: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (periyodikHata || !periyodik) {
+    console.error("Periyodik randevu oluşturulamadı:", periyodikHata);
+    return { success: false, message: "Periyodik randevu oluşturulamadı, lütfen tekrar deneyin." };
+  }
+
+  const { basariliTarihler, cakismalar } = await periyodikSatirlariUret({
+    supabase,
+    klinikId: kullanici.klinik_id,
+    periyodikId: periyodik.id,
+    musteriId: musteri_id,
+    musteriAdSoyad: musteri.ad_soyad,
+    musteriTelefon: musteri.telefon,
+    terapistId: terapist_id,
+    odaId: oda_id,
+    cihazId: cihazIdDegeri,
+    islemTanimiId: islem_tanimi_id,
+    haftaninGunu: haftanin_gunu,
+    saat,
+    sureDakika: sure_dakika,
+    baslangicBilesen: bugun,
+    bitisBilesen: bitisBilesen,
+    userId: user.id,
+  });
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  revalidatePath(`/panel/musteriler/${musteri_id}`);
+
+  const mesaj =
+    cakismalar.length > 0
+      ? `Periyodik randevu oluşturuldu (${bitisTarihiStr} tarihine kadar): ${basariliTarihler.length} randevu eklendi, ${cakismalar.length} tarihte çakışma var (aşağıdaki WhatsApp linkleriyle saat değişikliği isteyebilirsiniz).`
+      : `Periyodik randevu oluşturuldu (${bitisTarihiStr} tarihine kadar): ${basariliTarihler.length} randevu eklendi.`;
+
+  return { success: true, message: mesaj, cakismalar: cakismalar.length > 0 ? cakismalar : undefined };
+}
+
+export async function periyodikRandevuIptalEt(periyodikId: string, musteriId: string): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol")
+    .eq("id", user.id)
+    .single();
+
+  if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "resepsiyon") {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { error: periyodikHata } = await supabase
+    .from("periyodik_randevu")
+    .update({ durum: "iptal" })
+    .eq("id", periyodikId);
+
+  if (periyodikHata) {
+    console.error("Periyodik randevu iptal edilemedi:", periyodikHata);
+    return { success: false, message: "İptal edilemedi, lütfen tekrar deneyin." };
+  }
+
+  const { error: randevuHata } = await supabase
+    .from("randevu")
+    .update({ durum: "iptal" })
+    .eq("periyodik_randevu_id", periyodikId)
+    .eq("durum", "planlandi")
+    .gte("baslangic", new Date().toISOString());
+
+  if (randevuHata) {
+    console.error("Periyodik seriye bağlı gelecek randevular iptal edilemedi:", randevuHata);
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  return { success: true, message: "Periyodik randevu iptal edildi, henüz gelmemiş randevular da iptal edildi." };
+}
+
+/**
+ * Periyodik randevuyu düzenler: gün/saat değiştirilebilir (bu turdan
+ * itibaren gelecekteki henüz gelmemiş randevular yeni takvime göre yeniden
+ * üretilir, geçmiş/geçmiş olmuş randevulara dokunulmaz) ve/veya "uzat"
+ * işaretlenirse süre mevcut bitiş tarihinden (veya bugünden, hangisi
+ * ileriyse) itibaren PERIYODIK_SURE_AY (5 ay) uzatılır.
+ */
+export async function periyodikRandevuGuncelle(
+  periyodikId: string,
+  musteriId: string,
+  _onceki: PeriyodikSonucu,
+  formData: FormData
+): Promise<PeriyodikSonucu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("klinik_id, rol")
+    .eq("id", user.id)
+    .single();
+
+  if (!kullanici?.klinik_id) {
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (kullanici.rol !== "klinik_admin" && kullanici.rol !== "resepsiyon") {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const ayristirma = periyodikGuncelleSemasi.safeParse({
+    haftanin_gunu: formData.get("haftanin_gunu"),
+    saat: formData.get("saat"),
+    uzat: formData.get("uzat") ?? "",
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { haftanin_gunu, saat, uzat } = ayristirma.data;
+  const uzatilacakMi = uzat === "on";
+
+  const { data: periyodik } = await supabase
+    .from("periyodik_randevu")
+    .select(
+      "id, musteri_id, terapist_id, oda_id, cihaz_id, islem_tanimi_id, haftanin_gunu, saat, sure_dakika, bitis_tarihi, durum"
+    )
+    .eq("id", periyodikId)
+    .single();
+
+  if (!periyodik || periyodik.durum !== "aktif") {
+    return { success: false, message: "Periyodik randevu bulunamadı." };
+  }
+
+  const { data: musteri } = await supabase
+    .from("musteri")
+    .select("ad_soyad, telefon")
+    .eq("id", periyodik.musteri_id)
+    .single();
+
+  if (!musteri) {
+    return { success: false, message: "Müşteri bulunamadı." };
+  }
+
+  const bugun = istanbulTarihBilesenleri(new Date());
+  const mevcutBitis = periyodik.bitis_tarihi ? tarihStrAyristir(periyodik.bitis_tarihi) : bugun;
+  const takvimDegisti = haftanin_gunu !== periyodik.haftanin_gunu || saat !== periyodik.saat.slice(0, 5);
+
+  const uzatmaBaslangici = enSonBilesen(mevcutBitis, bugun);
+  const yeniBitis = uzatilacakMi ? ayEkle(uzatmaBaslangici, PERIYODIK_SURE_AY) : mevcutBitis;
+  const yeniBitisStr = tarihStr(yeniBitis.yil, yeniBitis.ay, yeniBitis.gun);
+
+  if (takvimDegisti) {
+    await supabase
+      .from("randevu")
+      .update({ durum: "iptal" })
+      .eq("periyodik_randevu_id", periyodikId)
+      .eq("durum", "planlandi")
+      .gte("baslangic", new Date().toISOString());
+  }
+
+  const { error: guncelleHata } = await supabase
+    .from("periyodik_randevu")
+    .update({
+      haftanin_gunu,
+      saat,
+      bitis_tarihi: yeniBitisStr,
+      otomatik_yenile: true,
+    })
+    .eq("id", periyodikId);
+
+  if (guncelleHata) {
+    console.error("Periyodik randevu güncellenemedi:", guncelleHata);
+    return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  const uretimBaslangici = takvimDegisti ? bugun : uzatilacakMi ? gunEkle(mevcutBitis, 1) : null;
+
+  let basariliTarihler: string[] = [];
+  let cakismalar: { tarihEtiketi: string; whatsappLink: string }[] = [];
+
+  if (uretimBaslangici && bilesenKarsilastir(uretimBaslangici, yeniBitis) <= 0) {
+    const sonuc = await periyodikSatirlariUret({
+      supabase,
+      klinikId: kullanici.klinik_id,
+      periyodikId,
+      musteriId: periyodik.musteri_id,
+      musteriAdSoyad: musteri.ad_soyad,
+      musteriTelefon: musteri.telefon,
+      terapistId: periyodik.terapist_id,
+      odaId: periyodik.oda_id,
+      cihazId: periyodik.cihaz_id,
+      islemTanimiId: periyodik.islem_tanimi_id,
+      haftaninGunu: haftanin_gunu,
+      saat,
+      sureDakika: periyodik.sure_dakika,
+      baslangicBilesen: uretimBaslangici,
+      bitisBilesen: yeniBitis,
+      userId: user.id,
+    });
+    basariliTarihler = sonuc.basariliTarihler;
+    cakismalar = sonuc.cakismalar;
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+
+  const parcalar: string[] = [];
+  if (takvimDegisti) parcalar.push("takvim güncellendi");
+  if (uzatilacakMi) parcalar.push(`süre ${yeniBitisStr} tarihine uzatıldı`);
+  if (basariliTarihler.length > 0) parcalar.push(`${basariliTarihler.length} yeni randevu eklendi`);
+  const mesaj =
+    parcalar.length > 0 ? `Periyodik randevu güncellendi: ${parcalar.join(", ")}.` : "Periyodik randevu güncellendi.";
+
+  return {
+    success: true,
+    message: mesaj,
+    cakismalar: cakismalar.length > 0 ? cakismalar : undefined,
+  };
+}
+
+export async function periyodikRandevuYenilenmeyecek(periyodikId: string, musteriId: string): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "resepsiyon") {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { error } = await supabase
+    .from("periyodik_randevu")
+    .update({ otomatik_yenile: false })
+    .eq("id", periyodikId);
+
+  if (error) {
+    console.error("Periyodik randevu 'yenilenmeyecek' işaretlenemedi:", error);
+    return { success: false, message: "İşlem başarısız, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/musteriler/${musteriId}`);
+  return { success: true, message: "Periyodik randevu, bitiş tarihinde yenilenmeyecek şekilde işaretlendi." };
 }
