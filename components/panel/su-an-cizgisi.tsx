@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { formatTime } from "@/lib/datetime";
 
 type SuAnCizgisiProps = {
   /** Çizelge penceresinin başlangıcı (bugün 08:00), epoch ms */
@@ -30,10 +31,7 @@ export function SuAnCizgisi({ gunBaslangicMs, pxPerDakika, toplamDakika }: SuAnC
       el.style.display = "flex";
       el.style.top = `${gecenDakika * pxPerDakika}px`;
       if (etiketRef.current) {
-        etiketRef.current.textContent = new Date().toLocaleTimeString("tr-TR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+        etiketRef.current.textContent = formatTime(new Date().toISOString());
       }
     };
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
+import { startOfDayUTC } from "@/lib/datetime";
 import type { RandevuSatir } from "@/types/randevu";
 import { Activity, Users } from "lucide-react";
 import { CanliSaat } from "@/components/panel/canli-saat";
@@ -18,10 +19,14 @@ const SAAT_ETIKETLERI = Array.from(
   (_, i) => GUN_BASLANGIC_SAAT + i
 );
 
+/**
+ * Bugünün (İstanbul takvim günü) GUN_BASLANGIC_SAAT'i, epoch ms olarak.
+ * Önceden tarayıcının ambient TZ'sinde `setHours` ile hesaplanıyordu — bu,
+ * tarayıcı İstanbul dışında bir TZ'de olduğunda çizelgeyi kaydırıyordu.
+ * Artık lib/datetime.ts'teki tek TZ kaynağından türetiliyor.
+ */
 function gunBaslangiciMs(baz: Date) {
-  const tarih = new Date(baz);
-  tarih.setHours(GUN_BASLANGIC_SAAT, 0, 0, 0);
-  return tarih.getTime();
+  return new Date(startOfDayUTC(baz)).getTime() + GUN_BASLANGIC_SAAT * 60 * 60 * 1000;
 }
 
 function dakikaFarki(baslangicMs: number, tarih: string) {

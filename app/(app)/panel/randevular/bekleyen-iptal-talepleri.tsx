@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/datetime";
 import type { BekleyenIptalTalebiSatir } from "@/types/portal";
 import { iptalTalebiOnayla, iptalTalebiReddet } from "./actions";
 
@@ -26,14 +27,7 @@ export function BekleyenIptalTalepleri({ talepler }: { talepler: BekleyenIptalTa
           >
             <div className="flex flex-col">
               <span className="font-medium">{talep.randevu.musteri?.ad_soyad ?? "—"}</span>
-              <span className="text-muted-foreground">
-                {new Date(talep.randevu.baslangic).toLocaleString("tr-TR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
+              <span className="text-muted-foreground">{formatDateTime(talep.randevu.baslangic)}</span>
             </div>
             <div className="flex gap-2">
               <Button

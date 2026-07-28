@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
+import { formatTime } from "@/lib/datetime";
 import type { RandevuSatir } from "@/types/randevu";
 
 const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
@@ -109,11 +110,7 @@ export function TabletEkrani({
           <span className="text-sm uppercase tracking-widest text-muted-foreground">Sıradaki</span>
           <span className="text-5xl font-bold">{sonraki.musteri?.ad_soyad ?? "—"}</span>
           <span className="text-xl text-foreground/80">
-            {sonraki.terapist?.personel?.ad_soyad ?? "—"} ·{" "}
-            {new Date(sonraki.baslangic).toLocaleTimeString("tr-TR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {sonraki.terapist?.personel?.ad_soyad ?? "—"} · {formatTime(sonraki.baslangic)}
           </span>
         </>
       ) : (
@@ -129,11 +126,7 @@ export function TabletEkrani({
             {randevular.map((r) => (
               <li key={r.id} className="flex items-center justify-between py-2">
                 <span className={r.durum === "iptal" ? "text-muted-foreground line-through" : ""}>
-                  {new Date(r.baslangic).toLocaleTimeString("tr-TR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
-                  — {r.musteri?.ad_soyad ?? "—"}
+                  {formatTime(r.baslangic)} — {r.musteri?.ad_soyad ?? "—"}
                 </span>
                 <span className="text-muted-foreground">{DURUM_ETIKET[r.durum]}</span>
               </li>

@@ -1,5 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatInTimeZone } from "date-fns-tz"
+import { CLINIC_TZ, endOfDayUTC, formatDateForInput, startOfDayUTC } from "./datetime"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -28,46 +30,69 @@ export function whatsappLinkOlustur(telefon: string, mesaj: string): string {
   return `https://wa.me/${uluslararasi}?text=${encodeURIComponent(mesaj)}`;
 }
 
+/**
+ * Verilen anın İstanbul takvim gününün [00:00, ertesi gün 00:00) aralığı,
+ * UTC ISO string olarak (örn. "bugünün randevuları" sorgusu için). Önceden
+ * burada doğrudan Date.UTC(...) ile UTC takvim günü hesaplanıyordu — İstanbul
+ * UTC+3 olduğu için 00:00-03:00 arası İstanbul saatleri yanlış güne
+ * düşüyordu. Artık lib/datetime.ts'teki tek TZ kaynağından türetiliyor.
+ */
 export function gunAraligi(tarih: Date = new Date()) {
-  const baslangic = new Date(Date.UTC(tarih.getUTCFullYear(), tarih.getUTCMonth(), tarih.getUTCDate()));
-  const bitis = new Date(baslangic);
-  bitis.setUTCDate(bitis.getUTCDate() + 1);
-  return { baslangic: baslangic.toISOString(), bitis: bitis.toISOString() };
+  return { baslangic: startOfDayUTC(tarih), bitis: endOfDayUTC(tarih) };
 }
 
+/** Pazartesi-Pazar İstanbul takvim haftası, [baslangic, bitis) UTC ISO olarak. */
 export function haftaAraligi(tarih: Date = new Date()) {
-  const gun = tarih.getUTCDay();
-  const pazartesiFarki = gun === 0 ? -6 : 1 - gun;
-  const baslangic = new Date(
-    Date.UTC(tarih.getUTCFullYear(), tarih.getUTCMonth(), tarih.getUTCDate() + pazartesiFarki)
-  );
-  const bitis = new Date(baslangic);
-  bitis.setUTCDate(bitis.getUTCDate() + 7);
+  const isoGun = Number(formatInTimeZone(tarih, CLINIC_TZ, "i")); // 1 (Pzt) .. 7 (Paz), İstanbul takviminde
+  const GUN_MS = 24 * 60 * 60 * 1000;
+  const bugunBaslangicMs = new Date(startOfDayUTC(tarih)).getTime();
+  const baslangic = new Date(bugunBaslangicMs - (isoGun - 1) * GUN_MS);
+  const bitis = new Date(baslangic.getTime() + 7 * GUN_MS);
   return { baslangic: baslangic.toISOString(), bitis: bitis.toISOString() };
 }
 
-/** ayParam "YYYY-MM" formatında; verilmez veya hatalıysa içinde bulunulan ay kullanılır. */
+/**
+ * İstanbul takviminde ayın 1'inin 00:00'ı, UTC ISO olarak. Referans anı
+ * (öğle UTC) kasıtlı: İstanbul'a çevrildiğinde her zaman aynı takvim
+ * gününde kalır, ay/gün kaymasına karşı güvenlidir.
+ */
+function ayBaslangiciUTC(yil: number, ay0Indeksli: number): string {
+  const guvenliAn = new Date(Date.UTC(yil, ay0Indeksli, 1, 12));
+  return startOfDayUTC(guvenliAn);
+}
+
+/** ayParam "YYYY-MM" formatında; verilmez veya hatalıysa içinde bulunulan ay (İstanbul) kullanılır. */
 export function ayAraligi(ayParam?: string) {
-  const simdi = new Date();
-  let yil = simdi.getUTCFullYear();
-  let ay = simdi.getUTCMonth();
+  const simdiIstanbul = formatInTimeZone(new Date(), CLINIC_TZ, "yyyy-MM");
+  let [yil, ayInsan] = simdiIstanbul.split("-").map(Number); // ayInsan: 1-12
 
   if (ayParam && /^\d{4}-\d{2}$/.test(ayParam)) {
     const [ayYil, ayAy] = ayParam.split("-").map(Number);
     yil = ayYil;
-    ay = ayAy - 1;
+    ayInsan = ayAy;
   }
 
-  const baslangic = new Date(Date.UTC(yil, ay, 1));
-  const bitis = new Date(Date.UTC(yil, ay + 1, 1));
-  const oncekiAy = new Date(Date.UTC(yil, ay - 1, 1));
-  const sonrakiAy = new Date(Date.UTC(yil, ay + 1, 1));
+  const ay0 = ayInsan - 1;
+  const baslangicIso = ayBaslangiciUTC(yil, ay0);
+  const bitisIso = ayBaslangiciUTC(yil, ay0 + 1);
+
+  // Sadece ay/yıl etiketi türetmek için kalender aritmetiği (gün hassasiyeti
+  // gerekmiyor, TZ'den bağımsız güvenli).
+  const oncekiAy = new Date(Date.UTC(yil, ay0 - 1, 1));
+  const sonrakiAy = new Date(Date.UTC(yil, ay0 + 1, 1));
 
   return {
-    baslangic: baslangic.toISOString(),
-    bitis: bitis.toISOString(),
-    etiket: baslangic.toLocaleDateString("tr-TR", { month: "long", year: "numeric" }),
-    param: `${yil}-${String(ay + 1).padStart(2, "0")}`,
+    baslangic: baslangicIso,
+    bitis: bitisIso,
+    /** personel_ekstra_hakedis.tarih gibi `date` (timezone'suz) kolonlarla karşılaştırmak için. */
+    baslangicTarih: formatDateForInput(baslangicIso),
+    bitisTarih: formatDateForInput(bitisIso),
+    etiket: new Date(baslangicIso).toLocaleDateString("tr-TR", {
+      month: "long",
+      year: "numeric",
+      timeZone: CLINIC_TZ,
+    }),
+    param: `${yil}-${String(ayInsan).padStart(2, "0")}`,
     oncekiParam: `${oncekiAy.getUTCFullYear()}-${String(oncekiAy.getUTCMonth() + 1).padStart(2, "0")}`,
     sonrakiParam: `${sonrakiAy.getUTCFullYear()}-${String(sonrakiAy.getUTCMonth() + 1).padStart(2, "0")}`,
   };

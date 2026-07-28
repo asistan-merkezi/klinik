@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateForInput } from "@/lib/datetime";
 import type { SecenekSatir } from "@/types/randevu";
 import { randevuOlustur } from "./actions";
 import { MusteriArama } from "./musteri-arama";
@@ -24,7 +25,7 @@ type Props = {
 
 export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar }: Props) {
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
-  const bugun = new Date().toISOString().slice(0, 10);
+  const bugun = formatDateForInput(new Date().toISOString());
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

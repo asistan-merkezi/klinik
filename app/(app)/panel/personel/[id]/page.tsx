@@ -95,8 +95,8 @@ export default async function PersonelDetaySayfasi({
         .from("personel_ekstra_hakedis")
         .select("id, tur, tutar, tarih, aciklama")
         .eq("personel_id", id)
-        .gte("tarih", ay.baslangic.slice(0, 10))
-        .lt("tarih", ay.bitis.slice(0, 10))
+        .gte("tarih", ay.baslangicTarih)
+        .lt("tarih", ay.bitisTarih)
         .order("tarih", { ascending: false })
         .returns<HakedisSatir[]>(),
     ]);

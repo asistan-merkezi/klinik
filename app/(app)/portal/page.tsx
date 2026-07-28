@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate, formatDateTime } from "@/lib/datetime";
 import type { PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import type { PortalRandevuSatir } from "@/types/portal";
@@ -143,14 +144,7 @@ export default async function PortalSayfasi() {
                       className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex flex-col">
-                        <span className="font-medium">
-                          {new Date(r.baslangic).toLocaleString("tr-TR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                        <span className="font-medium">{formatDateTime(r.baslangic)}</span>
                         <span className="text-muted-foreground">
                           {r.terapist?.personel?.ad_soyad ?? "—"} · {r.oda?.ad ?? "—"} ·{" "}
                           {DURUM_ETIKET[r.durum]}
@@ -186,8 +180,7 @@ export default async function PortalSayfasi() {
                 {gecmisRandevular.map((r) => (
                   <li key={r.id} className="flex items-center justify-between py-2 text-sm">
                     <span>
-                      {new Date(r.baslangic).toLocaleDateString("tr-TR")} ·{" "}
-                      {r.terapist?.personel?.ad_soyad ?? "—"}
+                      {formatDate(r.baslangic)} · {r.terapist?.personel?.ad_soyad ?? "—"}
                     </span>
                     <span className="text-muted-foreground">{DURUM_ETIKET[r.durum]}</span>
                   </li>

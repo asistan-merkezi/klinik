@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { toUTC } from "@/lib/datetime";
 import type { RandevuDurum } from "@/types/randevu";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -57,11 +58,13 @@ export async function randevuOlustur(
 
   const { musteri_id, terapist_id, oda_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
 
-  const baslangic = new Date(`${tarih}T${saat}:00`);
-  if (Number.isNaN(baslangic.getTime())) {
+  let baslangicIso: string;
+  try {
+    baslangicIso = toUTC(`${tarih}T${saat}:00`);
+  } catch {
     return { success: false, message: "Tarih/saat geçersiz." };
   }
-  const bitis = new Date(baslangic.getTime() + sure_dakika * 60_000);
+  const bitisIso = new Date(new Date(baslangicIso).getTime() + sure_dakika * 60_000).toISOString();
 
   const { error } = await supabase.from("randevu").insert({
     klinik_id: kullanici.klinik_id,
@@ -69,8 +72,8 @@ export async function randevuOlustur(
     terapist_id,
     oda_id,
     cihaz_id: cihaz_id ? cihaz_id : null,
-    baslangic: baslangic.toISOString(),
-    bitis: bitis.toISOString(),
+    baslangic: baslangicIso,
+    bitis: bitisIso,
     olusturan_kullanici_id: user.id,
   });
 
@@ -120,11 +123,13 @@ export async function randevuGuncelle(
 
   const { musteri_id, terapist_id, oda_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
 
-  const baslangic = new Date(`${tarih}T${saat}:00`);
-  if (Number.isNaN(baslangic.getTime())) {
+  let baslangicIso: string;
+  try {
+    baslangicIso = toUTC(`${tarih}T${saat}:00`);
+  } catch {
     return { success: false, message: "Tarih/saat geçersiz." };
   }
-  const bitis = new Date(baslangic.getTime() + sure_dakika * 60_000);
+  const bitisIso = new Date(new Date(baslangicIso).getTime() + sure_dakika * 60_000).toISOString();
 
   const { error } = await supabase
     .from("randevu")
@@ -133,8 +138,8 @@ export async function randevuGuncelle(
       terapist_id,
       oda_id,
       cihaz_id: cihaz_id ? cihaz_id : null,
-      baslangic: baslangic.toISOString(),
-      bitis: bitis.toISOString(),
+      baslangic: baslangicIso,
+      bitis: bitisIso,
     })
     .eq("id", randevuId);
 

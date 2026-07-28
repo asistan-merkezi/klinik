@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/datetime";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { randevuGuncelle } from "./actions";
 import { DurumButonlari } from "./durum-butonlari";
@@ -23,14 +24,6 @@ const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
   iptal: "İptal",
   gelmedi: "Gelmedi",
 };
-
-function tarihGirdisi(deger: string) {
-  return deger.slice(0, 10);
-}
-
-function saatGirdisi(deger: string) {
-  return new Date(deger).toTimeString().slice(0, 5);
-}
 
 function sureDakika(baslangic: string, bitis: string) {
   return Math.round((new Date(bitis).getTime() - new Date(baslangic).getTime()) / 60_000);
@@ -149,7 +142,7 @@ export function RandevuSatiri({
                 id={`tarih-${randevu.id}`}
                 name="tarih"
                 type="date"
-                defaultValue={tarihGirdisi(randevu.baslangic)}
+                defaultValue={formatDateForInput(randevu.baslangic)}
                 required
                 disabled={isPending}
               />
@@ -161,7 +154,7 @@ export function RandevuSatiri({
                 id={`saat-${randevu.id}`}
                 name="saat"
                 type="time"
-                defaultValue={saatGirdisi(randevu.baslangic)}
+                defaultValue={formatTimeForInput(randevu.baslangic)}
                 required
                 disabled={isPending}
               />
@@ -214,26 +207,10 @@ export function RandevuSatiri({
         <span className="text-muted-foreground">
           {randevu.terapist?.personel?.ad_soyad ?? "—"} · {randevu.oda?.ad ?? "—"}
         </span>
-        <span className="text-xs text-muted-foreground">
-          Randevu:{" "}
-          {new Date(randevu.baslangic).toLocaleString("tr-TR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
+        <span className="text-xs text-muted-foreground">Randevu: {formatDateTime(randevu.baslangic)}</span>
         {randevu.created_at && (
           <span className="text-xs text-muted-foreground">
-            Oluşturma:{" "}
-            {new Date(randevu.created_at).toLocaleString("tr-TR", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            Oluşturma: {formatDateTime(randevu.created_at)}
             {randevu.olusturan_kullanici?.ad_soyad ? ` · ${randevu.olusturan_kullanici.ad_soyad}` : ""}
           </span>
         )}

@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/lib/datetime";
 import type { RandevuSatir } from "@/types/randevu";
 
 export type GorunumDurumu = "planlandi" | "geldi" | "seansta" | "tamamlandi" | "iptal" | "gelmedi";
@@ -58,10 +59,6 @@ const DURUM_STIL: Record<
   },
 };
 
-function saatFormat(tarih: string) {
-  return new Date(tarih).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-}
-
 type RandevuKutusuProps = {
   randevu: RandevuSatir;
   gorunumDurumu: GorunumDurumu;
@@ -90,7 +87,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
         <p className={cn("truncate text-sm font-semibold text-foreground", stil.adSinif)}>
           {randevu.musteri?.ad_soyad ?? "—"}
           <span className="tabular-nums ml-2 font-mono text-xs font-normal text-muted-foreground">
-            {saatFormat(randevu.baslangic)}
+            {formatTime(randevu.baslangic)}
           </span>
         </p>
         <span
