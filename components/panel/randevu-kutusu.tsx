@@ -95,7 +95,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
       id={`randevu-${randevu.id}`}
       title={baslikMetni}
       className={cn(
-        "relative flex h-full w-full flex-col justify-center gap-0.5 overflow-hidden rounded-lg border pl-2.5 pr-1.5 py-1 transition-colors",
+        "relative flex h-full w-full flex-col gap-0.5 overflow-hidden rounded-lg border pl-2.5 pr-1.5 py-1 transition-colors",
         renk.dolgu,
         renk.kenar,
         stil.soluk && "opacity-50",
@@ -104,28 +104,26 @@ export const RandevuKutusu = memo(function RandevuKutusu({
     >
       <span className={cn("absolute inset-y-0 left-0 w-[3px]", renk.serit)} aria-hidden />
 
-      <div className="flex items-center gap-1">
-        <p className={cn("min-w-0 flex-1 truncate text-xs font-semibold text-foreground sm:text-sm", stil.adSinif)}>
+      <div className="flex flex-wrap items-start justify-between gap-x-1 gap-y-0.5">
+        <p className={cn("min-w-0 truncate text-xs font-semibold text-foreground", stil.adSinif)}>
           {randevu.musteri?.ad_soyad ?? "—"}
-        </p>
-        {gorunumDurumu === "seansta" && (
-          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-primary" aria-hidden />
-        )}
-      </div>
-
-      <div className="flex items-center gap-1">
-        <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
-          {formatTime(randevu.baslangic)} · {randevu.terapist?.personel?.ad_soyad ?? "—"}
         </p>
         <span
           className={cn(
-            "hidden shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight sm:inline-block",
+            "flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight",
             stil.rozet
           )}
         >
+          {gorunumDurumu === "seansta" && (
+            <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
+          )}
           {stil.etiket}
         </span>
       </div>
+
+      <p className="truncate text-[11px] text-muted-foreground">
+        {formatTime(randevu.baslangic)} · {randevu.terapist?.personel?.ad_soyad ?? "—"}
+      </p>
     </article>
   );
 });

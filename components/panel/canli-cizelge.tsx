@@ -12,10 +12,10 @@ import { RandevuKutusu, gorunumDurumuHesapla } from "@/components/panel/randevu-
 
 const GUN_BASLANGIC_SAAT = 8;
 const GUN_BITIS_SAAT = 20;
-const PX_PER_DAKIKA = 3;
+const PX_PER_DAKIKA = 2;
 const TOPLAM_DAKIKA = (GUN_BITIS_SAAT - GUN_BASLANGIC_SAAT) * 60;
-const ODA_SUTUN_GENISLIK = 128;
-const SATIR_YUKSEKLIK = 76;
+const SAAT_SUTUN_GENISLIK = 56;
+const ODA_SUTUN_GENISLIK = 160;
 const SAAT_ETIKETLERI = Array.from(
   { length: GUN_BITIS_SAAT - GUN_BASLANGIC_SAAT + 1 },
   (_, i) => GUN_BASLANGIC_SAAT + i
@@ -116,9 +116,9 @@ export function CanliCizelge({
   }, [randevular, simdi]);
 
   // Aktif oda listesi + randevusu olup da (oda pasife alınmış olabilir)
-  // listede yer almayan odalar da alta "Diğer" olarak eklenir — veri
+  // listede yer almayan odalar da sona "Diğer" olarak eklenir — veri
   // sessizce kaybolmasın.
-  const satirlar = useMemo(() => {
+  const sutunlar = useMemo(() => {
     const taninanOdaIdler = new Set(odalar.map((o) => o.id));
     const digerOdalar = new Map<string, string>();
     for (const { randevu } of gorunumler) {
@@ -164,7 +164,7 @@ export function CanliCizelge({
           .join(", ")}`
       : "Şu an aktif seans yok";
 
-  const gridGenislik = ODA_SUTUN_GENISLIK + TOPLAM_DAKIKA * PX_PER_DAKIKA;
+  const gridYukseklik = TOPLAM_DAKIKA * PX_PER_DAKIKA;
 
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card text-card-foreground">
@@ -187,27 +187,43 @@ export function CanliCizelge({
         {duyuruMetni}
       </p>
 
-      {satirlar.length === 0 ? (
+      {sutunlar.length === 0 ? (
         <p className="px-4 py-3 text-sm text-muted-foreground sm:px-5">
           Aktif oda tanımlı değil. Donanım ekranından oda ekleyin.
         </p>
       ) : (
         <div className="max-h-[70vh] overflow-y-auto">
           <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
-            <div style={{ width: `${gridGenislik}px` }}>
-              {/* saat başlığı — dikey kaydırmada yapışkan */}
+            <div style={{ width: `${SAAT_SUTUN_GENISLIK + sutunlar.length * ODA_SUTUN_GENISLIK}px` }}>
+              {/* oda başlığı — dikey kaydırmada yapışkan */}
               <div className="sticky top-0 z-30 flex border-b border-border bg-card">
                 <div
                   className="shrink-0 border-r border-border"
-                  style={{ width: `${ODA_SUTUN_GENISLIK}px` }}
+                  style={{ width: `${SAAT_SUTUN_GENISLIK}px` }}
                   aria-hidden
                 />
-                <div className="relative h-8 flex-1">
+                {sutunlar.map((oda) => (
+                  <div
+                    key={oda.id}
+                    className="shrink-0 truncate border-l border-border px-2 py-2 text-sm font-medium"
+                    style={{ width: `${ODA_SUTUN_GENISLIK}px` }}
+                  >
+                    {oda.ad}
+                  </div>
+                ))}
+              </div>
+
+              {/* saat sütunu + oda sütunları + yatay şu-an çizgisi */}
+              <div className="flex" style={{ height: `${gridYukseklik}px` }}>
+                <div
+                  className="sticky left-0 z-20 shrink-0 border-r border-border bg-card"
+                  style={{ width: `${SAAT_SUTUN_GENISLIK}px` }}
+                >
                   {SAAT_ETIKETLERI.map((saat, i) => (
                     <div
                       key={saat}
-                      className="absolute inset-y-0 flex items-center border-l border-border pl-1"
-                      style={{ left: `${i * 60 * PX_PER_DAKIKA}px` }}
+                      className="absolute flex justify-end pr-1.5"
+                      style={{ top: `${i * 60 * PX_PER_DAKIKA - 7}px`, width: `${SAAT_SUTUN_GENISLIK}px` }}
                     >
                       <span className="tabular-nums font-mono text-xs text-muted-foreground">
                         {String(saat).padStart(2, "0")}:00
@@ -215,56 +231,50 @@ export function CanliCizelge({
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* oda satırları + dikey şu-an çizgisi */}
-              <div className="relative">
-                {satirlar.map((oda) => (
-                  <div key={oda.id} className="flex border-b border-border last:border-b-0">
+                <div className="relative flex flex-1">
+                  {sutunlar.map((oda) => (
                     <div
-                      className="sticky left-0 z-10 flex shrink-0 items-center border-r border-border bg-card px-2 text-sm font-medium"
+                      key={oda.id}
+                      className="relative shrink-0 border-l border-border"
                       style={{ width: `${ODA_SUTUN_GENISLIK}px` }}
                     >
-                      <span className="truncate">{oda.ad}</span>
-                    </div>
-                    <div className="relative flex-1" style={{ height: `${SATIR_YUKSEKLIK}px` }}>
                       {SAAT_ETIKETLERI.map((saat, i) => (
                         <div
                           key={saat}
-                          className="absolute inset-y-0 border-l border-border/50"
-                          style={{ left: `${i * 60 * PX_PER_DAKIKA}px` }}
+                          className="absolute inset-x-0 border-t border-border/50"
+                          style={{ top: `${i * 60 * PX_PER_DAKIKA}px` }}
                           aria-hidden
                         />
                       ))}
 
                       {(gorunumlerByOda.get(oda.id) ?? []).map(({ randevu, durum }) => {
-                        const solKonum = dakikaFarki(gunBaslangicMs, randevu.baslangic) * PX_PER_DAKIKA;
+                        const ustKonum = dakikaFarki(gunBaslangicMs, randevu.baslangic) * PX_PER_DAKIKA;
                         const baslangicFarki = dakikaFarki(gunBaslangicMs, randevu.baslangic);
                         const bitisFarki = dakikaFarki(gunBaslangicMs, randevu.bitis);
-                        const genislik = Math.max((bitisFarki - baslangicFarki) * PX_PER_DAKIKA - 4, 40);
+                        const yukseklik = Math.max((bitisFarki - baslangicFarki) * PX_PER_DAKIKA - 4, 40);
 
                         return (
                           <div
                             key={randevu.id}
-                            className="absolute inset-y-1"
-                            style={{ left: `${solKonum}px`, width: `${genislik}px` }}
+                            className="absolute inset-x-1"
+                            style={{ top: `${ustKonum}px`, height: `${yukseklik}px` }}
                           >
                             <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {simdi && (
-                  <SuAnCizgisi
-                    gunBaslangicMs={gunBaslangicMs}
-                    pxPerDakika={PX_PER_DAKIKA}
-                    toplamDakika={TOPLAM_DAKIKA}
-                    solOffset={ODA_SUTUN_GENISLIK}
-                  />
-                )}
+                  {simdi && (
+                    <SuAnCizgisi
+                      gunBaslangicMs={gunBaslangicMs}
+                      pxPerDakika={PX_PER_DAKIKA}
+                      toplamDakika={TOPLAM_DAKIKA}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
