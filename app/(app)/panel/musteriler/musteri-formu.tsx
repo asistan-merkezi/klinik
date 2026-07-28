@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { musteriOlustur } from "./actions";
 
 const KIMLIK_TIPI_SECENEKLERI = [
@@ -20,6 +21,7 @@ const KIMLIK_TIPI_SECENEKLERI = [
 
 export function MusteriFormu() {
   const [durum, formAction, isPending] = useActionState(musteriOlustur, null);
+  const [adSoyad, setAdSoyad] = useState("");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -30,7 +32,14 @@ export function MusteriFormu() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="ad_soyad">Ad Soyad</Label>
-          <Input id="ad_soyad" name="ad_soyad" required disabled={isPending} />
+          <Input
+            id="ad_soyad"
+            name="ad_soyad"
+            value={adSoyad}
+            onChange={(e) => setAdSoyad(isimBasHarfBuyukYap(e.target.value))}
+            required
+            disabled={isPending}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
