@@ -1,16 +1,20 @@
 "use client";
 
 import { useTransition } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { MusteriSatir } from "@/types/musteri";
 import { kvkkOnayVer } from "./actions";
 
 export function MusteriSatiri({ musteri }: { musteri: MusteriSatir }) {
   const [kvkkPending, startKvkkTransition] = useTransition();
+  const router = useRouter();
 
   return (
-    <li className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+    <li
+      className="flex cursor-pointer flex-col gap-2 py-3 text-sm hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+      onClick={() => router.push(`/panel/musteriler/${musteri.id}`)}
+    >
       <div className="flex flex-col">
         <span className="font-medium">{musteri.ad_soyad}</span>
         <span className="text-muted-foreground">{musteri.telefon}</span>
@@ -26,17 +30,14 @@ export function MusteriSatiri({ musteri }: { musteri: MusteriSatir }) {
             size="sm"
             variant="outline"
             disabled={kvkkPending}
-            onClick={() => startKvkkTransition(() => kvkkOnayVer(musteri.id))}
+            onClick={(e) => {
+              e.stopPropagation();
+              startKvkkTransition(() => kvkkOnayVer(musteri.id));
+            }}
           >
             KVKK onayı al
           </Button>
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          nativeButton={false}
-          render={<Link href={`/panel/musteriler/${musteri.id}`}>Detay</Link>}
-        />
       </div>
     </li>
   );
