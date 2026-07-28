@@ -17,17 +17,18 @@ import { islemTanimiAktifDurumDegistir, islemTanimiGuncelle } from "./actions";
 
 export function IslemSatiri({
   islem,
-  kategoriler,
   cihazlar,
   duzenlenebilir,
 }: {
   islem: IslemTanimiSatir;
-  kategoriler: SecenekSatir[];
   cihazlar: SecenekSatir[];
   duzenlenebilir: boolean;
 }) {
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const [duzenleForm, setDuzenleForm] = useState(islem);
+  const [ad, setAd] = useState(islem.ad);
+  const [muhasebeHizmetIsmi, setMuhasebeHizmetIsmi] = useState(islem.muhasebe_hizmet_ismi ?? "");
+  const [muhasebeDokunuldu, setMuhasebeDokunuldu] = useState(Boolean(islem.muhasebe_hizmet_ismi));
   const guncelleAction = islemTanimiGuncelle.bind(null, islem.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const [aktifPending, startAktifTransition] = useTransition();
@@ -46,29 +47,20 @@ export function IslemSatiri({
         <form action={formAction} className="flex flex-col gap-3 text-sm">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`ad-${islem.id}`}>İşlem Adı</Label>
-              <Input id={`ad-${islem.id}`} name="ad" defaultValue={duzenleForm.ad} required disabled={isPending} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`kategori-${islem.id}`}>Kategori</Label>
-              <Select
-                name="islem_kategori_id"
+              <Label htmlFor={`ad-${islem.id}`}>Tedavi Adı</Label>
+              <Input
+                id={`ad-${islem.id}`}
+                name="ad"
+                value={ad}
+                onChange={(e) => {
+                  setAd(e.target.value);
+                  if (!muhasebeDokunuldu) {
+                    setMuhasebeHizmetIsmi(e.target.value);
+                  }
+                }}
                 required
                 disabled={isPending}
-                defaultValue={kategoriler.find((k) => k.ad === duzenleForm.islem_kategori?.ad)?.id}
-                items={kategoriler.map((k) => ({ value: k.id, label: k.ad }))}
-              >
-                <SelectTrigger id={`kategori-${islem.id}`} className="w-full">
-                  <SelectValue placeholder="Kategori seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {kategoriler.map((k) => (
-                    <SelectItem key={k.id} value={k.id}>
-                      {k.ad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={`fiyat-${islem.id}`}>Fiyat (₺)</Label>
@@ -118,20 +110,15 @@ export function IslemSatiri({
               </Select>
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`parasut-${islem.id}`}>Paraşüt Hizmet Kodu</Label>
-              <Input
-                id={`parasut-${islem.id}`}
-                name="parasut_hizmet_kodu"
-                defaultValue={duzenleForm.parasut_hizmet_kodu ?? ""}
-                disabled={isPending}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
               <Label htmlFor={`muhasebe-${islem.id}`}>Muhasebe Hizmet İsmi</Label>
               <Input
                 id={`muhasebe-${islem.id}`}
                 name="muhasebe_hizmet_ismi"
-                defaultValue={duzenleForm.muhasebe_hizmet_ismi ?? ""}
+                value={muhasebeHizmetIsmi}
+                onChange={(e) => {
+                  setMuhasebeDokunuldu(true);
+                  setMuhasebeHizmetIsmi(e.target.value);
+                }}
                 disabled={isPending}
               />
             </div>
@@ -169,7 +156,7 @@ export function IslemSatiri({
           {islem.ad}
         </span>
         <span className="text-muted-foreground">
-          {islem.islem_kategori?.ad ?? "—"} · {islem.fiyat.toLocaleString("tr-TR", {
+          {islem.fiyat.toLocaleString("tr-TR", {
             style: "currency",
             currency: "TRY",
           })}{" "}
@@ -195,6 +182,9 @@ export function IslemSatiri({
             variant="outline"
             onClick={() => {
               setDuzenleForm(islem);
+              setAd(islem.ad);
+              setMuhasebeHizmetIsmi(islem.muhasebe_hizmet_ismi ?? "");
+              setMuhasebeDokunuldu(Boolean(islem.muhasebe_hizmet_ismi));
               setDuzenleniyor(true);
             }}
           >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,42 +14,30 @@ import {
 import type { SecenekSatir } from "@/types/randevu";
 import { islemTanimiOlustur } from "./actions";
 
-export function IslemFormu({
-  kategoriler,
-  cihazlar,
-}: {
-  kategoriler: SecenekSatir[];
-  cihazlar: SecenekSatir[];
-}) {
+export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
   const [durum, formAction, isPending] = useActionState(islemTanimiOlustur, null);
+  const [ad, setAd] = useState("");
+  const [muhasebeHizmetIsmi, setMuhasebeHizmetIsmi] = useState("");
+  const [muhasebeDokunuldu, setMuhasebeDokunuldu] = useState(false);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="ad">İşlem Adı</Label>
-          <Input id="ad" name="ad" required disabled={isPending} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="islem_kategori_id">Kategori</Label>
-          <Select
-            name="islem_kategori_id"
+          <Label htmlFor="ad">Tedavi Adı</Label>
+          <Input
+            id="ad"
+            name="ad"
+            value={ad}
+            onChange={(e) => {
+              setAd(e.target.value);
+              if (!muhasebeDokunuldu) {
+                setMuhasebeHizmetIsmi(e.target.value);
+              }
+            }}
             required
             disabled={isPending}
-            items={kategoriler.map((k) => ({ value: k.id, label: k.ad }))}
-          >
-            <SelectTrigger id="islem_kategori_id" className="w-full">
-              <SelectValue placeholder="Kategori seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {kategoriler.map((k) => (
-                <SelectItem key={k.id} value={k.id}>
-                  {k.ad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -93,13 +81,17 @@ export function IslemFormu({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="parasut_hizmet_kodu">Paraşüt Hizmet Kodu (opsiyonel)</Label>
-          <Input id="parasut_hizmet_kodu" name="parasut_hizmet_kodu" disabled={isPending} />
-        </div>
-
-        <div className="flex flex-col gap-2">
           <Label htmlFor="muhasebe_hizmet_ismi">Muhasebe Hizmet İsmi (opsiyonel)</Label>
-          <Input id="muhasebe_hizmet_ismi" name="muhasebe_hizmet_ismi" disabled={isPending} />
+          <Input
+            id="muhasebe_hizmet_ismi"
+            name="muhasebe_hizmet_ismi"
+            value={muhasebeHizmetIsmi}
+            onChange={(e) => {
+              setMuhasebeDokunuldu(true);
+              setMuhasebeHizmetIsmi(e.target.value);
+            }}
+            disabled={isPending}
+          />
         </div>
       </div>
 
@@ -110,7 +102,7 @@ export function IslemFormu({
       )}
 
       <Button type="submit" disabled={isPending} className="w-fit">
-        {isPending ? "Kaydediliyor..." : "İşlem tanımı ekle"}
+        {isPending ? "Kaydediliyor..." : "Tedavi tanımı ekle"}
       </Button>
     </form>
   );

@@ -161,6 +161,7 @@ Müşteri Portalı (temel) tamamlandı (migration `20260727200000`): `musteri_ku
 Sprint 3+ fikirleri: çok kanallı bildirim merkezi (WhatsApp/portal/e-posta/SMS), AI destekli seans önerisi, çalışan puantaj+vardiya yönetimi, beyaz etiket tema özelleştirme.
 Açık sorular: WhatsApp sağlayıcı hesabı (Meta Business/numara) kurulumu yapılmadı; yüz tanıma ile check-in fikri (opsiyonel) değerlendirme aşamasında; sarf malzeme stok yönetimi kapsamı (fiziksel envanter mi, sadece uyarı mı) netleşmedi; çoklu şube modeli ertelendi — şimdilik tek şube varsayılıyor, ileride karar verilecek (öneri: şube = ayrı klinik kaydı, parent_klinik_id ile gruplama).
 Onaylandı: `islem_tanimi`'ye kategori alanı eklendi; klinikte uygulanan tedaviler netleşti (Fizyoterapi ve rehabilitasyon, Manuel terapi, Sporcu Recovery, G8 Terapi, Emscult Terapi, Footbalance ayak taban analizi, 3D Skolyoz Terapi). G8, Emscult, Footbalance ve 3D Skolyoz için `cihaz` kayıtlarının açılması gerekiyor — henüz cihaz modelleri/marka bilgisi netleşmedi.
+Geri alındı (2026-07-28): Tedaviler ekranındaki kategori bölümü kaldırıldı — `islem_kategori` için hiç oluşturma ekranı yapılmamıştı, bu yüzden `islem_kategori_id` NOT NULL zorunluluğu yeni tedavi eklemeyi tamamen engelliyordu (migration `20260728140000` ile kolon nullable yapıldı). `islem_kategori` tablosu ileride raporlama/filtre için durabilir ama şu an hiçbir ekrandan yönetilmiyor/gösterilmiyor. Aynı turda "İşlem Tanımları" ekranı "Tedavi Tanımları" olarak yeniden adlandırıldı (başlık, "Tedavi Adı" etiketi, "Yeni Tedavi Tanımı"); Paraşüt Hizmet Kodu alanı formdan kaldırıldı (kolon DB'de duruyor, kullanılmıyor) — muhasebe tarafında artık sadece `muhasebe_hizmet_ismi` kullanılıyor ve bu alan Tedavi Adı yazılırken otomatik aynı değerle dolup, kullanıcı elle değiştirince senkronizasyon kesiliyor (hem ekleme hem düzenleme formunda).
 
 ## Rakip Analizi — Özellik Gap Analizi (Medicasimple benzeri diş/klinik yazılımı incelendi)
 
@@ -187,4 +188,4 @@ Gerçek eksikler (henüz sprint'e alınmadı, önceliklendirme kullanıcıyla ya
 - Asistan Merkezi çatısı altında kliniklerden anonimleştirilmiş veri toplayıp pazarlama amaçlı sektör istatistik raporu çıkarma fikri var
 - İleride React Native ile terapist+hasta mobil uygulaması düşünülüyor (PWA temelinden native'e geçiş)
 
-Son güncelleme: 2026-07-27 (Detaylı Müşteri Kaydı + Müşteri Portalı temel sürümü tamamlandı; Terapist Maaş + Performans, sprint 2, Paraşüt fatura kuyruğu önceki turlardan)
+Son güncelleme: 2026-07-28 (Tedavi Tanımları ekranı yeniden adlandırıldı, kategori zorunluluğu kaldırıldı, Paraşüt Hizmet Kodu formdan çıkarıldı; önceki turlardan Detaylı Müşteri Kaydı + Müşteri Portalı temel sürümü, Terapist Maaş + Performans, sprint 2, Paraşüt fatura kuyruğu)

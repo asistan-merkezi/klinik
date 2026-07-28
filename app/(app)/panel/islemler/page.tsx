@@ -25,22 +25,15 @@ export default async function IslemlerSayfasi() {
 
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
-  const [kategoriSonucu, cihazSonucu, islemSonucu] = await Promise.all([
-    supabase.from("islem_kategori").select("id, ad").order("ad"),
+  const [cihazSonucu, islemSonucu] = await Promise.all([
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
     supabase
       .from("islem_tanimi")
-      .select(
-        "id, ad, fiyat, kdv_orani, parasut_hizmet_kodu, muhasebe_hizmet_ismi, aktif, islem_kategori(ad), cihaz:gerekli_cihaz_id(ad)"
-      )
+      .select("id, ad, fiyat, kdv_orani, muhasebe_hizmet_ismi, aktif, cihaz:gerekli_cihaz_id(ad)")
       .order("ad")
       .returns<IslemTanimiSatir[]>(),
   ]);
 
-  const kategoriler: SecenekSatir[] = (kategoriSonucu.data ?? []).map((k) => ({
-    id: k.id,
-    ad: k.ad,
-  }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const islemler = islemSonucu.data ?? [];
 
@@ -48,43 +41,33 @@ export default async function IslemlerSayfasi() {
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold">İşlem Tanımları</h1>
+          <h1 className="text-xl font-semibold">Tedavi Tanımları</h1>
           <p className="text-sm text-muted-foreground">
             Fiyat kataloğunu görüntüle ve yönet.
           </p>
         </header>
 
         {duzenlenebilir ? (
-          kategoriler.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground">
-                  İşlem tanımı ekleyebilmek için önce en az bir işlem kategorisi gerekli.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Yeni İşlem Tanımı</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <IslemFormu kategoriler={kategoriler} cihazlar={cihazlar} />
-              </CardContent>
-            </Card>
-          )
+          <Card>
+            <CardHeader>
+              <CardTitle>Yeni Tedavi Tanımı</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <IslemFormu cihazlar={cihazlar} />
+            </CardContent>
+          </Card>
         ) : null}
 
         <Card>
           <CardHeader>
-            <CardTitle>Kayıtlı İşlemler</CardTitle>
+            <CardTitle>Kayıtlı Tedaviler</CardTitle>
           </CardHeader>
           <CardContent>
             {islemSonucu.error && (
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             )}
             {!islemSonucu.error && islemler.length === 0 && (
-              <p className="text-sm text-muted-foreground">Henüz işlem tanımı yok.</p>
+              <p className="text-sm text-muted-foreground">Henüz tedavi tanımı yok.</p>
             )}
             {!islemSonucu.error && islemler.length > 0 && (
               <ul className="flex flex-col divide-y divide-border">
@@ -92,7 +75,6 @@ export default async function IslemlerSayfasi() {
                   <IslemSatiri
                     key={islem.id}
                     islem={islem}
-                    kategoriler={kategoriler}
                     cihazlar={cihazlar}
                     duzenlenebilir={duzenlenebilir}
                   />
