@@ -3,23 +3,25 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VucutHaritasi } from "@/components/musteri/vucut-haritasi";
 import type { MusteriDetay } from "@/types/musteri";
-import { DetayliBilgilerKarti } from "../detayli-bilgiler-karti";
 import { ProtokolKarti } from "../protokol-karti";
 import { HedefListesi } from "../hedef-listesi";
-import { useMusteriHassas, useVucutHaritasi } from "../queries";
+import { useVucutHaritasi } from "../queries";
+import { GelisimOlcumlerSekmesi } from "./gelisim-olcumler-sekmesi";
+import { BelgelerMedyaSekmesi } from "./belgeler-medya-sekmesi";
 
 export function TedaviAnamnezSekmesi({
   musteri,
   aktif,
   duzenlenebilir,
   sonVasSkoru,
+  rol,
 }: {
   musteri: MusteriDetay;
   aktif: boolean;
   duzenlenebilir: boolean;
   sonVasSkoru: number | null;
+  rol: string | null;
 }) {
-  const { data: hassas, isLoading: hassasYukleniyor } = useMusteriHassas(musteri.id, aktif);
   const { data: isaretler, isLoading: isaretlerYukleniyor } = useVucutHaritasi(musteri.id, aktif);
 
   return (
@@ -52,18 +54,15 @@ export function TedaviAnamnezSekmesi({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Detaylı Bilgiler & Anamnez</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {hassasYukleniyor ? (
-            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
-          ) : (
-            <DetayliBilgilerKarti musteri={musteri} hassas={hassas ?? null} />
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-muted-foreground">Gelişim & Ölçümler</h3>
+        <GelisimOlcumlerSekmesi musteriId={musteri.id} sonVasSkoru={sonVasSkoru} aktif={aktif} />
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-muted-foreground">Belgeler & Medya</h3>
+        <BelgelerMedyaSekmesi musteriId={musteri.id} rol={rol} aktif={aktif} />
+      </div>
     </div>
   );
 }

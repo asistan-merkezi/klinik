@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -187,10 +187,36 @@ export function PanelSidebar({
   const [acikGruplar, setAcikGruplar] = useState<Set<string>>(
     () => new Set(GRUPLAR.filter((g) => g.ogeler.some((o) => girdiAktifMi(pathname, o.href))).map((g) => g.key))
   );
+  const dokunmaBaslangici = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     setMenuAcik(false);
   }, [pathname]);
+
+  function dokunmaBasladi(e: React.TouchEvent) {
+    if (menuAcik || window.matchMedia("(min-width: 1024px)").matches) return;
+    const dokunma = e.touches[0];
+    if (dokunma.clientX > 24) return; // sadece ekranın sol kenarından başlayan kaydırmalar
+    dokunmaBaslangici.current = { x: dokunma.clientX, y: dokunma.clientY };
+  }
+
+  function dokunmaHareketEtti(e: React.TouchEvent) {
+    const baslangic = dokunmaBaslangici.current;
+    if (!baslangic) return;
+    const dokunma = e.touches[0];
+    const dx = dokunma.clientX - baslangic.x;
+    const dy = dokunma.clientY - baslangic.y;
+    if (Math.abs(dy) > 40) {
+      dokunmaBaslangici.current = null; // dikey kaydırma, iptal et
+    } else if (dx > 60) {
+      setMenuAcik(true);
+      dokunmaBaslangici.current = null;
+    }
+  }
+
+  function dokunmaBitti() {
+    dokunmaBaslangici.current = null;
+  }
 
   function grubuAcKapat(key: string) {
     setAcikGruplar((onceki) => {
@@ -205,7 +231,12 @@ export function PanelSidebar({
   }
 
   return (
-    <div className="flex min-h-svh w-full">
+    <div
+      className="flex min-h-svh w-full"
+      onTouchStart={dokunmaBasladi}
+      onTouchMove={dokunmaHareketEtti}
+      onTouchEnd={dokunmaBitti}
+    >
       {/* Masaüstü: sabit sidebar */}
       <aside className="hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
         <SidebarIcerik

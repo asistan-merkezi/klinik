@@ -11,20 +11,16 @@ import type { MusteriBakiyeHareket } from "@/types/musteri-detay";
 import { RiskBandi } from "./risk-bandi";
 import { OzetKart } from "./ozet-kart";
 import { MobilHub } from "./mobil-hub";
-import { GenelBilgilerSekmesi } from "./sekmeler/genel-bilgiler-sekmesi";
+import { KisiselBilgilerSekmesi } from "./sekmeler/kisisel-bilgiler-sekmesi";
 import { RandevuSeansSekmesi } from "./sekmeler/randevu-seans-sekmesi";
 import { TedaviAnamnezSekmesi } from "./sekmeler/tedavi-anamnez-sekmesi";
-import { GelisimOlcumlerSekmesi } from "./sekmeler/gelisim-olcumler-sekmesi";
 import { CariOdemeSekmesi } from "./sekmeler/cari-odeme-sekmesi";
-import { BelgelerMedyaSekmesi } from "./sekmeler/belgeler-medya-sekmesi";
-import { PlaceholderSekmesi } from "./sekmeler/placeholder-sekmesi";
 import { useMusteriDetayOzet } from "./queries";
 import { SEKMELER, type SekmeAnahtari } from "./sekme-tanimlari";
 
 export function MusteriDetayIcerik({
   musteri,
   ozet,
-  vasTrend,
   rol,
   duzenlenebilir,
   portalDurumu,
@@ -36,7 +32,6 @@ export function MusteriDetayIcerik({
 }: {
   musteri: MusteriDetay;
   ozet: MusteriOzet | null;
-  vasTrend: "yukari" | "asagi" | "sabit" | null;
   rol: string | null;
   duzenlenebilir: boolean;
   portalDurumu: { var: boolean; aktif: boolean };
@@ -54,7 +49,7 @@ export function MusteriDetayIcerik({
   const gecerliDegerler = SEKMELER.map((s) => s.deger);
   const urlTab = searchParams.get("tab");
   const tabParamGecerli = gecerliDegerler.includes(urlTab as SekmeAnahtari);
-  const aktifSekme: SekmeAnahtari = tabParamGecerli ? (urlTab as SekmeAnahtari) : "genel";
+  const aktifSekme: SekmeAnahtari = tabParamGecerli ? (urlTab as SekmeAnahtari) : "kisisel";
 
   const terapistMi = rol === "terapist";
   const gorunurSekmeler = SEKMELER.filter((s) => !(s.terapisteKapali && terapistMi));
@@ -73,11 +68,11 @@ export function MusteriDetayIcerik({
 
   function sekmeIcerigi(sekme: SekmeAnahtari) {
     switch (sekme) {
-      case "genel":
+      case "kisisel":
         return (
-          <GenelBilgilerSekmesi
+          <KisiselBilgilerSekmesi
             musteri={musteri}
-            aktif={aktifSekme === "genel"}
+            aktif={aktifSekme === "kisisel"}
             duzenlenebilir={duzenlenebilir}
             portalDurumu={portalDurumu}
           />
@@ -97,14 +92,7 @@ export function MusteriDetayIcerik({
             aktif={aktifSekme === "tedavi"}
             duzenlenebilir={duzenlenebilir || terapistMi}
             sonVasSkoru={ozet?.son_vas_skoru ?? null}
-          />
-        );
-      case "gelisim":
-        return (
-          <GelisimOlcumlerSekmesi
-            musteriId={musteri.id}
-            sonVasSkoru={ozet?.son_vas_skoru ?? null}
-            aktif={aktifSekme === "gelisim"}
+            rol={rol}
           />
         );
       case "cari":
@@ -116,15 +104,6 @@ export function MusteriDetayIcerik({
             satilabilirUrunler={satilabilirUrunler}
             odemeGecmisi={odemeGecmisi}
             bakiyeHareketleri={bakiyeHareketleri}
-          />
-        ) : null;
-      case "belgeler":
-        return <BelgelerMedyaSekmesi musteriId={musteri.id} rol={rol} aktif={aktifSekme === "belgeler"} />;
-      case "iletisim":
-        return aktifSekme === "iletisim" ? (
-          <PlaceholderSekmesi
-            baslik="İletişim & Bildirimler"
-            aciklama="Bu sekme yakında eklenecek: iletişim geçmişi, hızlı WhatsApp/SMS, anket sonuçları, randevu öncesi form cevapları."
           />
         ) : null;
       default:
@@ -143,9 +122,6 @@ export function MusteriDetayIcerik({
         telefon={musteri.telefon}
         dogumTarihi={musteri.dogum_tarihi}
         cinsiyet={musteri.cinsiyet}
-        ozet={ozet}
-        vasTrend={vasTrend}
-        programAktif={detayOzetYukleniyor ? null : Boolean(detayOzet?.aktif_protokol_ad)}
       />
 
       {/* Mobil hub (md altı): sekme barı yerine özet kart grid'i */}

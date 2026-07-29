@@ -48,7 +48,6 @@ export default async function MusteriDetaySayfasi({
   const [
     musteriKullaniciSonucu,
     ozetSonucu,
-    sonVasOlcumleriSonucu,
     paketSatisSonucu,
     odemeSonucu,
     islemTanimiSonucu,
@@ -58,14 +57,6 @@ export default async function MusteriDetaySayfasi({
   ] = await Promise.all([
     supabase.from("musteri_kullanici").select("aktif").eq("musteri_id", id).maybeSingle(),
     supabase.from("v_musteri_ozet").select("*").eq("musteri_id", id).maybeSingle<MusteriOzet>(),
-    supabase
-      .from("musteri_olcum")
-      .select("hesaplanan_skor, olcum_tarihi, olcek_tanimi!inner(kod)")
-      .eq("musteri_id", id)
-      .eq("olcek_tanimi.kod", "VAS")
-      .order("olcum_tarihi", { ascending: false })
-      .limit(2)
-      .returns<{ hesaplanan_skor: number | null; olcum_tarihi: string }[]>(),
     supabase
       .from("paket_satis")
       .select("id, kalan_adet, gecerlilik_bitis_tarihi, durum, paket(ad, seans_sayisi)")
@@ -104,17 +95,10 @@ export default async function MusteriDetaySayfasi({
 
   const musteriKullanici = musteriKullaniciSonucu.data;
   const ozet = ozetSonucu.data;
-  const sonVasOlcumleri = sonVasOlcumleriSonucu.data ?? [];
   const aktifPaketler = paketSatisSonucu.data ?? [];
   const odemeGecmisi = odemeSonucu.data ?? [];
   const periyodikRandevular = periyodikRandevuSonucu.data ?? [];
   const bakiyeHareketleri = bakiyeHareketSonucu.data ?? [];
-
-  let vasTrend: "yukari" | "asagi" | "sabit" | null = null;
-  if (sonVasOlcumleri.length === 2 && sonVasOlcumleri[0].hesaplanan_skor != null && sonVasOlcumleri[1].hesaplanan_skor != null) {
-    const fark = sonVasOlcumleri[0].hesaplanan_skor - sonVasOlcumleri[1].hesaplanan_skor;
-    vasTrend = fark > 0 ? "yukari" : fark < 0 ? "asagi" : "sabit";
-  }
 
   const satilabilirUrunler: SatilabilirUrun[] = [
     ...(islemTanimiSonucu.data ?? []).map((i) => ({
@@ -143,7 +127,6 @@ export default async function MusteriDetaySayfasi({
         <MusteriDetayIcerik
           musteri={musteri}
           ozet={ozet}
-          vasTrend={vasTrend}
           rol={rol}
           duzenlenebilir={duzenlenebilir}
           portalDurumu={{ var: musteriKullanici != null, aktif: musteriKullanici?.aktif ?? false }}

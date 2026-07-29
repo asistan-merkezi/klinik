@@ -4,10 +4,7 @@ import {
   User,
   CalendarDays,
   ClipboardList,
-  TrendingUp,
   CreditCard,
-  FolderOpen,
-  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,23 +13,11 @@ import type { MusteriOzet, MusteriDetayOzet } from "@/types/musteri-detay";
 import type { SekmeAnahtari } from "./sekme-tanimlari";
 
 const IKONLAR: Record<SekmeAnahtari, LucideIcon> = {
-  genel: User,
+  kisisel: User,
   randevu: CalendarDays,
   tedavi: ClipboardList,
-  gelisim: TrendingUp,
   cari: CreditCard,
-  belgeler: FolderOpen,
-  iletisim: MessageSquare,
 };
-
-function gorelZaman(tarih: string | null): string {
-  if (!tarih) return "Henüz mesaj yok";
-  const farkMs = Date.now() - new Date(tarih).getTime();
-  const gun = Math.floor(farkMs / 86_400_000);
-  if (gun <= 0) return "Bugün";
-  if (gun === 1) return "Dün";
-  return `${gun} gün önce`;
-}
 
 function randevuZamani(tarih: string): string {
   const d = new Date(tarih);
@@ -49,9 +34,9 @@ function ozetDegeri(
   yukleniyor: boolean
 ): { deger: string; uyari?: boolean } {
   switch (sekme) {
-    case "genel": {
+    case "kisisel": {
       const eksikOnay = !musteri.kvkk_onay_tarihi || !musteri.ozel_nitelikli_veri_onay_tarihi;
-      return { deger: "Kimlik & onaylar", uyari: eksikOnay };
+      return { deger: "Kişisel bilgiler & iletişim", uyari: eksikOnay };
     }
     case "randevu": {
       if (yukleniyor) return { deger: "Yükleniyor…" };
@@ -60,26 +45,17 @@ function ozetDegeri(
     case "tedavi": {
       if (yukleniyor) return { deger: "Yükleniyor…" };
       const ad = detayOzet?.aktif_protokol_ad;
-      if (!ad) return { deger: "Program yok" };
-      const kisaltilmis = ad.length > 24 ? `${ad.slice(0, 24)}…` : ad;
-      return { deger: `Aktif tanı: ${kisaltilmis}` };
-    }
-    case "gelisim": {
-      const skor = detayOzet?.son_vas_skoru ?? ozet?.son_vas_skoru;
-      const sayi = yukleniyor ? "…" : (detayOzet?.olcum_sayisi ?? 0);
-      return { deger: `${sayi} kayıt · VAS ${skor ?? "—"}` };
+      if (ad) {
+        const kisaltilmis = ad.length > 24 ? `${ad.slice(0, 24)}…` : ad;
+        return { deger: `Aktif tanı: ${kisaltilmis}` };
+      }
+      const olcum = detayOzet?.olcum_sayisi ?? 0;
+      const belge = detayOzet?.belge_sayisi ?? 0;
+      return { deger: `${olcum} ölçüm · ${belge} belge` };
     }
     case "cari": {
       const bakiye = ozet?.bakiye ?? 0;
       return { deger: bakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY" }) };
-    }
-    case "belgeler": {
-      if (yukleniyor) return { deger: "Yükleniyor…" };
-      return { deger: `${detayOzet?.belge_sayisi ?? 0} dosya` };
-    }
-    case "iletisim": {
-      if (yukleniyor) return { deger: "Yükleniyor…" };
-      return { deger: `Son mesaj: ${gorelZaman(detayOzet?.son_iletisim_tarihi ?? null)}` };
     }
   }
 }

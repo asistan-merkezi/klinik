@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { MusteriDetay } from "@/types/musteri";
 import { ILISKI_TURU_ETIKETLERI } from "@/types/musteri-detay";
+import { DetayliBilgilerKarti } from "../detayli-bilgiler-karti";
 import { PortalErisimKarti } from "../portal-erisim-karti";
+import { PlaceholderSekmesi } from "./placeholder-sekmesi";
 import { useMusteriHassas, useMusteriIliskiler, useMusteriSigortalar } from "../queries";
 
 function OnayRozeti({ etiket, tarih }: { etiket: string; tarih: string | null }) {
@@ -23,7 +25,7 @@ function OnayRozeti({ etiket, tarih }: { etiket: string; tarih: string | null })
   );
 }
 
-export function GenelBilgilerSekmesi({
+export function KisiselBilgilerSekmesi({
   musteri,
   aktif,
   duzenlenebilir,
@@ -60,13 +62,6 @@ export function GenelBilgilerSekmesi({
             <OnayRozeti etiket="Sağlık Verisi İşleme Onayı" tarih={musteri.ozel_nitelikli_veri_onay_tarihi} />
             <OnayRozeti etiket="Ticari İleti Onayı" tarih={musteri.ticari_ileti_onay_tarihi} />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Kimlik/anamnez bilgilerini düzenlemek için{" "}
-            <a href="?tab=tedavi" className="underline decoration-dotted underline-offset-2">
-              Tedavi & Anamnez
-            </a>{" "}
-            sekmesine gidin.
-          </p>
         </CardContent>
       </Card>
 
@@ -181,6 +176,26 @@ export function GenelBilgilerSekmesi({
           )}
         </CardContent>
       </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Detaylı Bilgiler & Anamnez</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {hassasYukleniyor ? (
+            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
+          ) : (
+            <DetayliBilgilerKarti musteri={musteri} hassas={hassas ?? null} />
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="lg:col-span-2">
+        <PlaceholderSekmesi
+          baslik="İletişim & Bildirimler"
+          aciklama="Bu bölüm yakında eklenecek: iletişim geçmişi, hızlı WhatsApp/SMS, anket sonuçları, randevu öncesi form cevapları."
+        />
+      </div>
     </div>
   );
 }
