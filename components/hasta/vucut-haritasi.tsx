@@ -7,36 +7,51 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
-  VUCUT_BOLGELERI,
   SIDDET_RENKLERI,
   SIDDET_ETIKETLERI,
   siddetBandi,
   bolgeBul,
+  figurGorseli,
+  yuzunBolgeleri,
+  type Cinsiyet as FigurCinsiyeti,
   type VucutYuzu,
 } from "@/lib/vucut-bolgeleri";
+import type { Cinsiyet } from "@/types/hasta";
 import {
   useVucutHaritasi,
   useVucutIsaretKaydet,
   useVucutIsaretKaldir,
 } from "@/app/(app)/panel/hastalar/[id]/queries";
 
-const GORSEL_YUZ: Record<VucutYuzu, { src: string; etiket: string }> = {
-  on: { src: "/vucut/body-front.webp", etiket: "Ön" },
-  arka: { src: "/vucut/body-back.webp", etiket: "Arka" },
-};
+const YUZ_ETIKET: Record<VucutYuzu, string> = { on: "Ön", arka: "Arka" };
+
+function etkinCinsiyet(cinsiyet: Cinsiyet | null | undefined): FigurCinsiyeti {
+  return cinsiyet === "kadin" ? "kadin" : "erkek";
+}
+
+function gorselPrefetchEt(cinsiyet: FigurCinsiyeti, yuz: VucutYuzu) {
+  if (typeof window === "undefined") return;
+  const img = new window.Image();
+  img.src = figurGorseli(cinsiyet, yuz);
+}
 
 export function VucutHaritasi({
   hastaId,
   seansId = null,
   duzenlenebilir = false,
+  cinsiyet = null,
 }: {
   hastaId: string;
   seansId?: string | null;
   duzenlenebilir?: boolean;
+  cinsiyet?: Cinsiyet | null;
 }) {
   const [aktifYuz, setAktifYuz] = useState<VucutYuzu>("on");
   const [gorselYuklendi, setGorselYuklendi] = useState(false);
   const [seciliBolgeKodu, setSeciliBolgeKodu] = useState<string | null>(null);
+
+  const etkinCins = etkinCinsiyet(cinsiyet);
+  const cinsiyetBelirtilmemis = !cinsiyet || cinsiyet === "belirtilmemis";
 
   const { data: isaretler, isLoading, isError, refetch } = useVucutHaritasi(hastaId, seansId, true);
   const kaydetMutasyonu = useVucutIsaretKaydet(hastaId, seansId);
@@ -51,7 +66,14 @@ export function VucutHaritasi({
     [aktifYuzIsaretleri]
   );
 
-  const bolgelerBuYuz = useMemo(() => VUCUT_BOLGELERI.filter((b) => b.yuz === aktifYuz), [aktifYuz]);
+  const bolgelerBuYuz = useMemo(
+    () => yuzunBolgeleri(etkinCins, aktifYuz),
+    [etkinCins, aktifYuz]
+  );
+  const bolgeMapBuYuz = useMemo(
+    () => new Map(bolgelerBuYuz.map((b) => [b.kod, b])),
+    [bolgelerBuYuz]
+  );
   const seciliIsaret = seciliBolgeKodu ? (isaretByBolge.get(seciliBolgeKodu) ?? null) : null;
   const seciliBolge = seciliBolgeKodu ? bolgeBul(seciliBolgeKodu) : null;
 
@@ -76,12 +98,13 @@ export function VucutHaritasi({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-center gap-1 rounded-lg bg-muted p-1 self-center">
-        {(Object.entries(GORSEL_YUZ) as [VucutYuzu, (typeof GORSEL_YUZ)["on"]][]).map(([yuz, bilgi]) => (
+        {(Object.keys(YUZ_ETIKET) as VucutYuzu[]).map((yuz) => (
           <button
             key={yuz}
             type="button"
             aria-pressed={aktifYuz === yuz}
             onClick={() => yuzDegistir(yuz)}
+            onMouseEnter={() => gorselPrefetchEt(etkinCins, yuz)}
             className={cn(
               "rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors",
               aktifYuz === yuz
@@ -89,10 +112,16 @@ export function VucutHaritasi({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {bilgi.etiket}
+            {YUZ_ETIKET[yuz]}
           </button>
         ))}
       </div>
+
+      {cinsiyetBelirtilmemis && (
+        <p className="text-center text-xs text-muted-foreground">
+          Cinsiyet bilgisi girilmediği için varsayılan figür gösteriliyor.
+        </p>
+      )}
 
       {isError ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-destructive/40 bg-destructive/5 py-10 text-center">
@@ -109,9 +138,9 @@ export function VucutHaritasi({
           )}
 
           <Image
-            key={aktifYuz}
-            src={GORSEL_YUZ[aktifYuz].src}
-            alt={`Vücut haritası (${GORSEL_YUZ[aktifYuz].etiket.toLowerCase()} görünüm)`}
+            key={`${etkinCins}-${aktifYuz}`}
+            src={figurGorseli(etkinCins, aktifYuz)}
+            alt={`Vücut haritası (${YUZ_ETIKET[aktifYuz].toLowerCase()} görünüm)`}
             width={800}
             height={1600}
             priority={false}
@@ -128,7 +157,7 @@ export function VucutHaritasi({
             aria-hidden="true"
           >
             {aktifYuzIsaretleri.map((isaret) => {
-              const bolge = bolgeBul(isaret.bolge);
+              const bolge = bolgeMapBuYuz.get(isaret.bolge);
               if (!bolge) return null;
               const siddet = isaret.severity ?? 5;
               const renk = SIDDET_RENKLERI[siddetBandi(siddet)];
@@ -152,7 +181,7 @@ export function VucutHaritasi({
             viewBox="0 0 800 1600"
             className={cn("absolute inset-0 h-full w-full", !duzenlenebilir && "cursor-default")}
             role="group"
-            aria-label={`Vücut haritası bölgeleri (${GORSEL_YUZ[aktifYuz].etiket.toLowerCase()} görünüm)`}
+            aria-label={`Vücut haritası bölgeleri (${YUZ_ETIKET[aktifYuz].toLowerCase()} görünüm)`}
           >
             {bolgelerBuYuz.map((bolge) => (
               <path

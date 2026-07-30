@@ -121,7 +121,12 @@ export function TedaviAnamnezSekmesi({
             <CardTitle>2D Vücut Haritası</CardTitle>
           </CardHeader>
           <CardContent>
-            <VucutHaritasi hastaId={hasta.id} seansId={seciliSeansId} duzenlenebilir={duzenlenebilir} />
+            <VucutHaritasi
+              hastaId={hasta.id}
+              seansId={seciliSeansId}
+              duzenlenebilir={duzenlenebilir}
+              cinsiyet={hasta.cinsiyet}
+            />
           </CardContent>
         </Card>
 
