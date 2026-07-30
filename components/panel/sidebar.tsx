@@ -10,24 +10,13 @@ import {
   ClipboardList,
   Package,
   DoorOpen,
-  Wallet,
-  Settings,
   LogOut,
-  UserCog,
-  Receipt,
-  Landmark,
-  TrendingDown,
-  BarChart3,
-  MessageCircle,
-  Tablet,
-  ShieldCheck,
-  RefreshCw,
-  Building2,
   Menu,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cikisYap } from "@/app/(app)/panel/actions";
+import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
 
 const ANA_OGELER = [
   { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
@@ -36,33 +25,6 @@ const ANA_OGELER = [
   { href: "/panel/paketler", label: "Paketler", icon: Package },
   { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
   { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
-];
-
-const GRUPLAR = [
-  {
-    key: "muhasebe",
-    label: "Muhasebe",
-    icon: Wallet,
-    ogeler: [
-      { href: "/panel/personel", label: "Personel", icon: UserCog },
-      { href: "/panel/muhasebe/faturalar", label: "Faturalar", icon: Receipt },
-      { href: "/panel/muhasebe/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
-      { href: "/panel/muhasebe/giderler", label: "Giderler", icon: TrendingDown },
-      { href: "/panel/muhasebe/raporlar", label: "Raporlar", icon: BarChart3 },
-    ],
-  },
-  {
-    key: "ayarlar",
-    label: "Ayarlar",
-    icon: Settings,
-    ogeler: [
-      { href: "/panel/ayarlar/sirket-bilgileri", label: "Şirket Bilgileri", icon: Building2 },
-      { href: "/panel/ayarlar/muhasebe-sync", label: "Muhasebe Sync", icon: RefreshCw },
-      { href: "/panel/ayarlar/whatsapp", label: "WhatsApp", icon: MessageCircle },
-      { href: "/panel/tablet", label: "Tablet", icon: Tablet },
-      { href: "/panel/ayarlar/yetkilendirme", label: "Yetkilendirme", icon: ShieldCheck },
-    ],
-  },
 ];
 
 function girdiAktifMi(pathname: string, href: string, tamEslesme?: boolean) {
@@ -76,13 +38,11 @@ function SidebarIcerik({
   kullaniciAdi,
   kullaniciRolu,
   pathname,
-  grupAc,
   linkTiklandi,
 }: {
   kullaniciAdi: string;
   kullaniciRolu: string;
   pathname: string;
-  grupAc: (key: string) => void;
   linkTiklandi?: () => void;
 }) {
   return (
@@ -112,24 +72,26 @@ function SidebarIcerik({
           </Link>
         ))}
 
-        {GRUPLAR.map((grup) => {
-          const grupAktif = grup.ogeler.some((o) => girdiAktifMi(pathname, o.href));
+        {MENU_GRUPLARI.map((grup) => {
+          const grupHref = `/panel/${grup.key}`;
+          const grupAktif =
+            girdiAktifMi(pathname, grupHref) || grup.ogeler.some((o) => girdiAktifMi(pathname, o.href));
 
           return (
-            <button
+            <Link
               key={grup.key}
-              type="button"
-              onClick={() => grupAc(grup.key)}
+              href={grupHref}
+              onClick={linkTiklandi}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 grupAktif
-                  ? "bg-sidebar-accent text-sidebar-foreground"
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
                   : "text-sidebar-foreground hover:bg-sidebar-accent"
               )}
             >
               <grup.icon className="size-4 shrink-0" aria-hidden />
               <span className="flex-1 text-left">{grup.label}</span>
-            </button>
+            </Link>
           );
         })}
       </nav>
@@ -158,9 +120,7 @@ export function PanelSidebar({
 }) {
   const pathname = usePathname();
   const [menuAcik, setMenuAcik] = useState(false);
-  const [acikGrupModal, setAcikGrupModal] = useState<string | null>(null);
   const dokunmaBaslangici = useRef<{ x: number; y: number } | null>(null);
-  const acikGrup = GRUPLAR.find((g) => g.key === acikGrupModal) ?? null;
 
   useEffect(() => {
     setMenuAcik(false);
@@ -205,7 +165,6 @@ export function PanelSidebar({
           kullaniciAdi={kullaniciAdi}
           kullaniciRolu={kullaniciRolu}
           pathname={pathname}
-          grupAc={setAcikGrupModal}
         />
       </aside>
 
@@ -250,58 +209,9 @@ export function PanelSidebar({
               kullaniciAdi={kullaniciAdi}
               kullaniciRolu={kullaniciRolu}
               pathname={pathname}
-              grupAc={setAcikGrupModal}
               linkTiklandi={() => setMenuAcik(false)}
             />
           </aside>
-        </div>
-      )}
-
-      {/* Muhasebe/Ayarlar: ekran ortasında kutucuklu açılım */}
-      {acikGrup && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setAcikGrupModal(null)}
-            aria-hidden
-          />
-          <div className="relative w-full max-w-md rounded-xl border border-sidebar-border bg-card p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <acikGrup.icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <p className="text-sm font-semibold">{acikGrup.label}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAcikGrupModal(null)}
-                aria-label="Kapat"
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              >
-                <X className="size-5" aria-hidden />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {acikGrup.ogeler.map((oge) => (
-                <Link
-                  key={oge.href}
-                  href={oge.href}
-                  onClick={() => {
-                    setAcikGrupModal(null);
-                    setMenuAcik(false);
-                  }}
-                  className={cn(
-                    "flex flex-col items-center gap-2 rounded-lg border border-sidebar-border p-4 text-center text-sm font-medium transition-colors",
-                    girdiAktifMi(pathname, oge.href)
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent"
-                  )}
-                >
-                  <oge.icon className="size-6 shrink-0" aria-hidden />
-                  {oge.label}
-                </Link>
-              ))}
-            </div>
-          </div>
         </div>
       )}
     </div>
