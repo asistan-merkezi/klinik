@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HastaSatir } from "@/types/hasta";
-import { HastaFormu } from "./hasta-formu";
+import { YeniHastaDialog } from "./yeni-hasta-dialog";
 import { HastaSatiri } from "./hasta-satiri";
 import { HastaAramaKutusu } from "./hasta-arama-kutusu";
 
@@ -51,25 +51,19 @@ export default async function HastalarSayfasi({
               Hasta kayıtlarını görüntüle, ekle ve düzenle.
             </p>
           </div>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={
-              <Link href="/panel/hastalar/kayit-formu" target="_blank">
-                <FileText /> Kayıt Formu (PDF)
-              </Link>
-            }
-          />
+          <div className="flex shrink-0 gap-2">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link href="/panel/hastalar/kayit-formu" target="_blank">
+                  <FileText /> Kayıt Formu (PDF)
+                </Link>
+              }
+            />
+            <YeniHastaDialog />
+          </div>
         </header>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Yeni Hasta</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <HastaFormu />
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>
