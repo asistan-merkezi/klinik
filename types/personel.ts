@@ -18,6 +18,10 @@ export type PersonelDetay = {
   kullanici_id: string | null;
   tc_kimlik_no: string | null;
   uzmanlik_tescil_no: string | null;
+  il: string | null;
+  ilce: string | null;
+  mahalle: string | null;
+  adres: string | null;
 };
 
 export type KullaniciRol = "klinik_admin" | "resepsiyon" | "terapist" | "muhasebe";

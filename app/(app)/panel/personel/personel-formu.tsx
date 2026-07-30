@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,21 @@ export function PersonelFormu() {
             </SelectContent>
           </Select>
         </div>
+
+        <fieldset className="flex flex-col gap-3 sm:col-span-2">
+          <legend className="mb-1 text-sm font-medium">Adres (opsiyonel)</legend>
+          <AdresSecici prefix="adres" disabled={isPending} />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="adres">Sokak / Cadde, Bina No, Daire</Label>
+            <textarea
+              id="adres"
+              name="adres"
+              rows={2}
+              disabled={isPending}
+              className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+          </div>
+        </fieldset>
       </div>
 
       {durum && (

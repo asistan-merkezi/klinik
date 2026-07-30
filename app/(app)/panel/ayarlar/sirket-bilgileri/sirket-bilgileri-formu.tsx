@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,17 +53,27 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
           <Input id="unvan" name="unvan" disabled={isPending} defaultValue={bilgiler?.unvan ?? ""} />
         </div>
 
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="adres">Adres</Label>
-          <textarea
-            id="adres"
-            name="adres"
-            rows={2}
+        <fieldset className="flex flex-col gap-3 sm:col-span-2">
+          <legend className="mb-1 text-sm font-medium">Adres</legend>
+          <AdresSecici
+            prefix="adres"
+            defaultIl={bilgiler?.il}
+            defaultIlce={bilgiler?.ilce}
+            defaultMahalle={bilgiler?.mahalle}
             disabled={isPending}
-            defaultValue={bilgiler?.adres ?? ""}
-            className={textareaClass}
           />
-        </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="adres">Sokak / Cadde, Bina No, Daire</Label>
+            <textarea
+              id="adres"
+              name="adres"
+              rows={2}
+              disabled={isPending}
+              defaultValue={bilgiler?.adres ?? ""}
+              className={textareaClass}
+            />
+          </div>
+        </fieldset>
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="vergi_dairesi">Vergi Dairesi</Label>

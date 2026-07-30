@@ -1,5 +1,8 @@
 export type SirketBilgileri = {
   unvan: string | null;
+  il: string | null;
+  ilce: string | null;
+  mahalle: string | null;
   adres: string | null;
   vergi_dairesi: string | null;
   vergi_no: string | null;

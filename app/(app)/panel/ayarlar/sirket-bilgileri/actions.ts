@@ -46,6 +46,9 @@ function bosIseNull(deger: FormDataEntryValue | null) {
 
 const sirketSemasi = z.object({
   unvan: z.string().nullable(),
+  il: z.string().nullable(),
+  ilce: z.string().nullable(),
+  mahalle: z.string().nullable(),
   adres: z.string().nullable(),
   vergi_dairesi: z.string().nullable(),
   vergi_no: z.string().nullable(),
@@ -68,6 +71,9 @@ export async function sirketBilgileriGuncelle(
 
   const ayristirma = sirketSemasi.safeParse({
     unvan: bosIseNull(formData.get("unvan")),
+    il: bosIseNull(formData.get("adres_il")),
+    ilce: bosIseNull(formData.get("adres_ilce")),
+    mahalle: bosIseNull(formData.get("adres_mahalle")),
     adres: bosIseNull(formData.get("adres")),
     vergi_dairesi: bosIseNull(formData.get("vergi_dairesi")),
     vergi_no: bosIseNull(formData.get("vergi_no")),

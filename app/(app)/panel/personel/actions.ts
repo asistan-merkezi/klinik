@@ -58,6 +58,10 @@ const personelSemasi = z.object({
     .regex(/^[0-9+ ]+$/, "GSM sadece rakam, boşluk ve + içerebilir."),
   unvan: z.string().trim().min(2, "Unvan/branş en az 2 karakter olmalı."),
   uzmanlik_tescil_no: z.string().trim().optional().or(z.literal("")),
+  il: z.string().trim().optional().or(z.literal("")),
+  ilce: z.string().trim().optional().or(z.literal("")),
+  mahalle: z.string().trim().optional().or(z.literal("")),
+  adres: z.string().trim().optional().or(z.literal("")),
   rol: z.enum(["klinik_admin", "resepsiyon", "terapist", "muhasebe"]),
 });
 
@@ -77,6 +81,10 @@ export async function personelHesabiOlustur(
     gsm: formData.get("gsm"),
     unvan: formData.get("unvan"),
     uzmanlik_tescil_no: formData.get("uzmanlik_tescil_no") ?? "",
+    il: formData.get("adres_il") ?? "",
+    ilce: formData.get("adres_ilce") ?? "",
+    mahalle: formData.get("adres_mahalle") ?? "",
+    adres: formData.get("adres") ?? "",
     rol: formData.get("rol"),
   });
 
@@ -84,7 +92,8 @@ export async function personelHesabiOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad_soyad, tc_kimlik_no, eposta, gsm, unvan, uzmanlik_tescil_no, rol } = ayristirma.data;
+  const { ad_soyad, tc_kimlik_no, eposta, gsm, unvan, uzmanlik_tescil_no, il, ilce, mahalle, adres, rol } =
+    ayristirma.data;
 
   const adminClient = createAdminClient();
   const geciciSifre = geciciSifreUret();
@@ -126,6 +135,10 @@ export async function personelHesabiOlustur(
       gorev: unvan,
       tc_kimlik_no: tc_kimlik_no || null,
       uzmanlik_tescil_no: uzmanlik_tescil_no || null,
+      il: il || null,
+      ilce: ilce || null,
+      mahalle: mahalle || null,
+      adres: adres || null,
       aktif: true,
     })
     .select("id")
