@@ -6,6 +6,7 @@ import type { HastaOzet } from "@/types/hasta-detay";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
 import type { HastaBakiyeHareket } from "@/types/hasta-detay";
+import type { SecenekSatir } from "@/types/randevu";
 import { RiskBandi } from "./risk-bandi";
 import { OzetKart } from "./ozet-kart";
 import { SekmeKartlari } from "./sekme-kartlari";
@@ -27,6 +28,10 @@ export function HastaDetayIcerik({
   satilabilirUrunler,
   odemeGecmisi,
   bakiyeHareketleri,
+  terapistler,
+  odalar,
+  cihazlar,
+  tedaviler,
 }: {
   hasta: HastaDetay;
   ozet: HastaOzet | null;
@@ -38,6 +43,10 @@ export function HastaDetayIcerik({
   satilabilirUrunler: SatilabilirUrun[];
   odemeGecmisi: OdemeGecmisSatir[];
   bakiyeHareketleri: HastaBakiyeHareket[];
+  terapistler: SecenekSatir[];
+  odalar: SecenekSatir[];
+  cihazlar: SecenekSatir[];
+  tedaviler: SecenekSatir[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -73,8 +82,13 @@ export function HastaDetayIcerik({
         return aktifSekme === "randevu" ? (
           <RandevuSeansSekmesi
             hastaId={hasta.id}
+            hastaAdSoyad={hasta.ad_soyad}
             duzenlenebilir={duzenlenebilir}
             periyodikRandevular={periyodikRandevular}
+            terapistler={terapistler}
+            odalar={odalar}
+            cihazlar={cihazlar}
+            tedaviler={tedaviler}
           />
         ) : null;
       case "tedavi":

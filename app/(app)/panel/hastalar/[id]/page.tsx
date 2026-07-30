@@ -6,6 +6,7 @@ import type { HastaDetay } from "@/types/hasta";
 import type { HastaOzet, HastaBakiyeHareket } from "@/types/hasta-detay";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
+import type { SecenekSatir } from "@/types/randevu";
 import { HastaDetayIcerik } from "./hasta-detay-icerik";
 
 export default async function HastaDetaySayfasi({
@@ -54,6 +55,9 @@ export default async function HastaDetaySayfasi({
     paketSonucu,
     periyodikRandevuSonucu,
     bakiyeHareketSonucu,
+    terapistSonucu,
+    odaSonucu,
+    cihazSonucu,
   ] = await Promise.all([
     supabase.from("hasta_kullanici").select("aktif").eq("hasta_id", id).maybeSingle(),
     supabase.from("v_hasta_ozet").select("*").eq("hasta_id", id).maybeSingle<HastaOzet>(),
@@ -91,6 +95,12 @@ export default async function HastaDetaySayfasi({
       .order("created_at", { ascending: false })
       .limit(30)
       .returns<HastaBakiyeHareket[]>(),
+    supabase
+      .from("terapist")
+      .select("id, personel(ad_soyad)")
+      .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
+    supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
+    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
   ]);
 
   const hastaKullanici = hastaKullaniciSonucu.data;
@@ -117,6 +127,13 @@ export default async function HastaDetaySayfasi({
     })),
   ];
 
+  const terapistler: SecenekSatir[] = (terapistSonucu.data ?? [])
+    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
+    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
+  const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
+  const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
+  const tedaviler: SecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({ id: i.id, ad: i.ad }));
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-4">
@@ -135,6 +152,10 @@ export default async function HastaDetaySayfasi({
           satilabilirUrunler={satilabilirUrunler}
           odemeGecmisi={odemeGecmisi}
           bakiyeHareketleri={bakiyeHareketleri}
+          terapistler={terapistler}
+          odalar={odalar}
+          cihazlar={cihazlar}
+          tedaviler={tedaviler}
         />
       </div>
     </div>

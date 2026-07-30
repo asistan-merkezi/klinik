@@ -94,6 +94,7 @@ export async function randevuOlustur(
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
+  revalidatePath(`/panel/hastalar/${hasta_id}`);
   return { success: true, message: "Randevu oluşturuldu." };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,35 @@ type Props = {
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
+  /** Randevu başarıyla oluşturulunca çağrılır (örn. dialog'u kapatmak için) */
+  onBasarili?: () => void;
+  /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
+  sabitHasta?: { id: string; ad: string };
 };
 
-export function RandevuFormu({ hastalar, terapistler, odalar, cihazlar, tedaviler }: Props) {
+export function RandevuFormu({
+  hastalar,
+  terapistler,
+  odalar,
+  cihazlar,
+  tedaviler,
+  onBasarili,
+  sabitHasta,
+}: Props) {
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
+  const [gorulenDurum, setGorulenDurum] = useState(durum);
+
+  // React 19'da form action'ı başarıyla tamamlanınca native alanlar otomatik
+  // sıfırlanıyor (HastaArama'nın kendi state'i bundan habersiz kalıp
+  // görünüm/gizli-input uyumsuzluğu yaratıyor) — kafa karıştırıcı yarı-sıfırlanmış
+  // form yerine, randevu detay panelindeki (düzenleme) ile aynı desenle dialog'u kapatıyoruz.
+  if (durum !== gorulenDurum) {
+    setGorulenDurum(durum);
+    if (durum?.success) {
+      onBasarili?.();
+    }
+  }
+
   const searchParams = useSearchParams();
   const bugun = formatDateForInput(new Date().toISOString());
   // Günün Çizelgesi'nde boş alana tıklanınca oda/tarih/saat buradan gelir.
@@ -39,7 +64,14 @@ export function RandevuFormu({ hastalar, terapistler, odalar, cihazlar, tedavile
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="hasta_arama">Hasta</Label>
-          <HastaArama id="hasta_arama" hastalar={hastalar} required disabled={isPending} />
+          {sabitHasta ? (
+            <>
+              <Input value={sabitHasta.ad} disabled readOnly />
+              <input type="hidden" name="hasta_id" value={sabitHasta.id} />
+            </>
+          ) : (
+            <HastaArama id="hasta_arama" hastalar={hastalar} required disabled={isPending} />
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

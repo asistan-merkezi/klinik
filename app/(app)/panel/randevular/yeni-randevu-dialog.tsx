@@ -19,9 +19,12 @@ type Props = {
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
+  /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
+  sabitHasta?: { id: string; ad: string };
+  buttonLabel?: string;
 };
 
-export function YeniRandevuDialog(props: Props) {
+export function YeniRandevuDialog({ sabitHasta, buttonLabel, ...props }: Props) {
   const searchParams = useSearchParams();
   const paramAnahtari = searchParams.toString();
   const [acik, setAcik] = useState(() => searchParams.has("oda_id"));
@@ -39,15 +42,17 @@ export function YeniRandevuDialog(props: Props) {
   }, [paramAnahtari]);
 
   const eksik =
-    props.hastalar.length === 0 ||
+    (!sabitHasta && props.hastalar.length === 0) ||
     props.terapistler.length === 0 ||
     props.odalar.length === 0 ||
     props.tedaviler.length === 0;
 
+  const metin = buttonLabel ?? "Yeni Randevu Ekle";
+
   if (eksik) {
     return (
       <Button type="button" disabled title="Önce hasta, terapist, oda ve tedavi tanımı kaydı gerekli.">
-        <CalendarPlus /> Yeni Randevu Ekle
+        <CalendarPlus /> {metin}
       </Button>
     );
   }
@@ -59,7 +64,7 @@ export function YeniRandevuDialog(props: Props) {
         onClick={() => setAcik(true)}
         className="bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
       >
-        <CalendarPlus /> Yeni Randevu Ekle
+        <CalendarPlus /> {metin}
       </Button>
 
       <Dialog open={acik} onOpenChange={setAcik}>
@@ -67,7 +72,7 @@ export function YeniRandevuDialog(props: Props) {
           <DialogHeader>
             <DialogTitle>Yeni Randevu</DialogTitle>
           </DialogHeader>
-          <RandevuFormu key={paramAnahtari} {...props} />
+          <RandevuFormu key={paramAnahtari} {...props} onBasarili={() => setAcik(false)} sabitHasta={sabitHasta} />
         </DialogContent>
       </Dialog>
     </>
