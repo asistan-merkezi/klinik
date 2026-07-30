@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, isimBasHarfBuyukYap, resitDegilMi, telefonYerelHaneleriCikar } from "@/lib/utils";
 import type { HastaDetay } from "@/types/hasta";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import { detayliBilgileriGuncelle, ozelNitelikliOnayVer } from "./actions";
@@ -162,6 +162,18 @@ export function DetayliBilgilerKarti({
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const [onayPending, startOnayTransition] = useTransition();
 
+  const [adSoyad, setAdSoyad] = useState(hasta.ad_soyad ?? "");
+  const [telefonHane, setTelefonHane] = useState(telefonYerelHaneleriCikar(hasta.telefon));
+  const [dogumTarihi, setDogumTarihi] = useState(hasta.dogum_tarihi ?? "");
+  const [kimlikNoTipi, setKimlikNoTipi] = useState(hassas?.kimlik_no_tipi ?? "tc");
+  const [kimlikNo, setKimlikNo] = useState(hassas?.kimlik_no ?? "");
+  const [anneAdi, setAnneAdi] = useState(hassas?.anne_adi ?? "");
+  const [babaAdi, setBabaAdi] = useState(hassas?.baba_adi ?? "");
+
+  const kucukMu = dogumTarihi ? resitDegilMi(dogumTarihi) : false;
+  const kimlikNoHaneSayisi = kimlikNo.replace(/\D/g, "").length;
+  const kimlikNoUyari = kimlikNoTipi === "tc" && kimlikNo.trim() !== "" && kimlikNoHaneSayisi !== 11;
+
   const referansSecenekleri =
     !hasta.referans_kanali || REFERANS_SECENEKLERI_TABAN.some((s) => s.value === hasta.referans_kanali)
       ? REFERANS_SECENEKLERI_TABAN
@@ -199,9 +211,90 @@ export function DetayliBilgilerKarti({
 
       <form
         action={formAction}
-        key={`${hasta.id}-${hasta.cinsiyet}-${hasta.eposta}-${hasta.referans_kanali}-${JSON.stringify(hassas)}`}
+        key={`${hasta.id}-${hasta.ad_soyad}-${hasta.telefon}-${hasta.dogum_tarihi}-${hasta.cinsiyet}-${hasta.eposta}-${hasta.referans_kanali}-${JSON.stringify(hassas)}`}
         className="flex flex-col gap-5"
       >
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-2 text-sm font-medium">Temel Bilgiler</legend>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ad_soyad">Ad Soyad</Label>
+            <Input
+              id="ad_soyad"
+              name="ad_soyad"
+              value={adSoyad}
+              onChange={(e) => setAdSoyad(isimBasHarfBuyukYap(e.target.value))}
+              disabled={isPending}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="telefon_yerel">Telefon</Label>
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 shrink-0 items-center rounded-lg border border-input bg-muted px-2.5 text-sm text-muted-foreground">
+                +90
+              </span>
+              <Input
+                id="telefon_yerel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={10}
+                placeholder="5xx xxx xx xx"
+                value={telefonHane}
+                onChange={(e) => setTelefonHane(e.target.value.replace(/\D/g, "").replace(/^0/, "").slice(0, 10))}
+                disabled={isPending}
+              />
+            </div>
+            <input type="hidden" name="telefon" value={telefonHane ? `+90${telefonHane}` : ""} />
+            {telefonHane.length > 0 && telefonHane.length < 10 && (
+              <p className="text-xs text-destructive">Telefon numarası (başındaki 0 hariç) 10 haneli olmalı.</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dogum_tarihi">Doğum Tarihi</Label>
+            <Input
+              id="dogum_tarihi"
+              name="dogum_tarihi"
+              type="date"
+              value={dogumTarihi}
+              onChange={(e) => setDogumTarihi(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+        </fieldset>
+
+        {kucukMu && (
+          <fieldset className="grid gap-4 rounded-lg border border-amber-300 bg-amber-50 p-3 sm:grid-cols-2 dark:bg-amber-950/20">
+            <legend className="mb-1 px-1 text-sm font-medium">Veli Bilgileri (18 Yaş Altı)</legend>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="anne_adi">Anne Adı</Label>
+              <Input
+                id="anne_adi"
+                name="anne_adi"
+                value={anneAdi}
+                onChange={(e) => setAnneAdi(isimBasHarfBuyukYap(e.target.value))}
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="anne_telefon">Anne Telefonu</Label>
+              <Input id="anne_telefon" name="anne_telefon" defaultValue={hassas?.anne_telefon ?? ""} disabled={isPending} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="baba_adi">Baba Adı</Label>
+              <Input
+                id="baba_adi"
+                name="baba_adi"
+                value={babaAdi}
+                onChange={(e) => setBabaAdi(isimBasHarfBuyukYap(e.target.value))}
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="baba_telefon">Baba Telefonu</Label>
+              <Input id="baba_telefon" name="baba_telefon" defaultValue={hassas?.baba_telefon ?? ""} disabled={isPending} />
+            </div>
+          </fieldset>
+        )}
+
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <legend className="mb-2 text-sm font-medium">Kimlik & İletişim</legend>
           <div className="flex flex-col gap-2">
@@ -254,7 +347,8 @@ export function DetayliBilgilerKarti({
             <Select
               name="kimlik_no_tipi"
               disabled={isPending}
-              defaultValue={hassas?.kimlik_no_tipi ?? "tc"}
+              value={kimlikNoTipi}
+              onValueChange={(v) => setKimlikNoTipi(v as "tc" | "pasaport")}
               items={KIMLIK_TIPI_SECENEKLERI}
             >
               <SelectTrigger id="kimlik_no_tipi" className="w-full">
@@ -271,7 +365,16 @@ export function DetayliBilgilerKarti({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="kimlik_no">Kimlik No</Label>
-            <Input id="kimlik_no" name="kimlik_no" defaultValue={hassas?.kimlik_no ?? ""} disabled={isPending} />
+            <Input
+              id="kimlik_no"
+              name="kimlik_no"
+              value={kimlikNo}
+              onChange={(e) => setKimlikNo(e.target.value)}
+              disabled={isPending}
+            />
+            {kimlikNoUyari && (
+              <p className="text-xs text-destructive">T.C. Kimlik No 11 haneli olmalı ({kimlikNoHaneSayisi} hane girildi).</p>
+            )}
           </div>
         </fieldset>
 

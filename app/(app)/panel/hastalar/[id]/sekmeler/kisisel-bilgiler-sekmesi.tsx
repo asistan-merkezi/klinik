@@ -98,10 +98,22 @@ export function KisiselBilgilerSekmesi({
         <CardHeader>
           <CardTitle>Veli Bilgisi</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            18 yaş altı hastalar için veli bilgisi modülü henüz eklenmedi.
-          </p>
+        <CardContent className="text-sm">
+          {hassasYukleniyor ? (
+            <p className="text-muted-foreground">Yükleniyor...</p>
+          ) : hassas?.anne_adi || hassas?.anne_telefon || hassas?.baba_adi || hassas?.baba_telefon ? (
+            <div className="grid grid-cols-2 gap-y-1.5">
+              <span className="text-muted-foreground">Anne</span>
+              <span>{[hassas?.anne_adi, hassas?.anne_telefon].filter(Boolean).join(" · ") || "—"}</span>
+              <span className="text-muted-foreground">Baba</span>
+              <span>{[hassas?.baba_adi, hassas?.baba_telefon].filter(Boolean).join(" · ") || "—"}</span>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">
+              18 yaş altı hastalarda &quot;Detaylı Bilgiler &amp; Anamnez&quot; bölümünde doğum tarihine göre otomatik
+              açılan anne/baba alanlarından girilir.
+            </p>
+          )}
         </CardContent>
       </Card>
 

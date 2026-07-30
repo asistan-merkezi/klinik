@@ -32,4 +32,8 @@ export type HastaHassasSatir = {
   sigara_alkol_madde_detay: string | null;
   gelis_sebebi: string | null;
   oncelik_durumu: OncelikDurumu;
+  anne_adi: string | null;
+  anne_telefon: string | null;
+  baba_adi: string | null;
+  baba_telefon: string | null;
 };

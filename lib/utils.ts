@@ -19,6 +19,26 @@ export function isimBasHarfBuyukYap(deger: string): string {
     .join(" ")
 }
 
+/** Var olan bir telefon değerinden ("0532...", "+90532...", "90532...") +90 önekli 10 haneli giriş kutusunu doldurmak için son 10 haneyi çıkarır. */
+export function telefonYerelHaneleriCikar(telefon: string | null | undefined): string {
+  if (!telefon) return ""
+  let rakamlar = telefon.replace(/\D/g, "")
+  if (rakamlar.startsWith("90") && rakamlar.length > 10) rakamlar = rakamlar.slice(2)
+  if (rakamlar.startsWith("0")) rakamlar = rakamlar.slice(1)
+  return rakamlar.slice(0, 10)
+}
+
+/** "YYYY-MM-DD" doğum tarihi bugün itibarıyla 18 yaşından küçükse true döner. */
+export function resitDegilMi(dogumTarihi: string): boolean {
+  const dogum = new Date(dogumTarihi)
+  if (Number.isNaN(dogum.getTime())) return false
+  const bugun = new Date()
+  let yas = bugun.getFullYear() - dogum.getFullYear()
+  const ayFarki = bugun.getMonth() - dogum.getMonth()
+  if (ayFarki < 0 || (ayFarki === 0 && bugun.getDate() < dogum.getDate())) yas--
+  return yas < 18
+}
+
 /** Yerel (0xxx...) veya uluslararası formatlı telefonu wa.me linki için 90xxxxxxxxxx biçimine çevirir. */
 export function whatsappLinkOlustur(telefon: string, mesaj: string): string {
   const rakamlar = telefon.replace(/\D/g, "");

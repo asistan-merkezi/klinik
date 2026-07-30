@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -276,6 +277,9 @@ const evetHayirSemasi = z
   .transform((deger) => (deger === "evet" ? true : deger === "hayir" ? false : null));
 
 const detayliSemasi = z.object({
+  ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
+  telefon: z.string().regex(/^\+90\d{10}$/, "Telefon numarası (başındaki 0 hariç) 10 haneli olmalı."),
+  dogum_tarihi: z.union([z.string().date(), z.literal("")]).optional(),
   cinsiyet: z.enum(["kadin", "erkek", "belirtilmemis"]).nullable(),
   eposta: z.string().trim().email("Geçersiz e-posta.").nullable(),
   referans_kanali: z.string().nullable(),
@@ -288,6 +292,10 @@ const detayliSemasi = z.object({
   acil_durum_ad_soyad: z.string().nullable(),
   acil_durum_yakinlik: z.string().nullable(),
   acil_durum_telefon: z.string().nullable(),
+  anne_adi: z.string().nullable(),
+  anne_telefon: z.string().nullable(),
+  baba_adi: z.string().nullable(),
+  baba_telefon: z.string().nullable(),
 
   alerji_var: evetHayirSemasi,
   alerjiler: z.string().nullable(),
@@ -310,6 +318,10 @@ const detayliSemasi = z.object({
 
   gelis_sebebi: z.string().nullable(),
   oncelik_durumu: z.enum(["normal", "oncelikli", "acil"]),
+}).superRefine((deger, ctx) => {
+  if (deger.kimlik_no_tipi === "tc" && deger.kimlik_no && deger.kimlik_no.replace(/\D/g, "").length !== 11) {
+    ctx.addIssue({ code: "custom", path: ["kimlik_no"], message: "T.C. Kimlik No 11 haneli olmalı." });
+  }
 });
 
 export async function detayliBilgileriGuncelle(
@@ -329,6 +341,9 @@ export async function detayliBilgileriGuncelle(
   }
 
   const ayristirma = detayliSemasi.safeParse({
+    ad_soyad: formData.get("ad_soyad"),
+    telefon: formData.get("telefon"),
+    dogum_tarihi: formData.get("dogum_tarihi") ?? "",
     cinsiyet: bosIseNull2(formData.get("cinsiyet")),
     eposta: bosIseNull2(formData.get("eposta")),
     referans_kanali: bosIseNull2(formData.get("referans_kanali")),
@@ -341,6 +356,10 @@ export async function detayliBilgileriGuncelle(
     acil_durum_ad_soyad: bosIseNull2(formData.get("acil_durum_ad_soyad")),
     acil_durum_yakinlik: bosIseNull2(formData.get("acil_durum_yakinlik")),
     acil_durum_telefon: bosIseNull2(formData.get("acil_durum_telefon")),
+    anne_adi: bosIseNull2(formData.get("anne_adi")),
+    anne_telefon: bosIseNull2(formData.get("anne_telefon")),
+    baba_adi: bosIseNull2(formData.get("baba_adi")),
+    baba_telefon: bosIseNull2(formData.get("baba_telefon")),
 
     alerji_var: formData.get("alerji_var") ?? "",
     alerjiler: bosIseNull2(formData.get("alerjiler")),
@@ -369,11 +388,30 @@ export async function detayliBilgileriGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { cinsiyet, eposta, referans_kanali, ...hassas } = ayristirma.data;
+  const { ad_soyad, telefon, dogum_tarihi, cinsiyet, eposta, referans_kanali, anne_adi, baba_adi, ...digerHassas } =
+    ayristirma.data;
 
   const [hastaSonucu, hassasSonucu] = await Promise.all([
-    supabase.from("hasta").update({ cinsiyet, eposta, referans_kanali }).eq("id", hastaId),
-    supabase.from("hasta_hassas").upsert({ hasta_id: hastaId, ...hassas }, { onConflict: "hasta_id" }),
+    supabase
+      .from("hasta")
+      .update({
+        ad_soyad: isimBasHarfBuyukYap(ad_soyad),
+        telefon,
+        dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
+        cinsiyet,
+        eposta,
+        referans_kanali,
+      })
+      .eq("id", hastaId),
+    supabase.from("hasta_hassas").upsert(
+      {
+        hasta_id: hastaId,
+        ...digerHassas,
+        anne_adi: anne_adi ? isimBasHarfBuyukYap(anne_adi) : null,
+        baba_adi: baba_adi ? isimBasHarfBuyukYap(baba_adi) : null,
+      },
+      { onConflict: "hasta_id" }
+    ),
   ]);
 
   if (hastaSonucu.error || hassasSonucu.error) {
@@ -385,6 +423,8 @@ export async function detayliBilgileriGuncelle(
   }
 
   revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidatePath("/panel/hastalar");
+  revalidatePath("/panel/randevular");
   return { success: true, message: "Detaylı bilgiler kaydedildi." };
 }
 
