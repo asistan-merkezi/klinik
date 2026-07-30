@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { KaynakSatir } from "@/types/kaynak";
-import { KaynakFormu } from "./kaynak-formu";
+import { KaynakEkleDialog } from "./kaynak-ekle-dialog";
 import { KaynakListesi } from "./kaynak-listesi";
 
 export default async function KaynaklarSayfasi() {
@@ -34,9 +34,11 @@ export default async function KaynaklarSayfasi() {
         <Card>
           <CardHeader>
             <CardTitle>Odalar</CardTitle>
+            <CardAction>
+              <KaynakEkleDialog tablo="oda" etiket="Oda" />
+            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <KaynakFormu tablo="oda" etiket="Oda" />
             {odaSonucu.error ? (
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             ) : (
@@ -48,9 +50,11 @@ export default async function KaynaklarSayfasi() {
         <Card>
           <CardHeader>
             <CardTitle>Cihazlar</CardTitle>
+            <CardAction>
+              <KaynakEkleDialog tablo="cihaz" etiket="Cihaz" />
+            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <KaynakFormu tablo="cihaz" etiket="Cihaz" />
             {cihazSonucu.error ? (
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             ) : (
