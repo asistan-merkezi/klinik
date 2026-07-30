@@ -5,6 +5,9 @@ export type HastaHassasSatir = {
   hasta_id: string;
   kimlik_no: string | null;
   kimlik_no_tipi: KimlikNoTipi | null;
+  il: string | null;
+  ilce: string | null;
+  mahalle: string | null;
   adres: string | null;
   acil_durum_ad_soyad: string | null;
   acil_durum_yakinlik: string | null;

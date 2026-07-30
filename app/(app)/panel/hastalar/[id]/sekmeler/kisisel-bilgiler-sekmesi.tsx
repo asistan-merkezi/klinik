@@ -84,7 +84,10 @@ export function KisiselBilgilerSekmesi({
               </div>
               <div className="border-t border-border pt-2">
                 <span className="text-muted-foreground">Adres</span>
-                <p>{hassas?.adres ?? "—"}</p>
+                <p>
+                  {[hassas?.mahalle, hassas?.ilce, hassas?.il].filter(Boolean).join(" / ") || "—"}
+                </p>
+                {hassas?.adres && <p className="text-muted-foreground">{hassas.adres}</p>}
               </div>
             </>
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -274,15 +275,26 @@ export function DetayliBilgilerKarti({
           </div>
         </fieldset>
 
-        <fieldset className="flex flex-col gap-2">
+        <fieldset className="flex flex-col gap-3">
           <legend className="mb-2 text-sm font-medium">Adres</legend>
-          <textarea
-            name="adres"
-            rows={2}
-            defaultValue={hassas?.adres ?? ""}
+          <AdresSecici
+            prefix="adres"
+            defaultIl={hassas?.il}
+            defaultIlce={hassas?.ilce}
+            defaultMahalle={hassas?.mahalle}
             disabled={isPending}
-            className={textAlaniSinifi()}
           />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="adres">Sokak / Cadde, Bina No, Daire</Label>
+            <textarea
+              id="adres"
+              name="adres"
+              rows={2}
+              defaultValue={hassas?.adres ?? ""}
+              disabled={isPending}
+              className={textAlaniSinifi()}
+            />
+          </div>
         </fieldset>
 
         <fieldset className="grid gap-4 sm:grid-cols-3">
