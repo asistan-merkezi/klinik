@@ -56,7 +56,7 @@ export function haftaAraligi(tarih: Date = new Date()) {
  * (öğle UTC) kasıtlı: İstanbul'a çevrildiğinde her zaman aynı takvim
  * gününde kalır, ay/gün kaymasına karşı güvenlidir.
  */
-function ayBaslangiciUTC(yil: number, ay0Indeksli: number): string {
+export function ayBaslangiciUTC(yil: number, ay0Indeksli: number): string {
   const guvenliAn = new Date(Date.UTC(yil, ay0Indeksli, 1, 12));
   return startOfDayUTC(guvenliAn);
 }
