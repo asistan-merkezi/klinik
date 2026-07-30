@@ -312,7 +312,7 @@ function BolgePopover({
       <DialogContent
         className={cn(
           "fixed inset-x-0 bottom-0 top-auto left-0 max-w-full -translate-x-0 -translate-y-0 rounded-b-none rounded-t-2xl",
-          "sm:top-1/2 sm:left-1/2 sm:bottom-auto sm:inset-x-auto sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
+          "sm:top-1/2 sm:bottom-auto sm:inset-x-auto sm:left-1/2 sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
         )}
       >
         <DialogHeader>
