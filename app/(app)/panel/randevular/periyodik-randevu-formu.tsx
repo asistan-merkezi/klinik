@@ -14,32 +14,32 @@ import {
 import type { SecenekSatir } from "@/types/randevu";
 import { HAFTANIN_GUNLERI } from "@/types/periyodik-randevu";
 import { periyodikRandevuOlustur } from "./actions";
-import { MusteriArama } from "./musteri-arama";
+import { HastaArama } from "./hasta-arama";
 
 type Props = {
-  musteriler: SecenekSatir[];
+  hastalar: SecenekSatir[];
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
 };
 
-export function PeriyodikRandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedaviler }: Props) {
+export function PeriyodikRandevuFormu({ hastalar, terapistler, odalar, cihazlar, tedaviler }: Props) {
   const [durum, formAction, isPending] = useActionState(periyodikRandevuOlustur, null);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">
         Seçilen haftanın günü + saatinde ileriye dönük 5 aylık randevu tek seferde oluşturulur. Bir
-        haftanın saati doluysa o hafta atlanır ve müşteriye WhatsApp'tan saat değişikliği için mesaj linki
-        hazırlanır. Süre bitimine 2 hafta kala Müşteri Detay sayfasında uyarı çıkar; oradan uzatılabilir,
+        haftanın saati doluysa o hafta atlanır ve hastaya WhatsApp'tan saat değişikliği için mesaj linki
+        hazırlanır. Süre bitimine 2 hafta kala Hasta Detay sayfasında uyarı çıkar; oradan uzatılabilir,
         gün/saati değiştirilebilir veya iptal edilebilir.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="periyodik_musteri_arama">Müşteri</Label>
-          <MusteriArama id="periyodik_musteri_arama" musteriler={musteriler} required disabled={isPending} />
+          <Label htmlFor="periyodik_hasta_arama">Hasta</Label>
+          <HastaArama id="periyodik_hasta_arama" hastalar={hastalar} required disabled={isPending} />
         </div>
 
         <div className="flex flex-col gap-2">

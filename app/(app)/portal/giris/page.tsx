@@ -6,7 +6,7 @@ export default function PortalGirisSayfasi() {
     <div className="dark flex flex-1 items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Müşteri Portalı</CardTitle>
+          <CardTitle>Hasta Portalı</CardTitle>
         </CardHeader>
         <CardContent>
           <PortalLoginForm />

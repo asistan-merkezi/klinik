@@ -29,26 +29,26 @@ export default async function PortalSayfasi() {
   }
 
   const { data: mk } = await supabase
-    .from("musteri_kullanici")
-    .select("musteri_id, aktif")
+    .from("hasta_kullanici")
+    .select("hasta_id, aktif")
     .eq("id", user.id)
     .single();
 
-  if (!mk?.musteri_id || !mk.aktif) {
+  if (!mk?.hasta_id || !mk.aktif) {
     redirect("/portal/giris");
   }
 
-  const musteriId = mk.musteri_id;
+  const hastaId = mk.hasta_id;
   const simdi = new Date().toISOString();
 
-  const [musteriSonucu, yaklasanSonucu, gecmisSonucu, paketSonucu, odemeSonucu] = await Promise.all([
-    supabase.from("musteri").select("ad_soyad, telefon").eq("id", musteriId).single(),
+  const [hastaSonucu, yaklasanSonucu, gecmisSonucu, paketSonucu, odemeSonucu] = await Promise.all([
+    supabase.from("hasta").select("ad_soyad, telefon").eq("id", hastaId).single(),
     supabase
       .from("randevu")
       .select(
         "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), oda(ad), randevu_iptal_talebi(id, durum)"
       )
-      .eq("musteri_id", musteriId)
+      .eq("hasta_id", hastaId)
       .gte("bitis", simdi)
       .order("baslangic")
       .returns<PortalRandevuSatir[]>(),
@@ -57,7 +57,7 @@ export default async function PortalSayfasi() {
       .select(
         "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), oda(ad), randevu_iptal_talebi(id, durum)"
       )
-      .eq("musteri_id", musteriId)
+      .eq("hasta_id", hastaId)
       .lt("bitis", simdi)
       .order("baslangic", { ascending: false })
       .limit(10)
@@ -65,7 +65,7 @@ export default async function PortalSayfasi() {
     supabase
       .from("paket_satis")
       .select("id, kalan_adet, gecerlilik_bitis_tarihi, durum, paket(ad, seans_sayisi)")
-      .eq("musteri_id", musteriId)
+      .eq("hasta_id", hastaId)
       .eq("durum", "aktif")
       .order("gecerlilik_bitis_tarihi")
       .returns<PaketSatisSatir[]>(),
@@ -74,13 +74,13 @@ export default async function PortalSayfasi() {
       .select(
         "id, created_at, iskonto_tutari, faturali, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad), paket_satis(paket(ad))), odeme_satiri(yontem, tutar), fatura(id, durum, e_arsiv_pdf_url, hata_mesaji)"
       )
-      .eq("musteri_id", musteriId)
+      .eq("hasta_id", hastaId)
       .order("created_at", { ascending: false })
       .limit(20)
       .returns<OdemeGecmisSatir[]>(),
   ]);
 
-  const musteri = musteriSonucu.data;
+  const hasta = hastaSonucu.data;
   const yaklasanRandevular = yaklasanSonucu.data ?? [];
   const gecmisRandevular = gecmisSonucu.data ?? [];
   const aktifPaketler = paketSonucu.data ?? [];
@@ -91,8 +91,8 @@ export default async function PortalSayfasi() {
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold">{musteri?.ad_soyad ?? "Portalım"}</h1>
-            <p className="text-sm text-muted-foreground">{musteri?.telefon}</p>
+            <h1 className="text-xl font-semibold">{hasta?.ad_soyad ?? "Portalım"}</h1>
+            <p className="text-sm text-muted-foreground">{hasta?.telefon}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" nativeButton={false} render={<Link href="/portal/bilgilerim">Bilgilerim</Link>} />

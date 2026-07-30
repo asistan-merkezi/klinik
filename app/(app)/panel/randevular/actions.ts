@@ -11,7 +11,7 @@ import type { RandevuDurum } from "@/types/randevu";
 type SonucDurumu = { success: boolean; message: string } | null;
 
 const randevuSemasi = z.object({
-  musteri_id: z.string().uuid("Müşteri seçilmeli."),
+  hasta_id: z.string().uuid("Hasta seçilmeli."),
   terapist_id: z.string().uuid("Terapist seçilmeli."),
   oda_id: z.string().uuid("Oda seçilmeli."),
   islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
@@ -45,7 +45,7 @@ export async function randevuOlustur(
   }
 
   const ayristirma = randevuSemasi.safeParse({
-    musteri_id: formData.get("musteri_id"),
+    hasta_id: formData.get("hasta_id"),
     terapist_id: formData.get("terapist_id"),
     oda_id: formData.get("oda_id"),
     islem_tanimi_id: formData.get("islem_tanimi_id"),
@@ -59,7 +59,7 @@ export async function randevuOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { musteri_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
+  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
 
   let baslangicIso: string;
   try {
@@ -71,7 +71,7 @@ export async function randevuOlustur(
 
   const { error } = await supabase.from("randevu").insert({
     klinik_id: kullanici.klinik_id,
-    musteri_id,
+    hasta_id,
     terapist_id,
     oda_id,
     islem_tanimi_id,
@@ -112,7 +112,7 @@ export async function randevuGuncelle(
   }
 
   const ayristirma = randevuSemasi.safeParse({
-    musteri_id: formData.get("musteri_id"),
+    hasta_id: formData.get("hasta_id"),
     terapist_id: formData.get("terapist_id"),
     oda_id: formData.get("oda_id"),
     islem_tanimi_id: formData.get("islem_tanimi_id"),
@@ -126,7 +126,7 @@ export async function randevuGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { musteri_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
+  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
 
   let baslangicIso: string;
   try {
@@ -139,7 +139,7 @@ export async function randevuGuncelle(
   const { error } = await supabase
     .from("randevu")
     .update({
-      musteri_id,
+      hasta_id,
       terapist_id,
       oda_id,
       islem_tanimi_id,
@@ -260,7 +260,7 @@ type PeriyodikSonucu = {
 const PERIYODIK_SURE_AY = 5;
 
 const periyodikSemasi = z.object({
-  musteri_id: z.string().uuid("Müşteri seçilmeli."),
+  hasta_id: z.string().uuid("Hasta seçilmeli."),
   terapist_id: z.string().uuid("Dr / Terapist seçilmeli."),
   oda_id: z.string().uuid("Oda seçilmeli."),
   islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
@@ -328,7 +328,7 @@ type SupabaseSunucu = Awaited<ReturnType<typeof createClient>>;
  * Verilen [baslangicBilesen, bitisBilesen] tarih aralığında haftaninGunu'na
  * denk gelen her gün için somut bir randevu satırı üretir. Bir gün oda/
  * terapist/cihaz çakışması nedeniyle oluşturulamazsa (23P01) o gün atlanır
- * ve müşteriye saat değişikliği için tıkla-gönder WhatsApp linki üretilir
+ * ve hastaya saat değişikliği için tıkla-gönder WhatsApp linki üretilir
  * (gerçek WhatsApp Business API entegrasyonu henüz kurulmadı, bkz.
  * lib/utils.ts whatsappLinkOlustur — portal geçici şifre akışıyla aynı
  * desen). Geçmişte kalan adaylar sessizce atlanır.
@@ -337,9 +337,9 @@ async function periyodikSatirlariUret(params: {
   supabase: SupabaseSunucu;
   klinikId: string;
   periyodikId: string;
-  musteriId: string;
-  musteriAdSoyad: string;
-  musteriTelefon: string;
+  hastaId: string;
+  hastaAdSoyad: string;
+  hastaTelefon: string;
   terapistId: string;
   odaId: string;
   cihazId: string | null;
@@ -355,9 +355,9 @@ async function periyodikSatirlariUret(params: {
     supabase,
     klinikId,
     periyodikId,
-    musteriId,
-    musteriAdSoyad,
-    musteriTelefon,
+    hastaId,
+    hastaAdSoyad,
+    hastaTelefon,
     terapistId,
     odaId,
     cihazId,
@@ -400,7 +400,7 @@ async function periyodikSatirlariUret(params: {
 
     const { error: randevuHata } = await supabase.from("randevu").insert({
       klinik_id: klinikId,
-      musteri_id: musteriId,
+      hasta_id: hastaId,
       terapist_id: terapistId,
       oda_id: odaId,
       cihaz_id: cihazId,
@@ -422,8 +422,8 @@ async function periyodikSatirlariUret(params: {
 
     if (randevuHata) {
       if (randevuHata.code === "23P01") {
-        const mesaj = `Merhaba ${musteriAdSoyad}, ${tarihEtiketi} için planladığımız periyodik randevunuzda o saatte oda/terapist uygun değil. Sizinle birlikte bu hafta için alternatif bir saat belirleyebilir miyiz?`;
-        cakismalar.push({ tarihEtiketi, whatsappLink: whatsappLinkOlustur(musteriTelefon, mesaj) });
+        const mesaj = `Merhaba ${hastaAdSoyad}, ${tarihEtiketi} için planladığımız periyodik randevunuzda o saatte oda/terapist uygun değil. Sizinle birlikte bu hafta için alternatif bir saat belirleyebilir miyiz?`;
+        cakismalar.push({ tarihEtiketi, whatsappLink: whatsappLinkOlustur(hastaTelefon, mesaj) });
         continue;
       }
       console.error("Periyodik randevu satırı oluşturulamadı:", randevuHata);
@@ -443,7 +443,7 @@ async function periyodikSatirlariUret(params: {
  * kurmadı (bkz. migration notu, Paraşüt'teki aynı gerekçe). Bunun yerine
  * seri sabit PERIYODIK_SURE_AY (5 ay) süreyle açılır; bu pencere içindeki
  * her gün için somut randevu satırı üretilir. Süre bitimine 2 hafta kala
- * Müşteri Detay'daki kart bir uyarı gösterir (bkz. periyodikRandevuGuncelle).
+ * Hasta Detay'daki kart bir uyarı gösterir (bkz. periyodikRandevuGuncelle).
  */
 export async function periyodikRandevuOlustur(
   _onceki: PeriyodikSonucu,
@@ -469,7 +469,7 @@ export async function periyodikRandevuOlustur(
   }
 
   const ayristirma = periyodikSemasi.safeParse({
-    musteri_id: formData.get("musteri_id"),
+    hasta_id: formData.get("hasta_id"),
     terapist_id: formData.get("terapist_id"),
     oda_id: formData.get("oda_id"),
     islem_tanimi_id: formData.get("islem_tanimi_id"),
@@ -483,17 +483,17 @@ export async function periyodikRandevuOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { musteri_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, haftanin_gunu, saat, sure_dakika } =
+  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, haftanin_gunu, saat, sure_dakika } =
     ayristirma.data;
 
-  const { data: musteri } = await supabase
-    .from("musteri")
+  const { data: hasta } = await supabase
+    .from("hasta")
     .select("ad_soyad, telefon")
-    .eq("id", musteri_id)
+    .eq("id", hasta_id)
     .single();
 
-  if (!musteri) {
-    return { success: false, message: "Müşteri bulunamadı." };
+  if (!hasta) {
+    return { success: false, message: "Hasta bulunamadı." };
   }
 
   const bugun = istanbulTarihBilesenleri(new Date());
@@ -505,7 +505,7 @@ export async function periyodikRandevuOlustur(
     .from("periyodik_randevu")
     .insert({
       klinik_id: kullanici.klinik_id,
-      musteri_id,
+      hasta_id,
       terapist_id,
       oda_id,
       cihaz_id: cihazIdDegeri,
@@ -528,9 +528,9 @@ export async function periyodikRandevuOlustur(
     supabase,
     klinikId: kullanici.klinik_id,
     periyodikId: periyodik.id,
-    musteriId: musteri_id,
-    musteriAdSoyad: musteri.ad_soyad,
-    musteriTelefon: musteri.telefon,
+    hastaId: hasta_id,
+    hastaAdSoyad: hasta.ad_soyad,
+    hastaTelefon: hasta.telefon,
     terapistId: terapist_id,
     odaId: oda_id,
     cihazId: cihazIdDegeri,
@@ -545,7 +545,7 @@ export async function periyodikRandevuOlustur(
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
-  revalidatePath(`/panel/musteriler/${musteri_id}`);
+  revalidatePath(`/panel/hastalar/${hasta_id}`);
 
   const mesaj =
     cakismalar.length > 0
@@ -555,7 +555,7 @@ export async function periyodikRandevuOlustur(
   return { success: true, message: mesaj, cakismalar: cakismalar.length > 0 ? cakismalar : undefined };
 }
 
-export async function periyodikRandevuIptalEt(periyodikId: string, musteriId: string): Promise<SonucDurumu> {
+export async function periyodikRandevuIptalEt(periyodikId: string, hastaId: string): Promise<SonucDurumu> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -596,7 +596,7 @@ export async function periyodikRandevuIptalEt(periyodikId: string, musteriId: st
     console.error("Periyodik seriye bağlı gelecek randevular iptal edilemedi:", randevuHata);
   }
 
-  revalidatePath(`/panel/musteriler/${musteriId}`);
+  revalidatePath(`/panel/hastalar/${hastaId}`);
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   return { success: true, message: "Periyodik randevu iptal edildi, henüz gelmemiş randevular da iptal edildi." };
@@ -611,7 +611,7 @@ export async function periyodikRandevuIptalEt(periyodikId: string, musteriId: st
  */
 export async function periyodikRandevuGuncelle(
   periyodikId: string,
-  musteriId: string,
+  hastaId: string,
   _onceki: PeriyodikSonucu,
   formData: FormData
 ): Promise<PeriyodikSonucu> {
@@ -653,7 +653,7 @@ export async function periyodikRandevuGuncelle(
   const { data: periyodik } = await supabase
     .from("periyodik_randevu")
     .select(
-      "id, musteri_id, terapist_id, oda_id, cihaz_id, islem_tanimi_id, haftanin_gunu, saat, sure_dakika, bitis_tarihi, durum"
+      "id, hasta_id, terapist_id, oda_id, cihaz_id, islem_tanimi_id, haftanin_gunu, saat, sure_dakika, bitis_tarihi, durum"
     )
     .eq("id", periyodikId)
     .single();
@@ -662,14 +662,14 @@ export async function periyodikRandevuGuncelle(
     return { success: false, message: "Periyodik randevu bulunamadı." };
   }
 
-  const { data: musteri } = await supabase
-    .from("musteri")
+  const { data: hasta } = await supabase
+    .from("hasta")
     .select("ad_soyad, telefon")
-    .eq("id", periyodik.musteri_id)
+    .eq("id", periyodik.hasta_id)
     .single();
 
-  if (!musteri) {
-    return { success: false, message: "Müşteri bulunamadı." };
+  if (!hasta) {
+    return { success: false, message: "Hasta bulunamadı." };
   }
 
   const bugun = istanbulTarihBilesenleri(new Date());
@@ -714,9 +714,9 @@ export async function periyodikRandevuGuncelle(
       supabase,
       klinikId: kullanici.klinik_id,
       periyodikId,
-      musteriId: periyodik.musteri_id,
-      musteriAdSoyad: musteri.ad_soyad,
-      musteriTelefon: musteri.telefon,
+      hastaId: periyodik.hasta_id,
+      hastaAdSoyad: hasta.ad_soyad,
+      hastaTelefon: hasta.telefon,
       terapistId: periyodik.terapist_id,
       odaId: periyodik.oda_id,
       cihazId: periyodik.cihaz_id,
@@ -732,7 +732,7 @@ export async function periyodikRandevuGuncelle(
     cakismalar = sonuc.cakismalar;
   }
 
-  revalidatePath(`/panel/musteriler/${musteriId}`);
+  revalidatePath(`/panel/hastalar/${hastaId}`);
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
 
@@ -750,7 +750,7 @@ export async function periyodikRandevuGuncelle(
   };
 }
 
-export async function periyodikRandevuYenilenmeyecek(periyodikId: string, musteriId: string): Promise<SonucDurumu> {
+export async function periyodikRandevuYenilenmeyecek(periyodikId: string, hastaId: string): Promise<SonucDurumu> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -775,6 +775,6 @@ export async function periyodikRandevuYenilenmeyecek(periyodikId: string, muster
     return { success: false, message: "İşlem başarısız, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/musteriler/${musteriId}`);
+  revalidatePath(`/panel/hastalar/${hastaId}`);
   return { success: true, message: "Periyodik randevu, bitiş tarihinde yenilenmeyecek şekilde işaretlendi." };
 }

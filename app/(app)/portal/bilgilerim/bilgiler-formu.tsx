@@ -11,8 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { MusteriDetay } from "@/types/musteri";
-import type { MusteriHassasSatir } from "@/types/musteri-hassas";
+import type { HastaDetay } from "@/types/hasta";
+import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import { bilgileriGuncelle } from "../actions";
 
 const CINSIYET_SECENEKLERI = [
@@ -30,19 +30,19 @@ const textareaClass =
   "rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function BilgilerFormu({
-  musteri,
+  hasta,
   hassas,
 }: {
-  musteri: MusteriDetay;
-  hassas: MusteriHassasSatir | null;
+  hasta: HastaDetay;
+  hassas: HastaHassasSatir | null;
 }) {
   const [durum, formAction, isPending] = useActionState(bilgileriGuncelle, null);
-  const saglikRizaVarMi = Boolean(musteri.ozel_nitelikli_veri_onay_tarihi);
+  const saglikRizaVarMi = Boolean(hasta.ozel_nitelikli_veri_onay_tarihi);
 
   return (
     <form
       action={formAction}
-      key={`${musteri.cinsiyet}-${musteri.eposta}-${JSON.stringify(hassas)}`}
+      key={`${hasta.cinsiyet}-${hasta.eposta}-${JSON.stringify(hassas)}`}
       className="flex flex-col gap-5"
     >
       <fieldset className="grid gap-4 sm:grid-cols-2">
@@ -52,7 +52,7 @@ export function BilgilerFormu({
           <Select
             name="cinsiyet"
             disabled={isPending}
-            defaultValue={musteri.cinsiyet ?? undefined}
+            defaultValue={hasta.cinsiyet ?? undefined}
             items={CINSIYET_SECENEKLERI}
           >
             <SelectTrigger id="cinsiyet" className="w-full">
@@ -69,14 +69,14 @@ export function BilgilerFormu({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="eposta">E-posta</Label>
-          <Input id="eposta" name="eposta" type="email" defaultValue={musteri.eposta ?? ""} disabled={isPending} />
+          <Input id="eposta" name="eposta" type="email" defaultValue={hasta.eposta ?? ""} disabled={isPending} />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="referans_kanali">Bizi Nereden Duydunuz?</Label>
           <Input
             id="referans_kanali"
             name="referans_kanali"
-            defaultValue={musteri.referans_kanali ?? ""}
+            defaultValue={hasta.referans_kanali ?? ""}
             disabled={isPending}
           />
         </div>
@@ -159,7 +159,7 @@ export function BilgilerFormu({
             işlenmesine açık rıza veriyorum.
             {saglikRizaVarMi && (
               <span className="block text-emerald-700 dark:text-emerald-500">
-                Onay {new Date(musteri.ozel_nitelikli_veri_onay_tarihi!).toLocaleDateString("tr-TR")} tarihinde
+                Onay {new Date(hasta.ozel_nitelikli_veri_onay_tarihi!).toLocaleDateString("tr-TR")} tarihinde
                 alındı.
               </span>
             )}
@@ -243,7 +243,7 @@ export function BilgilerFormu({
           id="ticari_ileti_onay"
           name="ticari_ileti_onay"
           type="checkbox"
-          defaultChecked={Boolean(musteri.ticari_ileti_onay_tarihi)}
+          defaultChecked={Boolean(hasta.ticari_ileti_onay_tarihi)}
           disabled={isPending}
           className="h-4 w-4 rounded border-input"
         />

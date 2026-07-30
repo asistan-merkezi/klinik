@@ -33,7 +33,7 @@ export function TabletEkrani({
       const { data } = await supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad))"
+          "id, baslangic, bitis, durum, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad))"
         )
         .eq("oda_id", odaId)
         .gte("baslangic", baslangic)
@@ -100,7 +100,7 @@ export function TabletEkrani({
       {mevcut ? (
         <>
           <span className="text-sm uppercase tracking-widest text-emerald-400">İçeride</span>
-          <span className="text-5xl font-bold">{mevcut.musteri?.ad_soyad ?? "—"}</span>
+          <span className="text-5xl font-bold">{mevcut.hasta?.ad_soyad ?? "—"}</span>
           <span className="text-xl text-foreground/80">
             {mevcut.terapist?.personel?.ad_soyad ?? "—"}
           </span>
@@ -108,7 +108,7 @@ export function TabletEkrani({
       ) : sonraki ? (
         <>
           <span className="text-sm uppercase tracking-widest text-muted-foreground">Sıradaki</span>
-          <span className="text-5xl font-bold">{sonraki.musteri?.ad_soyad ?? "—"}</span>
+          <span className="text-5xl font-bold">{sonraki.hasta?.ad_soyad ?? "—"}</span>
           <span className="text-xl text-foreground/80">
             {sonraki.terapist?.personel?.ad_soyad ?? "—"} · {formatTime(sonraki.baslangic)}
           </span>
@@ -126,7 +126,7 @@ export function TabletEkrani({
             {randevular.map((r) => (
               <li key={r.id} className="flex items-center justify-between py-2">
                 <span className={r.durum === "iptal" ? "text-muted-foreground line-through" : ""}>
-                  {formatTime(r.baslangic)} — {r.musteri?.ad_soyad ?? "—"}
+                  {formatTime(r.baslangic)} — {r.hasta?.ad_soyad ?? "—"}
                 </span>
                 <span className="text-muted-foreground">{DURUM_ETIKET[r.durum]}</span>
               </li>

@@ -81,7 +81,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
   const stil = DURUM_STIL[gorunumDurumu];
   const renk = tedaviRengi(randevu.islem_tanimi?.id);
   const baslikMetni = [
-    randevu.musteri?.ad_soyad,
+    randevu.hasta?.ad_soyad,
     formatTime(randevu.baslangic),
     randevu.terapist?.personel?.ad_soyad,
     randevu.islem_tanimi?.ad,
@@ -106,7 +106,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
 
       <div className="flex flex-wrap items-start justify-between gap-x-1 gap-y-0.5">
         <p className={cn("min-w-0 truncate text-xs font-semibold text-foreground", stil.adSinif)}>
-          {randevu.musteri?.ad_soyad ?? "—"}
+          {randevu.hasta?.ad_soyad ?? "—"}
         </p>
         <span
           className={cn(

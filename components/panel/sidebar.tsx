@@ -20,7 +20,7 @@ import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
 
 const ANA_OGELER = [
   { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
-  { href: "/panel/musteriler", label: "Müşteriler", icon: Users },
+  { href: "/panel/hastalar", label: "Hastalar", icon: Users },
   { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
   { href: "/panel/paketler", label: "Paketler", icon: Package },
   { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },

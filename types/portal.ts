@@ -20,6 +20,6 @@ export type BekleyenIptalTalebiSatir = {
     id: string;
     baslangic: string;
     durum: RandevuDurum;
-    musteri: { ad_soyad: string } | null;
+    hasta: { ad_soyad: string } | null;
   } | null;
 };

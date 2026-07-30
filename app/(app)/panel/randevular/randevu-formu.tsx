@@ -15,17 +15,17 @@ import {
 import { formatDateForInput } from "@/lib/datetime";
 import type { SecenekSatir } from "@/types/randevu";
 import { randevuOlustur } from "./actions";
-import { MusteriArama } from "./musteri-arama";
+import { HastaArama } from "./hasta-arama";
 
 type Props = {
-  musteriler: SecenekSatir[];
+  hastalar: SecenekSatir[];
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
 };
 
-export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedaviler }: Props) {
+export function RandevuFormu({ hastalar, terapistler, odalar, cihazlar, tedaviler }: Props) {
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
   const searchParams = useSearchParams();
   const bugun = formatDateForInput(new Date().toISOString());
@@ -38,8 +38,8 @@ export function RandevuFormu({ musteriler, terapistler, odalar, cihazlar, tedavi
     <form action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="musteri_arama">Müşteri</Label>
-          <MusteriArama id="musteri_arama" musteriler={musteriler} required disabled={isPending} />
+          <Label htmlFor="hasta_arama">Hasta</Label>
+          <HastaArama id="hasta_arama" hastalar={hastalar} required disabled={isPending} />
         </div>
 
         <div className="flex flex-col gap-2">

@@ -46,7 +46,7 @@ export default async function PaketlerSayfasi() {
         <header>
           <h1 className="text-xl font-semibold">Paketler</h1>
           <p className="text-sm text-muted-foreground">
-            Müşterilere satılabilecek seans paketlerini yönet.
+            Hastalara satılabilecek seans paketlerini yönet.
           </p>
         </header>
 

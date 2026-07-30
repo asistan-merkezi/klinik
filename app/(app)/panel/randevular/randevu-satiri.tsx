@@ -16,7 +16,7 @@ import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/da
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { randevuGuncelle } from "./actions";
 import { DurumButonlari } from "./durum-butonlari";
-import { MusteriArama } from "./musteri-arama";
+import { HastaArama } from "./hasta-arama";
 
 const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
   planlandi: "Planlandı",
@@ -31,14 +31,14 @@ function sureDakika(baslangic: string, bitis: string) {
 
 export function RandevuSatiri({
   randevu,
-  musteriler,
+  hastalar,
   terapistler,
   odalar,
   cihazlar,
   tedaviler,
 }: {
   randevu: RandevuSatir;
-  musteriler: SecenekSatir[];
+  hastalar: SecenekSatir[];
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
@@ -62,12 +62,12 @@ export function RandevuSatiri({
         <form action={formAction} className="flex flex-col gap-3 text-sm">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`musteri-${randevu.id}`}>Müşteri</Label>
-              <MusteriArama
-                id={`musteri-${randevu.id}`}
-                musteriler={musteriler}
-                varsayilanId={randevu.musteri_id}
-                varsayilanAd={randevu.musteri?.ad_soyad}
+              <Label htmlFor={`hasta-${randevu.id}`}>Hasta</Label>
+              <HastaArama
+                id={`hasta-${randevu.id}`}
+                hastalar={hastalar}
+                varsayilanId={randevu.hasta_id}
+                varsayilanAd={randevu.hasta?.ad_soyad}
                 required
                 disabled={isPending}
               />
@@ -227,7 +227,7 @@ export function RandevuSatiri({
   return (
     <li className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col">
-        <span className="font-medium">{randevu.musteri?.ad_soyad ?? "—"}</span>
+        <span className="font-medium">{randevu.hasta?.ad_soyad ?? "—"}</span>
         <span className="text-muted-foreground">
           {randevu.terapist?.personel?.ad_soyad ?? "—"} · {randevu.oda?.ad ?? "—"}
           {randevu.islem_tanimi?.ad ? ` · ${randevu.islem_tanimi.ad}` : ""}

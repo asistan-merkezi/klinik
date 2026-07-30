@@ -21,7 +21,7 @@ export default async function RandevularSayfasi() {
 
   const [
     randevularSonucu,
-    musteriSonucu,
+    hastaSonucu,
     terapistSonucu,
     odaSonucu,
     cihazSonucu,
@@ -31,13 +31,13 @@ export default async function RandevularSayfasi() {
       supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, created_at, musteri_id, musteri(ad_soyad), terapist_id, terapist(personel(ad_soyad)), oda_id, oda(ad), cihaz_id, islem_tanimi_id, islem_tanimi(id, ad), olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
+          "id, baslangic, bitis, durum, created_at, hasta_id, hasta(ad_soyad), terapist_id, terapist(personel(ad_soyad)), oda_id, oda(ad), cihaz_id, islem_tanimi_id, islem_tanimi(id, ad), olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
         )
         .gte("bitis", new Date().toISOString())
         .order("baslangic")
         .limit(50)
         .returns<RandevuSatir[]>(),
-      supabase.from("musteri").select("id, ad_soyad").order("ad_soyad"),
+      supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
       supabase
         .from("terapist")
         .select("id, personel(ad_soyad)")
@@ -47,7 +47,7 @@ export default async function RandevularSayfasi() {
       supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
       supabase
         .from("randevu_iptal_talebi")
-        .select("id, durum, created_at, randevu(id, baslangic, durum, musteri(ad_soyad))")
+        .select("id, durum, created_at, randevu(id, baslangic, durum, hasta(ad_soyad))")
         .eq("durum", "bekliyor")
         .order("created_at")
         .returns<BekleyenIptalTalebiSatir[]>(),
@@ -55,7 +55,7 @@ export default async function RandevularSayfasi() {
 
   const randevular = randevularSonucu.data ?? [];
   const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
-  const musteriler: SecenekSatir[] = (musteriSonucu.data ?? []).map((m) => ({
+  const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({
     id: m.id,
     ad: m.ad_soyad,
   }));
@@ -92,16 +92,16 @@ export default async function RandevularSayfasi() {
             <CardTitle>Yeni Randevu</CardTitle>
           </CardHeader>
           <CardContent>
-            {musteriler.length === 0 ||
+            {hastalar.length === 0 ||
             terapistler.length === 0 ||
             odalar.length === 0 ||
             tedaviler.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Randevu oluşturabilmek için önce müşteri, terapist, oda ve tedavi tanımı kaydı gerekli.
+                Randevu oluşturabilmek için önce hasta, terapist, oda ve tedavi tanımı kaydı gerekli.
               </p>
             ) : (
               <RandevuFormu
-                musteriler={musteriler}
+                hastalar={hastalar}
                 terapistler={terapistler}
                 odalar={odalar}
                 cihazlar={cihazlar}
@@ -116,16 +116,16 @@ export default async function RandevularSayfasi() {
             <CardTitle>Periyodik Randevu</CardTitle>
           </CardHeader>
           <CardContent>
-            {musteriler.length === 0 ||
+            {hastalar.length === 0 ||
             terapistler.length === 0 ||
             odalar.length === 0 ||
             tedaviler.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Periyodik randevu oluşturabilmek için önce müşteri, terapist, oda ve tedavi tanımı kaydı gerekli.
+                Periyodik randevu oluşturabilmek için önce hasta, terapist, oda ve tedavi tanımı kaydı gerekli.
               </p>
             ) : (
               <PeriyodikRandevuFormu
-                musteriler={musteriler}
+                hastalar={hastalar}
                 terapistler={terapistler}
                 odalar={odalar}
                 cihazlar={cihazlar}
@@ -154,7 +154,7 @@ export default async function RandevularSayfasi() {
                   <RandevuSatiri
                     key={randevu.id}
                     randevu={randevu}
-                    musteriler={musteriler}
+                    hastalar={hastalar}
                     terapistler={terapistler}
                     odalar={odalar}
                     cihazlar={cihazlar}

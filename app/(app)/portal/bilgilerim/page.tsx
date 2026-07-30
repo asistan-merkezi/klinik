@@ -3,8 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { MusteriDetay } from "@/types/musteri";
-import type { MusteriHassasSatir } from "@/types/musteri-hassas";
+import type { HastaDetay } from "@/types/hasta";
+import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import { BilgilerFormu } from "./bilgiler-formu";
 
 export default async function PortalBilgilerimSayfasi() {
@@ -19,32 +19,32 @@ export default async function PortalBilgilerimSayfasi() {
   }
 
   const { data: mk } = await supabase
-    .from("musteri_kullanici")
-    .select("musteri_id, aktif")
+    .from("hasta_kullanici")
+    .select("hasta_id, aktif")
     .eq("id", user.id)
     .single();
 
-  if (!mk?.musteri_id || !mk.aktif) {
+  if (!mk?.hasta_id || !mk.aktif) {
     redirect("/portal/giris");
   }
 
-  const musteriId = mk.musteri_id;
+  const hastaId = mk.hasta_id;
 
-  const [musteriSonucu, hassasSonucu] = await Promise.all([
+  const [hastaSonucu, hassasSonucu] = await Promise.all([
     supabase
-      .from("musteri")
+      .from("hasta")
       .select(
         "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi"
       )
-      .eq("id", musteriId)
-      .single<MusteriDetay>(),
-    supabase.from("musteri_hassas").select("*").eq("musteri_id", musteriId).maybeSingle<MusteriHassasSatir>(),
+      .eq("id", hastaId)
+      .single<HastaDetay>(),
+    supabase.from("hasta_hassas").select("*").eq("hasta_id", hastaId).maybeSingle<HastaHassasSatir>(),
   ]);
 
-  const musteri = musteriSonucu.data;
+  const hasta = hastaSonucu.data;
   const hassas = hassasSonucu.data;
 
-  if (!musteri) {
+  if (!hasta) {
     redirect("/portal");
   }
 
@@ -66,7 +66,7 @@ export default async function PortalBilgilerimSayfasi() {
             <CardTitle>Bilgilerim</CardTitle>
           </CardHeader>
           <CardContent>
-            <BilgilerFormu musteri={musteri} hassas={hassas} />
+            <BilgilerFormu hasta={hasta} hassas={hassas} />
           </CardContent>
         </Card>
       </div>

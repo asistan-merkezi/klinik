@@ -33,7 +33,7 @@ const bilgilerSemasi = z.object({
   saglik_riza: z.coerce.boolean(),
 });
 
-async function musteriIdGetir() {
+async function hastaIdGetir() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,18 +44,18 @@ async function musteriIdGetir() {
   }
 
   const { data: mk } = await supabase
-    .from("musteri_kullanici")
-    .select("musteri_id")
+    .from("hasta_kullanici")
+    .select("hasta_id")
     .eq("id", user.id)
     .single();
 
-  return { supabase, musteriId: mk?.musteri_id ?? null };
+  return { supabase, hastaId: mk?.hasta_id ?? null };
 }
 
 export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, musteriId } = await musteriIdGetir();
-  if (!musteriId) {
-    return { success: false, message: "Müşteri bilgisi bulunamadı." };
+  const { supabase, hastaId } = await hastaIdGetir();
+  if (!hastaId) {
+    return { success: false, message: "Hasta bilgisi bulunamadı." };
   }
 
   const ayristirma = bilgilerSemasi.safeParse({
@@ -102,16 +102,16 @@ export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData
     saglik_riza,
   } = ayristirma.data;
 
-  const { data: mevcutMusteri } = await supabase
-    .from("musteri")
+  const { data: mevcutHasta } = await supabase
+    .from("hasta")
     .select("ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi")
-    .eq("id", musteriId)
+    .eq("id", hastaId)
     .single();
 
-  const saglikRizaVar = saglik_riza || Boolean(mevcutMusteri?.ozel_nitelikli_veri_onay_tarihi);
+  const saglikRizaVar = saglik_riza || Boolean(mevcutHasta?.ozel_nitelikli_veri_onay_tarihi);
 
   const hassasKayit: Record<string, string | boolean | null> = {
-    musteri_id: musteriId,
+    hasta_id: hastaId,
     kimlik_no,
     kimlik_no_tipi,
     adres,
@@ -128,26 +128,26 @@ export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData
     hassasKayit.kan_sulandirici_kullanimi = kan_sulandirici_kullanimi;
   }
 
-  const [musteriSonucu, hassasSonucu] = await Promise.all([
+  const [hastaSonucu, hassasSonucu] = await Promise.all([
     supabase
-      .from("musteri")
+      .from("hasta")
       .update({
         cinsiyet,
         eposta,
         referans_kanali,
         ticari_ileti_onay_tarihi: ticari_ileti_onay
-          ? mevcutMusteri?.ticari_ileti_onay_tarihi ?? new Date().toISOString()
+          ? mevcutHasta?.ticari_ileti_onay_tarihi ?? new Date().toISOString()
           : null,
         ozel_nitelikli_veri_onay_tarihi: saglikRizaVar
-          ? mevcutMusteri?.ozel_nitelikli_veri_onay_tarihi ?? new Date().toISOString()
-          : mevcutMusteri?.ozel_nitelikli_veri_onay_tarihi ?? null,
+          ? mevcutHasta?.ozel_nitelikli_veri_onay_tarihi ?? new Date().toISOString()
+          : mevcutHasta?.ozel_nitelikli_veri_onay_tarihi ?? null,
       })
-      .eq("id", musteriId),
-    supabase.from("musteri_hassas").upsert(hassasKayit, { onConflict: "musteri_id" }),
+      .eq("id", hastaId),
+    supabase.from("hasta_hassas").upsert(hassasKayit, { onConflict: "hasta_id" }),
   ]);
 
-  if (musteriSonucu.error || hassasSonucu.error) {
-    console.error("Bilgiler güncellenemedi:", musteriSonucu.error, hassasSonucu.error);
+  if (hastaSonucu.error || hassasSonucu.error) {
+    console.error("Bilgiler güncellenemedi:", hastaSonucu.error, hassasSonucu.error);
     return { success: false, message: "Bilgiler kaydedilemedi, lütfen tekrar deneyin." };
   }
 
@@ -184,18 +184,18 @@ export async function iptalTalebiOlustur(randevuId: string): Promise<SonucDurumu
   }
 
   const { data: mk } = await supabase
-    .from("musteri_kullanici")
-    .select("musteri_id")
+    .from("hasta_kullanici")
+    .select("hasta_id")
     .eq("id", user.id)
     .single();
 
-  if (!mk?.musteri_id) {
-    return { success: false, message: "Müşteri bilgisi bulunamadı." };
+  if (!mk?.hasta_id) {
+    return { success: false, message: "Hasta bilgisi bulunamadı." };
   }
 
   const { error } = await supabase.from("randevu_iptal_talebi").insert({
     randevu_id: randevuId,
-    musteri_id: mk.musteri_id,
+    hasta_id: mk.hasta_id,
   });
 
   if (error) {

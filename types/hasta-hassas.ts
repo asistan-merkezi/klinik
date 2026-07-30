@@ -1,0 +1,32 @@
+export type KimlikNoTipi = "tc" | "pasaport";
+export type OncelikDurumu = "normal" | "oncelikli" | "acil";
+
+export type HastaHassasSatir = {
+  hasta_id: string;
+  kimlik_no: string | null;
+  kimlik_no_tipi: KimlikNoTipi | null;
+  adres: string | null;
+  acil_durum_ad_soyad: string | null;
+  acil_durum_yakinlik: string | null;
+  acil_durum_telefon: string | null;
+  alerji_var: boolean | null;
+  alerjiler: string | null;
+  kan_sulandirici_kullanimi: boolean | null;
+  kan_sulandirici_detay: string | null;
+  kronik_hastalik_var: boolean | null;
+  kronik_hastaliklar: string | null;
+  surekli_ilac_var: boolean | null;
+  surekli_ilaclar: string | null;
+  ameliyat_var: boolean | null;
+  gecirilmis_ameliyatlar: string | null;
+  bulasici_hastalik_var: boolean | null;
+  bulasici_hastalik_detay: string | null;
+  protez_implant_var: boolean | null;
+  protez_implant_detay: string | null;
+  hamilelik_emzirme_var: boolean | null;
+  hamilelik_emzirme_detay: string | null;
+  sigara_alkol_madde_var: boolean | null;
+  sigara_alkol_madde_detay: string | null;
+  gelis_sebebi: string | null;
+  oncelik_durumu: OncelikDurumu;
+};

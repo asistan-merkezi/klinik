@@ -42,7 +42,7 @@ function dakikaYuvarla(dakika: number) {
 }
 
 const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, musteri_id, terapist_id, oda_id, cihaz_id, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)";
+  "id, baslangic, bitis, durum, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)";
 
 export function CanliCizelge({
   baslangicRandevular,
@@ -192,7 +192,7 @@ export function CanliCizelge({
   const duyuruMetni =
     devamEdenler.length > 0
       ? `Şu an seansta: ${devamEdenler
-          .map((g) => g.randevu.musteri?.ad_soyad ?? "—")
+          .map((g) => g.randevu.hasta?.ad_soyad ?? "—")
           .join(", ")}`
       : "Şu an aktif seans yok";
 

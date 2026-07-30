@@ -145,3 +145,24 @@
     @apply font-sans;
   }
 }
+
+/* Vücut haritası işaret glow'u — 2D vücut haritası bölge işaretlerinde kullanılır. */
+@keyframes vucut-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 6px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 5px currentColor) drop-shadow(0 0 12px currentColor);
+  }
+}
+
+.vucut-glow {
+  animation: vucut-glow-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vucut-glow {
+    animation: none;
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+}

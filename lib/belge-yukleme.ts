@@ -1,7 +1,7 @@
 "use client";
 
 import imageCompression from "browser-image-compression";
-import { MAX_DOSYA_BOYUTU_BYTE } from "@/types/musteri-belge";
+import { MAX_DOSYA_BOYUTU_BYTE } from "@/types/hasta-belge";
 
 const HEIC_UZANTI_REGEX = /\.(heic|heif)$/i;
 

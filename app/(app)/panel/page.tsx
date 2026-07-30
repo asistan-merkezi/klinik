@@ -20,7 +20,7 @@ export default async function PanelSayfasi() {
     supabase
       .from("randevu")
       .select(
-        "id, baslangic, bitis, durum, musteri_id, terapist_id, oda_id, cihaz_id, musteri(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)"
+        "id, baslangic, bitis, durum, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)"
       )
       .gte("baslangic", baslangic)
       .lt("baslangic", bitis)

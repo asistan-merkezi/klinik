@@ -29,7 +29,7 @@ export default async function FaturalarSayfasi() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Bu ekran henüz hazır değil. Şimdilik fatura durumunu müşteri detay sayfasındaki
+              Bu ekran henüz hazır değil. Şimdilik fatura durumunu hasta detay sayfasındaki
               ödeme geçmişinden görüntüleyebilirsin.
             </p>
           </CardContent>

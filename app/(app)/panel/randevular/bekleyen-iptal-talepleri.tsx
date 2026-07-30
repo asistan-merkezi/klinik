@@ -26,7 +26,7 @@ export function BekleyenIptalTalepleri({ talepler }: { talepler: BekleyenIptalTa
             className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex flex-col">
-              <span className="font-medium">{talep.randevu.musteri?.ad_soyad ?? "—"}</span>
+              <span className="font-medium">{talep.randevu.hasta?.ad_soyad ?? "—"}</span>
               <span className="text-muted-foreground">{formatDateTime(talep.randevu.baslangic)}</span>
             </div>
             <div className="flex gap-2">

@@ -66,13 +66,13 @@ export function RandevuDetayPaneli({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{randevu.musteri?.ad_soyad ?? "—"}</DialogTitle>
+          <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
         </DialogHeader>
 
         <DurumButonlari randevuId={randevu.id} durum={randevu.durum} />
 
         <form key={randevu.id} action={formAction} className="flex flex-col gap-4">
-          <input type="hidden" name="musteri_id" value={randevu.musteri_id ?? ""} />
+          <input type="hidden" name="hasta_id" value={randevu.hasta_id ?? ""} />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
