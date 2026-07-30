@@ -5,12 +5,17 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * 18:00-07:00 arası (gece) her tam saatte oturum kapanır: 18, 19, 20, 21, 22,
- * 23, 00, 01, 02, 03, 04, 05, 06, 07. 07:00 geçtikten sonra (gündüz, 08:00-
- * 17:00) bir sonraki kapanış aynı günün 18:00'i olur — gündüz kesintisiz açık
- * kalır, sadece gece boyu saat başı yeniden şifre istenir.
+ * Mesai saatleri 07:00-20:00. 20:00-07:00 arası (gece) her tam saatte oturum
+ * kapanır: 20, 21, 22, 23, 00, 01, 02, 03, 04, 05, 06, 07. 07:00 geçtikten
+ * sonra (mesai, 08:00-19:00) bir sonraki kapanış aynı günün 20:00'i olur —
+ * mesai boyunca kesintisiz açık kalır, sadece gece boyu saat başı yeniden
+ * şifre istenir. Sadece resepsiyon ve terapist rollerine uygulanır — diğer
+ * roller (klinik_admin, muhasebe, super_admin) ve hasta portalı bu kısıtlamaya
+ * tabi değildir (bkz. KISITLI_ROLLER).
  */
-const GECE_KAPANIS_SAATLERI = new Set([18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7]);
+const GECE_KAPANIS_SAATLERI = new Set([20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7]);
+
+const KISITLI_ROLLER = new Set(["resepsiyon", "terapist"]);
 
 // Giriş ekranlarında zaten oturum yok — çalıştırmaya gerek yok.
 const GIZLI_ROTALAR = ["/giris", "/portal/giris"];
@@ -24,9 +29,9 @@ function sonrakiKapanisZamani(simdi: Date): Date {
       return aday;
     }
   }
-  // Buraya asla düşmemeli (güvenlik amaçlı yedek: bugün 18:00).
+  // Buraya asla düşmemeli (güvenlik amaçlı yedek: bugün 20:00).
   const yedek = new Date(simdi);
-  yedek.setHours(18, 0, 0, 0);
+  yedek.setHours(20, 0, 0, 0);
   return yedek;
 }
 
@@ -48,7 +53,23 @@ export function ScheduledLogout() {
       router.replace(pathname?.startsWith("/portal") ? "/portal/giris" : "/giris");
     }
 
-    function zamanlayiciyiKur() {
+    async function zamanlayiciyiKurGerekirse() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Hasta portalı kullanıcılarının "kullanici" tablosunda kaydı yoktur
+      // (ayrı hasta_kullanici tablosu) — kullanici bulunamazsa kısıtlama uygulanmaz.
+      const { data: kullanici } = await supabase
+        .from("kullanici")
+        .select("rol")
+        .eq("id", user.id)
+        .single();
+
+      if (iptalEdildi || !kullanici || !KISITLI_ROLLER.has(kullanici.rol)) return;
+
       const simdi = new Date();
       const hedef = sonrakiKapanisZamani(simdi);
       const bekleme = hedef.getTime() - simdi.getTime();
@@ -58,7 +79,7 @@ export function ScheduledLogout() {
       }, bekleme);
     }
 
-    zamanlayiciyiKur();
+    zamanlayiciyiKurGerekirse();
 
     return () => {
       iptalEdildi = true;
