@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir } from "@/types/portal";
-import { RandevuFormu } from "./randevu-formu";
-import { PeriyodikRandevuFormu } from "./periyodik-randevu-formu";
+import { YeniRandevuDialog } from "./yeni-randevu-dialog";
+import { PeriyodikRandevuDialog } from "./periyodik-randevu-dialog";
 import { RandevuSatiri } from "./randevu-satiri";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
 
@@ -69,11 +69,29 @@ export default async function RandevularSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Randevular</h1>
-          <p className="text-sm text-muted-foreground">
-            Yaklaşan randevuları görüntüle ve yeni randevu oluştur.
-          </p>
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">Randevular</h1>
+            <p className="text-sm text-muted-foreground">
+              Yaklaşan randevuları görüntüle ve yeni randevu oluştur.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <PeriyodikRandevuDialog
+              hastalar={hastalar}
+              terapistler={terapistler}
+              odalar={odalar}
+              cihazlar={cihazlar}
+              tedaviler={tedaviler}
+            />
+            <YeniRandevuDialog
+              hastalar={hastalar}
+              terapistler={terapistler}
+              odalar={odalar}
+              cihazlar={cihazlar}
+              tedaviler={tedaviler}
+            />
+          </div>
         </header>
 
         {bekleyenIptalTalepleri.length > 0 && (
@@ -86,54 +104,6 @@ export default async function RandevularSayfasi() {
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Yeni Randevu</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {hastalar.length === 0 ||
-            terapistler.length === 0 ||
-            odalar.length === 0 ||
-            tedaviler.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Randevu oluşturabilmek için önce hasta, terapist, oda ve tedavi tanımı kaydı gerekli.
-              </p>
-            ) : (
-              <RandevuFormu
-                hastalar={hastalar}
-                terapistler={terapistler}
-                odalar={odalar}
-                cihazlar={cihazlar}
-                tedaviler={tedaviler}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Periyodik Randevu</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {hastalar.length === 0 ||
-            terapistler.length === 0 ||
-            odalar.length === 0 ||
-            tedaviler.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Periyodik randevu oluşturabilmek için önce hasta, terapist, oda ve tedavi tanımı kaydı gerekli.
-              </p>
-            ) : (
-              <PeriyodikRandevuFormu
-                hastalar={hastalar}
-                terapistler={terapistler}
-                odalar={odalar}
-                cihazlar={cihazlar}
-                tedaviler={tedaviler}
-              />
-            )}
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>
