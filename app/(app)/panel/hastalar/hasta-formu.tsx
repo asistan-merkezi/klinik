@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +19,16 @@ const KIMLIK_TIPI_SECENEKLERI = [
   { value: "pasaport", label: "Pasaport No" },
 ];
 
-export function HastaFormu() {
+export function HastaFormu({ onBasarili }: { onBasarili?: () => void } = {}) {
   const [durum, formAction, isPending] = useActionState(hastaOlustur, null);
   const [adSoyad, setAdSoyad] = useState("");
+
+  useEffect(() => {
+    if (durum?.success) {
+      onBasarili?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [durum]);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

@@ -29,7 +29,7 @@ export function YeniHastaDialog() {
           <DialogHeader>
             <DialogTitle>Yeni Hasta</DialogTitle>
           </DialogHeader>
-          <HastaFormu />
+          <HastaFormu onBasarili={() => setAcik(false)} />
         </DialogContent>
       </Dialog>
     </>
