@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SecenekSatir } from "@/types/randevu";
 import type { PaketSatir } from "@/types/paket";
-import { PaketFormu } from "./paket-formu";
+import { YeniPaketDialog } from "./yeni-paket-dialog";
 import { PaketSatiri } from "./paket-satiri";
 
 export default async function PaketlerSayfasi() {
@@ -43,33 +43,19 @@ export default async function PaketlerSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Paketler</h1>
-          <p className="text-sm text-muted-foreground">
-            Hastalara satılabilecek seans paketlerini yönet.
-          </p>
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">Paketler</h1>
+            <p className="text-sm text-muted-foreground">
+              Hastalara satılabilecek seans paketlerini yönet.
+            </p>
+          </div>
+          {duzenlenebilir && (
+            <div className="shrink-0">
+              <YeniPaketDialog islemTanimlari={islemTanimlari} />
+            </div>
+          )}
         </header>
-
-        {duzenlenebilir ? (
-          islemTanimlari.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground">
-                  Paket ekleyebilmek için önce en az bir aktif işlem tanımı gerekli.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Yeni Paket</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PaketFormu islemTanimlari={islemTanimlari} />
-              </CardContent>
-            </Card>
-          )
-        ) : null}
 
         <Card>
           <CardHeader>
