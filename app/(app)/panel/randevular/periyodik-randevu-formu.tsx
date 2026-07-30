@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,10 +22,30 @@ type Props = {
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
+  /** Randevu başarıyla oluşturulunca çağrılır (örn. dialog'u kapatmak için) */
+  onBasarili?: () => void;
+  /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
+  sabitHasta?: { id: string; ad: string };
 };
 
-export function PeriyodikRandevuFormu({ hastalar, terapistler, odalar, cihazlar, tedaviler }: Props) {
+export function PeriyodikRandevuFormu({
+  hastalar,
+  terapistler,
+  odalar,
+  cihazlar,
+  tedaviler,
+  onBasarili,
+  sabitHasta,
+}: Props) {
   const [durum, formAction, isPending] = useActionState(periyodikRandevuOlustur, null);
+  const [gorulenDurum, setGorulenDurum] = useState(durum);
+
+  if (durum !== gorulenDurum) {
+    setGorulenDurum(durum);
+    if (durum?.success) {
+      onBasarili?.();
+    }
+  }
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -39,7 +59,14 @@ export function PeriyodikRandevuFormu({ hastalar, terapistler, odalar, cihazlar,
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="periyodik_hasta_arama">Hasta</Label>
-          <HastaArama id="periyodik_hasta_arama" hastalar={hastalar} required disabled={isPending} />
+          {sabitHasta ? (
+            <>
+              <Input value={sabitHasta.ad} disabled readOnly />
+              <input type="hidden" name="hasta_id" value={sabitHasta.id} />
+            </>
+          ) : (
+            <HastaArama id="periyodik_hasta_arama" hastalar={hastalar} required disabled={isPending} />
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

@@ -17,14 +17,34 @@ export function gorunumDurumuHesapla(randevu: RandevuSatir, simdi: Date): Gorunu
 
 const DURUM_STIL: Record<
   GorunumDurumu,
-  { etiket: string; rozet: string; adSinif?: string; soluk?: boolean; vurgu?: string }
+  {
+    etiket: string;
+    rozet: string;
+    adSinif?: string;
+    soluk?: boolean;
+    vurgu?: string;
+    kutuRenk?: { serit: string; dolgu: string; kenar: string };
+  }
 > = {
   planlandi: { etiket: "Planlandı", rozet: "bg-muted text-muted-foreground" },
-  geldi: { etiket: "Geldi", rozet: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  geldi: {
+    etiket: "Geldi",
+    rozet: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    kutuRenk: {
+      serit: "bg-emerald-500",
+      dolgu: "bg-emerald-500/10",
+      kenar: "border-emerald-300 dark:border-emerald-500/40",
+    },
+  },
   seansta: {
     etiket: "Seansta",
     rozet: "bg-primary/10 text-primary",
     vurgu: "ring-2 ring-primary ring-offset-1 ring-offset-background",
+    kutuRenk: {
+      serit: "bg-emerald-500",
+      dolgu: "bg-emerald-500/10",
+      kenar: "border-emerald-300 dark:border-emerald-500/40",
+    },
   },
   tamamlandi: { etiket: "Tamamlandı", rozet: "bg-muted text-muted-foreground", soluk: true },
   iptal: {
@@ -37,7 +57,11 @@ const DURUM_STIL: Record<
     etiket: "Gelmedi",
     rozet: "bg-destructive/10 text-destructive",
     adSinif: "line-through",
-    soluk: true,
+    kutuRenk: {
+      serit: "bg-destructive",
+      dolgu: "bg-destructive/10",
+      kenar: "border-destructive/40",
+    },
   },
 };
 
@@ -79,7 +103,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
   gorunumDurumu,
 }: RandevuKutusuProps) {
   const stil = DURUM_STIL[gorunumDurumu];
-  const renk = tedaviRengi(randevu.islem_tanimi?.id);
+  const renk = stil.kutuRenk ?? tedaviRengi(randevu.islem_tanimi?.id);
   const baslikMetni = [
     randevu.hasta?.ad_soyad,
     formatTime(randevu.baslangic),

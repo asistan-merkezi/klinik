@@ -18,13 +18,15 @@ type Props = {
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
+  /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
+  sabitHasta?: { id: string; ad: string };
 };
 
-export function PeriyodikRandevuDialog(props: Props) {
+export function PeriyodikRandevuDialog({ sabitHasta, ...props }: Props) {
   const [acik, setAcik] = useState(false);
 
   const eksik =
-    props.hastalar.length === 0 ||
+    (!sabitHasta && props.hastalar.length === 0) ||
     props.terapistler.length === 0 ||
     props.odalar.length === 0 ||
     props.tedaviler.length === 0;
@@ -52,7 +54,7 @@ export function PeriyodikRandevuDialog(props: Props) {
           <DialogHeader>
             <DialogTitle>Periyodik Randevu</DialogTitle>
           </DialogHeader>
-          <PeriyodikRandevuFormu {...props} />
+          <PeriyodikRandevuFormu {...props} onBasarili={() => setAcik(false)} sabitHasta={sabitHasta} />
         </DialogContent>
       </Dialog>
     </>
