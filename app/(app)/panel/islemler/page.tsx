@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemTanimiSatir } from "@/types/islem-tanimi";
-import { IslemFormu } from "./islem-formu";
+import { YeniTedaviDialog } from "./yeni-tedavi-dialog";
 import { IslemSatiri } from "./islem-satiri";
 
 export default async function IslemlerSayfasi() {
@@ -40,23 +40,19 @@ export default async function IslemlerSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Tedavi Tanımları</h1>
-          <p className="text-sm text-muted-foreground">
-            Fiyat kataloğunu görüntüle ve yönet.
-          </p>
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">Tedavi Tanımları</h1>
+            <p className="text-sm text-muted-foreground">
+              Fiyat kataloğunu görüntüle ve yönet.
+            </p>
+          </div>
+          {duzenlenebilir && (
+            <div className="shrink-0">
+              <YeniTedaviDialog cihazlar={cihazlar} />
+            </div>
+          )}
         </header>
-
-        {duzenlenebilir ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Yeni Tedavi Tanımı</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <IslemFormu cihazlar={cihazlar} />
-            </CardContent>
-          </Card>
-        ) : null}
 
         <Card className="bg-surface-2">
           <CardHeader>
