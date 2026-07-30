@@ -1,8 +1,6 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsPanel } from "@/components/ui/tabs";
 import type { MusteriDetay } from "@/types/musteri";
 import type { MusteriOzet } from "@/types/musteri-detay";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
@@ -10,7 +8,7 @@ import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
 import type { MusteriBakiyeHareket } from "@/types/musteri-detay";
 import { RiskBandi } from "./risk-bandi";
 import { OzetKart } from "./ozet-kart";
-import { MobilHub } from "./mobil-hub";
+import { SekmeKartlari } from "./sekme-kartlari";
 import { KisiselBilgilerSekmesi } from "./sekmeler/kisisel-bilgiler-sekmesi";
 import { RandevuSeansSekmesi } from "./sekmeler/randevu-seans-sekmesi";
 import { TedaviAnamnezSekmesi } from "./sekmeler/tedavi-anamnez-sekmesi";
@@ -54,16 +52,10 @@ export function MusteriDetayIcerik({
   const terapistMi = rol === "terapist";
   const gorunurSekmeler = SEKMELER.filter((s) => !(s.terapisteKapali && terapistMi));
 
-  function sekmeDegistir(deger: string) {
+  function sekmeDegistir(deger: SekmeAnahtari) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", deger);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
-  function mobilKartTikla(deger: SekmeAnahtari) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", deger);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   function sekmeIcerigi(sekme: SekmeAnahtari) {
@@ -124,50 +116,19 @@ export function MusteriDetayIcerik({
         cinsiyet={musteri.cinsiyet}
       />
 
-      {/* Mobil hub (md altı): sekme barı yerine özet kart grid'i */}
-      <div className="md:hidden">
-        {tabParamGecerli ? (
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ChevronLeft className="size-4" />
-              Geri
-            </button>
-            <h2 className="text-base font-semibold">{aktifSekmeEtiket}</h2>
-            {sekmeIcerigi(aktifSekme)}
-          </div>
-        ) : (
-          <MobilHub
-            musteri={musteri}
-            ozet={ozet}
-            detayOzet={detayOzet}
-            yukleniyor={detayOzetYukleniyor}
-            gorunurSekmeler={gorunurSekmeler}
-            onKartTikla={mobilKartTikla}
-          />
-        )}
-      </div>
+      <SekmeKartlari
+        musteri={musteri}
+        ozet={ozet}
+        detayOzet={detayOzet}
+        yukleniyor={detayOzetYukleniyor}
+        gorunurSekmeler={gorunurSekmeler}
+        aktifSekme={aktifSekme}
+        onKartTikla={sekmeDegistir}
+      />
 
-      {/* Masaüstü sekmeler (md ve üzeri): mevcut 7 sekmeli yapı */}
-      <div className="hidden md:block">
-        <Tabs value={aktifSekme} onValueChange={(v) => sekmeDegistir(v as string)}>
-          <TabsList>
-            {gorunurSekmeler.map((s) => (
-              <TabsTrigger key={s.deger} value={s.deger}>
-                {s.etiket}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {gorunurSekmeler.map((s) => (
-            <TabsPanel key={s.deger} value={s.deger}>
-              {sekmeIcerigi(s.deger)}
-            </TabsPanel>
-          ))}
-        </Tabs>
+      <div className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold">{aktifSekmeEtiket}</h2>
+        {sekmeIcerigi(aktifSekme)}
       </div>
     </div>
   );

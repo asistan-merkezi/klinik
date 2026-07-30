@@ -7,7 +7,7 @@ import {
   CreditCard,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ModuleCard } from "@/components/panel/module-card";
 import type { MusteriDetay } from "@/types/musteri";
 import type { MusteriOzet, MusteriDetayOzet } from "@/types/musteri-detay";
 import type { SekmeAnahtari } from "./sekme-tanimlari";
@@ -60,12 +60,13 @@ function ozetDegeri(
   }
 }
 
-export function MobilHub({
+export function SekmeKartlari({
   musteri,
   ozet,
   detayOzet,
   yukleniyor,
   gorunurSekmeler,
+  aktifSekme,
   onKartTikla,
 }: {
   musteri: MusteriDetay;
@@ -73,35 +74,27 @@ export function MobilHub({
   detayOzet: MusteriDetayOzet | null | undefined;
   yukleniyor: boolean;
   gorunurSekmeler: { deger: SekmeAnahtari; etiket: string }[];
+  aktifSekme: SekmeAnahtari;
   onKartTikla: (deger: SekmeAnahtari) => void;
 }) {
   const tekKalanKartVar = gorunurSekmeler.length % 2 === 1;
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {gorunurSekmeler.map((s, i) => {
-        const Ikon = IKONLAR[s.deger];
         const { deger, uyari } = ozetDegeri(s.deger, musteri, ozet, detayOzet, yukleniyor);
         const sonKartTek = tekKalanKartVar && i === gorunurSekmeler.length - 1;
         return (
-          <button
+          <ModuleCard
             key={s.deger}
-            type="button"
+            icon={IKONLAR[s.deger]}
+            label={s.etiket}
+            subtitle={deger}
+            warning={uyari}
+            active={aktifSekme === s.deger}
             onClick={() => onKartTikla(s.deger)}
-            className={cn(
-              "group flex min-h-28 flex-col items-start gap-2 rounded-2xl border border-white/10 bg-card/70 p-4 text-left backdrop-blur-md transition-all",
-              "hover:border-primary/40 hover:bg-card active:scale-95",
-              "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-              sonKartTek && "col-span-2 mx-auto w-1/2"
-            )}
-          >
-            <div className="flex w-full items-center justify-between">
-              <Ikon className="size-6 text-primary" />
-              {uyari && <span className="size-2 rounded-full bg-amber-500" aria-label="Eksik bilgi" />}
-            </div>
-            <span className="text-sm font-medium text-foreground">{s.etiket}</span>
-            <span className="text-xs text-muted-foreground">{deger}</span>
-          </button>
+            className={sonKartTek ? "col-span-2 mx-auto w-1/2 sm:col-span-1 sm:w-auto" : undefined}
+          />
         );
       })}
     </div>

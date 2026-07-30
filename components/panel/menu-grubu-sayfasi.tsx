@@ -1,5 +1,5 @@
-import Link from "next/link";
 import type { MenuGrubu } from "@/lib/panel/menu-gruplari";
+import { ModuleCard } from "@/components/panel/module-card";
 
 export function MenuGrubuSayfasi({ grup }: { grup: MenuGrubu }) {
   return (
@@ -12,14 +12,7 @@ export function MenuGrubuSayfasi({ grup }: { grup: MenuGrubu }) {
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {grup.ogeler.map((oge) => (
-            <Link
-              key={oge.href}
-              href={oge.href}
-              className="flex flex-col items-center gap-3 rounded-xl bg-card p-6 text-center text-sm font-medium text-card-foreground ring-1 ring-foreground/10 transition-colors hover:bg-accent hover:text-accent-foreground dark:bg-card/70"
-            >
-              <oge.icon className="size-7 shrink-0 text-muted-foreground" aria-hidden />
-              {oge.label}
-            </Link>
+            <ModuleCard key={oge.href} href={oge.href} icon={oge.icon} label={oge.label} />
           ))}
         </div>
       </div>
