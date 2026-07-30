@@ -13,7 +13,6 @@ import {
   Wallet,
   Settings,
   LogOut,
-  ChevronDown,
   UserCog,
   Receipt,
   Landmark,
@@ -75,15 +74,13 @@ function SidebarIcerik({
   kullaniciAdi,
   kullaniciRolu,
   pathname,
-  acikGruplar,
-  grubuAcKapat,
+  grupAc,
   linkTiklandi,
 }: {
   kullaniciAdi: string;
   kullaniciRolu: string;
   pathname: string;
-  acikGruplar: Set<string>;
-  grubuAcKapat: (key: string) => void;
+  grupAc: (key: string) => void;
   linkTiklandi?: () => void;
 }) {
   return (
@@ -114,48 +111,23 @@ function SidebarIcerik({
         ))}
 
         {GRUPLAR.map((grup) => {
-          const acik = acikGruplar.has(grup.key);
           const grupAktif = grup.ogeler.some((o) => girdiAktifMi(pathname, o.href));
 
           return (
-            <div key={grup.key} className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => grubuAcKapat(grup.key)}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  grupAktif ? "text-sidebar-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent"
-                )}
-              >
-                <grup.icon className="size-4 shrink-0" aria-hidden />
-                <span className="flex-1 text-left">{grup.label}</span>
-                <ChevronDown
-                  className={cn("size-3.5 shrink-0 transition-transform", acik && "rotate-180")}
-                  aria-hidden
-                />
-              </button>
-
-              {acik && (
-                <div className="ml-4 flex flex-col gap-0.5 border-l border-sidebar-border pl-3">
-                  {grup.ogeler.map((oge) => (
-                    <Link
-                      key={oge.href}
-                      href={oge.href}
-                      onClick={linkTiklandi}
-                      className={cn(
-                        "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors",
-                        girdiAktifMi(pathname, oge.href)
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      )}
-                    >
-                      <oge.icon className="size-3.5 shrink-0" aria-hidden />
-                      {oge.label}
-                    </Link>
-                  ))}
-                </div>
+            <button
+              key={grup.key}
+              type="button"
+              onClick={() => grupAc(grup.key)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                grupAktif
+                  ? "bg-sidebar-accent text-sidebar-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent"
               )}
-            </div>
+            >
+              <grup.icon className="size-4 shrink-0" aria-hidden />
+              <span className="flex-1 text-left">{grup.label}</span>
+            </button>
           );
         })}
       </nav>
@@ -184,10 +156,9 @@ export function PanelSidebar({
 }) {
   const pathname = usePathname();
   const [menuAcik, setMenuAcik] = useState(false);
-  const [acikGruplar, setAcikGruplar] = useState<Set<string>>(
-    () => new Set(GRUPLAR.filter((g) => g.ogeler.some((o) => girdiAktifMi(pathname, o.href))).map((g) => g.key))
-  );
+  const [acikGrupModal, setAcikGrupModal] = useState<string | null>(null);
   const dokunmaBaslangici = useRef<{ x: number; y: number } | null>(null);
+  const acikGrup = GRUPLAR.find((g) => g.key === acikGrupModal) ?? null;
 
   useEffect(() => {
     setMenuAcik(false);
@@ -218,17 +189,6 @@ export function PanelSidebar({
     dokunmaBaslangici.current = null;
   }
 
-  function grubuAcKapat(key: string) {
-    setAcikGruplar((onceki) => {
-      const yeni = new Set(onceki);
-      if (yeni.has(key)) {
-        yeni.delete(key);
-      } else {
-        yeni.add(key);
-      }
-      return yeni;
-    });
-  }
 
   return (
     <div
@@ -243,8 +203,7 @@ export function PanelSidebar({
           kullaniciAdi={kullaniciAdi}
           kullaniciRolu={kullaniciRolu}
           pathname={pathname}
-          acikGruplar={acikGruplar}
-          grubuAcKapat={grubuAcKapat}
+          grupAc={setAcikGrupModal}
         />
       </aside>
 
@@ -289,11 +248,58 @@ export function PanelSidebar({
               kullaniciAdi={kullaniciAdi}
               kullaniciRolu={kullaniciRolu}
               pathname={pathname}
-              acikGruplar={acikGruplar}
-              grubuAcKapat={grubuAcKapat}
+              grupAc={setAcikGrupModal}
               linkTiklandi={() => setMenuAcik(false)}
             />
           </aside>
+        </div>
+      )}
+
+      {/* Muhasebe/Ayarlar: ekran ortasında kutucuklu açılım */}
+      {acikGrup && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setAcikGrupModal(null)}
+            aria-hidden
+          />
+          <div className="relative w-full max-w-md rounded-xl border border-sidebar-border bg-card p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <acikGrup.icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <p className="text-sm font-semibold">{acikGrup.label}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAcikGrupModal(null)}
+                aria-label="Kapat"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <X className="size-5" aria-hidden />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {acikGrup.ogeler.map((oge) => (
+                <Link
+                  key={oge.href}
+                  href={oge.href}
+                  onClick={() => {
+                    setAcikGrupModal(null);
+                    setMenuAcik(false);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-2 rounded-lg border border-sidebar-border p-4 text-center text-sm font-medium transition-colors",
+                    girdiAktifMi(pathname, oge.href)
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <oge.icon className="size-6 shrink-0" aria-hidden />
+                  {oge.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
