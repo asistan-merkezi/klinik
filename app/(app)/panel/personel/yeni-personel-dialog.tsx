@@ -25,11 +25,11 @@ export function YeniPersonelDialog() {
       </Button>
 
       <Dialog open={acik} onOpenChange={setAcik}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Yeni Personel</DialogTitle>
           </DialogHeader>
-          <PersonelFormu />
+          <PersonelFormu mod="olustur" />
         </DialogContent>
       </Dialog>
     </>

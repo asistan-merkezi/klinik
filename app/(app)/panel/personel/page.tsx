@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PersonelSatir } from "@/types/personel";
 import { YeniPersonelDialog } from "./yeni-personel-dialog";
+import { PersonelListesi } from "./personel-listesi";
 
 export default async function PersonelSayfasi() {
   const supabase = await createClient();
@@ -25,17 +24,13 @@ export default async function PersonelSayfasi() {
 
   const yonetici = kullanici?.rol === "klinik_admin";
 
-  const [personelSonucu, terapistSonucu] = await Promise.all([
-    supabase
-      .from("personel")
-      .select("id, ad_soyad, gorev, maas, aktif")
-      .order("ad_soyad")
-      .returns<PersonelSatir[]>(),
-    supabase.from("terapist").select("id, personel_id"),
-  ]);
+  const { data: personelSonucu, error } = await supabase
+    .from("personel")
+    .select("id, ad_soyad, gorev, maas, aktif, kullanici:kullanici_id(telefon)")
+    .order("ad_soyad")
+    .returns<PersonelSatir[]>();
 
-  const personelListesi = personelSonucu.data ?? [];
-  const terapistPersonelIdleri = new Set((terapistSonucu.data ?? []).map((t) => t.personel_id));
+  const personelListesi = personelSonucu ?? [];
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -59,40 +54,12 @@ export default async function PersonelSayfasi() {
             <CardTitle>Çalışanlar</CardTitle>
           </CardHeader>
           <CardContent>
-            {personelSonucu.error && (
-              <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
-            )}
-            {!personelSonucu.error && personelListesi.length === 0 && (
+            {error && <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>}
+            {!error && personelListesi.length === 0 && (
               <p className="text-sm text-muted-foreground">Henüz personel kaydı yok.</p>
             )}
-            {!personelSonucu.error && personelListesi.length > 0 && (
-              <ul className="flex flex-col divide-y divide-border">
-                {personelListesi.map((p) => {
-                  const terapistMi = terapistPersonelIdleri.has(p.id);
-                  return (
-                    <li key={p.id} className="flex items-center justify-between py-3 text-sm">
-                      <div className="flex flex-col">
-                        <span className={`font-medium ${p.aktif ? "" : "text-muted-foreground line-through"}`}>
-                          {p.ad_soyad}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {p.gorev}
-                          {yonetici && p.maas != null &&
-                            ` · ${p.maas.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}`}
-                        </span>
-                      </div>
-                      {terapistMi && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          nativeButton={false}
-                          render={<Link href={`/panel/personel/${p.id}`}>Detay</Link>}
-                        />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+            {!error && personelListesi.length > 0 && (
+              <PersonelListesi personelListesi={personelListesi} yonetici={yonetici} />
             )}
           </CardContent>
         </Card>

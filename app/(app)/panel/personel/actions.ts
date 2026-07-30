@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { tcKimlikGecerliMi } from "@/lib/tc-kimlik";
 
 type SonucDurumu = { success: boolean; message: string; geciciSifre?: string } | null;
 
@@ -16,6 +17,16 @@ function geciciSifreUret(): string {
     sifre += KARAKTER_HAVUZU[Math.floor(Math.random() * KARAKTER_HAVUZU.length)];
   }
   return sifre;
+}
+
+function yasHesapla(dogumTarihi: Date): number {
+  const bugun = new Date();
+  let yas = bugun.getFullYear() - dogumTarihi.getFullYear();
+  const ayFarki = bugun.getMonth() - dogumTarihi.getMonth();
+  if (ayFarki < 0 || (ayFarki === 0 && bugun.getDate() < dogumTarihi.getDate())) {
+    yas--;
+  }
+  return yas;
 }
 
 async function yetkiliKlinikAdminGetir() {
@@ -34,72 +45,253 @@ async function yetkiliKlinikAdminGetir() {
     .eq("id", user.id)
     .single();
 
-  if (kullanici?.rol !== "klinik_admin" || !kullanici.klinik_id) {
+  // Not: super_admin (platform yöneticisi) burada bilinçli olarak yok — bu rolün
+  // kullanici.klinik_id'si NULL'dur (bkz. kullanici_klinik_gerekli CHECK) ve
+  // projede super_admin'in "belirli bir kliniğin paneli içinde o klinik adına"
+  // işlem yapabildiği bir akış/klinik-seçici henüz kurulmadı. RPC/RLS
+  // katmanındaki is_super_admin() bypass'ları (audit_log'lu) bu ihtiyaç
+  // doğduğunda zaten devrede; sayfa/action seviyesi yetki burada klinik_admin
+  // ile sınırlı tutuldu.
+  if (!kullanici || kullanici.rol !== "klinik_admin" || !kullanici.klinik_id) {
     return { supabase, klinikId: null as string | null, yetkisiz: true as const };
   }
 
   return { supabase, klinikId: kullanici.klinik_id, yetkisiz: false as const };
 }
 
-const personelSemasi = z.object({
+// ---------------------------------------------------------------------
+// Ortak şema: Kişisel/İş/Sistem Yetki adımları
+// ---------------------------------------------------------------------
+const dogumTarihiSemasi = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .refine((deger) => {
+    if (!deger) return true;
+    const tarih = new Date(deger);
+    if (Number.isNaN(tarih.getTime())) return false;
+    const yas = yasHesapla(tarih);
+    return yas >= 18 && yas <= 100;
+  }, "Doğum tarihi geçerli bir aralıkta olmalı (18-100 yaş arası).");
+
+const kisiselIsSemasi = z.object({
   ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
-  tc_kimlik_no: z
-    .string()
-    .trim()
-    .regex(/^\d{11}$/, "T.C. Kimlik No 11 haneli olmalı.")
-    .optional()
-    .or(z.literal("")),
-  eposta: z.string().trim().email("Geçersiz kurumsal e-posta."),
+  dogum_tarihi: dogumTarihiSemasi,
+  dogum_yeri: z.string().trim().optional().or(z.literal("")),
+  cinsiyet: z.enum(["erkek", "kadin", "belirtilmemis"]).optional().or(z.literal("")),
   gsm: z
     .string()
     .trim()
     .min(7, "GSM numarası geçersiz.")
     .max(20, "GSM numarası geçersiz.")
     .regex(/^[0-9+ ]+$/, "GSM sadece rakam, boşluk ve + içerebilir."),
-  unvan: z.string().trim().min(2, "Unvan/branş en az 2 karakter olmalı."),
-  uzmanlik_tescil_no: z.string().trim().optional().or(z.literal("")),
   il: z.string().trim().optional().or(z.literal("")),
   ilce: z.string().trim().optional().or(z.literal("")),
   mahalle: z.string().trim().optional().or(z.literal("")),
   adres: z.string().trim().optional().or(z.literal("")),
+  acil_ad_soyad: z.string().trim().optional().or(z.literal("")),
+  acil_yakinlik: z.string().trim().optional().or(z.literal("")),
+  acil_telefon: z.string().trim().optional().or(z.literal("")),
+  unvan: z.string().trim().min(2, "Unvan/branş en az 2 karakter olmalı."),
+  departman: z.string().trim().optional().or(z.literal("")),
+  ise_giris_tarihi: z.string().trim().optional().or(z.literal("")),
+  calisma_tipi: z.enum(["tam_zamanli", "yari_zamanli", "vardiyali", "prim_usulu"]).optional().or(z.literal("")),
+  sgk_sicil_no: z.string().trim().optional().or(z.literal("")),
+  uzmanlik_tescil_no: z.string().trim().optional().or(z.literal("")),
   rol: z.enum(["klinik_admin", "resepsiyon", "terapist", "muhasebe"]),
-});
+  tc_kimlik_no: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine((deger) => !deger || tcKimlikGecerliMi(deger), "T.C. Kimlik No geçersiz."),
+  pasaport_no: z.string().trim().optional().or(z.literal("")),
+  // Mesleki belgeler (sadece rol=terapist ise anlamlı; formda o durumda gösterilir)
+  diploma_no: z.string().trim().optional().or(z.literal("")),
+  uzmanlik_belge_no: z.string().trim().optional().or(z.literal("")),
+  meslek_odasi_sicil_no: z.string().trim().optional().or(z.literal("")),
+  saglik_bakanligi_tescil_no: z.string().trim().optional().or(z.literal("")),
+  e_imza_sertifika_seri_no: z.string().trim().optional().or(z.literal("")),
+  e_imza_gecerlilik_tarihi: z.string().trim().optional().or(z.literal("")),
+  sigorta_police_no: z.string().trim().optional().or(z.literal("")),
+  sigorta_bitis_tarihi: z.string().trim().optional().or(z.literal("")),
+}).refine(
+  (v) => {
+    const dolu = [v.acil_ad_soyad, v.acil_yakinlik, v.acil_telefon].filter((d) => d);
+    return dolu.length === 0 || dolu.length === 3;
+  },
+  { message: "Acil durum kişisi için ad soyad, yakınlık ve telefon birlikte girilmeli.", path: ["acil_ad_soyad"] }
+);
+
+function formVerisiTopla(formData: FormData) {
+  return {
+    ad_soyad: formData.get("ad_soyad"),
+    dogum_tarihi: formData.get("dogum_tarihi") ?? "",
+    dogum_yeri: formData.get("dogum_yeri") ?? "",
+    cinsiyet: formData.get("cinsiyet") ?? "",
+    gsm: formData.get("gsm"),
+    il: formData.get("adres_il") ?? "",
+    ilce: formData.get("adres_ilce") ?? "",
+    mahalle: formData.get("adres_mahalle") ?? "",
+    adres: formData.get("adres") ?? "",
+    acil_ad_soyad: formData.get("acil_ad_soyad") ?? "",
+    acil_yakinlik: formData.get("acil_yakinlik") ?? "",
+    acil_telefon: formData.get("acil_telefon") ?? "",
+    unvan: formData.get("unvan"),
+    departman: formData.get("departman") ?? "",
+    ise_giris_tarihi: formData.get("ise_giris_tarihi") ?? "",
+    calisma_tipi: formData.get("calisma_tipi") ?? "",
+    sgk_sicil_no: formData.get("sgk_sicil_no") ?? "",
+    uzmanlik_tescil_no: formData.get("uzmanlik_tescil_no") ?? "",
+    rol: formData.get("rol"),
+    tc_kimlik_no: formData.get("tc_kimlik_no") ?? "",
+    pasaport_no: formData.get("pasaport_no") ?? "",
+    diploma_no: formData.get("diploma_no") ?? "",
+    uzmanlik_belge_no: formData.get("uzmanlik_belge_no") ?? "",
+    meslek_odasi_sicil_no: formData.get("meslek_odasi_sicil_no") ?? "",
+    saglik_bakanligi_tescil_no: formData.get("saglik_bakanligi_tescil_no") ?? "",
+    e_imza_sertifika_seri_no: formData.get("e_imza_sertifika_seri_no") ?? "",
+    e_imza_gecerlilik_tarihi: formData.get("e_imza_gecerlilik_tarihi") ?? "",
+    sigorta_police_no: formData.get("sigorta_police_no") ?? "",
+    sigorta_bitis_tarihi: formData.get("sigorta_bitis_tarihi") ?? "",
+  };
+}
+
+type FormVerisi = z.infer<typeof kisiselIsSemasi>;
+
+// Acil kişi + hassas (TC/pasaport, şifreli RPC üzerinden) + mesleki belge +
+// kaşe görseli — hem oluşturma hem düzenlemede aynı mantık, tek yerde.
+async function yardimciKayitlariIsle(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  adminClient: ReturnType<typeof createAdminClient>,
+  personelId: string,
+  veri: FormVerisi,
+  kaseDosyasi: File | null,
+  klinikId: string
+): Promise<string | null> {
+  // Acil durum kişisi: tek satır — varsa güncelle, yoksa ekle.
+  if (veri.acil_ad_soyad && veri.acil_yakinlik && veri.acil_telefon) {
+    const { data: mevcut } = await adminClient
+      .from("personel_acil_kisi")
+      .select("id")
+      .eq("personel_id", personelId)
+      .maybeSingle();
+
+    if (mevcut) {
+      await adminClient
+        .from("personel_acil_kisi")
+        .update({ ad_soyad: veri.acil_ad_soyad, yakinlik: veri.acil_yakinlik, telefon: veri.acil_telefon })
+        .eq("id", mevcut.id);
+    } else {
+      await adminClient.from("personel_acil_kisi").insert({
+        personel_id: personelId,
+        ad_soyad: veri.acil_ad_soyad,
+        yakinlik: veri.acil_yakinlik,
+        telefon: veri.acil_telefon,
+      });
+    }
+  }
+
+  // Hassas (TC kimlik/pasaport) — SADECE çağıranın kendi oturumuyla (RPC
+  // içinde auth.uid()/current_rol() kontrolü var; service-role admin client
+  // ile çağrılırsa auth.uid() boş döner ve 'yetkisiz' hatası alınır).
+  let uyari: string | null = null;
+  if (veri.tc_kimlik_no || veri.pasaport_no) {
+    const { error: hassasError } = await supabase.rpc("personel_hassas_kaydet", {
+      p_personel_id: personelId,
+      p_tc_kimlik: veri.tc_kimlik_no || null,
+      p_pasaport: veri.pasaport_no || null,
+    });
+    if (hassasError) {
+      console.error("personel_hassas_kaydet başarısız:", hassasError);
+      uyari =
+        hassasError.message === "sifreleme_anahtari_kurulu_degil"
+          ? "T.C. Kimlik/Pasaport kaydedilemedi: şifreleme anahtarı henüz kurulmadı, sistem yöneticinize başvurun."
+          : "T.C. Kimlik/Pasaport kaydedilemedi, lütfen tekrar deneyin.";
+    }
+  }
+
+  // Mesleki belgeler — sadece terapist rolünde anlamlı.
+  if (
+    veri.rol === "terapist" &&
+    (veri.diploma_no ||
+      veri.uzmanlik_belge_no ||
+      veri.meslek_odasi_sicil_no ||
+      veri.saglik_bakanligi_tescil_no ||
+      veri.e_imza_sertifika_seri_no ||
+      veri.sigorta_police_no ||
+      kaseDosyasi)
+  ) {
+    let kaseYolu: string | null = null;
+    if (kaseDosyasi && kaseDosyasi.size > 0) {
+      const uzanti = kaseDosyasi.name.split(".").pop() || "png";
+      const yol = `${klinikId}/${personelId}/kase.${uzanti}`;
+      const { error: yuklemeHatasi } = await adminClient.storage
+        .from("personel-belge")
+        .upload(yol, kaseDosyasi, { upsert: true, contentType: kaseDosyasi.type });
+      if (yuklemeHatasi) {
+        console.error("Kaşe görseli yüklenemedi:", yuklemeHatasi);
+      } else {
+        kaseYolu = yol;
+      }
+    }
+
+    const { data: mevcutBelge } = await adminClient
+      .from("personel_mesleki_belge")
+      .select("personel_id, kase_gorsel_url")
+      .eq("personel_id", personelId)
+      .maybeSingle();
+
+    const satir = {
+      diploma_no: veri.diploma_no || null,
+      uzmanlik_belge_no: veri.uzmanlik_belge_no || null,
+      meslek_odasi_sicil_no: veri.meslek_odasi_sicil_no || null,
+      saglik_bakanligi_tescil_no: veri.saglik_bakanligi_tescil_no || null,
+      e_imza_sertifika_seri_no: veri.e_imza_sertifika_seri_no || null,
+      e_imza_gecerlilik_tarihi: veri.e_imza_gecerlilik_tarihi || null,
+      kase_gorsel_url: kaseYolu ?? mevcutBelge?.kase_gorsel_url ?? null,
+      mali_sorumluluk_sigorta_police_no: veri.sigorta_police_no || null,
+      mali_sorumluluk_sigorta_bitis_tarihi: veri.sigorta_bitis_tarihi || null,
+    };
+
+    if (mevcutBelge) {
+      await adminClient.from("personel_mesleki_belge").update(satir).eq("personel_id", personelId);
+    } else {
+      await adminClient.from("personel_mesleki_belge").insert({ personel_id: personelId, ...satir });
+    }
+  }
+
+  return uyari;
+}
 
 export async function personelHesabiOlustur(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
   if (yetkisiz || !klinikId) {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
-  const ayristirma = personelSemasi.safeParse({
-    ad_soyad: formData.get("ad_soyad"),
-    tc_kimlik_no: formData.get("tc_kimlik_no") ?? "",
-    eposta: formData.get("eposta"),
-    gsm: formData.get("gsm"),
-    unvan: formData.get("unvan"),
-    uzmanlik_tescil_no: formData.get("uzmanlik_tescil_no") ?? "",
-    il: formData.get("adres_il") ?? "",
-    ilce: formData.get("adres_ilce") ?? "",
-    mahalle: formData.get("adres_mahalle") ?? "",
-    adres: formData.get("adres") ?? "",
-    rol: formData.get("rol"),
-  });
+  const eposta = formData.get("eposta");
+  const ayristirma = kisiselIsSemasi.safeParse(formVerisiTopla(formData));
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
+  if (typeof eposta !== "string" || !eposta.trim() || !eposta.includes("@")) {
+    return { success: false, message: "Geçersiz kurumsal e-posta." };
+  }
 
-  const { ad_soyad, tc_kimlik_no, eposta, gsm, unvan, uzmanlik_tescil_no, il, ilce, mahalle, adres, rol } =
-    ayristirma.data;
+  const veri = ayristirma.data;
+  const kaseDosyasi = formData.get("kase_dosya");
 
   const adminClient = createAdminClient();
   const geciciSifre = geciciSifreUret();
 
   const { data: yeniKullanici, error: createError } = await adminClient.auth.admin.createUser({
-    email: eposta,
+    email: eposta.trim(),
     password: geciciSifre,
     email_confirm: true,
   });
@@ -115,9 +307,9 @@ export async function personelHesabiOlustur(
   const { error: kullaniciError } = await adminClient.from("kullanici").insert({
     id: yeniKullanici.user.id,
     klinik_id: klinikId,
-    rol,
-    ad_soyad,
-    telefon: gsm,
+    rol: veri.rol,
+    ad_soyad: veri.ad_soyad,
+    telefon: veri.gsm,
   });
 
   if (kullaniciError) {
@@ -131,14 +323,21 @@ export async function personelHesabiOlustur(
     .insert({
       klinik_id: klinikId,
       kullanici_id: yeniKullanici.user.id,
-      ad_soyad,
-      gorev: unvan,
-      tc_kimlik_no: tc_kimlik_no || null,
-      uzmanlik_tescil_no: uzmanlik_tescil_no || null,
-      il: il || null,
-      ilce: ilce || null,
-      mahalle: mahalle || null,
-      adres: adres || null,
+      ad_soyad: veri.ad_soyad,
+      gorev: veri.unvan,
+      dogum_tarihi: veri.dogum_tarihi || null,
+      dogum_yeri: veri.dogum_yeri || null,
+      cinsiyet: veri.cinsiyet || null,
+      eposta: eposta.trim(),
+      departman: veri.departman || null,
+      calisma_tipi: veri.calisma_tipi || null,
+      sgk_sicil_no: veri.sgk_sicil_no || null,
+      ise_giris_tarihi: veri.ise_giris_tarihi || null,
+      uzmanlik_tescil_no: veri.uzmanlik_tescil_no || null,
+      il: veri.il || null,
+      ilce: veri.ilce || null,
+      mahalle: veri.mahalle || null,
+      adres: veri.adres || null,
       aktif: true,
     })
     .select("id")
@@ -148,13 +347,10 @@ export async function personelHesabiOlustur(
     console.error("personel eklenemedi:", personelError);
     await adminClient.from("kullanici").delete().eq("id", yeniKullanici.user.id);
     await adminClient.auth.admin.deleteUser(yeniKullanici.user.id);
-    if (personelError?.code === "23505") {
-      return { success: false, message: "Bu T.C. Kimlik No başka bir personelde kayıtlı." };
-    }
     return { success: false, message: "Hesap oluşturulamadı, lütfen tekrar deneyin." };
   }
 
-  if (rol === "terapist") {
+  if (veri.rol === "terapist") {
     const { error: terapistError } = await adminClient.from("terapist").insert({
       klinik_id: klinikId,
       personel_id: yeniPersonel.id,
@@ -172,6 +368,94 @@ export async function personelHesabiOlustur(
     }
   }
 
+  const uyari = await yardimciKayitlariIsle(
+    supabase,
+    adminClient,
+    yeniPersonel.id,
+    veri,
+    kaseDosyasi instanceof File ? kaseDosyasi : null,
+    klinikId
+  );
+
   revalidatePath("/panel/personel");
-  return { success: true, message: "Personel hesabı oluşturuldu.", geciciSifre };
+  return {
+    success: true,
+    message: uyari ? `Personel hesabı oluşturuldu. ${uyari}` : "Personel hesabı oluşturuldu.",
+    geciciSifre,
+  };
+}
+
+export async function personelBilgileriGuncelle(
+  personelId: string,
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { data: mevcutPersonel } = await supabase
+    .from("personel")
+    .select("id, kullanici_id, klinik_id")
+    .eq("id", personelId)
+    .single();
+
+  if (!mevcutPersonel || mevcutPersonel.klinik_id !== klinikId) {
+    return { success: false, message: "Personel bulunamadı." };
+  }
+
+  const ayristirma = kisiselIsSemasi.safeParse(formVerisiTopla(formData));
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+  const veri = ayristirma.data;
+  const kaseDosyasi = formData.get("kase_dosya");
+
+  const adminClient = createAdminClient();
+
+  const { error: personelError } = await adminClient
+    .from("personel")
+    .update({
+      ad_soyad: veri.ad_soyad,
+      gorev: veri.unvan,
+      dogum_tarihi: veri.dogum_tarihi || null,
+      dogum_yeri: veri.dogum_yeri || null,
+      cinsiyet: veri.cinsiyet || null,
+      departman: veri.departman || null,
+      calisma_tipi: veri.calisma_tipi || null,
+      sgk_sicil_no: veri.sgk_sicil_no || null,
+      ise_giris_tarihi: veri.ise_giris_tarihi || null,
+      uzmanlik_tescil_no: veri.uzmanlik_tescil_no || null,
+      il: veri.il || null,
+      ilce: veri.ilce || null,
+      mahalle: veri.mahalle || null,
+      adres: veri.adres || null,
+    })
+    .eq("id", personelId);
+
+  if (personelError) {
+    console.error("personel güncellenemedi:", personelError);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  if (mevcutPersonel.kullanici_id) {
+    await adminClient
+      .from("kullanici")
+      .update({ ad_soyad: veri.ad_soyad, telefon: veri.gsm, rol: veri.rol })
+      .eq("id", mevcutPersonel.kullanici_id);
+  }
+
+  const uyari = await yardimciKayitlariIsle(
+    supabase,
+    adminClient,
+    personelId,
+    veri,
+    kaseDosyasi instanceof File ? kaseDosyasi : null,
+    klinikId
+  );
+
+  revalidatePath(`/panel/personel/${personelId}`);
+  revalidatePath("/panel/personel");
+  return { success: true, message: uyari ? `Kaydedildi. ${uyari}` : "Kaydedildi." };
 }
