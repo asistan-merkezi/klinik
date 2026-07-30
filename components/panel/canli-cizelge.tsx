@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
 import { startOfDayUTC, formatDateForInput, formatTimeForInput } from "@/lib/datetime";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
-import { Activity, Users } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { CanliSaat } from "@/components/panel/canli-saat";
 import { SuAnCizgisi } from "@/components/panel/su-an-cizgisi";
 import { RandevuKutusu, gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
@@ -50,20 +51,27 @@ export function CanliCizelge({
   terapistler,
   cihazlar,
   tedaviler,
+  tarihNavigasyonuGoster = false,
 }: {
   baslangicRandevular: RandevuSatir[];
   odalar: SecenekSatir[];
   terapistler: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
+  /** true ise başlıkta gün ileri/geri + tarih seçici gösterilir, geçmiş/gelecek günler görüntülenebilir. */
+  tarihNavigasyonuGoster?: boolean;
 }) {
   const router = useRouter();
   const [randevular, setRandevular] = useState(baslangicRandevular);
   const [simdi, setSimdi] = useState<Date | null>(null);
+  const [seciliTarih, setSeciliTarih] = useState(() => formatDateForInput(new Date().toISOString()));
   const [seciliRandevu, setSeciliRandevu] = useState<RandevuSatir | null>(null);
   const [detayAcik, setDetayAcik] = useState(false);
   const kaydirildiRef = useRef(false);
   const kaydirmaKapRef = useRef<HTMLDivElement>(null);
+  const ilkCalismaRef = useRef(true);
+
+  const bugunMu = simdi ? seciliTarih === formatDateForInput(simdi.toISOString()) : true;
 
   useEffect(() => {
     setSimdi(new Date());
@@ -72,12 +80,16 @@ export function CanliCizelge({
   }, []);
 
   useEffect(() => {
+    kaydirildiRef.current = false;
+  }, [seciliTarih]);
+
+  useEffect(() => {
     const supabase = createClient();
     let kanal: ReturnType<typeof supabase.channel> | null = null;
     let iptalEdildi = false;
 
     async function listeyiYenile() {
-      const { baslangic, bitis } = gunAraligi();
+      const { baslangic, bitis } = gunAraligi(new Date(seciliTarih));
       const { data } = await supabase
         .from("randevu")
         .select(RANDEVU_SELECT)
@@ -112,6 +124,13 @@ export function CanliCizelge({
         .subscribe();
     }
 
+    // İlk mount'ta sunucudan gelen baslangicRandevular zaten güncel; sadece
+    // tarih değiştirildiğinde (gezinme) anında tazeleme gerekir.
+    if (!ilkCalismaRef.current) {
+      listeyiYenile();
+    }
+    ilkCalismaRef.current = false;
+
     abonelikKur();
 
     return () => {
@@ -120,9 +139,15 @@ export function CanliCizelge({
         supabase.removeChannel(kanal);
       }
     };
-  }, []);
+  }, [seciliTarih]);
 
-  const gunBaslangicMs = useMemo(() => gunBaslangiciMs(simdi ?? new Date()), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const gunBaslangicMs = useMemo(() => gunBaslangiciMs(new Date(seciliTarih)), [seciliTarih]);
+
+  function gunKaydir(delta: number) {
+    const yeni = new Date(seciliTarih);
+    yeni.setUTCDate(yeni.getUTCDate() + delta);
+    setSeciliTarih(formatDateForInput(yeni.toISOString()));
+  }
 
   function bosAlanaTiklandi(e: React.MouseEvent<HTMLDivElement>, odaId: string) {
     const dikdortgen = e.currentTarget.getBoundingClientRect();
@@ -180,14 +205,14 @@ export function CanliCizelge({
   );
 
   useEffect(() => {
-    if (kaydirildiRef.current || !simdi) return;
+    if (kaydirildiRef.current || !simdi || !bugunMu) return;
     const kap = kaydirmaKapRef.current;
     if (!kap) return;
     const gecenDakika = (simdi.getTime() - gunBaslangicMs) / 60_000;
     const suAnUst = gecenDakika * PX_PER_DAKIKA;
     kap.scrollTop = suAnUst - kap.clientHeight / 2;
     kaydirildiRef.current = true;
-  }, [simdi, gunBaslangicMs]);
+  }, [simdi, gunBaslangicMs, bugunMu]);
 
   const duyuruMetni =
     devamEdenler.length > 0
@@ -203,8 +228,50 @@ export function CanliCizelge({
       <header className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
         <div className="flex items-center gap-2">
           <Activity className="size-4 text-primary" aria-hidden />
-          <h2 className="text-sm font-semibold">Günün Çizelgesi</h2>
+          <h2 className="text-sm font-semibold">
+            {tarihNavigasyonuGoster ? "Randevu Çizelgesi" : "Günün Çizelgesi"}
+          </h2>
         </div>
+
+        {tarihNavigasyonuGoster && (
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => gunKaydir(-1)}
+              aria-label="Önceki gün"
+            >
+              <ChevronLeft />
+            </Button>
+            <input
+              type="date"
+              value={seciliTarih}
+              onChange={(e) => setSeciliTarih(e.target.value)}
+              className="rounded-lg border border-input bg-transparent px-2 py-1 text-sm tabular-nums outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => gunKaydir(1)}
+              aria-label="Sonraki gün"
+            >
+              <ChevronRight />
+            </Button>
+            {!bugunMu && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSeciliTarih(formatDateForInput(new Date().toISOString()))}
+              >
+                Bugün
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-primary ring-1 ring-inset ring-primary/30">
             <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
@@ -312,7 +379,7 @@ export function CanliCizelge({
                     </div>
                   ))}
 
-                  {simdi && (
+                  {simdi && bugunMu && (
                     <SuAnCizgisi
                       gunBaslangicMs={gunBaslangicMs}
                       pxPerDakika={PX_PER_DAKIKA}

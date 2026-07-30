@@ -3,9 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir } from "@/types/portal";
+import { gunAraligi } from "@/lib/utils";
+import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { YeniRandevuDialog } from "./yeni-randevu-dialog";
 import { PeriyodikRandevuDialog } from "./periyodik-randevu-dialog";
-import { RandevuSatiri } from "./randevu-satiri";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
 
 export default async function RandevularSayfasi() {
@@ -19,6 +20,8 @@ export default async function RandevularSayfasi() {
     redirect("/giris");
   }
 
+  const { baslangic, bitis } = gunAraligi();
+
   const [
     randevularSonucu,
     hastaSonucu,
@@ -31,11 +34,11 @@ export default async function RandevularSayfasi() {
       supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, created_at, hasta_id, hasta(ad_soyad), terapist_id, terapist(personel(ad_soyad)), oda_id, oda(ad), cihaz_id, islem_tanimi_id, islem_tanimi(id, ad), olusturan_kullanici:olusturan_kullanici_id(ad_soyad)"
+          "id, baslangic, bitis, durum, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)"
         )
-        .gte("bitis", new Date().toISOString())
+        .gte("baslangic", baslangic)
+        .lt("baslangic", bitis)
         .order("baslangic")
-        .limit(50)
         .returns<RandevuSatir[]>(),
       supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
       supabase
@@ -68,12 +71,12 @@ export default async function RandevularSayfasi() {
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold">Randevular</h1>
             <p className="text-sm text-muted-foreground">
-              Yaklaşan randevuları görüntüle ve yeni randevu oluştur.
+              Çizelgede tarih gezinerek geçmiş/gelecek randevuları görüntüle, yeni randevu oluştur.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -105,36 +108,18 @@ export default async function RandevularSayfasi() {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Yaklaşan Randevular</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {randevularSonucu.error && (
-              <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
-            )}
-            {!randevularSonucu.error && randevular.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Yaklaşan randevu yok.
-              </p>
-            )}
-            {!randevularSonucu.error && randevular.length > 0 && (
-              <ul className="flex flex-col divide-y divide-border">
-                {randevular.map((randevu) => (
-                  <RandevuSatiri
-                    key={randevu.id}
-                    randevu={randevu}
-                    hastalar={hastalar}
-                    terapistler={terapistler}
-                    odalar={odalar}
-                    cihazlar={cihazlar}
-                    tedaviler={tedaviler}
-                  />
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        {randevularSonucu.error ? (
+          <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
+        ) : (
+          <CanliCizelge
+            baslangicRandevular={randevular}
+            odalar={odalar}
+            terapistler={terapistler}
+            cihazlar={cihazlar}
+            tedaviler={tedaviler}
+            tarihNavigasyonuGoster
+          />
+        )}
       </div>
     </div>
   );
