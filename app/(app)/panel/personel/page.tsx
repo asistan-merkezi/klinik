@@ -86,7 +86,7 @@ export default async function PersonelSayfasi() {
                           variant="outline"
                           size="sm"
                           nativeButton={false}
-                          render={<Link href={`/panel/personel/${p.id}`}>Performans & Maaş</Link>}
+                          render={<Link href={`/panel/personel/${p.id}`}>Detay</Link>}
                         />
                       )}
                     </li>
