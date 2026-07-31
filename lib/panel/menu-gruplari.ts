@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   Wallet,
   Settings,
+  ClipboardList,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,6 +20,15 @@ export type MenuOgesi = { href: string; label: string; icon: LucideIcon };
 export type MenuGrubu = { key: string; label: string; icon: LucideIcon; ogeler: MenuOgesi[] };
 
 export const MENU_GRUPLARI: MenuGrubu[] = [
+  {
+    key: "tedaviler",
+    label: "Tedaviler",
+    icon: ClipboardList,
+    ogeler: [
+      { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
+      { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
+    ],
+  },
   {
     key: "muhasebe",
     label: "Muhasebe",

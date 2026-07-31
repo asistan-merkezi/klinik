@@ -7,7 +7,6 @@ import {
   Home,
   Users,
   CalendarDays,
-  ClipboardList,
   Package,
   DoorOpen,
   LogOut,
@@ -23,7 +22,6 @@ const ANA_OGELER = [
   { href: "/panel/hastalar", label: "Hastalar", icon: Users },
   { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
   { href: "/panel/paketler", label: "Paketler", icon: Package },
-  { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
   { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
 ];
 
