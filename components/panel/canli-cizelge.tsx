@@ -43,7 +43,7 @@ function dakikaYuvarla(dakika: number) {
 }
 
 const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)";
+  "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)";
 
 export function CanliCizelge({
   baslangicRandevular,

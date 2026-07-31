@@ -17,8 +17,10 @@ const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
 const DURUM_SINIFLARI: Record<RandevuDurumu, string> = {
   planlandi: "bg-primary/10 text-primary",
   geldi: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  iptal: "bg-muted text-muted-foreground",
+  gecikmeli_geldi: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  iptal: "bg-destructive/10 text-destructive",
   gelmedi: "bg-destructive/10 text-destructive",
+  ertelendi: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
 };
 
 export function SeansGecmisiZamanCizelgesi({

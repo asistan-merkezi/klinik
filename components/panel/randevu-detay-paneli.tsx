@@ -69,7 +69,7 @@ export function RandevuDetayPaneli({
           <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
         </DialogHeader>
 
-        <DurumButonlari randevuId={randevu.id} durum={randevu.durum} />
+        <DurumButonlari randevu={randevu} />
 
         <form key={randevu.id} action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="hasta_id" value={randevu.hasta_id ?? ""} />

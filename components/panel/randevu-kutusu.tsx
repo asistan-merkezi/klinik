@@ -3,15 +3,28 @@ import { cn } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 import type { RandevuSatir } from "@/types/randevu";
 
-export type GorunumDurumu = "planlandi" | "geldi" | "seansta" | "tamamlandi" | "iptal" | "gelmedi";
+export type GorunumDurumu =
+  | "planlandi"
+  | "geldi"
+  | "gecikmeli_geldi"
+  | "seansta"
+  | "iptal"
+  | "gelmedi"
+  | "ertelendi";
 
-/** Randevunun ekrandaki durumu DB durumundan + saatten türetilir, elle girilmez. */
+/**
+ * Randevunun ekrandaki durumu DB durumundan türetilir. Süre geçince kendiliğinden
+ * "Tamamlandı"ya DÖNMEZ (kullanıcı kararı: kutucuğa girilip elle bir işlem
+ * yapılmadan hiçbir şey değişmemeli — süresi geçmiş ama hâlâ "Planlandı" duran
+ * bir randevu, aslında check-in unutulmuş olabilir; "Tamamlandı" göstermek bunu
+ * gizler). Tek istisna "seansta": bu, zaten resepsiyonun elle "Geldi"
+ * işaretlediği bir randevuya, seans saati geldiğinde eklenen canlı bir nabız
+ * rozetidir — durumu DEĞİŞTİRMEZ, sadece "Geldi"nin üstüne görsel bir vurgu ekler.
+ */
 export function gorunumDurumuHesapla(randevu: RandevuSatir, simdi: Date): GorunumDurumu {
   if (randevu.durum === "iptal" || randevu.durum === "gelmedi") return randevu.durum;
-  const bitis = new Date(randevu.bitis);
-  if (simdi >= bitis) return "tamamlandi";
   const baslangic = new Date(randevu.baslangic);
-  if (randevu.durum === "geldi" && simdi >= baslangic) return "seansta";
+  if ((randevu.durum === "geldi" || randevu.durum === "gecikmeli_geldi") && simdi >= baslangic) return "seansta";
   return randevu.durum;
 }
 
@@ -46,12 +59,25 @@ const DURUM_STIL: Record<
       kenar: "border-emerald-300 dark:border-emerald-500/40",
     },
   },
-  tamamlandi: { etiket: "Tamamlandı", rozet: "bg-muted text-muted-foreground", soluk: true },
+  gecikmeli_geldi: {
+    etiket: "Gecikmeli Geldi",
+    rozet: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    kutuRenk: {
+      serit: "bg-emerald-500",
+      dolgu: "bg-emerald-500/10",
+      kenar: "border-emerald-300 dark:border-emerald-500/40",
+    },
+  },
   iptal: {
     etiket: "İptal",
     rozet: "bg-destructive/10 text-destructive",
     adSinif: "line-through",
     soluk: true,
+    kutuRenk: {
+      serit: "bg-destructive",
+      dolgu: "bg-destructive/10",
+      kenar: "border-destructive/40",
+    },
   },
   gelmedi: {
     etiket: "Gelmedi",
@@ -61,6 +87,15 @@ const DURUM_STIL: Record<
       serit: "bg-destructive",
       dolgu: "bg-destructive/10",
       kenar: "border-destructive/40",
+    },
+  },
+  ertelendi: {
+    etiket: "Ertelendi",
+    rozet: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+    kutuRenk: {
+      serit: "bg-sky-500",
+      dolgu: "bg-sky-500/10",
+      kenar: "border-sky-300 dark:border-sky-500/40",
     },
   },
 };
@@ -104,12 +139,16 @@ export const RandevuKutusu = memo(function RandevuKutusu({
 }: RandevuKutusuProps) {
   const stil = DURUM_STIL[gorunumDurumu];
   const renk = stil.kutuRenk ?? tedaviRengi(randevu.islem_tanimi?.id);
+  const etiket =
+    gorunumDurumu === "gecikmeli_geldi" && randevu.gecikme_dakika
+      ? `${stil.etiket} (${randevu.gecikme_dakika} dk)`
+      : stil.etiket;
   const baslikMetni = [
     randevu.hasta?.ad_soyad,
     formatTime(randevu.baslangic),
     randevu.terapist?.personel?.ad_soyad,
     randevu.islem_tanimi?.ad,
-    stil.etiket,
+    etiket,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -141,7 +180,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
           {gorunumDurumu === "seansta" && (
             <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
           )}
-          {stil.etiket}
+          {etiket}
         </span>
       </div>
 

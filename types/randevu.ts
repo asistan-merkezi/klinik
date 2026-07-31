@@ -1,10 +1,11 @@
-export type RandevuDurum = "planlandi" | "geldi" | "iptal" | "gelmedi";
+export type RandevuDurum = "planlandi" | "geldi" | "gecikmeli_geldi" | "gelmedi" | "ertelendi" | "iptal";
 
 export type RandevuSatir = {
   id: string;
   baslangic: string;
   bitis: string;
   durum: RandevuDurum;
+  gecikme_dakika?: number | null;
   hasta: { ad_soyad: string } | null;
   oda: { ad: string } | null;
   terapist: { personel: { ad_soyad: string } | null } | null;

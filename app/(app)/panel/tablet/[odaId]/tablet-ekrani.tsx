@@ -9,8 +9,10 @@ import type { RandevuSatir } from "@/types/randevu";
 const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
   planlandi: "Planlandı",
   geldi: "Geldi",
+  gecikmeli_geldi: "Gecikmeli Geldi",
   iptal: "İptal",
   gelmedi: "Gelmedi",
+  ertelendi: "Ertelendi",
 };
 
 export function TabletEkrani({
@@ -83,7 +85,7 @@ export function TabletEkrani({
   }, []);
 
   const { mevcut, sonraki } = useMemo(() => {
-    const icerdeOlan = randevular.find((r) => r.durum === "geldi");
+    const icerdeOlan = randevular.find((r) => r.durum === "geldi" || r.durum === "gecikmeli_geldi");
     if (icerdeOlan) {
       return { mevcut: icerdeOlan, sonraki: null };
     }

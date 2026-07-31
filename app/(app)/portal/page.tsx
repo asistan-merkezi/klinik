@@ -13,8 +13,10 @@ import { IptalTalepButonu } from "./iptal-talep-butonu";
 const DURUM_ETIKET: Record<PortalRandevuSatir["durum"], string> = {
   planlandi: "Planlandı",
   geldi: "Geldi",
+  gecikmeli_geldi: "Gecikmeli Geldi",
   iptal: "İptal",
   gelmedi: "Gelmedi",
+  ertelendi: "Ertelendi",
 };
 
 export default async function PortalSayfasi() {

@@ -67,7 +67,7 @@ export async function hesaplaSabitPersonelMaliyeti(
         .from("randevu")
         .select("terapist_id")
         .eq("klinik_id", klinikId)
-        .eq("durum", "geldi")
+        .in("durum", ["geldi", "gecikmeli_geldi"])
         .in("terapist_id", terapistIdler)
         .gte("baslangic", donem.baslangic)
         .lt("baslangic", donem.bitis)
@@ -275,7 +275,7 @@ export async function hesaplaYillikOzet(
       .from("randevu")
       .select("baslangic")
       .eq("klinik_id", klinikId)
-      .eq("durum", "geldi")
+      .in("durum", ["geldi", "gecikmeli_geldi"])
       .gte("baslangic", yilDonemi.baslangic)
       .lt("baslangic", yilDonemi.bitis)
       .returns<{ baslangic: string }[]>(),

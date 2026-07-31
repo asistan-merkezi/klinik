@@ -173,13 +173,15 @@ export type VucutHaritasiIsareti = {
   created_at: string;
 };
 
-export type RandevuDurumu = "planlandi" | "geldi" | "iptal" | "gelmedi";
+export type RandevuDurumu = "planlandi" | "geldi" | "gecikmeli_geldi" | "gelmedi" | "ertelendi" | "iptal";
 
 export const RANDEVU_DURUM_ETIKETLERI: Record<RandevuDurumu, string> = {
   planlandi: "Planlandı",
   geldi: "Geldi",
-  iptal: "İptal",
+  gecikmeli_geldi: "Gecikmeli Geldi",
   gelmedi: "Gelmedi",
+  ertelendi: "Ertelendi",
+  iptal: "İptal",
 };
 
 export type HastaSeansSatir = {

@@ -166,12 +166,78 @@ export async function randevuGuncelle(
   return { success: true, message: "Randevu güncellendi." };
 }
 
-const durumSemasi = z.enum(["planlandi", "geldi", "iptal", "gelmedi"]);
+/**
+ * "Geldi" / "Gecikmeli Geldi" — ayrı bir RPC üzerinden yapılır: durum
+ * güncellemesiyle birlikte atomik olarak randevunun işlem_tanimi'ne göre ya
+ * aktif paketten 1 hak düşer ya da hasta_bakiye_hareket'e 'borc' satırı
+ * eklenir (bkz. migration 20260731110000/20260731130000, kullanıcı kararı —
+ * CLAUDE.md). gecikmeDakika verilirse durum 'gecikmeli_geldi' olur, ikisi de
+ * aynı paket/borç mantığını çalıştırır. Randevu Detay panelindeki 5 sonuç
+ * seçeneği (Geldi/Gecikmeli Geldi/Gelmedi/Ertelendi/İptal) her zaman
+ * tıklanabilir olduğu için (kullanıcı kararı) RPC içinde idempotency kontrolü
+ * var — bu fonksiyon aynı randevu için birden çok kez çağrılsa bile paket/
+ * borç mantığı sadece ilk seferde işler.
+ */
+export async function randevuGelisIsaretle(
+  randevuId: string,
+  gecikmeDakika: number | null
+): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-export async function randevuDurumGuncelle(randevuId: string, yeniDurum: RandevuDurum) {
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data, error } = await supabase.rpc("randevu_gelis_isaretle", {
+    p_randevu_id: randevuId,
+    p_gecikme_dakika: gecikmeDakika,
+  });
+
+  if (error) {
+    console.error("Randevu geliş işaretlenemedi:", error);
+    if (error.code === "23P01") {
+      return { success: false, message: "Bu randevu için oda/terapist/cihaz bu saatte dolu." };
+    }
+    return { success: false, message: "Geliş işaretlenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+
+  const sonuc = data as { yontem?: string; hasta_id?: string; tutar?: number; kalan_adet?: number } | null;
+  if (sonuc?.hasta_id) {
+    revalidatePath(`/panel/hastalar/${sonuc.hasta_id}`);
+  }
+
+  const gelisEtiketi = gecikmeDakika ? "Gecikmeli geliş" : "Geliş";
+  const mesaj =
+    sonuc?.yontem === "paket"
+      ? `${gelisEtiketi} işaretlendi, paketten 1 hak düşüldü (kalan: ${sonuc.kalan_adet}).`
+      : sonuc?.yontem === "borc"
+        ? `${gelisEtiketi} işaretlendi, ${sonuc.tutar?.toLocaleString("tr-TR", {
+            style: "currency",
+            currency: "TRY",
+          })} bakiyeye borç olarak eklendi.`
+        : sonuc?.yontem === "zaten_islendi"
+          ? "Durum güncellendi (bakiye/paket bu randevu için zaten işlenmişti, tekrar işlenmedi)."
+          : `${gelisEtiketi} işaretlendi.`;
+
+  return { success: true, message: mesaj };
+}
+
+const durumSemasi = z.enum(["gelmedi", "iptal"]);
+
+/** "Gelmedi" / "İptal" — düz durum güncellemesi (paket/bakiyeye dokunmaz). */
+export async function randevuDurumGuncelle(
+  randevuId: string,
+  yeniDurum: Extract<RandevuDurum, "gelmedi" | "iptal">
+): Promise<SonucDurumu> {
   const gecerliDurum = durumSemasi.safeParse(yeniDurum);
   if (!gecerliDurum.success) {
-    return;
+    return null;
   }
 
   const supabase = await createClient();
@@ -190,11 +256,87 @@ export async function randevuDurumGuncelle(randevuId: string, yeniDurum: Randevu
 
   if (error) {
     console.error("Randevu durumu güncellenemedi:", error);
-    return;
+    return { success: false, message: "Randevu durumu güncellenemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
+  return { success: true, message: "Randevu durumu güncellendi." };
+}
+
+const ertelemeSemasi = z.object({
+  tarih: z.string().min(1, "Tarih gerekli."),
+  saat: z.string().min(1, "Saat gerekli."),
+});
+
+/**
+ * "Ertelendi" — girilen yeni tarih/saat DOĞRUDAN randevunun baslangic/
+ * bitis'ine işlenir (aynı süre korunarak), durum 'ertelendi' olur. Ayrı bir
+ * randevu OLUŞTURULMAZ, aynı satır yeni zamana taşınır (kullanıcı kararı) —
+ * bu yüzden oda/terapist/cihaz çakışma kontrolü yeni zaman için normal
+ * şekilde yeniden çalışır (23P01).
+ */
+export async function randevuErtele(randevuId: string, formData: FormData): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const ayristirma = ertelemeSemasi.safeParse({
+    tarih: formData.get("tarih"),
+    saat: formData.get("saat"),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { data: mevcut } = await supabase
+    .from("randevu")
+    .select("baslangic, bitis, hasta_id")
+    .eq("id", randevuId)
+    .single();
+
+  if (!mevcut) {
+    return { success: false, message: "Randevu bulunamadı." };
+  }
+
+  const sureMs = new Date(mevcut.bitis).getTime() - new Date(mevcut.baslangic).getTime();
+
+  let yeniBaslangicIso: string;
+  try {
+    yeniBaslangicIso = toUTC(`${ayristirma.data.tarih}T${ayristirma.data.saat}:00`);
+  } catch {
+    return { success: false, message: "Tarih/saat geçersiz." };
+  }
+  const yeniBitisIso = new Date(new Date(yeniBaslangicIso).getTime() + sureMs).toISOString();
+
+  const { error } = await supabase
+    .from("randevu")
+    .update({ baslangic: yeniBaslangicIso, bitis: yeniBitisIso, durum: "ertelendi" })
+    .eq("id", randevuId);
+
+  if (error) {
+    console.error("Randevu ertelenemedi:", error);
+    if (error.code === "23P01") {
+      return { success: false, message: "Seçilen yeni saatte terapist, oda veya cihaz dolu." };
+    }
+    return { success: false, message: "Randevu ertelenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  if (mevcut.hasta_id) {
+    revalidatePath(`/panel/hastalar/${mevcut.hasta_id}`);
+  }
+  return {
+    success: true,
+    message: `Randevu ${ayristirma.data.tarih} ${ayristirma.data.saat} saatine ertelendi.`,
+  };
 }
 
 type SonucDurumu2 = { success: boolean; message: string } | null;
