@@ -318,11 +318,15 @@ const detayliSemasi = z.object({
 
   gelis_sebebi: z.string().nullable(),
   oncelik_durumu: z.enum(["normal", "oncelikli", "acil"]),
-}).superRefine((deger, ctx) => {
-  if (deger.kimlik_no_tipi === "tc" && deger.kimlik_no && deger.kimlik_no.replace(/\D/g, "").length !== 11) {
-    ctx.addIssue({ code: "custom", path: ["kimlik_no"], message: "T.C. Kimlik No 11 haneli olmalı." });
-  }
 });
+// NOT: T.C. Kimlik No 11 hane kontrolü kasıtlı olarak burada YOK (sadece
+// client'ta uyarı gösteriliyor, bkz. detayli-bilgiler-karti.tsx). Daha önce
+// burada bir superRefine ile sert reddediliyordu, ama üretimde 11 haneden
+// farklı (10 haneli) kimlik_no ile kayıtlı gerçek hastalar var (bu alan
+// eklendiğinde henüz uzunluk kontrolü yoktu) — o hastalarda formun HİÇBİR
+// alanı (adres, anne/baba, anamnez...) kaydedilemiyordu, kullanıcı kimlik_no
+// alanına hiç dokunmasa bile. "Eksik/fazla girilirse uyarılsın" isteği zaten
+// sadece uyarı istiyordu, reddetme değil.
 
 export async function detayliBilgileriGuncelle(
   hastaId: string,

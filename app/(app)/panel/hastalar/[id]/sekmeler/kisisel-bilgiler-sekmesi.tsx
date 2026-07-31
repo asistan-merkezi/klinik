@@ -96,29 +96,6 @@ export function KisiselBilgilerSekmesi({
 
       <Card>
         <CardHeader>
-          <CardTitle>Veli Bilgisi</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">
-          {hassasYukleniyor ? (
-            <p className="text-muted-foreground">Yükleniyor...</p>
-          ) : hassas?.anne_adi || hassas?.anne_telefon || hassas?.baba_adi || hassas?.baba_telefon ? (
-            <div className="grid grid-cols-2 gap-y-1.5">
-              <span className="text-muted-foreground">Anne</span>
-              <span>{[hassas?.anne_adi, hassas?.anne_telefon].filter(Boolean).join(" · ") || "—"}</span>
-              <span className="text-muted-foreground">Baba</span>
-              <span>{[hassas?.baba_adi, hassas?.baba_telefon].filter(Boolean).join(" · ") || "—"}</span>
-            </div>
-          ) : (
-            <p className="text-muted-foreground">
-              18 yaş altı hastalarda &quot;Detaylı Bilgiler &amp; Anamnez&quot; bölümünde doğum tarihine göre otomatik
-              açılan anne/baba alanlarından girilir.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>Sigorta Bilgileri</CardTitle>
         </CardHeader>
         <CardContent>
@@ -164,7 +141,18 @@ export function KisiselBilgilerSekmesi({
         <CardHeader>
           <CardTitle>Aile / Yakın Bağlantıları</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-3">
+          {hassasYukleniyor ? (
+            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
+          ) : hassas?.anne_adi || hassas?.anne_telefon || hassas?.baba_adi || hassas?.baba_telefon ? (
+            <div className="grid grid-cols-2 gap-y-1.5 border-b border-border pb-3 text-sm">
+              <span className="text-muted-foreground">Anne</span>
+              <span>{[hassas?.anne_adi, hassas?.anne_telefon].filter(Boolean).join(" · ") || "—"}</span>
+              <span className="text-muted-foreground">Baba</span>
+              <span>{[hassas?.baba_adi, hassas?.baba_telefon].filter(Boolean).join(" · ") || "—"}</span>
+            </div>
+          ) : null}
+
           {iliskilerYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
           ) : !iliskiler || iliskiler.length === 0 ? (
