@@ -197,7 +197,7 @@ export function KisiselBilgilerSekmesi({
 
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle>Detaylı Bilgiler & Anamnez</CardTitle>
+          <CardTitle>Kişisel Bilgi Giriş Formu</CardTitle>
         </CardHeader>
         <CardContent>
           {hassasYukleniyor ? (
