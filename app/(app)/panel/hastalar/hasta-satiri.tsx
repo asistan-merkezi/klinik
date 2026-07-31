@@ -32,7 +32,9 @@ export function HastaSatiri({ hasta }: { hasta: HastaSatir }) {
             disabled={kvkkPending}
             onClick={(e) => {
               e.stopPropagation();
-              startKvkkTransition(() => kvkkOnayVer(hasta.id));
+              startKvkkTransition(async () => {
+                await kvkkOnayVer(hasta.id);
+              });
             }}
           >
             KVKK onayı al

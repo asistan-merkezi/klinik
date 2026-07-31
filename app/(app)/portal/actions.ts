@@ -118,6 +118,12 @@ export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData
     .single();
 
   const saglikRizaVar = saglik_riza || Boolean(mevcutHasta?.ozel_nitelikli_veri_onay_tarihi);
+  // Onaylayan sadece bu onay İLK KEZ (daha önce personel tarafından verilmemişken)
+  // hastanın kendisi tarafından verildiğinde 'hasta' olarak işaretlenir — personelin
+  // daha önce kağıt formla aldığı bir onayın üzerine hastanın portaldan tekrar
+  // "onaylıyorum" göndermesi mevcut onaylayan kaydını değiştirmez.
+  const yeniTicariOnay = ticari_ileti_onay && !mevcutHasta?.ticari_ileti_onay_tarihi;
+  const yeniSaglikRizasi = saglik_riza && !mevcutHasta?.ozel_nitelikli_veri_onay_tarihi;
 
   const hassasKayit: Record<string, string | boolean | null> = {
     hasta_id: hastaId,
@@ -153,6 +159,10 @@ export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData
         ozel_nitelikli_veri_onay_tarihi: saglikRizaVar
           ? mevcutHasta?.ozel_nitelikli_veri_onay_tarihi ?? new Date().toISOString()
           : mevcutHasta?.ozel_nitelikli_veri_onay_tarihi ?? null,
+        ...(yeniTicariOnay ? { ticari_ileti_onaylayan_tip: "hasta", ticari_ileti_onaylayan_kullanici_id: null } : {}),
+        ...(yeniSaglikRizasi
+          ? { ozel_nitelikli_onaylayan_tip: "hasta", ozel_nitelikli_onaylayan_kullanici_id: null }
+          : {}),
       })
       .eq("id", hastaId),
     supabase.from("hasta_hassas").upsert(hassasKayit, { onConflict: "hasta_id" }),

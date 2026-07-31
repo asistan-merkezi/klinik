@@ -187,13 +187,13 @@ async function yetkiliHastaGetir(hastaId: string) {
     .single();
 
   if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "resepsiyon") {
-    return { supabase, hasta: null, yetkisiz: true as const };
+    return { supabase, userId: user.id, hasta: null, yetkisiz: true as const };
   }
 
   // RLS klinik_id = current_klinik_id() ile sınırlar; sonuç dönerse hasta kendi kliniğindendir.
   const { data: hasta } = await supabase.from("hasta").select("id").eq("id", hastaId).single();
 
-  return { supabase, hasta, yetkisiz: false as const };
+  return { supabase, userId: user.id, hasta, yetkisiz: false as const };
 }
 
 export async function portalErisimiAc(hastaId: string): Promise<PortalSonucu> {
@@ -428,8 +428,12 @@ const anamnezSemasi = z.object({
   sigara_alkol_madde_detay: z.string().nullable(),
 
   gelis_sebebi: z.string().nullable(),
-  oncelik_durumu: z.enum(["normal", "oncelikli", "acil"]),
 });
+// NOT: oncelik_durumu (öncelik/aciliyet durumu) BİLİNÇLİ OLARAK bu şemada
+// YOK — kullanıcı isteğiyle bu formdan kaldırıldı. Kolon DB'de duruyor
+// (Hasta Detay başlığındaki acil rozeti ve Kayıt Formu PDF'i hâlâ okuyor),
+// sadece burada artık yazılmıyor/upsert edilmiyor — upsert'e dahil
+// edilmediği için mevcut değeri olduğu gibi korunuyor.
 
 export async function anamnezGuncelle(
   hastaId: string,
@@ -468,7 +472,6 @@ export async function anamnezGuncelle(
     sigara_alkol_madde_detay: bosIseNull2(formData.get("sigara_alkol_madde_detay")),
 
     gelis_sebebi: bosIseNull2(formData.get("gelis_sebebi")),
-    oncelik_durumu: formData.get("oncelik_durumu") || "normal",
   });
 
   if (!ayristirma.success) {
@@ -489,7 +492,7 @@ export async function anamnezGuncelle(
 }
 
 export async function ozelNitelikliOnayVer(hastaId: string): Promise<PortalSonucu> {
-  const { supabase, hasta, yetkisiz } = await yetkiliHastaGetir(hastaId);
+  const { supabase, userId, hasta, yetkisiz } = await yetkiliHastaGetir(hastaId);
   if (yetkisiz) {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
@@ -499,7 +502,11 @@ export async function ozelNitelikliOnayVer(hastaId: string): Promise<PortalSonuc
 
   const { error } = await supabase
     .from("hasta")
-    .update({ ozel_nitelikli_veri_onay_tarihi: new Date().toISOString() })
+    .update({
+      ozel_nitelikli_veri_onay_tarihi: new Date().toISOString(),
+      ozel_nitelikli_onaylayan_tip: "personel",
+      ozel_nitelikli_onaylayan_kullanici_id: userId,
+    })
     .eq("id", hastaId);
 
   if (error) {
@@ -509,6 +516,33 @@ export async function ozelNitelikliOnayVer(hastaId: string): Promise<PortalSonuc
 
   revalidatePath(`/panel/hastalar/${hastaId}`);
   return { success: true, message: "Sağlık verisi işleme onayı kaydedildi." };
+}
+
+export async function ticariIletiOnayVer(hastaId: string): Promise<PortalSonucu> {
+  const { supabase, userId, hasta, yetkisiz } = await yetkiliHastaGetir(hastaId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!hasta) {
+    return { success: false, message: "Hasta bulunamadı." };
+  }
+
+  const { error } = await supabase
+    .from("hasta")
+    .update({
+      ticari_ileti_onay_tarihi: new Date().toISOString(),
+      ticari_ileti_onaylayan_tip: "personel",
+      ticari_ileti_onaylayan_kullanici_id: userId,
+    })
+    .eq("id", hastaId);
+
+  if (error) {
+    console.error("Ticari ileti onayı kaydedilemedi:", error);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/hastalar/${hastaId}`);
+  return { success: true, message: "Ticari ileti onayı kaydedildi." };
 }
 
 const riskBayragiSemasi = z.object({

@@ -11,6 +11,8 @@ export type HastaSatir = {
   whatsapp_izin_durumu: boolean;
 };
 
+export type OnaylayanTip = "hasta" | "personel";
+
 export type HastaDetay = HastaSatir & {
   cinsiyet: Cinsiyet | null;
   eposta: string | null;
@@ -18,4 +20,10 @@ export type HastaDetay = HastaSatir & {
   ozel_nitelikli_veri_onay_tarihi: string | null;
   ticari_ileti_onay_tarihi: string | null;
   risk_bayraklari: RiskBayragi[];
+  kvkk_onaylayan_tip: OnaylayanTip | null;
+  kvkk_onaylayan: { ad_soyad: string } | null;
+  ozel_nitelikli_onaylayan_tip: OnaylayanTip | null;
+  ozel_nitelikli_onaylayan: { ad_soyad: string } | null;
+  ticari_ileti_onaylayan_tip: OnaylayanTip | null;
+  ticari_ileti_onaylayan: { ad_soyad: string } | null;
 };

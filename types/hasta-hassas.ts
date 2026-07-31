@@ -1,3 +1,5 @@
+import type { OnaylayanTip } from "./hasta";
+
 export type KimlikNoTipi = "tc" | "pasaport";
 export type OncelikDurumu = "normal" | "oncelikli" | "acil";
 
@@ -39,4 +41,10 @@ export type HastaHassasSatir = {
   diger_yakini_ad_soyad: string | null;
   diger_yakini_telefon: string | null;
   diger_yakini_yakinlik: string | null;
+  created_at: string;
+  updated_at: string;
+  olusturan_tip: OnaylayanTip | null;
+  olusturan_kullanici: { ad_soyad: string } | null;
+  son_guncelleyen_tip: OnaylayanTip | null;
+  son_guncelleyen_kullanici: { ad_soyad: string } | null;
 };

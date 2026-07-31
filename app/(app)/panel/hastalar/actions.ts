@@ -44,7 +44,7 @@ async function klinikIdGetir() {
     .eq("id", user.id)
     .single();
 
-  return { supabase, klinikId: kullanici?.klinik_id ?? null };
+  return { supabase, klinikId: kullanici?.klinik_id ?? null, userId: user.id };
 }
 
 export async function hastaOlustur(
@@ -182,22 +182,41 @@ export async function hastaGuncelle(
   return { success: true, message: "Hasta güncellendi." };
 }
 
-export async function kvkkOnayVer(hastaId: string) {
-  const { supabase, klinikId } = await klinikIdGetir();
+export async function kvkkOnayVer(hastaId: string): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!klinikId) {
-    return;
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("klinik_id, rol")
+    .eq("id", user.id)
+    .single();
+
+  if (!kullanici?.klinik_id || (kullanici.rol !== "klinik_admin" && kullanici.rol !== "resepsiyon")) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
   const { error } = await supabase
     .from("hasta")
-    .update({ kvkk_onay_tarihi: new Date().toISOString() })
+    .update({
+      kvkk_onay_tarihi: new Date().toISOString(),
+      kvkk_onaylayan_tip: "personel",
+      kvkk_onaylayan_kullanici_id: user.id,
+    })
     .eq("id", hastaId);
 
   if (error) {
     console.error("KVKK onayı kaydedilemedi:", error);
-    return;
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath("/panel/hastalar");
+  revalidatePath(`/panel/hastalar/${hastaId}`);
+  return { success: true, message: "KVKK onayı kaydedildi." };
 }

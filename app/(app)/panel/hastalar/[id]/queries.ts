@@ -40,7 +40,10 @@ export function useHastaHassas(hastaId: string, aktif: boolean) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("hasta_hassas")
-        .select("*")
+        .select(
+          "*, olusturan_kullanici:kullanici!hasta_hassas_olusturan_kullanici_id_fkey(ad_soyad), " +
+            "son_guncelleyen_kullanici:kullanici!hasta_hassas_son_guncelleyen_kullanici_id_fkey(ad_soyad)"
+        )
         .eq("hasta_id", hastaId)
         .maybeSingle<HastaHassasSatir>();
       if (error) throw error;

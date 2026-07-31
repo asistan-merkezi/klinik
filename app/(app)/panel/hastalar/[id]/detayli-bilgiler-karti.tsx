@@ -1,8 +1,15 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { InfoIcon } from "lucide-react";
 import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +22,26 @@ import {
 import { cn, isimBasHarfBuyukYap, resitDegilMi, telefonYerelHaneleriCikar } from "@/lib/utils";
 import type { HastaDetay } from "@/types/hasta";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
-import { anamnezGuncelle, ozelNitelikliOnayVer, temelBilgileriGuncelle } from "./actions";
+import { kvkkOnayVer } from "../actions";
+import { anamnezGuncelle, ozelNitelikliOnayVer, temelBilgileriGuncelle, ticariIletiOnayVer } from "./actions";
+
+const ONAY_ACIKLAMALARI = {
+  kvkk: {
+    baslik: "KVKK Onayı",
+    metin:
+      "6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında; ad-soyad, iletişim bilgileriniz ve klinik kayıtlarınızın randevu planlama, tedavi süreçlerinin yürütülmesi ve yasal yükümlülüklerin yerine getirilmesi amacıyla işlenmesine onay verirsiniz. Verileriniz yalnızca klinik hizmetleri kapsamında saklanır, izniniz olmadan üçüncü kişilerle paylaşılmaz.",
+  },
+  saglik: {
+    baslik: "Sağlık Verisi İşleme Onayı",
+    metin:
+      "Özel nitelikli kişisel veri sayılan sağlık bilgileriniz (tıbbi geçmiş, alerjiler, kullanılan ilaçlar, ağrı skalası, tedavi notları vb.) yalnızca tedavi planınızın oluşturulması ve takibi amacıyla işlenir. Bu onay verilmeden sağlık geçmişi bilgileriniz sisteme kaydedilemez.",
+  },
+  ticari: {
+    baslik: "Ticari İleti Onayı",
+    metin:
+      "Randevu hatırlatmaları dışında; kampanya, indirim ve bilgilendirme amaçlı SMS/WhatsApp/e-posta mesajları almayı kabul edersiniz. Bu onayı istediğiniz zaman geri çekebilirsiniz (WhatsApp'tan \"DUR\" yazarak veya kliniğe bildirerek).",
+  },
+} as const;
 
 const CINSIYET_SECENEKLERI = [
   { value: "kadin", label: "Kadın" },
@@ -34,12 +60,6 @@ const REFERANS_SECENEKLERI_TABAN = [
   { value: "google", label: "Google" },
   { value: "reklam", label: "Reklam" },
   { value: "diger", label: "Diğer" },
-];
-
-const ONCELIK_SECENEKLERI = [
-  { value: "normal", label: "Normal" },
-  { value: "oncelikli", label: "Öncelikli" },
-  { value: "acil", label: "🔴 Acil" },
 ];
 
 function textAlaniSinifi(kritikMi?: boolean) {
@@ -186,6 +206,90 @@ function EvetHayirAlan({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+type OnayTuru = keyof typeof ONAY_ACIKLAMALARI;
+
+/** KVKK/sağlık verisi/ticari ileti onay satırı — açıklama pop-up'ı + onaylayan bilgisi + onay tuşu. */
+function OnaySatiri({
+  tur,
+  onayTarihi,
+  onaylayanTip,
+  onaylayanAd,
+  hastaAdSoyad,
+  onayAction,
+  gosterOnayTusu,
+}: {
+  tur: OnayTuru;
+  onayTarihi: string | null;
+  onaylayanTip: "hasta" | "personel" | null;
+  onaylayanAd: string | null;
+  hastaAdSoyad: string;
+  onayAction: () => Promise<{ success: boolean; message: string } | null>;
+  gosterOnayTusu: boolean;
+}) {
+  const [popupAcik, setPopupAcik] = useState(false);
+  const [onayPending, startOnayTransition] = useTransition();
+  const [hata, setHata] = useState<string | null>(null);
+  const { baslik, metin } = ONAY_ACIKLAMALARI[tur];
+
+  const onaylayanGoster = onayTarihi
+    ? onaylayanTip === "hasta"
+      ? `${hastaAdSoyad} (Hasta)`
+      : (onaylayanAd ?? "—")
+    : null;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={() => setPopupAcik(true)}
+          className="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+          aria-label={`${baslik} açıklamasını oku`}
+        >
+          <InfoIcon className="size-4" />
+        </button>
+        <div className="flex flex-col">
+          <span className="font-medium">{baslik}</span>
+          {onayTarihi ? (
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">
+              {new Date(onayTarihi).toLocaleDateString("tr-TR")} · Onaylayan: {onaylayanGoster}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Alınmadı</span>
+          )}
+          {hata && <span className="text-xs text-destructive">{hata}</span>}
+        </div>
+      </div>
+
+      {!onayTarihi && gosterOnayTusu && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={onayPending}
+          onClick={() =>
+            startOnayTransition(async () => {
+              const sonuc = await onayAction();
+              if (sonuc && !sonuc.success) setHata(sonuc.message);
+            })
+          }
+        >
+          {onayPending ? "Kaydediliyor..." : "Onayla"}
+        </Button>
+      )}
+
+      <Dialog open={popupAcik} onOpenChange={setPopupAcik}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{baslik}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm whitespace-pre-line text-muted-foreground">{metin}</p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -582,26 +686,6 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
             className={textAlaniSinifi()}
           />
         </div>
-        <div className="flex flex-col gap-2 sm:w-64">
-          <Label htmlFor="oncelik_durumu">Öncelik / Aciliyet Durumu</Label>
-          <Select
-            name="oncelik_durumu"
-            disabled={isPending}
-            defaultValue={hassas?.oncelik_durumu ?? "normal"}
-            items={ONCELIK_SECENEKLERI}
-          >
-            <SelectTrigger id="oncelik_durumu" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ONCELIK_SECENEKLERI.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </fieldset>
 
       {durum && (
@@ -617,6 +701,29 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
   );
 }
 
+function DoldurmaBilgisiSatiri({
+  etiket,
+  tip,
+  kullaniciAdSoyad,
+  hastaAdSoyad,
+  tarih,
+}: {
+  etiket: string;
+  tip: "hasta" | "personel" | null;
+  kullaniciAdSoyad: string | null;
+  hastaAdSoyad: string;
+  tarih: string | null;
+}) {
+  if (!tip || !tarih) return null;
+  const kisi = tip === "hasta" ? `${hastaAdSoyad} (Hasta)` : (kullaniciAdSoyad ?? "—");
+  return (
+    <span>
+      {etiket}: <span className="text-foreground">{kisi}</span> ·{" "}
+      {new Date(tarih).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}
+    </span>
+  );
+}
+
 export function DetayliBilgilerKarti({
   hasta,
   hassas,
@@ -626,36 +733,40 @@ export function DetayliBilgilerKarti({
   hassas: HastaHassasSatir | null;
   duzenlenebilir: boolean;
 }) {
-  const [onayPending, startOnayTransition] = useTransition();
+  const sonDegisiklikVar = Boolean(
+    hassas && hassas.updated_at && hassas.created_at && hassas.updated_at !== hassas.created_at
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between text-sm">
-        <span>
-          Sağlık verisi işleme onayı:{" "}
-          {hasta.ozel_nitelikli_veri_onay_tarihi ? (
-            <span className="text-emerald-600 dark:text-emerald-400">
-              {new Date(hasta.ozel_nitelikli_veri_onay_tarihi).toLocaleDateString("tr-TR")}
-            </span>
-          ) : (
-            <span className="text-muted-foreground">Alınmadı</span>
-          )}
-        </span>
-        {!hasta.ozel_nitelikli_veri_onay_tarihi && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={onayPending}
-            onClick={() =>
-              startOnayTransition(async () => {
-                await ozelNitelikliOnayVer(hasta.id);
-              })
-            }
-          >
-            Onay al (kağıt form imzalandıysa)
-          </Button>
-        )}
+      <div className="flex flex-col gap-2">
+        <OnaySatiri
+          tur="kvkk"
+          onayTarihi={hasta.kvkk_onay_tarihi}
+          onaylayanTip={hasta.kvkk_onaylayan_tip}
+          onaylayanAd={hasta.kvkk_onaylayan?.ad_soyad ?? null}
+          hastaAdSoyad={hasta.ad_soyad}
+          onayAction={() => kvkkOnayVer(hasta.id)}
+          gosterOnayTusu={duzenlenebilir}
+        />
+        <OnaySatiri
+          tur="saglik"
+          onayTarihi={hasta.ozel_nitelikli_veri_onay_tarihi}
+          onaylayanTip={hasta.ozel_nitelikli_onaylayan_tip}
+          onaylayanAd={hasta.ozel_nitelikli_onaylayan?.ad_soyad ?? null}
+          hastaAdSoyad={hasta.ad_soyad}
+          onayAction={() => ozelNitelikliOnayVer(hasta.id)}
+          gosterOnayTusu={duzenlenebilir}
+        />
+        <OnaySatiri
+          tur="ticari"
+          onayTarihi={hasta.ticari_ileti_onay_tarihi}
+          onaylayanTip={hasta.ticari_ileti_onaylayan_tip}
+          onaylayanAd={hasta.ticari_ileti_onaylayan?.ad_soyad ?? null}
+          hastaAdSoyad={hasta.ad_soyad}
+          onayAction={() => ticariIletiOnayVer(hasta.id)}
+          gosterOnayTusu={duzenlenebilir}
+        />
       </div>
 
       {duzenlenebilir && (
@@ -666,6 +777,31 @@ export function DetayliBilgilerKarti({
       )}
 
       <AnamnezFormu hasta={hasta} hassas={hassas} />
+
+      <div className="flex flex-col gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
+        {hassas ? (
+          <>
+            <DoldurmaBilgisiSatiri
+              etiket="Formu dolduran"
+              tip={hassas.olusturan_tip}
+              kullaniciAdSoyad={hassas.olusturan_kullanici?.ad_soyad ?? null}
+              hastaAdSoyad={hasta.ad_soyad}
+              tarih={hassas.created_at}
+            />
+            {sonDegisiklikVar && (
+              <DoldurmaBilgisiSatiri
+                etiket="Son değişiklik"
+                tip={hassas.son_guncelleyen_tip}
+                kullaniciAdSoyad={hassas.son_guncelleyen_kullanici?.ad_soyad ?? null}
+                hastaAdSoyad={hasta.ad_soyad}
+                tarih={hassas.updated_at}
+              />
+            )}
+          </>
+        ) : (
+          <span>Form henüz doldurulmadı.</span>
+        )}
+      </div>
     </div>
   );
 }
