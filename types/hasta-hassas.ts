@@ -36,4 +36,7 @@ export type HastaHassasSatir = {
   anne_telefon: string | null;
   baba_adi: string | null;
   baba_telefon: string | null;
+  diger_yakini_ad_soyad: string | null;
+  diger_yakini_telefon: string | null;
+  diger_yakini_yakinlik: string | null;
 };

@@ -144,12 +144,27 @@ export function KisiselBilgilerSekmesi({
         <CardContent className="flex flex-col gap-3">
           {hassasYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
-          ) : hassas?.anne_adi || hassas?.anne_telefon || hassas?.baba_adi || hassas?.baba_telefon ? (
+          ) : hassas?.anne_adi ||
+            hassas?.anne_telefon ||
+            hassas?.baba_adi ||
+            hassas?.baba_telefon ||
+            hassas?.diger_yakini_ad_soyad ||
+            hassas?.diger_yakini_telefon ? (
             <div className="grid grid-cols-2 gap-y-1.5 border-b border-border pb-3 text-sm">
               <span className="text-muted-foreground">Anne</span>
               <span>{[hassas?.anne_adi, hassas?.anne_telefon].filter(Boolean).join(" · ") || "—"}</span>
               <span className="text-muted-foreground">Baba</span>
               <span>{[hassas?.baba_adi, hassas?.baba_telefon].filter(Boolean).join(" · ") || "—"}</span>
+              {(hassas?.diger_yakini_ad_soyad || hassas?.diger_yakini_telefon) && (
+                <>
+                  <span className="text-muted-foreground">
+                    Diğer Yakını{hassas?.diger_yakini_yakinlik ? ` (${hassas.diger_yakini_yakinlik})` : ""}
+                  </span>
+                  <span>
+                    {[hassas?.diger_yakini_ad_soyad, hassas?.diger_yakini_telefon].filter(Boolean).join(" · ") || "—"}
+                  </span>
+                </>
+              )}
             </div>
           ) : null}
 
@@ -188,7 +203,7 @@ export function KisiselBilgilerSekmesi({
           {hassasYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
           ) : (
-            <DetayliBilgilerKarti hasta={hasta} hassas={hassas ?? null} />
+            <DetayliBilgilerKarti hasta={hasta} hassas={hassas ?? null} duzenlenebilir={duzenlenebilir} />
           )}
         </CardContent>
       </Card>

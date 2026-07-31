@@ -276,7 +276,29 @@ const evetHayirSemasi = z
   .optional()
   .transform((deger) => (deger === "evet" ? true : deger === "hayir" ? false : null));
 
-const detayliSemasi = z.object({
+// NOT (kimlik_no uzunluğu): T.C. Kimlik No 11 hane kontrolü kasıtlı olarak
+// burada YOK (sadece client'ta uyarı gösteriliyor, bkz. detayli-bilgiler-karti.tsx).
+// Daha önce burada bir superRefine ile sert reddediliyordu, ama üretimde 11
+// haneden farklı (10 haneli) kimlik_no ile kayıtlı gerçek hastalar var (bu
+// alan eklendiğinde henüz uzunluk kontrolü yoktu) — o hastalarda formun
+// HİÇBİR alanı kaydedilemiyordu, kullanıcı kimlik_no alanına hiç dokunmasa
+// bile. "Eksik/fazla girilirse uyarılsın" isteği zaten sadece uyarı
+// istiyordu, reddetme değil.
+//
+// NOT (form ikiye ayrıldı): Kimlik/İletişim/Adres/Acil Durum/Veli ile
+// Tıbbi Ön Geçmiş (anamnez) tek bir formda birleşikken ciddi bir hata vardı:
+// hasta.telefon her submit'te (dokunulmasa bile) "+90..." formatına yeniden
+// yazılıyordu, bu da terapist için hasta.telefon'u DEĞİŞTİRİYOR sayılıp
+// hasta_terapist_sadece_risk_guncelle trigger'ını (terapist sadece
+// risk_bayraklari değiştirebilir) tetikliyor ve TÜM formu (anamnez dahil)
+// reddediyordu. Artık iki ayrı action/form var: temelBilgileriGuncelle
+// (klinik_admin/resepsiyon-only, hasta tablosu + kimlik/adres/veli) ve
+// anamnezGuncelle (terapist + klinik_admin/resepsiyon, sadece anamnez
+// alanları, hasta tablosuna hiç dokunmuyor). Aynı ayrım DB'de de
+// hasta_hassas_terapist_kisitla trigger'ıyla (migration 20260731100000)
+// garanti altına alındı.
+
+const temelBilgilerSemasi = z.object({
   ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
   telefon: z.string().regex(/^\+90\d{10}$/, "Telefon numarası (başındaki 0 hariç) 10 haneli olmalı."),
   dogum_tarihi: z.union([z.string().date(), z.literal("")]).optional(),
@@ -296,7 +318,96 @@ const detayliSemasi = z.object({
   anne_telefon: z.string().nullable(),
   baba_adi: z.string().nullable(),
   baba_telefon: z.string().nullable(),
+  diger_yakini_ad_soyad: z.string().nullable(),
+  diger_yakini_telefon: z.string().nullable(),
+  diger_yakini_yakinlik: z.string().nullable(),
+});
 
+export async function temelBilgileriGuncelle(
+  hastaId: string,
+  _onceki: PortalSonucu,
+  formData: FormData
+): Promise<PortalSonucu> {
+  // Kimlik/iletişim/adres/veli idari veridir — sadece klinik_admin/resepsiyon.
+  const { supabase, hasta, yetkisiz } = await yetkiliHastaGetir(hastaId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!hasta) {
+    return { success: false, message: "Hasta bulunamadı." };
+  }
+
+  const ayristirma = temelBilgilerSemasi.safeParse({
+    ad_soyad: formData.get("ad_soyad"),
+    telefon: formData.get("telefon"),
+    dogum_tarihi: formData.get("dogum_tarihi") ?? "",
+    cinsiyet: bosIseNull2(formData.get("cinsiyet")),
+    eposta: bosIseNull2(formData.get("eposta")),
+    referans_kanali: bosIseNull2(formData.get("referans_kanali")),
+    kimlik_no: bosIseNull2(formData.get("kimlik_no")),
+    kimlik_no_tipi: bosIseNull2(formData.get("kimlik_no_tipi")),
+    il: bosIseNull2(formData.get("adres_il")),
+    ilce: bosIseNull2(formData.get("adres_ilce")),
+    mahalle: bosIseNull2(formData.get("adres_mahalle")),
+    adres: bosIseNull2(formData.get("adres")),
+    acil_durum_ad_soyad: bosIseNull2(formData.get("acil_durum_ad_soyad")),
+    acil_durum_yakinlik: bosIseNull2(formData.get("acil_durum_yakinlik")),
+    acil_durum_telefon: bosIseNull2(formData.get("acil_durum_telefon")),
+    anne_adi: bosIseNull2(formData.get("anne_adi")),
+    anne_telefon: bosIseNull2(formData.get("anne_telefon")),
+    baba_adi: bosIseNull2(formData.get("baba_adi")),
+    baba_telefon: bosIseNull2(formData.get("baba_telefon")),
+    diger_yakini_ad_soyad: bosIseNull2(formData.get("diger_yakini_ad_soyad")),
+    diger_yakini_telefon: bosIseNull2(formData.get("diger_yakini_telefon")),
+    diger_yakini_yakinlik: bosIseNull2(formData.get("diger_yakini_yakinlik")),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { ad_soyad, telefon, dogum_tarihi, cinsiyet, eposta, referans_kanali, anne_adi, baba_adi, diger_yakini_ad_soyad, ...digerHassas } =
+    ayristirma.data;
+
+  const [hastaSonucu, hassasSonucu] = await Promise.all([
+    supabase
+      .from("hasta")
+      .update({
+        ad_soyad: isimBasHarfBuyukYap(ad_soyad),
+        telefon,
+        dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
+        cinsiyet,
+        eposta,
+        referans_kanali,
+      })
+      .eq("id", hastaId),
+    supabase.from("hasta_hassas").upsert(
+      {
+        hasta_id: hastaId,
+        ...digerHassas,
+        anne_adi: anne_adi ? isimBasHarfBuyukYap(anne_adi) : null,
+        baba_adi: baba_adi ? isimBasHarfBuyukYap(baba_adi) : null,
+        diger_yakini_ad_soyad: diger_yakini_ad_soyad ? isimBasHarfBuyukYap(diger_yakini_ad_soyad) : null,
+      },
+      { onConflict: "hasta_id" }
+    ),
+  ]);
+
+  if (hastaSonucu.error || hassasSonucu.error) {
+    console.error("Temel bilgiler güncellenemedi:", hastaSonucu.error, hassasSonucu.error);
+    if (hassasSonucu.error?.code === "23505") {
+      return { success: false, message: "Bu kimlik no başka bir hastada kayıtlı." };
+    }
+    return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidatePath("/panel/hastalar");
+  revalidatePath("/panel/randevular");
+  return { success: true, message: "Temel bilgiler kaydedildi." };
+}
+
+const anamnezSemasi = z.object({
   alerji_var: evetHayirSemasi,
   alerjiler: z.string().nullable(),
   kan_sulandirici_kullanimi: evetHayirSemasi,
@@ -319,23 +430,15 @@ const detayliSemasi = z.object({
   gelis_sebebi: z.string().nullable(),
   oncelik_durumu: z.enum(["normal", "oncelikli", "acil"]),
 });
-// NOT: T.C. Kimlik No 11 hane kontrolü kasıtlı olarak burada YOK (sadece
-// client'ta uyarı gösteriliyor, bkz. detayli-bilgiler-karti.tsx). Daha önce
-// burada bir superRefine ile sert reddediliyordu, ama üretimde 11 haneden
-// farklı (10 haneli) kimlik_no ile kayıtlı gerçek hastalar var (bu alan
-// eklendiğinde henüz uzunluk kontrolü yoktu) — o hastalarda formun HİÇBİR
-// alanı (adres, anne/baba, anamnez...) kaydedilemiyordu, kullanıcı kimlik_no
-// alanına hiç dokunmasa bile. "Eksik/fazla girilirse uyarılsın" isteği zaten
-// sadece uyarı istiyordu, reddetme değil.
 
-export async function detayliBilgileriGuncelle(
+export async function anamnezGuncelle(
   hastaId: string,
   _onceki: PortalSonucu,
   formData: FormData
 ): Promise<PortalSonucu> {
   // Anamnez klinik/tedavi içeriğidir — terapist de düzenleyebilir (klinik_admin/
-  // resepsiyon'un yanı sıra). Diğer portal/idari aksiyonlar (KVKK onayı, portal
-  // erişimi) hâlâ sadece klinik_admin/resepsiyon'a açık, bkz. yetkiliHastaGetir.
+  // resepsiyon'un yanı sıra). Bu action hasta tablosuna HİÇ dokunmuyor ve
+  // hasta_hassas'a sadece anamnez alanlarını yazıyor (bkz. yukarıdaki not).
   const { supabase, hasta, yetkisiz } = await terapistDahilYetkiliHastaGetir(hastaId);
   if (yetkisiz) {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
@@ -344,27 +447,7 @@ export async function detayliBilgileriGuncelle(
     return { success: false, message: "Hasta bulunamadı." };
   }
 
-  const ayristirma = detayliSemasi.safeParse({
-    ad_soyad: formData.get("ad_soyad"),
-    telefon: formData.get("telefon"),
-    dogum_tarihi: formData.get("dogum_tarihi") ?? "",
-    cinsiyet: bosIseNull2(formData.get("cinsiyet")),
-    eposta: bosIseNull2(formData.get("eposta")),
-    referans_kanali: bosIseNull2(formData.get("referans_kanali")),
-    kimlik_no: bosIseNull2(formData.get("kimlik_no")),
-    kimlik_no_tipi: bosIseNull2(formData.get("kimlik_no_tipi")),
-    il: bosIseNull2(formData.get("adres_il")),
-    ilce: bosIseNull2(formData.get("adres_ilce")),
-    mahalle: bosIseNull2(formData.get("adres_mahalle")),
-    adres: bosIseNull2(formData.get("adres")),
-    acil_durum_ad_soyad: bosIseNull2(formData.get("acil_durum_ad_soyad")),
-    acil_durum_yakinlik: bosIseNull2(formData.get("acil_durum_yakinlik")),
-    acil_durum_telefon: bosIseNull2(formData.get("acil_durum_telefon")),
-    anne_adi: bosIseNull2(formData.get("anne_adi")),
-    anne_telefon: bosIseNull2(formData.get("anne_telefon")),
-    baba_adi: bosIseNull2(formData.get("baba_adi")),
-    baba_telefon: bosIseNull2(formData.get("baba_telefon")),
-
+  const ayristirma = anamnezSemasi.safeParse({
     alerji_var: formData.get("alerji_var") ?? "",
     alerjiler: bosIseNull2(formData.get("alerjiler")),
     kan_sulandirici_kullanimi: formData.get("kan_sulandirici_kullanimi") ?? "",
@@ -392,44 +475,17 @@ export async function detayliBilgileriGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad_soyad, telefon, dogum_tarihi, cinsiyet, eposta, referans_kanali, anne_adi, baba_adi, ...digerHassas } =
-    ayristirma.data;
+  const { error } = await supabase
+    .from("hasta_hassas")
+    .upsert({ hasta_id: hastaId, ...ayristirma.data }, { onConflict: "hasta_id" });
 
-  const [hastaSonucu, hassasSonucu] = await Promise.all([
-    supabase
-      .from("hasta")
-      .update({
-        ad_soyad: isimBasHarfBuyukYap(ad_soyad),
-        telefon,
-        dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
-        cinsiyet,
-        eposta,
-        referans_kanali,
-      })
-      .eq("id", hastaId),
-    supabase.from("hasta_hassas").upsert(
-      {
-        hasta_id: hastaId,
-        ...digerHassas,
-        anne_adi: anne_adi ? isimBasHarfBuyukYap(anne_adi) : null,
-        baba_adi: baba_adi ? isimBasHarfBuyukYap(baba_adi) : null,
-      },
-      { onConflict: "hasta_id" }
-    ),
-  ]);
-
-  if (hastaSonucu.error || hassasSonucu.error) {
-    console.error("Detaylı bilgiler güncellenemedi:", hastaSonucu.error, hassasSonucu.error);
-    if (hassasSonucu.error?.code === "23505") {
-      return { success: false, message: "Bu kimlik no başka bir hastada kayıtlı." };
-    }
+  if (error) {
+    console.error("Anamnez güncellenemedi:", error);
     return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath(`/panel/hastalar/${hastaId}`);
-  revalidatePath("/panel/hastalar");
-  revalidatePath("/panel/randevular");
-  return { success: true, message: "Detaylı bilgiler kaydedildi." };
+  return { success: true, message: "Tıbbi geçmiş kaydedildi." };
 }
 
 export async function ozelNitelikliOnayVer(hastaId: string): Promise<PortalSonucu> {
