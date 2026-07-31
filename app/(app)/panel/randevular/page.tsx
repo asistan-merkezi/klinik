@@ -20,6 +20,26 @@ export default async function RandevularSayfasi() {
     redirect("/giris");
   }
 
+  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  const rol = kullanici?.rol ?? null;
+
+  let kendiTerapistId: string | null = null;
+  if (rol === "terapist") {
+    const { data: personel } = await supabase
+      .from("personel")
+      .select("id")
+      .eq("kullanici_id", user.id)
+      .maybeSingle();
+    if (personel) {
+      const { data: terapist } = await supabase
+        .from("terapist")
+        .select("id")
+        .eq("personel_id", personel.id)
+        .maybeSingle();
+      kendiTerapistId = terapist?.id ?? null;
+    }
+  }
+
   const { baslangic, bitis } = gunAraligi();
 
   const [
@@ -29,12 +49,14 @@ export default async function RandevularSayfasi() {
     odaSonucu,
     cihazSonucu,
     tedaviSonucu,
+    personelSonucu,
+    protokolSonucu,
     iptalTalepleriSonucu,
   ] = await Promise.all([
       supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)"
+          "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad)"
         )
         .gte("baslangic", baslangic)
         .lt("baslangic", bitis)
@@ -48,6 +70,8 @@ export default async function RandevularSayfasi() {
       supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
+      supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
+      supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
       supabase
         .from("randevu_iptal_talebi")
         .select("id, durum, created_at, randevu(id, baslangic, durum, hasta(ad_soyad))")
@@ -68,6 +92,8 @@ export default async function RandevularSayfasi() {
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
+  const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
+  const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -117,7 +143,11 @@ export default async function RandevularSayfasi() {
             terapistler={terapistler}
             cihazlar={cihazlar}
             tedaviler={tedaviler}
+            antrenorler={antrenorler}
+            protokoller={protokoller}
             tarihNavigasyonuGoster
+            rol={rol}
+            kendiTerapistId={kendiTerapistId}
           />
         )}
       </div>

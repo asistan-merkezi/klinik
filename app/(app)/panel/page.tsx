@@ -15,25 +15,48 @@ export default async function PanelSayfasi() {
     redirect("/giris");
   }
 
+  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  const rol = kullanici?.rol ?? null;
+
+  let kendiTerapistId: string | null = null;
+  if (rol === "terapist") {
+    const { data: personel } = await supabase
+      .from("personel")
+      .select("id")
+      .eq("kullanici_id", user.id)
+      .maybeSingle();
+    if (personel) {
+      const { data: terapist } = await supabase
+        .from("terapist")
+        .select("id")
+        .eq("personel_id", personel.id)
+        .maybeSingle();
+      kendiTerapistId = terapist?.id ?? null;
+    }
+  }
+
   const { baslangic, bitis } = gunAraligi();
-  const [randevularSonucu, odaSonucu, terapistSonucu, cihazSonucu, tedaviSonucu] = await Promise.all([
-    supabase
-      .from("randevu")
-      .select(
-        "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)"
-      )
-      .gte("baslangic", baslangic)
-      .lt("baslangic", bitis)
-      .order("baslangic")
-      .returns<RandevuSatir[]>(),
-    supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
-    supabase
-      .from("terapist")
-      .select("id, personel(ad_soyad)")
-      .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
-    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
-  ]);
+  const [randevularSonucu, odaSonucu, terapistSonucu, cihazSonucu, tedaviSonucu, personelSonucu, protokolSonucu] =
+    await Promise.all([
+      supabase
+        .from("randevu")
+        .select(
+          "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad)"
+        )
+        .gte("baslangic", baslangic)
+        .lt("baslangic", bitis)
+        .order("baslangic")
+        .returns<RandevuSatir[]>(),
+      supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
+      supabase
+        .from("terapist")
+        .select("id, personel(ad_soyad)")
+        .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
+      supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
+      supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
+      supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
+      supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
+    ]);
 
   const { data: randevular, error } = randevularSonucu;
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
@@ -42,6 +65,8 @@ export default async function PanelSayfasi() {
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
+  const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
+  const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
 
   if (error) {
     console.error("Bugünkü randevular çekilemedi:", error);
@@ -59,6 +84,10 @@ export default async function PanelSayfasi() {
             terapistler={terapistler}
             cihazlar={cihazlar}
             tedaviler={tedaviler}
+            antrenorler={antrenorler}
+            protokoller={protokoller}
+            rol={rol}
+            kendiTerapistId={kendiTerapistId}
           />
         )}
       </div>

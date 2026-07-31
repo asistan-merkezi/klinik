@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { bolgeBul } from "@/lib/vucut-bolgeleri";
-import { RANDEVU_DURUM_ETIKETLERI, type RandevuDurumu } from "@/types/hasta-detay";
+import { RANDEVU_DURUM_ETIKETLERI, type RandevuDurumu, type HastaSeansSatir } from "@/types/hasta-detay";
 import { useHastaSeansGecmisi, useHastaProtokoller, useVucutHaritasi } from "./queries";
 
 const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
@@ -118,9 +118,35 @@ export function SeansGecmisiZamanCizelgesi({
                 </div>
               )}
             </button>
+
+            {secili && <TedaviBilgisiKarti seans={seans} />}
           </li>
         );
       })}
     </ol>
+  );
+}
+
+function TedaviBilgisiSatiri({ etiket, deger }: { etiket: string; deger: string }) {
+  return (
+    <div className="grid grid-cols-[110px_1fr] gap-2 text-sm">
+      <span className="font-medium text-muted-foreground">{etiket}:</span>
+      <span>{deger || "—"}</span>
+    </div>
+  );
+}
+
+function TedaviBilgisiKarti({ seans }: { seans: HastaSeansSatir }) {
+  return (
+    <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5">
+      <h4 className="mb-1 text-sm font-semibold">
+        Tedavi ({TARIH_SAAT_FORMAT.format(new Date(seans.baslangic))})
+      </h4>
+      <TedaviBilgisiSatiri etiket="Fizyoterapist" deger={seans.terapist?.personel?.ad_soyad ?? ""} />
+      <TedaviBilgisiSatiri etiket="Antrenör" deger={seans.antrenor?.ad_soyad ?? ""} />
+      <TedaviBilgisiSatiri etiket="Tanı" deger={seans.tani ?? ""} />
+      <TedaviBilgisiSatiri etiket="Tedavi Türü" deger={seans.islem_tanimi?.ad ?? ""} />
+      <TedaviBilgisiSatiri etiket="Tedavi Protokolü" deger={seans.tedavi_protokolu?.ad ?? ""} />
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 import type { RandevuSatir } from "@/types/randevu";
@@ -131,11 +132,14 @@ export function tedaviRengi(islemTanimiId: string | undefined | null) {
 type RandevuKutusuProps = {
   randevu: RandevuSatir;
   gorunumDurumu: GorunumDurumu;
+  /** true ise (seansta + yetkili terapist/admin) kutu, hasta detayının Tedavi & Anamnez sekmesine bağlanır. */
+  hastaLinki?: boolean;
 };
 
 export const RandevuKutusu = memo(function RandevuKutusu({
   randevu,
   gorunumDurumu,
+  hastaLinki = false,
 }: RandevuKutusuProps) {
   const stil = DURUM_STIL[gorunumDurumu];
   const renk = stil.kutuRenk ?? tedaviRengi(randevu.islem_tanimi?.id);
@@ -149,6 +153,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
     randevu.terapist?.personel?.ad_soyad,
     randevu.islem_tanimi?.ad,
     etiket,
+    hastaLinki ? "Tedavi & Anamnez'e git" : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -181,6 +186,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
             <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
           )}
           {etiket}
+          {hastaLinki && <ArrowUpRight className="size-2.5" aria-hidden />}
         </span>
       </div>
 

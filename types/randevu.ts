@@ -16,6 +16,11 @@ export type RandevuSatir = {
   oda_id?: string;
   cihaz_id?: string | null;
   islem_tanimi?: { id: string; ad: string } | null;
+  tani?: string | null;
+  antrenor_id?: string | null;
+  antrenor?: { ad_soyad: string } | null;
+  tedavi_protokolu_id?: string | null;
+  tedavi_protokolu?: { id: string; ad: string } | null;
 };
 
 export type SecenekSatir = {

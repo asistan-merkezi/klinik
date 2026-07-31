@@ -21,6 +21,18 @@ const randevuSemasi = z.object({
   sure_dakika: z.coerce.number().int().min(5, "Süre en az 5 dakika olmalı.").max(480, "Süre en fazla 480 dakika olabilir."),
 });
 
+/**
+ * Randevu Detay panelindeki "Tedavi Bilgileri" bloğu (Tanı/Antrenör/Tedavi
+ * Protokolü) — üçü de opsiyonel, sadece randevuGuncelle'de kullanılıyor
+ * (oluşturma formunda yok, kullanıcı kararıyla bu alanlar seans sırasında/
+ * sonrasında doldurulacak bilgiler olarak ayrı tutuldu).
+ */
+const tedaviBilgileriSemasi = z.object({
+  tani: z.string().trim().optional(),
+  antrenor_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+  tedavi_protokolu_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+});
+
 export async function randevuOlustur(
   _onceki: SonucDurumu,
   formData: FormData
@@ -127,7 +139,18 @@ export async function randevuGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
+  const tedaviBilgileriAyristirma = tedaviBilgileriSemasi.safeParse({
+    tani: formData.get("tani") ?? "",
+    antrenor_id: formData.get("antrenor_id") ?? "",
+    tedavi_protokolu_id: formData.get("tedavi_protokolu_id") ?? "",
+  });
+
+  if (!tedaviBilgileriAyristirma.success) {
+    return { success: false, message: "Tedavi bilgileri hatalı." };
+  }
+
   const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
+  const { tani, antrenor_id, tedavi_protokolu_id } = tedaviBilgileriAyristirma.data;
 
   let baslangicIso: string;
   try {
@@ -147,6 +170,9 @@ export async function randevuGuncelle(
       cihaz_id: cihaz_id ? cihaz_id : null,
       baslangic: baslangicIso,
       bitis: bitisIso,
+      tani: tani ? tani : null,
+      antrenor_id: antrenor_id ? antrenor_id : null,
+      tedavi_protokolu_id: tedavi_protokolu_id ? tedavi_protokolu_id : null,
     })
     .eq("id", randevuId);
 

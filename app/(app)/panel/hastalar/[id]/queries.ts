@@ -275,7 +275,9 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("randevu")
-        .select("id, baslangic, bitis, durum, terapist(personel(ad_soyad))")
+        .select(
+          "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), islem_tanimi(ad), tani, antrenor:personel(ad_soyad), tedavi_protokolu(id, ad)"
+        )
         .eq("hasta_id", hastaId)
         .lt("baslangic", new Date().toISOString())
         .order("baslangic", { ascending: false })

@@ -43,7 +43,7 @@ function dakikaYuvarla(dakika: number) {
 }
 
 const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad)";
+  "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad)";
 
 export function CanliCizelge({
   baslangicRandevular,
@@ -51,15 +51,25 @@ export function CanliCizelge({
   terapistler,
   cihazlar,
   tedaviler,
+  antrenorler,
+  protokoller,
   tarihNavigasyonuGoster = false,
+  rol = null,
+  kendiTerapistId = null,
 }: {
   baslangicRandevular: RandevuSatir[];
   odalar: SecenekSatir[];
   terapistler: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
+  antrenorler: SecenekSatir[];
+  protokoller: SecenekSatir[];
   /** true ise başlıkta gün ileri/geri + tarih seçici gösterilir, geçmiş/gelecek günler görüntülenebilir. */
   tarihNavigasyonuGoster?: boolean;
+  /** klinik_admin ve, kendi randevusu için, terapist "seansta" kutucuğunu hasta detayına link olarak kullanabilir. */
+  rol?: string | null;
+  /** rol==="terapist" ise kendi terapist.id'si — sadece kendi randevularında link aktif olsun diye. */
+  kendiTerapistId?: string | null;
 }) {
   const router = useRouter();
   const [randevular, setRandevular] = useState(baslangicRandevular);
@@ -159,8 +169,23 @@ export function CanliCizelge({
     router.push(`/panel/randevular?oda_id=${odaId}&tarih=${tarih}&saat=${saat}`);
   }
 
-  function randevuKutusunaTiklandi(e: React.MouseEvent | React.KeyboardEvent, randevu: RandevuSatir) {
+  /** Seansta olan bir randevu için, sadece o hastanın randevusuna bakan terapist veya klinik_admin/super_admin için geçerli. */
+  function seansHastasinaGitYetkisiVarMi(randevu: RandevuSatir) {
+    if (rol === "klinik_admin" || rol === "super_admin") return true;
+    if (rol === "terapist" && kendiTerapistId) return randevu.terapist_id === kendiTerapistId;
+    return false;
+  }
+
+  function randevuKutusunaTiklandi(
+    e: React.MouseEvent | React.KeyboardEvent,
+    randevu: RandevuSatir,
+    durum: ReturnType<typeof gorunumDurumuHesapla>
+  ) {
     e.stopPropagation();
+    if (durum === "seansta" && randevu.hasta_id && seansHastasinaGitYetkisiVarMi(randevu)) {
+      router.push(`/panel/hastalar/${randevu.hasta_id}?tab=tedavi`);
+      return;
+    }
     setSeciliRandevu(randevu);
     setDetayAcik(true);
   }
@@ -357,6 +382,8 @@ export function CanliCizelge({
                         const bitisFarki = dakikaFarki(gunBaslangicMs, randevu.bitis);
                         const yukseklik = Math.max((bitisFarki - baslangicFarki) * PX_PER_DAKIKA - 4, 40);
 
+                        const hastaLinki = durum === "seansta" && seansHastasinaGitYetkisiVarMi(randevu);
+
                         return (
                           <div
                             key={randevu.id}
@@ -364,15 +391,15 @@ export function CanliCizelge({
                             style={{ top: `${ustKonum}px`, height: `${yukseklik}px` }}
                             role="button"
                             tabIndex={0}
-                            onClick={(e) => randevuKutusunaTiklandi(e, randevu)}
+                            onClick={(e) => randevuKutusunaTiklandi(e, randevu, durum)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
-                                randevuKutusunaTiklandi(e, randevu);
+                                randevuKutusunaTiklandi(e, randevu, durum);
                               }
                             }}
                           >
-                            <RandevuKutusu randevu={randevu} gorunumDurumu={durum} />
+                            <RandevuKutusu randevu={randevu} gorunumDurumu={durum} hastaLinki={hastaLinki} />
                           </div>
                         );
                       })}
@@ -409,6 +436,8 @@ export function CanliCizelge({
         odalar={odalar}
         cihazlar={cihazlar}
         tedaviler={tedaviler}
+        antrenorler={antrenorler}
+        protokoller={protokoller}
       />
     </div>
   );

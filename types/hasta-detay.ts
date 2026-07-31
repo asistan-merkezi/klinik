@@ -190,6 +190,10 @@ export type HastaSeansSatir = {
   bitis: string;
   durum: RandevuDurumu;
   terapist: { personel: { ad_soyad: string } | null } | null;
+  islem_tanimi: { ad: string } | null;
+  tani: string | null;
+  antrenor: { ad_soyad: string } | null;
+  tedavi_protokolu: { id: string; ad: string } | null;
 };
 
 export type BakiyeHareketTuru = "odeme" | "iade" | "kredi" | "borc";

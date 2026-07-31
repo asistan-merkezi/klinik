@@ -34,6 +34,8 @@ export function RandevuDetayPaneli({
   odalar,
   cihazlar,
   tedaviler,
+  antrenorler,
+  protokoller,
 }: {
   open: boolean;
   onOpenChange: (acik: boolean) => void;
@@ -42,6 +44,8 @@ export function RandevuDetayPaneli({
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: SecenekSatir[];
+  antrenorler: SecenekSatir[];
+  protokoller: SecenekSatir[];
 }) {
   const guncelleAction = randevuGuncelle.bind(null, randevu?.id ?? "");
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
@@ -198,6 +202,61 @@ export function RandevuDetayPaneli({
                 required
                 disabled={isPending}
               />
+            </div>
+          </div>
+
+          <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="detay_tani">Tanı (opsiyonel)</Label>
+              <Input
+                id="detay_tani"
+                name="tani"
+                defaultValue={randevu.tani ?? ""}
+                disabled={isPending}
+                placeholder="Örn. Sol omuz problemi"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="detay_antrenor_id">Antrenör (opsiyonel)</Label>
+              <Select
+                name="antrenor_id"
+                disabled={isPending || antrenorler.length === 0}
+                defaultValue={randevu.antrenor_id ?? undefined}
+                items={antrenorler.map((a) => ({ value: a.id, label: a.ad }))}
+              >
+                <SelectTrigger id="detay_antrenor_id" className="w-full">
+                  <SelectValue placeholder={antrenorler.length === 0 ? "Kayıtlı personel yok" : "Antrenör seçin"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {antrenorler.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.ad}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="detay_tedavi_protokolu_id">Tedavi Protokolü (opsiyonel)</Label>
+              <Select
+                name="tedavi_protokolu_id"
+                disabled={isPending || protokoller.length === 0}
+                defaultValue={randevu.tedavi_protokolu_id ?? undefined}
+                items={protokoller.map((p) => ({ value: p.id, label: p.ad }))}
+              >
+                <SelectTrigger id="detay_tedavi_protokolu_id" className="w-full">
+                  <SelectValue placeholder={protokoller.length === 0 ? "Kayıtlı protokol yok" : "Protokol seçin"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {protokoller.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.ad}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
