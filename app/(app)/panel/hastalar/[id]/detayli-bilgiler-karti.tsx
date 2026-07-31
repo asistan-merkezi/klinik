@@ -1,15 +1,8 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { InfoIcon } from "lucide-react";
 import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -212,7 +205,7 @@ function EvetHayirAlan({
 
 type OnayTuru = keyof typeof ONAY_ACIKLAMALARI;
 
-/** KVKK/sağlık verisi/ticari ileti onay satırı — açıklama pop-up'ı + onaylayan bilgisi + onay tuşu. */
+/** KVKK/sağlık verisi/ticari ileti onay satırı — açıklama kutusu + onaylayan bilgisi + onay kutusu (checkbox). */
 function OnaySatiri({
   tur,
   onayTarihi,
@@ -230,10 +223,10 @@ function OnaySatiri({
   onayAction: () => Promise<{ success: boolean; message: string } | null>;
   gosterOnayTusu: boolean;
 }) {
-  const [popupAcik, setPopupAcik] = useState(false);
   const [onayPending, startOnayTransition] = useTransition();
   const [hata, setHata] = useState<string | null>(null);
   const { baslik, metin } = ONAY_ACIKLAMALARI[tur];
+  const onayliMi = Boolean(onayTarihi);
 
   const onaylayanGoster = onayTarihi
     ? onaylayanTip === "hasta"
@@ -242,54 +235,43 @@ function OnaySatiri({
     : null;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
-      <div className="flex items-start gap-2">
-        <button
-          type="button"
-          onClick={() => setPopupAcik(true)}
-          className="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-          aria-label={`${baslik} açıklamasını oku`}
-        >
-          <InfoIcon className="size-4" />
-        </button>
-        <div className="flex flex-col">
-          <span className="font-medium">{baslik}</span>
-          {onayTarihi ? (
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">
-              {new Date(onayTarihi).toLocaleDateString("tr-TR")} · Onaylayan: {onaylayanGoster}
-            </span>
-          ) : (
-            <span className="text-xs text-muted-foreground">Alınmadı</span>
-          )}
-          {hata && <span className="text-xs text-destructive">{hata}</span>}
-        </div>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col">
+        <span className="text-sm font-medium">{baslik}</span>
+        {onayTarihi ? (
+          <span className="text-xs text-emerald-600 dark:text-emerald-400">
+            {new Date(onayTarihi).toLocaleDateString("tr-TR")} · Onaylayan: {onaylayanGoster}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Alınmadı</span>
+        )}
+        {hata && <span className="text-xs text-destructive">{hata}</span>}
       </div>
 
-      {!onayTarihi && gosterOnayTusu && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={onayPending}
-          onClick={() =>
-            startOnayTransition(async () => {
-              const sonuc = await onayAction();
-              if (sonuc && !sonuc.success) setHata(sonuc.message);
-            })
-          }
-        >
-          {onayPending ? "Kaydediliyor..." : "Onayla"}
-        </Button>
-      )}
+      <div className="flex items-center gap-3">
+        <div className="rounded-lg border border-border p-2 text-xs text-muted-foreground sm:max-w-sm">
+          <span className="font-medium text-foreground">Açıklama: </span>
+          {metin}
+        </div>
 
-      <Dialog open={popupAcik} onOpenChange={setPopupAcik}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{baslik}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm whitespace-pre-line text-muted-foreground">{metin}</p>
-        </DialogContent>
-      </Dialog>
+        {gosterOnayTusu && (
+          <label className="flex shrink-0 items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={onayliMi}
+              disabled={onayliMi || onayPending}
+              onChange={() =>
+                startOnayTransition(async () => {
+                  const sonuc = await onayAction();
+                  if (sonuc && !sonuc.success) setHata(sonuc.message);
+                })
+              }
+              className="size-4 rounded border-input"
+            />
+            Onaylıyorum
+          </label>
+        )}
+      </div>
     </div>
   );
 }
