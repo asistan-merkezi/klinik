@@ -541,6 +541,36 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
         </p>
       )}
 
+      <div className="flex flex-col gap-2 border-t border-border pt-4">
+        <OnaySatiri
+          tur="kvkk"
+          onayTarihi={hasta.kvkk_onay_tarihi}
+          onaylayanTip={hasta.kvkk_onaylayan_tip}
+          onaylayanAd={hasta.kvkk_onaylayan?.ad_soyad ?? null}
+          hastaAdSoyad={hasta.ad_soyad}
+          onayAction={() => kvkkOnayVer(hasta.id)}
+          gosterOnayTusu
+        />
+        <OnaySatiri
+          tur="saglik"
+          onayTarihi={hasta.ozel_nitelikli_veri_onay_tarihi}
+          onaylayanTip={hasta.ozel_nitelikli_onaylayan_tip}
+          onaylayanAd={hasta.ozel_nitelikli_onaylayan?.ad_soyad ?? null}
+          hastaAdSoyad={hasta.ad_soyad}
+          onayAction={() => ozelNitelikliOnayVer(hasta.id)}
+          gosterOnayTusu
+        />
+        <OnaySatiri
+          tur="ticari"
+          onayTarihi={hasta.ticari_ileti_onay_tarihi}
+          onaylayanTip={hasta.ticari_ileti_onaylayan_tip}
+          onaylayanAd={hasta.ticari_ileti_onaylayan?.ad_soyad ?? null}
+          hastaAdSoyad={hasta.ad_soyad}
+          onayAction={() => ticariIletiOnayVer(hasta.id)}
+          gosterOnayTusu
+        />
+      </div>
+
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Temel bilgileri kaydet"}
       </Button>
@@ -721,36 +751,6 @@ export function DetayliBilgilerKarti({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <OnaySatiri
-          tur="kvkk"
-          onayTarihi={hasta.kvkk_onay_tarihi}
-          onaylayanTip={hasta.kvkk_onaylayan_tip}
-          onaylayanAd={hasta.kvkk_onaylayan?.ad_soyad ?? null}
-          hastaAdSoyad={hasta.ad_soyad}
-          onayAction={() => kvkkOnayVer(hasta.id)}
-          gosterOnayTusu={duzenlenebilir}
-        />
-        <OnaySatiri
-          tur="saglik"
-          onayTarihi={hasta.ozel_nitelikli_veri_onay_tarihi}
-          onaylayanTip={hasta.ozel_nitelikli_onaylayan_tip}
-          onaylayanAd={hasta.ozel_nitelikli_onaylayan?.ad_soyad ?? null}
-          hastaAdSoyad={hasta.ad_soyad}
-          onayAction={() => ozelNitelikliOnayVer(hasta.id)}
-          gosterOnayTusu={duzenlenebilir}
-        />
-        <OnaySatiri
-          tur="ticari"
-          onayTarihi={hasta.ticari_ileti_onay_tarihi}
-          onaylayanTip={hasta.ticari_ileti_onaylayan_tip}
-          onaylayanAd={hasta.ticari_ileti_onaylayan?.ad_soyad ?? null}
-          hastaAdSoyad={hasta.ad_soyad}
-          onayAction={() => ticariIletiOnayVer(hasta.id)}
-          gosterOnayTusu={duzenlenebilir}
-        />
-      </div>
-
       {duzenlenebilir && (
         <>
           <TemelBilgilerFormu hasta={hasta} hassas={hassas} />
