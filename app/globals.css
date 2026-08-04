@@ -54,6 +54,7 @@
 :root {
   /* Açık tema paleti (kullanıcı kararı, 2026-07-28) — krem zemin + adaçayı
      sidebar + mavi vurgu. .dark bu bloktan tamamen bağımsız, dokunulmadı. */
+  color-scheme: light;
   --background: #F6F1E4;
   --foreground: #1B2430;
   --card: #E9F0F6;
@@ -95,6 +96,7 @@
 .dark {
   /* Landing page ile aynı konsept: canvas/ink + cyan primary + emerald "canlı" vurgusu.
      Bkz. tailwind.config.ts (app/(marketing) için) — buradaki hex'ler o paletten. */
+  color-scheme: dark;
   --background: #090d16;
   --foreground: #f8fafc;
   --card: #1e293b;
