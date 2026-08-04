@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { AdimBasliklari } from "@/components/panel/ice-aktarma/adim-basliklari";
 import { DosyaSec } from "@/components/panel/ice-aktarma/dosya-sec";
+import { BeklenenSutunlar } from "@/components/panel/ice-aktarma/beklenen-sutunlar";
+import { SablonIndir } from "@/components/panel/ice-aktarma/sablon-indir";
 import { SutunEsleme, otomatikEslemeOner, esitlemeyleSatirlariCevir, type HedefAlan } from "@/components/panel/ice-aktarma/sutun-esleme";
 import { OnizlemeTablosu, SonucRaporu, type ArsivSonucSatiri } from "@/components/panel/ice-aktarma/onizleme-tablosu";
 import type { OkunmusDosya } from "@/lib/ice-aktarma/dosya-oku";
@@ -107,7 +109,15 @@ export function BakiyeSihirbazi() {
     <div className="flex flex-col gap-5">
       <AdimBasliklari basliklar={ADIM_BASLIKLARI} aktifAdim={adim} />
 
-      {adim === 1 && <DosyaSec onOkundu={dosyaOkundu} />}
+      {adim === 1 && (
+        <div className="flex flex-col gap-4">
+          <BeklenenSutunlar hedefAlanlar={HEDEF_ALANLAR} />
+          <div>
+            <SablonIndir hedefAlanlar={HEDEF_ALANLAR} dosyaAdi="bakiye-hareketi-sablon.csv" />
+          </div>
+          <DosyaSec onOkundu={dosyaOkundu} />
+        </div>
+      )}
 
       {adim === 2 && dosya && (
         <div className="flex flex-col gap-4">

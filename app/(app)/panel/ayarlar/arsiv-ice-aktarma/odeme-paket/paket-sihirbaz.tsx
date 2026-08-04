@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { AdimBasliklari } from "@/components/panel/ice-aktarma/adim-basliklari";
 import { DosyaSec } from "@/components/panel/ice-aktarma/dosya-sec";
+import { BeklenenSutunlar } from "@/components/panel/ice-aktarma/beklenen-sutunlar";
+import { SablonIndir } from "@/components/panel/ice-aktarma/sablon-indir";
 import { SutunEsleme, otomatikEslemeOner, esitlemeyleSatirlariCevir, type HedefAlan } from "@/components/panel/ice-aktarma/sutun-esleme";
 import { OnizlemeTablosu, SonucRaporu, type ArsivSonucSatiri } from "@/components/panel/ice-aktarma/onizleme-tablosu";
 import type { OkunmusDosya } from "@/lib/ice-aktarma/dosya-oku";
@@ -132,7 +134,15 @@ export function PaketSihirbazi({ paketler }: { paketler: PaketSecenegi[] }) {
               türleri için bu sihirbazı ayrı dosyalarla birden fazla kez çalıştırın.
             </p>
           </div>
-          {paketId && <DosyaSec onOkundu={dosyaOkundu} />}
+          {paketId && (
+            <div className="flex flex-col gap-4">
+              <BeklenenSutunlar hedefAlanlar={HEDEF_ALANLAR} />
+              <div>
+                <SablonIndir hedefAlanlar={HEDEF_ALANLAR} dosyaAdi="paket-hakki-sablon.csv" />
+              </div>
+              <DosyaSec onOkundu={dosyaOkundu} />
+            </div>
+          )}
         </div>
       )}
 
