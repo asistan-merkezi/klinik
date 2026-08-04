@@ -8,6 +8,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ModuleCard } from "@/components/panel/module-card";
+import type { IconTileTone } from "@/components/ui/icon-tile";
+import { cn } from "@/lib/utils";
 import type { HastaOzet, HastaDetayOzet } from "@/types/hasta-detay";
 import type { SekmeAnahtari } from "./sekme-tanimlari";
 import type { HastaTemel } from "./hasta-getir";
@@ -18,6 +20,13 @@ const IKONLAR: Record<SekmeAnahtari, LucideIcon> = {
   randevu: CalendarDays,
   tedavi: ClipboardList,
   cari: CreditCard,
+};
+
+const TONLAR: Record<SekmeAnahtari, IconTileTone> = {
+  kisisel: "blue",
+  randevu: "cyan",
+  tedavi: "emerald",
+  cari: "amber",
 };
 
 function randevuZamani(tarih: string): string {
@@ -33,7 +42,7 @@ function ozetDegeri(
   ozet: HastaOzet | null,
   detayOzet: HastaDetayOzet | null | undefined,
   yukleniyor: boolean
-): { deger: string; uyari?: boolean } {
+): { deger: string; uyari?: boolean; ton?: "emerald" | "rose" } {
   switch (sekme) {
     case "kisisel": {
       const eksikOnay = !hasta.kvkk_onay_tarihi || !hasta.ozel_nitelikli_veri_onay_tarihi;
@@ -56,7 +65,11 @@ function ozetDegeri(
     }
     case "cari": {
       const bakiye = ozet?.bakiye ?? 0;
-      return { deger: bakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY" }) };
+      const tutar = bakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+      return {
+        deger: bakiye < 0 ? `Borç · ${tutar}` : `Alacak · ${tutar}`,
+        ton: bakiye < 0 ? "rose" : "emerald",
+      };
     }
   }
 }
@@ -74,19 +87,25 @@ export function SekmeKartlari({
   const tekKalanKartVar = gorunurSekmeler.length % 2 === 1;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-4">
       {gorunurSekmeler.map((s, i) => {
-        const { deger, uyari } = ozetDegeri(s.deger, hasta, ozet, detayOzet, yukleniyor);
+        const { deger, uyari, ton } = ozetDegeri(s.deger, hasta, ozet, detayOzet, yukleniyor);
         const sonKartTek = tekKalanKartVar && i === gorunurSekmeler.length - 1;
         return (
           <ModuleCard
             key={s.deger}
             icon={IKONLAR[s.deger]}
+            tone={TONLAR[s.deger]}
             label={s.etiket}
             subtitle={deger}
+            subtitleTone={ton}
             warning={uyari}
             href={`/panel/hastalar/${hasta.id}/${s.deger}`}
-            className={sonKartTek ? "col-span-2 mx-auto w-1/2 sm:col-span-1 sm:w-auto" : undefined}
+            className={cn(
+              "animate-kart-giris",
+              sonKartTek && "col-span-2 mx-auto w-1/2 sm:col-span-1 sm:w-auto"
+            )}
+            style={{ animationDelay: `${i * 40}ms` }}
           />
         );
       })}

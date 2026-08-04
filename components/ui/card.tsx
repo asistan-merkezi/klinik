@@ -5,14 +5,17 @@ import { cn } from "@/lib/utils"
 function Card({
   className,
   size = "default",
+  interactive = false,
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & { size?: "default" | "sm"; interactive?: boolean }) {
   return (
     <div
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl dark:bg-card/70 dark:ring-white/10 dark:backdrop-blur-md dark:shadow-2xl dark:shadow-black/40",
+        "group/card relative flex flex-col gap-(--card-spacing) overflow-hidden rounded-2xl bg-card py-(--card-spacing) text-sm text-card-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:hidden before:h-12 before:rounded-t-2xl before:bg-gradient-to-b before:from-white/[0.06] before:to-transparent before:content-[''] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-2xl *:[img:last-child]:rounded-b-2xl dark:bg-card/70 dark:shadow-none dark:ring-white/8 dark:before:block dark:backdrop-blur-md",
+        interactive &&
+          "cursor-pointer transition-all duration-150 ease-out motion-safe:hover:-translate-y-px hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_12px_32px_-10px_rgba(15,23,42,0.18)] motion-safe:active:scale-[0.985] dark:hover:ring-white/15",
         className
       )}
       {...props}

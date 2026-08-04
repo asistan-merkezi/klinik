@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import {
   Select,
   SelectContent,
@@ -11,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import {
   HEDEF_DURUM_ETIKETLERI,
   HEDEF_TIPI_ETIKETLERI,
@@ -22,6 +24,13 @@ import { useHastaHedefler } from "./queries";
 import { hastaHedefEkle } from "./actions";
 
 const HEDEF_TIPI_SECENEKLERI = Object.entries(HEDEF_TIPI_ETIKETLERI).map(([value, label]) => ({ value, label }));
+
+const HEDEF_DURUM_TONLARI: Record<HastaHedef["durum"], StatusTone> = {
+  aktif: "primary",
+  ulasildi: "emerald",
+  basarisiz: "rose",
+  iptal: "slate",
+};
 
 function ilerlemeOrani(hedef: HastaHedef, sonVasSkoru: number | null): number | null {
   if (hedef.baslangic_deger == null || hedef.hedef_deger == null) return null;
@@ -64,7 +73,7 @@ export function HedefListesi({
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Yükleniyor...</p>
       ) : !hedefler || hedefler.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Henüz hedef tanımlanmadı.</p>
+        <EmptyState icon={Target} title="Henüz hedef tanımlanmadı." />
       ) : (
         <ul className="flex flex-col gap-3">
           {hedefler.map((h) => {
@@ -73,18 +82,7 @@ export function HedefListesi({
               <li key={h.id} className="flex flex-col gap-2 rounded-lg border border-border p-3 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{h.hedef_metrik}</span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium",
-                      h.durum === "aktif"
-                        ? "bg-primary/10 text-primary"
-                        : h.durum === "ulasildi"
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                          : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {HEDEF_DURUM_ETIKETLERI[h.durum]}
-                  </span>
+                  <StatusBadge tone={HEDEF_DURUM_TONLARI[h.durum]}>{HEDEF_DURUM_ETIKETLERI[h.durum]}</StatusBadge>
                 </div>
                 <span className="text-xs text-muted-foreground">
                   {HEDEF_TIPI_ETIKETLERI[h.hedef_tipi]}

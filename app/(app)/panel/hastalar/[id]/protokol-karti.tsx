@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { ClipboardList } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import {
   Select,
   SelectContent,
@@ -20,7 +23,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { RISK_TIPI_ETIKETLERI, type RiskBayragi, type IslemKontrendikasyon, type HastaProtokol } from "@/types/hasta-detay";
 import { useIslemTanimlari, useIslemKontrendikasyonlari, useHastaProtokoller } from "./queries";
 
@@ -28,6 +30,12 @@ const DURUM_ETIKETLERI: Record<HastaProtokol["durum"], string> = {
   aktif: "Aktif",
   tamamlandi: "Tamamlandı",
   iptal: "İptal",
+};
+
+const DURUM_TONLARI: Record<HastaProtokol["durum"], StatusTone> = {
+  aktif: "primary",
+  tamamlandi: "emerald",
+  iptal: "slate",
 };
 
 export function ProtokolKarti({ hastaId, riskBayraklari, aktif }: { hastaId: string; riskBayraklari: RiskBayragi[]; aktif: boolean }) {
@@ -46,7 +54,7 @@ export function ProtokolKarti({ hastaId, riskBayraklari, aktif }: { hastaId: str
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Yükleniyor...</p>
       ) : !protokoller || protokoller.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Henüz protokol atanmadı.</p>
+        <EmptyState icon={ClipboardList} title="Henüz protokol atanmadı." />
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
           {protokoller.map((p) => (
@@ -56,18 +64,7 @@ export function ProtokolKarti({ hastaId, riskBayraklari, aktif }: { hastaId: str
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium">{p.islem_tanimi?.ad ?? "—"}</span>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-medium",
-                    p.durum === "aktif"
-                      ? "bg-primary/10 text-primary"
-                      : p.durum === "tamamlandi"
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {DURUM_ETIKETLERI[p.durum]}
-                </span>
+                <StatusBadge tone={DURUM_TONLARI[p.durum]}>{DURUM_ETIKETLERI[p.durum]}</StatusBadge>
               </div>
               <span className="text-xs text-muted-foreground">
                 {new Date(p.baslangic_tarihi).toLocaleDateString("tr-TR")}

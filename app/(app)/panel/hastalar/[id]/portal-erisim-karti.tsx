@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { whatsappLinkOlustur } from "@/lib/utils";
 import { portalErisimiAc, portalSifreSifirla, portalErisimDurumDegistir } from "./actions";
 
@@ -30,14 +31,14 @@ export function PortalErisimKarti({
   return (
     <div className="flex flex-col gap-3 text-sm">
       <div className="flex items-center justify-between">
-        <span>
-          Durum:{" "}
+        <span className="flex items-center gap-2">
+          Durum:
           {!durum.var ? (
-            <span className="text-muted-foreground">Erişim yok</span>
+            <StatusBadge tone="slate">Erişim yok</StatusBadge>
           ) : durum.aktif ? (
-            <span className="text-emerald-600 dark:text-emerald-400">Aktif</span>
+            <StatusBadge tone="emerald">Aktif</StatusBadge>
           ) : (
-            <span className="text-destructive">Kapalı</span>
+            <StatusBadge tone="rose">Kapalı</StatusBadge>
           )}
         </span>
         <div className="flex gap-2">

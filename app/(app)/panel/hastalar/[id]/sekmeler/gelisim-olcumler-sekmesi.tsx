@@ -1,6 +1,8 @@
 "use client";
 
+import { LineChart, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { TrendGrafik } from "@/components/hasta/trend-grafik";
 import { HEDEF_DURUM_ETIKETLERI, HEDEF_TIPI_ETIKETLERI } from "@/types/hasta-detay";
 import { useHastaHedefler, useHastaKarsilastirma, useHastaOlcumler } from "../queries";
@@ -52,7 +54,7 @@ export function GelisimOlcumlerSekmesi({
           {olcumlerYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
           ) : gruplar.size === 0 ? (
-            <p className="text-sm text-muted-foreground">Henüz ölçüm kaydedilmedi.</p>
+            <EmptyState icon={LineChart} title="Henüz ölçüm kaydedilmedi." />
           ) : (
             Array.from(gruplar.entries()).map(([anahtar, grup]) => (
               <div key={anahtar} className="flex flex-col gap-2">
@@ -77,7 +79,7 @@ export function GelisimOlcumlerSekmesi({
           {hedeflerYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
           ) : !hedefler || hedefler.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Henüz hedef yok.</p>
+            <EmptyState icon={Target} title="Henüz hedef yok." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

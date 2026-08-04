@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Users2, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { HastaDetay } from "@/types/hasta";
 import { ILISKI_TURU_ETIKETLERI } from "@/types/hasta-detay";
 import { DetayliBilgilerKarti } from "../detayli-bilgiler-karti";
@@ -15,11 +17,9 @@ function OnayRozeti({ etiket, tarih }: { etiket: string; tarih: string | null })
     <div className="flex items-center justify-between text-sm">
       <span className="text-muted-foreground">{etiket}</span>
       {tarih ? (
-        <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-          {new Date(tarih).toLocaleDateString("tr-TR")}
-        </span>
+        <StatusBadge tone="emerald">{new Date(tarih).toLocaleDateString("tr-TR")}</StatusBadge>
       ) : (
-        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Alınmadı</span>
+        <StatusBadge tone="slate">Alınmadı</StatusBadge>
       )}
     </div>
   );
@@ -102,18 +102,14 @@ export function KisiselBilgilerSekmesi({
           {sigortalarYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
           ) : !sigortalar || sigortalar.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Kayıtlı sigorta yok.</p>
+            <EmptyState icon={ShieldCheck} title="Kayıtlı sigorta yok." />
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {sigortalar.map((s) => (
                 <li key={s.id} className="flex flex-col gap-1 py-2.5 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{s.kurum_adi}</span>
-                    {s.fatura_kurum_adina && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        Fatura kuruma
-                      </span>
-                    )}
+                    {s.fatura_kurum_adina && <StatusBadge tone="primary">Fatura kuruma</StatusBadge>}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {s.police_no && `Poliçe: ${s.police_no} · `}
@@ -171,16 +167,14 @@ export function KisiselBilgilerSekmesi({
           {iliskilerYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
           ) : !iliskiler || iliskiler.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Bağlı kişi yok.</p>
+            <EmptyState icon={Users2} title="Bağlı kişi yok." />
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {iliskiler.map((i) => (
                 <li key={i.id}>
                   <Link
                     href={`/panel/hastalar/${i.iliskili_hasta_id}`}
-                    className={cn(
-                      "flex items-center justify-between py-2.5 text-sm transition-colors hover:text-primary"
-                    )}
+                    className="flex items-center justify-between py-2.5 text-sm transition-colors hover:text-primary"
                   >
                     <span className="font-medium">{i.iliskili_hasta?.ad_soyad ?? "—"}</span>
                     <span className="text-xs text-muted-foreground">

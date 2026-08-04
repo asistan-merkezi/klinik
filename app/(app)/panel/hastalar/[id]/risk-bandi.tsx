@@ -19,6 +19,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { RISK_TIPI_ETIKETLERI, type RiskBayragi, type RiskSeviyesi } from "@/types/hasta-detay";
 import { riskBayragiEkle } from "./actions";
 
@@ -33,10 +34,10 @@ const SEVIYE_SECENEKLERI: { value: RiskSeviyesi; label: string }[] = [
   { value: "dusuk", label: "Düşük" },
 ];
 
-const SEVIYE_SINIFLARI: Record<RiskSeviyesi, string> = {
-  yuksek: "border-destructive/40 bg-destructive/10 text-destructive",
-  orta: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  dusuk: "border-border bg-muted text-muted-foreground",
+const SEVIYE_TONLARI: Record<RiskSeviyesi, StatusTone> = {
+  yuksek: "rose",
+  orta: "amber",
+  dusuk: "slate",
 };
 
 const BANT_SINIFLARI: Record<RiskSeviyesi, string> = {
@@ -57,30 +58,12 @@ export function RiskBandi({
   const [modalAcik, setModalAcik] = useState(false);
   const [formAcik, setFormAcik] = useState(false);
 
+  /* Boş durumdaki "+ Risk bayrağı ekle" tetikleyicisi artık OzetKart'ın
+     başlık kartına taşındı (görsel yeniden tasarım kararı) — o buton bu
+     component'in dışa aktarılan RiskDetayModal'ını kullanıyor. Burada bayrak
+     yoksa hiçbir şey render edilmiyor. */
   if (riskBayraklari.length === 0) {
-    return eklenebilir ? (
-      <>
-        <button
-          type="button"
-          onClick={() => {
-            setModalAcik(true);
-            setFormAcik(true);
-          }}
-          className="w-fit text-xs text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
-        >
-          + Risk bayrağı ekle
-        </button>
-        <RiskDetayModal
-          acik={modalAcik}
-          onOpenChange={setModalAcik}
-          hastaId={hastaId}
-          riskBayraklari={riskBayraklari}
-          eklenebilir={eklenebilir}
-          formAcik={formAcik}
-          setFormAcik={setFormAcik}
-        />
-      </>
-    ) : null;
+    return null;
   }
 
   const enYuksekSeviye: RiskSeviyesi = riskBayraklari.some((r) => r.seviye === "yuksek")
@@ -111,16 +94,10 @@ export function RiskBandi({
         />
         <div className="flex flex-wrap items-center gap-1.5">
           {riskBayraklari.map((r, i) => (
-            <span
-              key={i}
-              className={cn(
-                "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-                SEVIYE_SINIFLARI[r.seviye]
-              )}
-            >
+            <StatusBadge key={i} tone={SEVIYE_TONLARI[r.seviye]}>
               {RISK_TIPI_ETIKETLERI[r.tip]}
               {r.aciklama ? `: ${r.aciklama}` : ""}
-            </span>
+            </StatusBadge>
           ))}
         </div>
       </button>
@@ -138,7 +115,7 @@ export function RiskBandi({
   );
 }
 
-function RiskDetayModal({
+export function RiskDetayModal({
   acik,
   onOpenChange,
   hastaId,
@@ -175,9 +152,7 @@ function RiskDetayModal({
             {riskBayraklari.map((r, i) => (
               <li key={i} className="flex flex-col gap-1 py-2.5 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", SEVIYE_SINIFLARI[r.seviye])}>
-                    {RISK_TIPI_ETIKETLERI[r.tip]}
-                  </span>
+                  <StatusBadge tone={SEVIYE_TONLARI[r.seviye]}>{RISK_TIPI_ETIKETLERI[r.tip]}</StatusBadge>
                   <span className="text-xs text-muted-foreground">
                     {new Date(r.eklenme_tarihi).toLocaleDateString("tr-TR")}
                   </span>

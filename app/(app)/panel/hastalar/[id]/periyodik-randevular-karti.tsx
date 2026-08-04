@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -236,7 +238,7 @@ export function PeriyodikRandevularKarti({
   periyodikRandevular: PeriyodikRandevuSatir[];
 }) {
   if (periyodikRandevular.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aktif periyodik randevu yok.</p>;
+    return <EmptyState icon={Repeat} title="Aktif periyodik randevu yok." />;
   }
 
   return (

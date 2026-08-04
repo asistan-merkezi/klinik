@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { cikisYap } from "@/app/(app)/panel/actions";
 import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const ANA_OGELER = [
   { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
@@ -167,17 +168,20 @@ export function PanelSidebar({
       </aside>
 
       <div className="flex flex-1 flex-col overflow-y-auto">
-        {/* Mobil: üst bar + 3 çizgi (hamburger) menü butonu */}
-        <header className="flex items-center gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground lg:hidden">
-          <button
-            type="button"
-            onClick={() => setMenuAcik(true)}
-            aria-label="Menüyü aç"
-            className="rounded-lg p-1.5 transition-colors hover:bg-sidebar-accent"
-          >
-            <Menu className="size-5" aria-hidden />
-          </button>
-          <p className="text-sm font-semibold">Klinik Asistanı</p>
+        {/* Mobil: üst bar + 3 çizgi (hamburger) menü butonu + tema geçişi */}
+        <header className="flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground lg:hidden">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMenuAcik(true)}
+              aria-label="Menüyü aç"
+              className="flex size-11 items-center justify-center rounded-lg transition-colors hover:bg-sidebar-accent"
+            >
+              <Menu className="size-5" aria-hidden />
+            </button>
+            <p className="text-sm font-semibold">Klinik Asistanı</p>
+          </div>
+          <ThemeToggle variant="inline" />
         </header>
 
         {children}

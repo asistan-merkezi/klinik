@@ -1,4 +1,10 @@
+"use client";
+
+import { useState } from "react";
+import { Phone, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RiskDetayModal } from "./risk-bandi";
 import type { Cinsiyet } from "@/types/hasta";
 
 function yasHesapla(dogumTarihi: string | null): number | null {
@@ -20,36 +26,74 @@ const CINSIYET_ETIKETLERI: Record<Cinsiyet, string | null> = {
 };
 
 export function OzetKart({
+  hastaId,
   adSoyad,
   telefon,
   dogumTarihi,
   cinsiyet,
+  riskBayraklariBos,
+  eklenebilir,
 }: {
+  hastaId: string;
   adSoyad: string;
   telefon: string;
   dogumTarihi: string | null;
   cinsiyet: Cinsiyet | null;
+  riskBayraklariBos: boolean;
+  eklenebilir: boolean;
 }) {
+  const [modalAcik, setModalAcik] = useState(false);
+  const [formAcik, setFormAcik] = useState(false);
   const yas = yasHesapla(dogumTarihi);
   const cinsiyetEtiketi = cinsiyet ? CINSIYET_ETIKETLERI[cinsiyet] : null;
 
   return (
     <Card>
-      <CardContent>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">{adSoyad}</h1>
-          {cinsiyetEtiketi && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {cinsiyetEtiketi}
-            </span>
-          )}
+      <CardContent className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold">{adSoyad}</h1>
+            {cinsiyetEtiketi && (
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                {cinsiyetEtiketi}
+              </span>
+            )}
+          </div>
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Phone className="size-3.5 shrink-0 text-primary" aria-hidden />
+            <a href={`tel:${telefon}`} className="tabular-nums hover:text-foreground">
+              {telefon}
+            </a>
+            {yas != null && <span className="tabular-nums">· {yas} yaşında</span>}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          <a href={`tel:${telefon}`} className="underline decoration-dotted underline-offset-2 hover:text-foreground">
-            {telefon}
-          </a>
-          {yas != null && ` · ${yas} yaşında`}
-        </p>
+
+        {riskBayraklariBos && eklenebilir && (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 shrink-0 gap-1.5 px-3 text-muted-foreground"
+              onClick={() => {
+                setModalAcik(true);
+                setFormAcik(true);
+              }}
+            >
+              <ShieldAlert className="size-4" aria-hidden />
+              Risk Bayrağı
+            </Button>
+            <RiskDetayModal
+              acik={modalAcik}
+              onOpenChange={setModalAcik}
+              hastaId={hastaId}
+              riskBayraklari={[]}
+              eklenebilir={eklenebilir}
+              formAcik={formAcik}
+              setFormAcik={setFormAcik}
+            />
+          </>
+        )}
       </CardContent>
     </Card>
   );

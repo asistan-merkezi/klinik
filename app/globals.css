@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -42,6 +42,8 @@
   --color-primary-hover: var(--primary-hover);
   --color-surface-2: var(--surface-2);
   --color-input-bg: var(--input-bg);
+  --color-surface: var(--card);
+  --color-border-subtle: var(--border);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -52,30 +54,36 @@
 }
 
 :root {
-  /* Açık tema paleti (kullanıcı kararı, 2026-07-28) — krem zemin + adaçayı
-     sidebar + mavi vurgu. .dark bu bloktan tamamen bağımsız, dokunulmadı. */
+  /* Açık tema paleti (kullanıcı kararı, 2026-08-04) — landing sayfasıyla aynı
+     marka dili: cyan/electric blue primary + nötr slate zemin. Önceki
+     bej/mint palet (2026-07-28 kararı) kaldırıldı. .dark ayrı, bu bloktan
+     bağımsız (zaten hedef paletle örtüşüyordu, sadece küçük alfa
+     düzeltmeleri aldı). */
   color-scheme: light;
-  --background: #F6F1E4;
-  --foreground: #1B2430;
-  --card: #E9F0F6;
-  --card-foreground: #1B2430;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
   --popover: #FFFFFF;
-  --popover-foreground: #1B2430;
-  --primary: #2E6FB7;
+  --popover-foreground: #0F172A;
+  /* Marka rengi #00F2FE/#4FACFE beyaz zeminde metin/ring için fazla açık
+     (kontrast yetersiz) — marketing paletinin primary-700'ü kullanıldı.
+     Bright cyan/electric blue gradyanı dolgu/glow kullanımlarında
+     (IconTile, ilerleme çubuğu) doğrudan hex olarak korunuyor. */
+  --primary: #2B7FD4;
   --primary-foreground: #FFFFFF;
-  --primary-hover: #255C9A;
-  --secondary: #E9F0F6;
-  --secondary-foreground: #1B2430;
-  --muted: #E9F0F6;
-  --muted-foreground: #5B6672;
-  /* Belirtilmemiş, primary'den türetildi (hover/odak vurgusu için soluk mavi). */
-  --accent: #DCEAF5;
-  --accent-foreground: #1B2430;
+  --primary-hover: #1E5A99;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #E0F2FE;
+  --accent-foreground: #0F172A;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #D6DEE6;
-  --input: #D6DEE6;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
   --input-bg: #FFFFFF;
-  --ring: #2E6FB7;
+  --ring: #2B7FD4;
   --surface-2: #FFFFFF;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -83,14 +91,14 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: #DCE8DD;
-  --sidebar-foreground: #1B2430;
-  --sidebar-primary: #BFD4C2;
-  --sidebar-primary-foreground: #1B2430;
-  --sidebar-accent: #CDDECF;
-  --sidebar-accent-foreground: #1B2430;
-  --sidebar-border: #CDDECF;
-  --sidebar-ring: #2E6FB7;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #2B7FD4;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #2B7FD4;
 }
 
 .dark {
@@ -113,7 +121,7 @@
   --accent: #24344a;
   --accent-foreground: #f8fafc;
   --destructive: #f43f5e;
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 15%);
   --input-bg: transparent;
   --ring: #00f2fe;
@@ -132,7 +140,7 @@
      korumak amacıyla eşitlendi). */
   --sidebar-accent: #0f172a;
   --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: #00f2fe;
 }
 
@@ -166,5 +174,29 @@
   .vucut-glow {
     animation: none;
     filter: drop-shadow(0 0 4px currentColor);
+  }
+}
+
+/* Kart/liste öğelerinin sayfa girişinde hafif yukarı + fade animasyonu
+   (hasta listesi, özet grid, zaman çizelgesi vb.) — stagger için her öğeye
+   inline `animationDelay` verilir. */
+@keyframes kart-giris {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-kart-giris {
+  animation: kart-giris 320ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-kart-giris {
+    animation: none;
   }
 }

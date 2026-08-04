@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import type { FaturaSatir } from "@/types/odeme";
 import { faturaTetikle } from "./actions";
 
-const DURUM_STILLERI: Record<FaturaSatir["durum"], string> = {
-  bekliyor: "text-amber-600",
-  kesildi: "text-emerald-600 dark:text-emerald-400",
-  hata: "text-destructive",
+const DURUM_TONLARI: Record<FaturaSatir["durum"], StatusTone> = {
+  bekliyor: "amber",
+  kesildi: "emerald",
+  hata: "rose",
 };
 
 const DURUM_ETIKETLERI: Record<FaturaSatir["durum"], string> = {
@@ -31,10 +32,10 @@ export function FaturaDurum({ fatura }: { fatura: FaturaSatir }) {
   return (
     <div className="flex flex-col gap-1 text-xs">
       <div className="flex items-center gap-2">
-        <span className={DURUM_STILLERI[fatura.durum]}>
+        <StatusBadge tone={DURUM_TONLARI[fatura.durum]}>
           {DURUM_ETIKETLERI[fatura.durum]}
           {fatura.durum === "hata" && fatura.hata_mesaji ? `: ${fatura.hata_mesaji}` : ""}
-        </span>
+        </StatusBadge>
         {fatura.durum === "kesildi" && fatura.e_arsiv_pdf_url && (
           <a
             href={fatura.e_arsiv_pdf_url}

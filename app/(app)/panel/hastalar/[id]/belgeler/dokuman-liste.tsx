@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { BELGE_TURU_ETIKETLERI, type HastaBelge } from "@/types/hasta-belge";
 import { belgeIndir } from "./actions";
 import { blobIndir } from "@/lib/watermark";
@@ -14,13 +16,16 @@ import { blobIndir } from "@/lib/watermark";
 export function DokumanListe({ belgeler, onYukle }: { belgeler: HastaBelge[]; onYukle: () => void }) {
   if (belgeler.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-12 text-center">
-        <p className="text-sm font-medium">Henüz doküman yok</p>
-        <p className="text-sm text-muted-foreground">Reçete, sevk veya epikriz yükleyin.</p>
-        <Button type="button" size="sm" onClick={onYukle} className="mt-1">
-          + Yükle
-        </Button>
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="Henüz doküman yok"
+        description="Reçete, sevk veya epikriz yükleyin."
+        action={
+          <Button type="button" size="sm" onClick={onYukle}>
+            + Yükle
+          </Button>
+        }
+      />
     );
   }
 
@@ -54,9 +59,9 @@ function DokumanSatiri({ belge }: { belge: HastaBelge }) {
           <span className="font-medium">
             {BELGE_TURU_ETIKETLERI[belge.belge_turu]}
             {belge.is_guncel && (
-              <span className="ml-2 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <StatusBadge tone="emerald" className="ml-2">
                 En Güncel
-              </span>
+              </StatusBadge>
             )}
           </span>
           <span className="text-xs text-muted-foreground">{new Date(belge.cekim_tarihi).toLocaleDateString("tr-TR")}</span>

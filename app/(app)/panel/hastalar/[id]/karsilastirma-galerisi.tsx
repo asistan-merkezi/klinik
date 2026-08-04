@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { HastaKarsilastirma } from "@/types/hasta-detay";
 import { belgeSignedUrlAl } from "./actions";
 
@@ -26,11 +28,7 @@ export function KarsilastirmaGalerisi({ kayitlar }: { kayitlar: HastaKarsilastir
   });
 
   if (kayitlar.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Henüz önce/sonra fotoğrafı yok (Belgeler & Medya sekmesi tamamlandığında buradan yönetilecek).
-      </p>
-    );
+    return <EmptyState icon={Images} title="Henüz önce/sonra fotoğrafı yok." />;
   }
 
   const gruplar = new Map<string, HastaKarsilastirma[]>();

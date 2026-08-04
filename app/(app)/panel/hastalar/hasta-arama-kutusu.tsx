@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export function HastaAramaKutusu({ baslangic }: { baslangic: string }) {
@@ -30,13 +31,16 @@ export function HastaAramaKutusu({ baslangic }: { baslangic: string }) {
   }
 
   return (
-    <Input
-      name="q"
-      type="search"
-      placeholder="Ad soyad veya telefon ile ara"
-      value={deger}
-      onChange={(e) => degistir(e.target.value)}
-      className="max-w-sm"
-    />
+    <div className="relative max-w-sm">
+      <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+      <Input
+        name="q"
+        type="search"
+        placeholder="Ad soyad veya telefon ile ara"
+        value={deger}
+        onChange={(e) => degistir(e.target.value)}
+        className="h-11 pl-8 focus-visible:ring-ring/50"
+      />
+    </div>
   );
 }

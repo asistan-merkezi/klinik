@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { bolgeBul } from "@/lib/vucut-bolgeleri";
 import { RANDEVU_DURUM_ETIKETLERI, type RandevuDurumu, type HastaSeansSatir } from "@/types/hasta-detay";
@@ -16,14 +19,14 @@ const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   minute: "2-digit",
 });
 
-const DURUM_SINIFLARI: Record<RandevuDurumu, string> = {
-  planlandi: "bg-primary/10 text-primary",
-  geldi: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  gecikmeli_geldi: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  iptal: "bg-destructive/10 text-destructive",
-  gelmedi: "bg-destructive/10 text-destructive",
-  ertelendi: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  tamamlandi: "bg-muted text-muted-foreground",
+const DURUM_TONLARI: Record<RandevuDurumu, StatusTone> = {
+  planlandi: "primary",
+  geldi: "emerald",
+  gecikmeli_geldi: "emerald",
+  iptal: "rose",
+  gelmedi: "rose",
+  ertelendi: "sky",
+  tamamlandi: "slate",
 };
 
 /** "Seansı Tamamla" sadece hastanın gerçekten geldiği bir seans için anlamlı. */
@@ -69,11 +72,7 @@ export function SeansGecmisiZamanCizelgesi({
   }
 
   if (!seanslar || seanslar.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-        Henüz geçmiş seans yok.
-      </div>
-    );
+    return <EmptyState icon={CalendarClock} title="Henüz geçmiş seans yok." />;
   }
 
   return (
@@ -87,7 +86,7 @@ export function SeansGecmisiZamanCizelgesi({
             <span
               className={cn(
                 "absolute -left-[27px] top-4 size-3 rounded-full border-2 border-background",
-                secili ? "bg-primary" : "bg-muted-foreground/40"
+                secili ? "bg-primary ring-4 ring-primary/15" : "bg-muted-foreground/40"
               )}
               aria-hidden="true"
             />
@@ -103,9 +102,7 @@ export function SeansGecmisiZamanCizelgesi({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium">{TARIH_SAAT_FORMAT.format(new Date(seans.baslangic))}</span>
-                <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", DURUM_SINIFLARI[seans.durum])}>
-                  {RANDEVU_DURUM_ETIKETLERI[seans.durum]}
-                </span>
+                <StatusBadge tone={DURUM_TONLARI[seans.durum]}>{RANDEVU_DURUM_ETIKETLERI[seans.durum]}</StatusBadge>
               </div>
 
               <p className="text-xs text-muted-foreground">

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText } from "lucide-react";
+import { FileText, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { HastaSatir } from "@/types/hasta";
 import { YeniHastaDialog } from "./yeni-hasta-dialog";
 import { HastaSatiri } from "./hasta-satiri";
@@ -42,11 +42,11 @@ export default async function HastalarSayfasi({
   const hastalar = data ?? [];
 
   return (
-    <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="flex-1 bg-background">
+      <div className="mx-auto flex max-w-md flex-col gap-4 p-4 pb-24 sm:max-w-3xl sm:p-8">
         <header className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold">Hastalar</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Hastalar</h1>
             <p className="text-sm text-muted-foreground">
               Hasta kayıtlarını görüntüle, ekle ve düzenle.
             </p>
@@ -65,30 +65,26 @@ export default async function HastalarSayfasi({
           </div>
         </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Kayıtlı Hastalar</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <HastaAramaKutusu baslangic={arama} />
+        <div className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur-sm sm:mx-0 sm:px-0">
+          <HastaAramaKutusu baslangic={arama} />
+        </div>
 
-            {error && (
-              <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
-            )}
-            {!error && hastalar.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                {arama ? "Aramayla eşleşen hasta yok." : "Henüz hasta kaydı yok."}
-              </p>
-            )}
-            {!error && hastalar.length > 0 && (
-              <ul className="flex flex-col gap-2">
-                {hastalar.map((hasta) => (
-                  <HastaSatiri key={hasta.id} hasta={hasta} />
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        {error && (
+          <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
+        )}
+        {!error && hastalar.length === 0 && (
+          <EmptyState
+            icon={Users}
+            title={arama ? "Aramayla eşleşen hasta yok." : "Henüz hasta kaydı yok."}
+          />
+        )}
+        {!error && hastalar.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {hastalar.map((hasta, i) => (
+              <HastaSatiri key={hasta.id} hasta={hasta} gecikme={i * 40} />
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

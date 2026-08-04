@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { FileText, Trash2 } from "lucide-react";
+import { FileText, Trash2, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { BELGE_TURU_ETIKETLERI, type HastaBelge } from "@/types/hasta-belge";
 import { VUCUT_BOLGE_ETIKETLERI } from "@/lib/vucut-bolgeleri";
 import { useSignedThumbnail } from "./use-signed-thumbnail";
@@ -25,13 +26,16 @@ export function RadyolojiGrid({
 
   if (belgeler.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-12 text-center">
-        <p className="text-sm font-medium">Henüz radyoloji görüntüsü yok</p>
-        <p className="text-sm text-muted-foreground">Röntgen, MR, tomografi veya ultrason yükleyin.</p>
-        <Button type="button" size="sm" onClick={onYukle} className="mt-1">
-          + Yükle
-        </Button>
-      </div>
+      <EmptyState
+        icon={ScanLine}
+        title="Henüz radyoloji görüntüsü yok"
+        description="Röntgen, MR, tomografi veya ultrason yükleyin."
+        action={
+          <Button type="button" size="sm" onClick={onYukle}>
+            + Yükle
+          </Button>
+        }
+      />
     );
   }
 

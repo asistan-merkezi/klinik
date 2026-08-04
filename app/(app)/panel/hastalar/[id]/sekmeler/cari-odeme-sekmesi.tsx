@@ -1,4 +1,6 @@
+import { Wallet, Package, Receipt } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import { BAKIYE_HAREKET_ETIKETLERI, type HastaBakiyeHareket } from "@/types/hasta-detay";
@@ -28,7 +30,7 @@ export function CariOdemeSekmesi({
         </CardHeader>
         <CardContent>
           {bakiyeHareketleri.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Hareket yok.</p>
+            <EmptyState icon={Wallet} title="Hareket yok." />
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {bakiyeHareketleri.map((h) => (
@@ -56,7 +58,7 @@ export function CariOdemeSekmesi({
         </CardHeader>
         <CardContent>
           {aktifPaketler.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aktif paketi yok.</p>
+            <EmptyState icon={Package} title="Aktif paketi yok." />
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {aktifPaketler.map((ps) => (
@@ -91,7 +93,7 @@ export function CariOdemeSekmesi({
         </CardHeader>
         <CardContent>
           {odemeGecmisi.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Henüz ödeme yok.</p>
+            <EmptyState icon={Receipt} title="Henüz ödeme yok." />
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {odemeGecmisi.map((odeme) => {

@@ -1,6 +1,8 @@
 "use client";
 
+import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { BELGE_ASAMA_ETIKETLERI, BELGE_TURU_ETIKETLERI, type HastaBelge } from "@/types/hasta-belge";
 import { VUCUT_BOLGE_ETIKETLERI } from "@/lib/vucut-bolgeleri";
 import { useSignedThumbnail } from "./use-signed-thumbnail";
@@ -19,13 +21,16 @@ export function KlinikFotoGrid({
 }) {
   if (belgeler.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-12 text-center">
-        <p className="text-sm font-medium">Henüz klinik fotoğraf yok</p>
-        <p className="text-sm text-muted-foreground">Postür veya bölgesel fotoğraf yükleyin.</p>
-        <Button type="button" size="sm" onClick={onYukle} className="mt-1">
-          + Yükle
-        </Button>
-      </div>
+      <EmptyState
+        icon={Camera}
+        title="Henüz klinik fotoğraf yok"
+        description="Postür veya bölgesel fotoğraf yükleyin."
+        action={
+          <Button type="button" size="sm" onClick={onYukle}>
+            + Yükle
+          </Button>
+        }
+      />
     );
   }
 
