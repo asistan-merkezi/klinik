@@ -24,6 +24,7 @@ type SecenekListesi = { id: string; ad: string }[];
 
 const HEDEF_ALANLAR: HedefAlan[] = [
   { key: "hasta_telefon", label: "Hasta Telefonu", zorunlu: true },
+  { key: "hasta_adi", label: "Hasta Adı" },
   { key: "terapist_adi", label: "Terapist Adı", zorunlu: true },
   { key: "oda_adi", label: "Oda Adı", zorunlu: true },
   { key: "islem_tanimi_adi", label: "Tedavi / İşlem Adı" },
@@ -117,6 +118,21 @@ export function RandevularSihirbazi({
     [eslenmisSatirlar, esleme.islem_tanimi_adi]
   );
   const benzersizTelefonlar = useMemo(() => benzersizDegerler(eslenmisSatirlar, "hasta_telefon"), [eslenmisSatirlar]);
+
+  // Dosyadaki isim sadece görsel doğrulama içindir (Hasta Eşleştirmesi
+  // tablosunda "dosyada bu isim yazıyordu, sistemde bununla eşleşti" kontrolü
+  // yapılabilsin diye) — eşleştirme hâlâ telefon üzerinden, RPC'ye gönderilmiyor.
+  const telefonaGoreDosyaAdi = useMemo(() => {
+    const harita: Record<string, string> = {};
+    for (const satir of eslenmisSatirlar) {
+      const telefon = satir.hasta_telefon?.trim();
+      const ad = satir.hasta_adi?.trim();
+      if (telefon && ad && !harita[telefon]) {
+        harita[telefon] = ad;
+      }
+    }
+    return harita;
+  }, [eslenmisSatirlar]);
 
   const terapistOnerileri = useMemo(
     () => Object.fromEntries(benzersizTerapistler.map((d) => [d, benzerSecenegiBul(d, terapistler)])),
@@ -265,8 +281,9 @@ export function RandevularSihirbazi({
                 satirlar={benzersizTelefonlar}
                 kolonlar={[
                   { baslik: "Telefon", render: (t: string) => t },
+                  { baslik: "Dosyadaki İsim", render: (t: string) => telefonaGoreDosyaAdi[t] ?? "—", className: "text-muted-foreground" },
                   {
-                    baslik: "Eşleşme",
+                    baslik: "Sistemdeki Eşleşme",
                     render: (t: string) => {
                       const sonuc = telefonEslemeleri[t];
                       if (!sonuc) return "—";
