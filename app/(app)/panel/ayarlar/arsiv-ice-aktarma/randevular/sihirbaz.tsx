@@ -26,15 +26,16 @@ const HEDEF_ALANLAR: HedefAlan[] = [
   { key: "hasta_telefon", label: "Hasta Telefonu", zorunlu: true },
   { key: "hasta_adi", label: "Hasta Adı" },
   { key: "terapist_adi", label: "Terapist Adı", zorunlu: true },
-  { key: "oda_adi", label: "Oda Adı", zorunlu: true },
+  { key: "oda_adi", label: "Oda Adı" },
   { key: "islem_tanimi_adi", label: "Tedavi / İşlem Adı" },
   { key: "baslangic", label: "Başlangıç Tarih ve Saati", zorunlu: true },
-  { key: "bitis", label: "Bitiş Tarih ve Saati", zorunlu: true },
+  { key: "bitis", label: "Bitiş Tarih ve Saati" },
   { key: "tani", label: "Tanı" },
 ];
 
 const ADIM_BASLIKLARI = ["Dosya Yükle", "Sütun Eşleştir", "Eşleştirme", "İçe Aktar & Sonuç"];
 const PARCA_BOYUTU = 200;
+const VARSAYILAN_SURE_DAKIKA = 45;
 
 function benzerSecenegiBul(deger: string, secenekler: SecenekListesi): string {
   const hedef = metniNormallestir(deger);
@@ -98,6 +99,12 @@ export function RandevularSihirbazi({
   const [terapistOverride, setTerapistOverride] = useState<Record<string, string>>({});
   const [odaOverride, setOdaOverride] = useState<Record<string, string>>({});
   const [islemOverride, setIslemOverride] = useState<Record<string, string>>({});
+  // Oda Adı ve Bitiş sütunları opsiyonel (kullanıcı kararı) — ama randevu.oda_id
+  // ve randevu.bitis veritabanında NOT NULL. Sütun boş bırakılırsa/eşleşmezse
+  // bu iki varsayılan devreye girer: tüm satırlar tek bir "varsayılan oda"ya
+  // düşer, bitiş boşsa başlangıca varsayılan süre eklenerek hesaplanır.
+  const [varsayilanOdaId, setVarsayilanOdaId] = useState("");
+  const [varsayilanSureDakika, setVarsayilanSureDakika] = useState(VARSAYILAN_SURE_DAKIKA);
 
   const [gonderiliyor, setGonderiliyor] = useState(false);
   const [ilerleme, setIlerleme] = useState<{ islenen: number; toplam: number } | null>(null);
@@ -170,7 +177,8 @@ export function RandevularSihirbazi({
 
   const tumTerapistlerEslendi = benzersizTerapistler.every((d) => terapistEslemesi[d]);
   const tumOdalarEslendi = benzersizOdalar.every((d) => odaEslemesi[d]);
-  const eslestirmeAdimiTamam = tumTerapistlerEslendi && tumOdalarEslendi && telefonSorgusu.isSuccess;
+  const eslestirmeAdimiTamam =
+    tumTerapistlerEslendi && tumOdalarEslendi && !!varsayilanOdaId && telefonSorgusu.isSuccess;
 
   function dosyaOkundu(okunan: OkunmusDosya, ad: string) {
     setDosya(okunan);
@@ -179,6 +187,8 @@ export function RandevularSihirbazi({
     setTerapistOverride({});
     setOdaOverride({});
     setIslemOverride({});
+    setVarsayilanOdaId("");
+    setVarsayilanSureDakika(VARSAYILAN_SURE_DAKIKA);
     setSonuclar(null);
     setGenelHata(null);
     setAdim(2);
@@ -191,10 +201,11 @@ export function RandevularSihirbazi({
 
     const cozumlenmisSatirlar = eslenmisSatirlar.map((satir) => {
       const telefonSonucu = telefonEslemeleri[satir.hasta_telefon?.trim() ?? ""];
+      const odaAdi = satir.oda_adi?.trim() ?? "";
       return {
         hasta_id: telefonSonucu?.durum === "bulundu" ? telefonSonucu.hasta_id : "",
         terapist_id: terapistEslemesi[satir.terapist_adi?.trim() ?? ""] ?? "",
-        oda_id: odaEslemesi[satir.oda_adi?.trim() ?? ""] ?? "",
+        oda_id: (odaAdi ? odaEslemesi[odaAdi] : "") || varsayilanOdaId,
         islem_tanimi_id: islemEslemesi[satir.islem_tanimi_adi?.trim() ?? ""] ?? "",
         baslangic: satir.baslangic ?? "",
         bitis: satir.bitis ?? "",
@@ -207,7 +218,7 @@ export function RandevularSihirbazi({
 
     for (let i = 0; i < cozumlenmisSatirlar.length; i += PARCA_BOYUTU) {
       const parca = cozumlenmisSatirlar.slice(i, i + PARCA_BOYUTU);
-      const sonuc = await randevulariArsivdenIceAktar(parca, i + 1);
+      const sonuc = await randevulariArsivdenIceAktar(parca, i + 1, varsayilanSureDakika);
 
       if (!sonuc.success) {
         setGenelHata(sonuc.message);
@@ -239,9 +250,9 @@ export function RandevularSihirbazi({
       {adim === 2 && dosya && (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
-            <strong>{dosyaAdi}</strong> — {dosya.satirlar.length} satır bulundu. Başlangıç ve bitiş için tek bir
-            tarih-saat sütunu seçin (örn. 15.03.2024 14:30); dosyanızda süre ayrı bir sütundaysa yüklemeden önce
-            Excel&rsquo;de tek sütuna birleştirin.
+            <strong>{dosyaAdi}</strong> — {dosya.satirlar.length} satır bulundu. Başlangıç için tarih-saat sütunu
+            seçin (örn. 15.03.2024 14:30). Oda Adı ve Bitiş Tarihi opsiyoneldir — eşleştirmezseniz sonraki adımda
+            belirleyeceğiniz bir varsayılan oda ve süre kullanılır.
           </p>
           <SutunEsleme
             kaynakBasliklar={dosya.basliklar}
@@ -259,7 +270,7 @@ export function RandevularSihirbazi({
           </div>
           {!zorunluAlanlarTamam && (
             <p className="text-right text-xs text-destructive">
-              Hasta Telefonu, Terapist Adı, Oda Adı, Başlangıç ve Bitiş alanları zorunludur.
+              Hasta Telefonu, Terapist Adı ve Başlangıç alanları zorunludur.
             </p>
           )}
         </div>
@@ -315,8 +326,40 @@ export function RandevularSihirbazi({
             </div>
           </div>
 
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="mb-2 text-sm font-medium">Varsayılan Oda</p>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Oda Adı sütununu eşleştirmediyseniz veya bir satırda oda bilgisi boşsa bu oda kullanılır.
+              </p>
+              <div className="max-w-xs">
+                <EslestirmeSecici
+                  secenekler={odalar}
+                  secili={varsayilanOdaId}
+                  onDegistir={setVarsayilanOdaId}
+                  bosEtiket="— Seçin —"
+                />
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">Varsayılan Süre (dakika)</p>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Bitiş Tarihi sütununu eşleştirmediyseniz veya bir satırda bitiş boşsa süre başlangıca eklenerek
+                hesaplanır.
+              </p>
+              <input
+                type="number"
+                min={5}
+                step={5}
+                className="h-8 w-32 rounded-lg border border-input bg-input-bg px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={varsayilanSureDakika}
+                onChange={(e) => setVarsayilanSureDakika(Math.max(5, Number(e.target.value) || VARSAYILAN_SURE_DAKIKA))}
+              />
+            </div>
+          </div>
+
           <div>
-            <p className="mb-2 text-sm font-medium">Oda Eşleştirmesi</p>
+            <p className="mb-2 text-sm font-medium">Oda Eşleştirmesi {benzersizOdalar.length === 0 && "(dosyada oda sütunu yok — hepsi varsayılan odaya işaretlenecek)"}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {benzersizOdalar.map((deger) => (
                 <div key={deger} className="flex flex-col gap-1.5">
@@ -360,7 +403,9 @@ export function RandevularSihirbazi({
             </Button>
           </div>
           {!eslestirmeAdimiTamam && !telefonSorgusu.isLoading && (
-            <p className="text-right text-xs text-destructive">Tüm terapist ve oda değerlerini eşleştirin.</p>
+            <p className="text-right text-xs text-destructive">
+              Varsayılan odayı ve tüm terapist/oda değerlerini eşleştirin.
+            </p>
           )}
         </div>
       )}
