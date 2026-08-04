@@ -38,11 +38,13 @@ function SidebarIcerik({
   kullaniciRolu,
   pathname,
   linkTiklandi,
+  temaGecisiGoster,
 }: {
   kullaniciAdi: string;
   kullaniciRolu: string;
   pathname: string;
   linkTiklandi?: () => void;
+  temaGecisiGoster?: boolean;
 }) {
   return (
     <>
@@ -95,15 +97,18 @@ function SidebarIcerik({
         })}
       </nav>
 
-      <form action={cikisYap} className="border-t border-sidebar-border p-3">
-        <button
-          type="submit"
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <LogOut className="size-4 shrink-0" aria-hidden />
-          Çıkış yap
-        </button>
-      </form>
+      <div className="flex items-center gap-2 border-t border-sidebar-border p-3">
+        <form action={cikisYap} className="flex-1">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="size-4 shrink-0" aria-hidden />
+            Çıkış yap
+          </button>
+        </form>
+        {temaGecisiGoster && <ThemeToggle variant="inline" />}
+      </div>
     </>
   );
 }
@@ -164,6 +169,7 @@ export function PanelSidebar({
           kullaniciAdi={kullaniciAdi}
           kullaniciRolu={kullaniciRolu}
           pathname={pathname}
+          temaGecisiGoster
         />
       </aside>
 
