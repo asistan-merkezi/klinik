@@ -13,6 +13,7 @@ import {
   Settings,
   ClipboardList,
   ListChecks,
+  UploadCloud,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +52,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
       { href: "/panel/ayarlar/whatsapp", label: "WhatsApp", icon: MessageCircle },
       { href: "/panel/tablet", label: "Tablet", icon: Tablet },
       { href: "/panel/ayarlar/yetkilendirme", label: "Yetkilendirme", icon: ShieldCheck },
+      { href: "/panel/ayarlar/arsiv-ice-aktarma", label: "Arşiv İçe Aktarma", icon: UploadCloud },
     ],
   },
 ];
