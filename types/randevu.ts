@@ -1,4 +1,11 @@
-export type RandevuDurum = "planlandi" | "geldi" | "gecikmeli_geldi" | "gelmedi" | "ertelendi" | "iptal";
+export type RandevuDurum =
+  | "planlandi"
+  | "geldi"
+  | "gecikmeli_geldi"
+  | "gelmedi"
+  | "ertelendi"
+  | "iptal"
+  | "tamamlandi";
 
 export type RandevuSatir = {
   id: string;

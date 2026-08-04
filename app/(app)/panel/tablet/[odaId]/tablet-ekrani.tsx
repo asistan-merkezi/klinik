@@ -13,6 +13,7 @@ const DURUM_ETIKET: Record<RandevuSatir["durum"], string> = {
   iptal: "İptal",
   gelmedi: "Gelmedi",
   ertelendi: "Ertelendi",
+  tamamlandi: "Tamamlandı",
 };
 
 export function TabletEkrani({

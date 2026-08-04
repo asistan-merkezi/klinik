@@ -115,21 +115,21 @@ export default async function PersonelDetaySayfasi({
         .from("randevu")
         .select("id", { count: "exact", head: true })
         .eq("terapist_id", terapist.id)
-        .in("durum", ["geldi", "gecikmeli_geldi"])
+        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
         .gte("baslangic", gun.baslangic)
         .lt("baslangic", gun.bitis),
       supabase
         .from("randevu")
         .select("id", { count: "exact", head: true })
         .eq("terapist_id", terapist.id)
-        .in("durum", ["geldi", "gecikmeli_geldi"])
+        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
         .gte("baslangic", hafta.baslangic)
         .lt("baslangic", hafta.bitis),
       supabase
         .from("randevu")
         .select("id", { count: "exact", head: true })
         .eq("terapist_id", terapist.id)
-        .in("durum", ["geldi", "gecikmeli_geldi"])
+        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
         .gte("baslangic", ay.baslangic)
         .lt("baslangic", ay.bitis),
     ]);

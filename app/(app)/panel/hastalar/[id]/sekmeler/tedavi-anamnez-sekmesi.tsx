@@ -69,6 +69,7 @@ export function TedaviAnamnezSekmesi({
               aktif={aktif}
               seciliSeansId={seciliSeansId}
               onSeansSec={setSeciliSeansId}
+              duzenlenebilir={duzenlenebilir}
             />
           </CardContent>
         </Card>

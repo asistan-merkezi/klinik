@@ -11,7 +11,8 @@ export type GorunumDurumu =
   | "seansta"
   | "iptal"
   | "gelmedi"
-  | "ertelendi";
+  | "ertelendi"
+  | "tamamlandi";
 
 /**
  * Randevunun ekrandaki durumu DB durumundan türetilir. Süre geçince kendiliğinden
@@ -97,6 +98,16 @@ const DURUM_STIL: Record<
       serit: "bg-sky-500",
       dolgu: "bg-sky-500/10",
       kenar: "border-sky-300 dark:border-sky-500/40",
+    },
+  },
+  tamamlandi: {
+    etiket: "Tamamlandı",
+    rozet: "bg-muted text-muted-foreground",
+    soluk: true,
+    kutuRenk: {
+      serit: "bg-muted-foreground/40",
+      dolgu: "bg-muted/40",
+      kenar: "border-border",
     },
   },
 };

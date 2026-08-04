@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { bolgeBul } from "@/lib/vucut-bolgeleri";
 import { RANDEVU_DURUM_ETIKETLERI, type RandevuDurumu, type HastaSeansSatir } from "@/types/hasta-detay";
-import { useHastaSeansGecmisi, useHastaProtokoller, useVucutHaritasi } from "./queries";
+import { useHastaSeansGecmisi, useHastaProtokoller, useVucutHaritasi, useSeansTamamla } from "./queries";
 
 const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   day: "2-digit",
@@ -21,18 +23,25 @@ const DURUM_SINIFLARI: Record<RandevuDurumu, string> = {
   iptal: "bg-destructive/10 text-destructive",
   gelmedi: "bg-destructive/10 text-destructive",
   ertelendi: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  tamamlandi: "bg-muted text-muted-foreground",
 };
+
+/** "Seansı Tamamla" sadece hastanın gerçekten geldiği bir seans için anlamlı. */
+const TAMAMLANABILIR_DURUMLAR: RandevuDurumu[] = ["geldi", "gecikmeli_geldi"];
 
 export function SeansGecmisiZamanCizelgesi({
   hastaId,
   aktif,
   seciliSeansId,
   onSeansSec,
+  duzenlenebilir,
 }: {
   hastaId: string;
   aktif: boolean;
   seciliSeansId: string | null;
   onSeansSec: (id: string | null) => void;
+  /** true ise (klinik_admin/resepsiyon veya kendi randevusundaki terapist) "Seansı Tamamla" gösterilir. */
+  duzenlenebilir: boolean;
 }) {
   const { data: seanslar, isLoading } = useHastaSeansGecmisi(hastaId, aktif);
   const { data: tumIsaretler } = useVucutHaritasi(hastaId, null, aktif);
@@ -119,7 +128,9 @@ export function SeansGecmisiZamanCizelgesi({
               )}
             </button>
 
-            {secili && <TedaviBilgisiKarti seans={seans} />}
+            {secili && (
+              <TedaviBilgisiKarti hastaId={hastaId} seans={seans} duzenlenebilir={duzenlenebilir} />
+            )}
           </li>
         );
       })}
@@ -136,7 +147,18 @@ function TedaviBilgisiSatiri({ etiket, deger }: { etiket: string; deger: string 
   );
 }
 
-function TedaviBilgisiKarti({ seans }: { seans: HastaSeansSatir }) {
+function TedaviBilgisiKarti({
+  hastaId,
+  seans,
+  duzenlenebilir,
+}: {
+  hastaId: string;
+  seans: HastaSeansSatir;
+  duzenlenebilir: boolean;
+}) {
+  const [tamamlaAcik, setTamamlaAcik] = useState(false);
+  const tamamlanabilir = TAMAMLANABILIR_DURUMLAR.includes(seans.durum);
+
   return (
     <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5">
       <h4 className="mb-1 text-sm font-semibold">
@@ -147,6 +169,85 @@ function TedaviBilgisiKarti({ seans }: { seans: HastaSeansSatir }) {
       <TedaviBilgisiSatiri etiket="Tanı" deger={seans.tani ?? ""} />
       <TedaviBilgisiSatiri etiket="Tedavi Türü" deger={seans.islem_tanimi?.ad ?? ""} />
       <TedaviBilgisiSatiri etiket="Tedavi Protokolü" deger={seans.tedavi_protokolu?.ad ?? ""} />
+
+      {seans.durum === "tamamlandi" && (
+        <>
+          <TedaviBilgisiSatiri etiket="İşlem Açıklaması" deger={seans.tamamlanma_aciklamasi ?? ""} />
+          <TedaviBilgisiSatiri
+            etiket="Tamamlayan"
+            deger={
+              seans.tamamlayan_kullanici?.ad_soyad
+                ? `${seans.tamamlayan_kullanici.ad_soyad}${
+                    seans.tamamlanma_tarihi ? " · " + TARIH_SAAT_FORMAT.format(new Date(seans.tamamlanma_tarihi)) : ""
+                  }`
+                : ""
+            }
+          />
+        </>
+      )}
+
+      {duzenlenebilir && tamamlanabilir && (
+        <div className="mt-1">
+          {tamamlaAcik ? (
+            <SeansiTamamlaFormu
+              hastaId={hastaId}
+              randevuId={seans.id}
+              onTamam={() => setTamamlaAcik(false)}
+              onVazgec={() => setTamamlaAcik(false)}
+            />
+          ) : (
+            <Button type="button" size="sm" onClick={() => setTamamlaAcik(true)}>
+              Seansı Tamamla
+            </Button>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+function SeansiTamamlaFormu({
+  hastaId,
+  randevuId,
+  onTamam,
+  onVazgec,
+}: {
+  hastaId: string;
+  randevuId: string;
+  onTamam: () => void;
+  onVazgec: () => void;
+}) {
+  const [aciklama, setAciklama] = useState("");
+  const mutasyon = useSeansTamamla(hastaId);
+
+  function gonder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!aciklama.trim() || mutasyon.isPending) return;
+    mutasyon.mutate({ randevuId, aciklama: aciklama.trim() }, { onSuccess: onTamam });
+  }
+
+  return (
+    <form onSubmit={gonder} className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3">
+      <Label htmlFor={`tamamla-aciklama-${randevuId}`}>İşlem Açıklaması</Label>
+      <textarea
+        id={`tamamla-aciklama-${randevuId}`}
+        value={aciklama}
+        onChange={(e) => setAciklama(e.target.value)}
+        rows={2}
+        required
+        disabled={mutasyon.isPending}
+        placeholder="Bu seansta yapılan işlemi kısaca açıklayın..."
+        className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      />
+      {mutasyon.isError && <p className="text-sm text-destructive">Tamamlanamadı, lütfen tekrar deneyin.</p>}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={mutasyon.isPending || !aciklama.trim()}>
+          {mutasyon.isPending ? "Kaydediliyor..." : "Seansı Tamamla"}
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={mutasyon.isPending} onClick={onVazgec}>
+          Vazgeç
+        </Button>
+      </div>
+    </form>
   );
 }

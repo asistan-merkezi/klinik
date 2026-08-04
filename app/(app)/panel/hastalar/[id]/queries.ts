@@ -276,7 +276,8 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
       const { data, error } = await supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), islem_tanimi(ad), tani, antrenor:personel(ad_soyad), tedavi_protokolu(id, ad)"
+          "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), islem_tanimi(ad), tani, antrenor:personel(ad_soyad), tedavi_protokolu(id, ad), " +
+            "tamamlanma_aciklamasi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad), tamamlanma_tarihi"
         )
         .eq("hasta_id", hastaId)
         .lt("baslangic", new Date().toISOString())
@@ -285,6 +286,47 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
         .returns<HastaSeansSatir[]>();
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+type SeansTamamlaGirdi = {
+  randevuId: string;
+  aciklama: string;
+};
+
+/**
+ * Seans Geçmişi'ndeki "Seansı Tamamla" — durum'u 'tamamlandi' yapar,
+ * işlem açıklamasını ve tamamlayanı (client'tan gelen değere göre değil,
+ * oturumdaki kullanıcının auth.uid()'sine göre) kaydeder. Günün
+ * Çizelgesi'nin randevu tablosundaki her değişiklikte tetiklenen Realtime
+ * aboneliği sayesinde bu güncelleme orada da otomatik gri "Tamamlandı"
+ * olarak yansır — ayrıca bir revalidatePath'e gerek yok.
+ */
+export function useSeansTamamla(hastaId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ randevuId, aciklama }: SeansTamamlaGirdi) => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Oturum bulunamadı.");
+
+      const { error } = await supabase
+        .from("randevu")
+        .update({
+          durum: "tamamlandi",
+          tamamlanma_aciklamasi: aciklama,
+          tamamlayan_kullanici_id: user.id,
+          tamamlanma_tarihi: new Date().toISOString(),
+        })
+        .eq("id", randevuId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hasta_seans_gecmisi", hastaId] });
     },
   });
 }

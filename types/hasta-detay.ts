@@ -173,7 +173,14 @@ export type VucutHaritasiIsareti = {
   created_at: string;
 };
 
-export type RandevuDurumu = "planlandi" | "geldi" | "gecikmeli_geldi" | "gelmedi" | "ertelendi" | "iptal";
+export type RandevuDurumu =
+  | "planlandi"
+  | "geldi"
+  | "gecikmeli_geldi"
+  | "gelmedi"
+  | "ertelendi"
+  | "iptal"
+  | "tamamlandi";
 
 export const RANDEVU_DURUM_ETIKETLERI: Record<RandevuDurumu, string> = {
   planlandi: "Planlandı",
@@ -182,6 +189,7 @@ export const RANDEVU_DURUM_ETIKETLERI: Record<RandevuDurumu, string> = {
   gelmedi: "Gelmedi",
   ertelendi: "Ertelendi",
   iptal: "İptal",
+  tamamlandi: "Tamamlandı",
 };
 
 export type HastaSeansSatir = {
@@ -194,6 +202,9 @@ export type HastaSeansSatir = {
   tani: string | null;
   antrenor: { ad_soyad: string } | null;
   tedavi_protokolu: { id: string; ad: string } | null;
+  tamamlanma_aciklamasi: string | null;
+  tamamlayan_kullanici: { ad_soyad: string } | null;
+  tamamlanma_tarihi: string | null;
 };
 
 export type BakiyeHareketTuru = "odeme" | "iade" | "kredi" | "borc";

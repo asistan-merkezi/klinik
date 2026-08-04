@@ -17,6 +17,7 @@ const DURUM_ETIKET: Record<PortalRandevuSatir["durum"], string> = {
   iptal: "İptal",
   gelmedi: "Gelmedi",
   ertelendi: "Ertelendi",
+  tamamlandi: "Tamamlandı",
 };
 
 export default async function PortalSayfasi() {
