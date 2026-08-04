@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { tarihiIsoyaCevir, metniBooleanaCevir } from "@/lib/ice-aktarma/normallestir";
+import { tarihiIsoyaCevir } from "@/lib/ice-aktarma/normallestir";
 import type { ArsivSonucSatiri } from "@/components/panel/ice-aktarma/onizleme-tablosu";
 
 const CINSIYET_ESLEME: Record<string, string> = {
@@ -14,6 +14,11 @@ const CINSIYET_ESLEME: Record<string, string> = {
   belirtilmemis: "belirtilmemis",
 };
 
+// Kullanıcı kararıyla sadeleştirildi: referans kanalı, WhatsApp izni, kimlik
+// türü, acil durum kişisi, tıbbi ön geçmiş alanları (kronik hastalık/ilaç/
+// alerji/ameliyat/geliş sebebi) içe aktarma sihirbazından kaldırıldı — bu
+// alanlar artık gönderilmiyor, RPC eksik/null geldiğinde zaten güvenli
+// varsayılanlara düşüyor (whatsapp_izin_durumu=false, kimlik_no_tipi='tc').
 function hastaKaydiniNormallestir(kayit: Record<string, string>) {
   const cinsiyetHam = (kayit.cinsiyet ?? "").trim().toLocaleLowerCase("tr");
 
@@ -23,22 +28,11 @@ function hastaKaydiniNormallestir(kayit: Record<string, string>) {
     dogum_tarihi: kayit.dogum_tarihi ? tarihiIsoyaCevir(kayit.dogum_tarihi) : null,
     cinsiyet: CINSIYET_ESLEME[cinsiyetHam] ?? null,
     eposta: kayit.eposta?.trim() || null,
-    referans_kanali: kayit.referans_kanali?.trim() || null,
-    whatsapp_izin_durumu: kayit.whatsapp_izin_durumu ? metniBooleanaCevir(kayit.whatsapp_izin_durumu) : false,
     kimlik_no: kayit.kimlik_no?.trim() || null,
-    kimlik_no_tipi: kayit.kimlik_no_tipi?.trim().toLocaleLowerCase("tr") || null,
     adres: kayit.adres?.trim() || null,
     il: kayit.il?.trim() || null,
     ilce: kayit.ilce?.trim() || null,
     mahalle: kayit.mahalle?.trim() || null,
-    acil_durum_ad_soyad: kayit.acil_durum_ad_soyad?.trim() || null,
-    acil_durum_yakinlik: kayit.acil_durum_yakinlik?.trim() || null,
-    acil_durum_telefon: kayit.acil_durum_telefon?.trim() || null,
-    kronik_hastaliklar: kayit.kronik_hastaliklar?.trim() || null,
-    surekli_ilaclar: kayit.surekli_ilaclar?.trim() || null,
-    alerjiler: kayit.alerjiler?.trim() || null,
-    gecirilmis_ameliyatlar: kayit.gecirilmis_ameliyatlar?.trim() || null,
-    gelis_sebebi: kayit.gelis_sebebi?.trim() || null,
   };
 }
 

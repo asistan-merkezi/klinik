@@ -17,22 +17,11 @@ const HEDEF_ALANLAR: HedefAlan[] = [
   { key: "dogum_tarihi", label: "Doğum Tarihi" },
   { key: "cinsiyet", label: "Cinsiyet" },
   { key: "eposta", label: "E-posta" },
-  { key: "referans_kanali", label: "Referans Kanalı" },
-  { key: "whatsapp_izin_durumu", label: "WhatsApp İzni (Evet/Hayır)" },
   { key: "kimlik_no", label: "TC Kimlik / Pasaport No" },
-  { key: "kimlik_no_tipi", label: "Kimlik Türü (tc/pasaport)" },
   { key: "adres", label: "Adres (sokak/no/daire)" },
   { key: "il", label: "İl" },
   { key: "ilce", label: "İlçe" },
   { key: "mahalle", label: "Mahalle" },
-  { key: "acil_durum_ad_soyad", label: "Acil Durum Kişisi Ad Soyad" },
-  { key: "acil_durum_yakinlik", label: "Acil Durum Kişisi Yakınlığı" },
-  { key: "acil_durum_telefon", label: "Acil Durum Kişisi Telefonu" },
-  { key: "kronik_hastaliklar", label: "Kronik Hastalıklar" },
-  { key: "surekli_ilaclar", label: "Sürekli Kullanılan İlaçlar" },
-  { key: "alerjiler", label: "Alerjiler" },
-  { key: "gecirilmis_ameliyatlar", label: "Geçirilmiş Ameliyatlar" },
-  { key: "gelis_sebebi", label: "Geliş Sebebi" },
 ];
 
 const ADIM_BASLIKLARI = ["Dosya Yükle", "Sütun Eşleştir", "İçe Aktar & Sonuç"];
