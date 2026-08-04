@@ -169,11 +169,15 @@ export function CanliCizelge({
     router.push(`/panel/randevular?oda_id=${odaId}&tarih=${tarih}&saat=${saat}`);
   }
 
-  /** Seansta olan bir randevu için, sadece o hastanın randevusuna bakan terapist veya klinik_admin/super_admin için geçerli. */
-  function seansHastasinaGitYetkisiVarMi(randevu: RandevuSatir) {
+  /** Gelmiş (geldi/gecikmeli geldi/seansta) bir randevu için, sadece o hastanın randevusuna bakan terapist veya klinik_admin/super_admin için geçerli. */
+  function gelenHastayaGitYetkisiVarMi(randevu: RandevuSatir) {
     if (rol === "klinik_admin" || rol === "super_admin") return true;
     if (rol === "terapist" && kendiTerapistId) return randevu.terapist_id === kendiTerapistId;
     return false;
+  }
+
+  function gelenHastaDurumuMu(durum: ReturnType<typeof gorunumDurumuHesapla>) {
+    return durum === "seansta" || durum === "geldi" || durum === "gecikmeli_geldi";
   }
 
   function randevuKutusunaTiklandi(
@@ -182,7 +186,7 @@ export function CanliCizelge({
     durum: ReturnType<typeof gorunumDurumuHesapla>
   ) {
     e.stopPropagation();
-    if (durum === "seansta" && randevu.hasta_id && seansHastasinaGitYetkisiVarMi(randevu)) {
+    if (gelenHastaDurumuMu(durum) && randevu.hasta_id && gelenHastayaGitYetkisiVarMi(randevu)) {
       router.push(`/panel/hastalar/${randevu.hasta_id}?tab=tedavi`);
       return;
     }
@@ -382,7 +386,7 @@ export function CanliCizelge({
                         const bitisFarki = dakikaFarki(gunBaslangicMs, randevu.bitis);
                         const yukseklik = Math.max((bitisFarki - baslangicFarki) * PX_PER_DAKIKA - 4, 40);
 
-                        const hastaLinki = durum === "seansta" && seansHastasinaGitYetkisiVarMi(randevu);
+                        const hastaLinki = gelenHastaDurumuMu(durum) && gelenHastayaGitYetkisiVarMi(randevu);
 
                         return (
                           <div
