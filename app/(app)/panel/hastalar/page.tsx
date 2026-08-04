@@ -81,7 +81,7 @@ export default async function HastalarSayfasi({
               </p>
             )}
             {!error && hastalar.length > 0 && (
-              <ul className="flex flex-col divide-y divide-border">
+              <ul className="flex flex-col gap-2">
                 {hastalar.map((hasta) => (
                   <HastaSatiri key={hasta.id} hasta={hasta} />
                 ))}

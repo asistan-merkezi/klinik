@@ -1,13 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import type { HastaDetay } from "@/types/hasta";
-import type { HastaOzet, HastaBakiyeHareket } from "@/types/hasta-detay";
-import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
-import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
-import type { SecenekSatir } from "@/types/randevu";
-import { HastaDetayIcerik } from "./hasta-detay-icerik";
+import type { HastaOzet } from "@/types/hasta-detay";
+import { SekmeKartlari } from "./sekme-kartlari";
+import { SEKMELER } from "./sekme-tanimlari";
+import { hastaTemelGetir, kullaniciRolGetir } from "./hasta-getir";
 
 export default async function HastaDetaySayfasi({
   params,
@@ -25,142 +21,21 @@ export default async function HastaDetaySayfasi({
     redirect("/giris");
   }
 
-  const { data: hasta } = await supabase
-    .from("hasta")
-    .select(
-      "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi, risk_bayraklari, " +
-        "kvkk_onaylayan_tip, kvkk_onaylayan:kullanici!hasta_kvkk_onaylayan_kullanici_id_fkey(ad_soyad), " +
-        "ozel_nitelikli_onaylayan_tip, ozel_nitelikli_onaylayan:kullanici!hasta_ozel_nitelikli_onaylayan_kullanici_id_fkey(ad_soyad), " +
-        "ticari_ileti_onaylayan_tip, ticari_ileti_onaylayan:kullanici!hasta_ticari_ileti_onaylayan_kullanici_id_fkey(ad_soyad)"
-    )
-    .eq("id", id)
-    .single<HastaDetay>();
-
+  const hasta = await hastaTemelGetir(supabase, id);
   if (!hasta) {
     notFound();
   }
 
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
+  const rol = await kullaniciRolGetir(supabase, user.id);
+  const terapistMi = rol === "terapist";
 
-  const rol = kullanici?.rol ?? null;
-  const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
+  const { data: ozet } = await supabase
+    .from("v_hasta_ozet")
+    .select("*")
+    .eq("hasta_id", id)
+    .maybeSingle<HastaOzet>();
 
-  const [
-    hastaKullaniciSonucu,
-    ozetSonucu,
-    paketSatisSonucu,
-    odemeSonucu,
-    islemTanimiSonucu,
-    paketSonucu,
-    periyodikRandevuSonucu,
-    bakiyeHareketSonucu,
-    terapistSonucu,
-    odaSonucu,
-    cihazSonucu,
-  ] = await Promise.all([
-    supabase.from("hasta_kullanici").select("aktif").eq("hasta_id", id).maybeSingle(),
-    supabase.from("v_hasta_ozet").select("*").eq("hasta_id", id).maybeSingle<HastaOzet>(),
-    supabase
-      .from("paket_satis")
-      .select("id, kalan_adet, gecerlilik_bitis_tarihi, durum, paket(ad, seans_sayisi)")
-      .eq("hasta_id", id)
-      .eq("durum", "aktif")
-      .order("gecerlilik_bitis_tarihi")
-      .returns<PaketSatisSatir[]>(),
-    supabase
-      .from("odeme")
-      .select(
-        "id, created_at, iskonto_tutari, faturali, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad), paket_satis(paket(ad))), odeme_satiri(yontem, tutar), fatura(id, durum, e_arsiv_pdf_url, hata_mesaji)"
-      )
-      .eq("hasta_id", id)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .returns<OdemeGecmisSatir[]>(),
-    supabase.from("islem_tanimi").select("id, ad, fiyat, kdv_orani").eq("aktif", true).order("ad"),
-    supabase.from("paket").select("id, ad, fiyat, kdv_orani").eq("aktif", true).order("ad"),
-    supabase
-      .from("periyodik_randevu")
-      .select(
-        "id, haftanin_gunu, saat, sure_dakika, durum, bitis_tarihi, otomatik_yenile, terapist(personel(ad_soyad)), oda(ad), islem_tanimi(ad)"
-      )
-      .eq("hasta_id", id)
-      .eq("durum", "aktif")
-      .order("haftanin_gunu")
-      .returns<PeriyodikRandevuSatir[]>(),
-    supabase
-      .from("hasta_bakiye_hareket")
-      .select("id, tur, tutar, aciklama, created_at")
-      .eq("hasta_id", id)
-      .order("created_at", { ascending: false })
-      .limit(30)
-      .returns<HastaBakiyeHareket[]>(),
-    supabase
-      .from("terapist")
-      .select("id, personel(ad_soyad)")
-      .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
-    supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-  ]);
+  const gorunurSekmeler = SEKMELER.filter((s) => !(s.terapisteKapali && terapistMi));
 
-  const hastaKullanici = hastaKullaniciSonucu.data;
-  const ozet = ozetSonucu.data;
-  const aktifPaketler = paketSatisSonucu.data ?? [];
-  const odemeGecmisi = odemeSonucu.data ?? [];
-  const periyodikRandevular = periyodikRandevuSonucu.data ?? [];
-  const bakiyeHareketleri = bakiyeHareketSonucu.data ?? [];
-
-  const satilabilirUrunler: SatilabilirUrun[] = [
-    ...(islemTanimiSonucu.data ?? []).map((i) => ({
-      id: i.id,
-      ad: i.ad,
-      tur: "islem" as const,
-      fiyat: i.fiyat,
-      kdv_orani: i.kdv_orani,
-    })),
-    ...(paketSonucu.data ?? []).map((p) => ({
-      id: p.id,
-      ad: p.ad,
-      tur: "paket" as const,
-      fiyat: p.fiyat,
-      kdv_orani: p.kdv_orani,
-    })),
-  ];
-
-  const terapistler: SecenekSatir[] = (terapistSonucu.data ?? [])
-    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
-    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
-  const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
-  const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const tedaviler: SecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({ id: i.id, ad: i.ad }));
-
-  return (
-    <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-4xl flex-col gap-4">
-        <div className="flex justify-end">
-          <Button variant="outline" nativeButton={false} render={<Link href="/panel/hastalar">Hastalara dön</Link>} />
-        </div>
-
-        <HastaDetayIcerik
-          hasta={hasta}
-          ozet={ozet}
-          rol={rol}
-          duzenlenebilir={duzenlenebilir}
-          portalDurumu={{ var: hastaKullanici != null, aktif: hastaKullanici?.aktif ?? false }}
-          periyodikRandevular={periyodikRandevular}
-          aktifPaketler={aktifPaketler}
-          satilabilirUrunler={satilabilirUrunler}
-          odemeGecmisi={odemeGecmisi}
-          bakiyeHareketleri={bakiyeHareketleri}
-          terapistler={terapistler}
-          odalar={odalar}
-          cihazlar={cihazlar}
-          tedaviler={tedaviler}
-        />
-      </div>
-    </div>
-  );
+  return <SekmeKartlari hasta={hasta} ozet={ozet ?? null} gorunurSekmeler={gorunurSekmeler} />;
 }

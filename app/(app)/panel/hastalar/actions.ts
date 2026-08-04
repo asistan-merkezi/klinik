@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
+import { revalidateHastaDetay } from "./[id]/revalidate";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -177,7 +178,7 @@ export async function hastaGuncelle(
   }
 
   revalidatePath("/panel/hastalar");
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   revalidatePath("/panel/randevular");
   return { success: true, message: "Hasta güncellendi." };
 }
@@ -217,6 +218,6 @@ export async function kvkkOnayVer(hastaId: string): Promise<SonucDurumu> {
   }
 
   revalidatePath("/panel/hastalar");
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "KVKK onayı kaydedildi." };
 }

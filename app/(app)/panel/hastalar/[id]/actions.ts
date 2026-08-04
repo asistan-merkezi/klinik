@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
+import { revalidateHastaDetay } from "./revalidate";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -105,7 +106,7 @@ export async function odemeAl(
     return { success: false, message: odemeHatasiniCevir(error.message) };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Ödeme alındı." };
 }
 
@@ -230,7 +231,7 @@ export async function portalErisimiAc(hastaId: string): Promise<PortalSonucu> {
     return { success: false, message: "Portal erişimi açılamadı, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Portal erişimi açıldı.", geciciSifre };
 }
 
@@ -401,7 +402,7 @@ export async function temelBilgileriGuncelle(
     return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   revalidatePath("/panel/hastalar");
   revalidatePath("/panel/randevular");
   return { success: true, message: "Temel bilgiler kaydedildi." };
@@ -487,7 +488,7 @@ export async function anamnezGuncelle(
     return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Tıbbi geçmiş kaydedildi." };
 }
 
@@ -514,7 +515,7 @@ export async function ozelNitelikliOnayVer(hastaId: string): Promise<PortalSonuc
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Sağlık verisi işleme onayı kaydedildi." };
 }
 
@@ -541,7 +542,7 @@ export async function ticariIletiOnayVer(hastaId: string): Promise<PortalSonucu>
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Ticari ileti onayı kaydedildi." };
 }
 
@@ -630,7 +631,7 @@ export async function riskBayragiEkle(
     return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Risk bayrağı eklendi." };
 }
 
@@ -686,7 +687,7 @@ export async function hastaHedefEkle(
     return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Hedef eklendi." };
 }
 
@@ -742,6 +743,6 @@ export async function portalErisimDurumDegistir(hastaId: string, yeniDurum: bool
     return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: yeniDurum ? "Portal erişimi açıldı." : "Portal erişimi kapatıldı." };
 }

@@ -8,9 +8,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ModuleCard } from "@/components/panel/module-card";
-import type { HastaDetay } from "@/types/hasta";
 import type { HastaOzet, HastaDetayOzet } from "@/types/hasta-detay";
 import type { SekmeAnahtari } from "./sekme-tanimlari";
+import type { HastaTemel } from "./hasta-getir";
+import { useHastaDetayOzet } from "./queries";
 
 const IKONLAR: Record<SekmeAnahtari, LucideIcon> = {
   kisisel: User,
@@ -28,7 +29,7 @@ function randevuZamani(tarih: string): string {
 
 function ozetDegeri(
   sekme: SekmeAnahtari,
-  hasta: HastaDetay,
+  hasta: HastaTemel,
   ozet: HastaOzet | null,
   detayOzet: HastaDetayOzet | null | undefined,
   yukleniyor: boolean
@@ -63,20 +64,13 @@ function ozetDegeri(
 export function SekmeKartlari({
   hasta,
   ozet,
-  detayOzet,
-  yukleniyor,
   gorunurSekmeler,
-  aktifSekme,
-  onKartTikla,
 }: {
-  hasta: HastaDetay;
+  hasta: HastaTemel;
   ozet: HastaOzet | null;
-  detayOzet: HastaDetayOzet | null | undefined;
-  yukleniyor: boolean;
   gorunurSekmeler: { deger: SekmeAnahtari; etiket: string }[];
-  aktifSekme: SekmeAnahtari;
-  onKartTikla: (deger: SekmeAnahtari) => void;
 }) {
+  const { data: detayOzet, isLoading: yukleniyor } = useHastaDetayOzet(hasta.id);
   const tekKalanKartVar = gorunurSekmeler.length % 2 === 1;
 
   return (
@@ -91,8 +85,7 @@ export function SekmeKartlari({
             label={s.etiket}
             subtitle={deger}
             warning={uyari}
-            active={aktifSekme === s.deger}
-            onClick={() => onKartTikla(s.deger)}
+            href={`/panel/hastalar/${hasta.id}/${s.deger}`}
             className={sonKartTek ? "col-span-2 mx-auto w-1/2 sm:col-span-1 sm:w-auto" : undefined}
           />
         );

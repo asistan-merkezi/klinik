@@ -12,10 +12,10 @@ export function HastaSatiri({ hasta }: { hasta: HastaSatir }) {
 
   return (
     <li
-      className="flex cursor-pointer flex-col gap-2 py-3 text-sm hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+      className="flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:border-primary/40 hover:bg-muted/50 active:scale-[0.99] sm:flex-row sm:items-center sm:justify-between"
       onClick={() => router.push(`/panel/hastalar/${hasta.id}`)}
     >
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-0.5">
         <span className="font-medium">{hasta.ad_soyad}</span>
         <span className="text-muted-foreground">{hasta.telefon}</span>
       </div>

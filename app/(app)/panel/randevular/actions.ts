@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toUTC } from "@/lib/datetime";
 import { whatsappLinkOlustur } from "@/lib/utils";
 import type { RandevuDurum } from "@/types/randevu";
+import { revalidateHastaDetay } from "../hastalar/[id]/revalidate";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -106,7 +107,7 @@ export async function randevuOlustur(
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
-  revalidatePath(`/panel/hastalar/${hasta_id}`);
+  revalidateHastaDetay(hasta_id);
   return { success: true, message: "Randevu oluşturuldu." };
 }
 
@@ -235,7 +236,7 @@ export async function randevuGelisIsaretle(
 
   const sonuc = data as { yontem?: string; hasta_id?: string; tutar?: number; kalan_adet?: number } | null;
   if (sonuc?.hasta_id) {
-    revalidatePath(`/panel/hastalar/${sonuc.hasta_id}`);
+    revalidateHastaDetay(sonuc.hasta_id);
   }
 
   const gelisEtiketi = gecikmeDakika ? "Gecikmeli geliş" : "Geliş";
@@ -357,7 +358,7 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   if (mevcut.hasta_id) {
-    revalidatePath(`/panel/hastalar/${mevcut.hasta_id}`);
+    revalidateHastaDetay(mevcut.hasta_id);
   }
   return {
     success: true,
@@ -714,7 +715,7 @@ export async function periyodikRandevuOlustur(
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
-  revalidatePath(`/panel/hastalar/${hasta_id}`);
+  revalidateHastaDetay(hasta_id);
 
   const mesaj =
     cakismalar.length > 0
@@ -765,7 +766,7 @@ export async function periyodikRandevuIptalEt(periyodikId: string, hastaId: stri
     console.error("Periyodik seriye bağlı gelecek randevular iptal edilemedi:", randevuHata);
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   return { success: true, message: "Periyodik randevu iptal edildi, henüz gelmemiş randevular da iptal edildi." };
@@ -901,7 +902,7 @@ export async function periyodikRandevuGuncelle(
     cakismalar = sonuc.cakismalar;
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
 
@@ -944,6 +945,6 @@ export async function periyodikRandevuYenilenmeyecek(periyodikId: string, hastaI
     return { success: false, message: "İşlem başarısız, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/hastalar/${hastaId}`);
+  revalidateHastaDetay(hastaId);
   return { success: true, message: "Periyodik randevu, bitiş tarihinde yenilenmeyecek şekilde işaretlendi." };
 }
