@@ -187,7 +187,7 @@ export function CanliCizelge({
   ) {
     e.stopPropagation();
     if (gelenHastaDurumuMu(durum) && randevu.hasta_id && gelenHastayaGitYetkisiVarMi(randevu)) {
-      router.push(`/panel/hastalar/${randevu.hasta_id}?tab=tedavi`);
+      router.push(`/panel/hastalar/${randevu.hasta_id}/tedavi`);
       return;
     }
     setSeciliRandevu(randevu);

@@ -28,6 +28,7 @@ export type RandevuSatir = {
   antrenor?: { ad_soyad: string } | null;
   tedavi_protokolu_id?: string | null;
   tedavi_protokolu?: { id: string; ad: string } | null;
+  kaynak?: "uygulama" | "arsiv";
 };
 
 export type SecenekSatir = {

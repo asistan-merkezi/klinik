@@ -1,10 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
-import type { SecenekSatir } from "@/types/randevu";
+import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { GeriLink } from "../geri-link";
 import { RandevuSeansSekmesi } from "../sekmeler/randevu-seans-sekmesi";
 import { hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
+
+const RANDEVU_ARSIV_SELECT =
+  "id, baslangic, bitis, durum, gecikme_dakika, terapist(personel(ad_soyad)), oda(ad), islem_tanimi(id, ad), kaynak";
 
 export default async function RandevuSeansSayfasi({
   params,
@@ -30,7 +33,7 @@ export default async function RandevuSeansSayfasi({
   const rol = await kullaniciRolGetir(supabase, user.id);
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
-  const [periyodikRandevuSonucu, islemTanimiSonucu, terapistSonucu, odaSonucu, cihazSonucu] =
+  const [periyodikRandevuSonucu, randevuListesiSonucu, islemTanimiSonucu, terapistSonucu, odaSonucu, cihazSonucu] =
     await Promise.all([
       supabase
         .from("periyodik_randevu")
@@ -41,6 +44,13 @@ export default async function RandevuSeansSayfasi({
         .eq("durum", "aktif")
         .order("haftanin_gunu")
         .returns<PeriyodikRandevuSatir[]>(),
+      supabase
+        .from("randevu")
+        .select(RANDEVU_ARSIV_SELECT)
+        .eq("hasta_id", id)
+        .order("baslangic", { ascending: false })
+        .limit(100)
+        .returns<RandevuSatir[]>(),
       supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
       supabase
         .from("terapist")
@@ -51,6 +61,7 @@ export default async function RandevuSeansSayfasi({
     ]);
 
   const periyodikRandevular = periyodikRandevuSonucu.data ?? [];
+  const randevuListesi = randevuListesiSonucu.data ?? [];
   const tedaviler: SecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({ id: i.id, ad: i.ad }));
   const terapistler: SecenekSatir[] = (terapistSonucu.data ?? [])
     .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
@@ -66,6 +77,7 @@ export default async function RandevuSeansSayfasi({
         hastaAdSoyad={hasta.ad_soyad}
         duzenlenebilir={duzenlenebilir}
         periyodikRandevular={periyodikRandevular}
+        randevuListesi={randevuListesi}
         terapistler={terapistler}
         odalar={odalar}
         cihazlar={cihazlar}

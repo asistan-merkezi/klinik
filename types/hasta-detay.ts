@@ -1,3 +1,5 @@
+import type { StatusTone } from "@/components/ui/status-badge";
+
 export type RiskSeviyesi = "yuksek" | "orta" | "dusuk";
 
 export type RiskTipi =
@@ -190,6 +192,16 @@ export const RANDEVU_DURUM_ETIKETLERI: Record<RandevuDurumu, string> = {
   ertelendi: "Ertelendi",
   iptal: "İptal",
   tamamlandi: "Tamamlandı",
+};
+
+export const RANDEVU_DURUM_TONLARI: Record<RandevuDurumu, StatusTone> = {
+  planlandi: "primary",
+  geldi: "emerald",
+  gecikmeli_geldi: "emerald",
+  iptal: "rose",
+  gelmedi: "rose",
+  ertelendi: "sky",
+  tamamlandi: "slate",
 };
 
 export type HastaSeansSatir = {

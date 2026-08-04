@@ -5,10 +5,15 @@ import { CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { bolgeBul } from "@/lib/vucut-bolgeleri";
-import { RANDEVU_DURUM_ETIKETLERI, type RandevuDurumu, type HastaSeansSatir } from "@/types/hasta-detay";
+import {
+  RANDEVU_DURUM_ETIKETLERI,
+  RANDEVU_DURUM_TONLARI,
+  type RandevuDurumu,
+  type HastaSeansSatir,
+} from "@/types/hasta-detay";
 import { useHastaSeansGecmisi, useHastaProtokoller, useVucutHaritasi, useSeansTamamla } from "./queries";
 
 const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
@@ -18,16 +23,6 @@ const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   hour: "2-digit",
   minute: "2-digit",
 });
-
-const DURUM_TONLARI: Record<RandevuDurumu, StatusTone> = {
-  planlandi: "primary",
-  geldi: "emerald",
-  gecikmeli_geldi: "emerald",
-  iptal: "rose",
-  gelmedi: "rose",
-  ertelendi: "sky",
-  tamamlandi: "slate",
-};
 
 /** "Seansı Tamamla" sadece hastanın gerçekten geldiği bir seans için anlamlı. */
 const TAMAMLANABILIR_DURUMLAR: RandevuDurumu[] = ["geldi", "gecikmeli_geldi"];
@@ -102,7 +97,7 @@ export function SeansGecmisiZamanCizelgesi({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium">{TARIH_SAAT_FORMAT.format(new Date(seans.baslangic))}</span>
-                <StatusBadge tone={DURUM_TONLARI[seans.durum]}>{RANDEVU_DURUM_ETIKETLERI[seans.durum]}</StatusBadge>
+                <StatusBadge tone={RANDEVU_DURUM_TONLARI[seans.durum]}>{RANDEVU_DURUM_ETIKETLERI[seans.durum]}</StatusBadge>
               </div>
 
               <p className="text-xs text-muted-foreground">
