@@ -51,7 +51,7 @@ export default async function HastalarSayfasi({
               Hasta kayıtlarını görüntüle, ekle ve düzenle.
             </p>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <Button
               variant="outline"
               nativeButton={false}

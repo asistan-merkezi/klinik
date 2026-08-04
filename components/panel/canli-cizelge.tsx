@@ -15,10 +15,10 @@ import { RandevuDetayPaneli } from "@/components/panel/randevu-detay-paneli";
 
 const GUN_BASLANGIC_SAAT = 8;
 const GUN_BITIS_SAAT = 20;
-const PX_PER_DAKIKA = 2;
+const PX_PER_DAKIKA = 1;
 const TOPLAM_DAKIKA = (GUN_BITIS_SAAT - GUN_BASLANGIC_SAAT) * 60;
 const SAAT_SUTUN_GENISLIK = 56;
-const ODA_SUTUN_GENISLIK = 160;
+const ODA_SUTUN_GENISLIK = 80;
 const SAAT_ETIKETLERI = Array.from(
   { length: GUN_BITIS_SAAT - GUN_BASLANGIC_SAAT + 1 },
   (_, i) => GUN_BASLANGIC_SAAT + i
