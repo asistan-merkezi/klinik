@@ -1,7 +1,7 @@
 import type { Cinsiyet } from "./hasta";
 
 export type MaasHesaplamaModeli = "sabit" | "islem_basi_prim" | "barajli_prim";
-export type HakedisTuru = "yol" | "yemek" | "mesai" | "diger";
+export type HakedisTuru = "yol" | "yemek" | "mesai" | "sgk" | "diger";
 export type CalismaTipi = "tam_zamanli" | "yari_zamanli" | "vardiyali" | "prim_usulu";
 
 export const CALISMA_TIPI_SECENEKLERI: { value: CalismaTipi; label: string }[] = [
@@ -102,6 +102,13 @@ export type TerapistAyarlari = {
 export type HakedisSatir = {
   id: string;
   tur: HakedisTuru;
+  tutar: number;
+  tarih: string;
+  aciklama: string | null;
+};
+
+export type PersonelOdemeSatir = {
+  id: string;
   tutar: number;
   tarih: string;
   aciklama: string | null;

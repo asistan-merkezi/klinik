@@ -22,7 +22,7 @@ const maasAyarSemasi = z.object({
 });
 
 const hakedisSemasi = z.object({
-  tur: z.enum(["yol", "yemek", "mesai", "diger"]),
+  tur: z.enum(["yol", "yemek", "mesai", "sgk", "diger"]),
   tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),

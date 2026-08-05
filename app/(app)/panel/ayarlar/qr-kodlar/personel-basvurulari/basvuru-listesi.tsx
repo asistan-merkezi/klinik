@@ -101,7 +101,7 @@ export function BasvuruListesi({ basvurular }: { basvurular: Basvuru[] }) {
             {durum === "onaylandi" && (
               <p className="text-xs text-muted-foreground">
                 Onaylandı — hesabını{" "}
-                <Link href="/panel/personel" className="text-primary underline underline-offset-2">
+                <Link href="/panel/personel/liste" className="text-primary underline underline-offset-2">
                   Personel sayfasından
                 </Link>{" "}
                 oluşturabilirsiniz.

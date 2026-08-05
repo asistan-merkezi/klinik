@@ -18,6 +18,7 @@ const TUR_SECENEKLERI: { value: HakedisTuru; label: string }[] = [
   { value: "yol", label: "Yol" },
   { value: "yemek", label: "Yemek" },
   { value: "mesai", label: "Fazla Mesai" },
+  { value: "sgk", label: "SGK" },
   { value: "diger", label: "Diğer" },
 ];
 

@@ -15,6 +15,7 @@ import {
   ListChecks,
   UploadCloud,
   QrCode,
+  HandCoins,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,11 +33,19 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ],
   },
   {
+    key: "personel",
+    label: "Personel",
+    icon: UserCog,
+    ogeler: [
+      { href: "/panel/personel/liste", label: "Personel", icon: UserCog },
+      { href: "/panel/personel/takip", label: "Personel Takip", icon: HandCoins },
+    ],
+  },
+  {
     key: "muhasebe",
     label: "Muhasebe",
     icon: Wallet,
     ogeler: [
-      { href: "/panel/personel", label: "Personel", icon: UserCog },
       { href: "/panel/muhasebe/faturalar", label: "Faturalar", icon: Receipt },
       { href: "/panel/muhasebe/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
       { href: "/panel/muhasebe/giderler", label: "Giderler", icon: TrendingDown },

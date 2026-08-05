@@ -377,7 +377,7 @@ export async function personelHesabiOlustur(
     klinikId
   );
 
-  revalidatePath("/panel/personel");
+  revalidatePath("/panel/personel/liste");
   return {
     success: true,
     message: uyari ? `Personel hesabı oluşturuldu. ${uyari}` : "Personel hesabı oluşturuldu.",
@@ -456,6 +456,6 @@ export async function personelBilgileriGuncelle(
   );
 
   revalidatePath(`/panel/personel/${personelId}`);
-  revalidatePath("/panel/personel");
+  revalidatePath("/panel/personel/liste");
   return { success: true, message: uyari ? `Kaydedildi. ${uyari}` : "Kaydedildi." };
 }
