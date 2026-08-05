@@ -130,7 +130,7 @@ export default async function PersonelTakipSayfasi({
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold">Personel Takip</h1>
+          <h1 className="text-xl font-semibold">Personel Maaş</h1>
           <p className="text-sm text-muted-foreground">
             Personelin klinikten alacağı — hesaplanan hakediş ile fiilen ödenen tutar arasındaki fark.
           </p>

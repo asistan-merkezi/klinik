@@ -37,8 +37,8 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     label: "Personel",
     icon: UserCog,
     ogeler: [
-      { href: "/panel/personel/liste", label: "Personel", icon: UserCog },
-      { href: "/panel/personel/takip", label: "Personel Takip", icon: HandCoins },
+      { href: "/panel/personel/liste", label: "Personel Listesi", icon: UserCog },
+      { href: "/panel/personel/takip", label: "Personel Maaş", icon: HandCoins },
     ],
   },
   {

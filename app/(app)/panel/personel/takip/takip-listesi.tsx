@@ -47,6 +47,17 @@ export function PersonelTakipListesi({ satirlar }: { satirlar: TakipSatiri[] }) 
 
   const odemeAcikSatir = satirlar.find((s) => s.id === odemeAcikId) ?? null;
 
+  function grupToplami(liste: TakipSatiri[]) {
+    return liste.reduce(
+      (acc, s) => {
+        acc.hakedis += s.hakedis;
+        acc.odenen += s.odenen;
+        return acc;
+      },
+      { hakedis: 0, odenen: 0 }
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <Input
@@ -61,43 +72,59 @@ export function PersonelTakipListesi({ satirlar }: { satirlar: TakipSatiri[] }) 
         <p className="text-sm text-muted-foreground">Aramayla eşleşen personel bulunamadı.</p>
       )}
 
-      {gruplar.map(({ gorev, liste }) => (
-        <div key={gorev} className="flex flex-col gap-1">
-          <h2 className="px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            {gorev}
-          </h2>
-          <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
-            {liste.map((s) => {
-              const kalan = s.hakedis - s.odenen;
-              return (
-                <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-3 text-sm">
-                  <Link href={`/panel/personel/${s.id}`} className="flex min-w-0 flex-col hover:underline">
-                    <span className={cn("truncate font-medium", !s.aktif && "text-muted-foreground line-through")}>
-                      {s.ad_soyad}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Hakediş {paraFormat(s.hakedis)} · Ödenen {paraFormat(s.odenen)}
-                    </span>
-                  </Link>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span
-                      className={cn(
-                        "font-semibold tabular-nums",
-                        kalan > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
-                      )}
-                    >
-                      {paraFormat(kalan)}
-                    </span>
-                    <Button type="button" size="sm" variant="outline" onClick={() => setOdemeAcikId(s.id)}>
-                      Ödeme Ekle
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+      {gruplar.map(({ gorev, liste }) => {
+        const toplam = grupToplami(liste);
+        const kalanToplam = toplam.hakedis - toplam.odenen;
+
+        return (
+          <div key={gorev} className="flex flex-col gap-1">
+            <h2 className="px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {gorev}
+            </h2>
+            <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
+              {liste.map((s) => {
+                const kalan = s.hakedis - s.odenen;
+                return (
+                  <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-3 text-sm">
+                    <Link href={`/panel/personel/${s.id}`} className="flex min-w-0 flex-col hover:underline">
+                      <span className={cn("truncate font-medium", !s.aktif && "text-muted-foreground line-through")}>
+                        {s.ad_soyad}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Hakediş {paraFormat(s.hakedis)} · Ödenen {paraFormat(s.odenen)}
+                      </span>
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span
+                        className={cn(
+                          "font-semibold tabular-nums",
+                          kalan > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+                        )}
+                      >
+                        {paraFormat(kalan)}
+                      </span>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setOdemeAcikId(s.id)}>
+                        Ödeme Ekle
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="px-1 text-xs text-muted-foreground">
+              Grup toplamı: Hakediş {paraFormat(toplam.hakedis)} − Ödenen {paraFormat(toplam.odenen)} ={" "}
+              <span
+                className={cn(
+                  "font-semibold",
+                  kalanToplam > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+                )}
+              >
+                {paraFormat(kalanToplam)}
+              </span>
+            </p>
+          </div>
+        );
+      })}
 
       <Dialog open={odemeAcikSatir != null} onOpenChange={(acik) => !acik && setOdemeAcikId(null)}>
         <DialogContent>

@@ -66,7 +66,7 @@ export default async function PersonelListesiSayfasi({
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold">Personel</h1>
+            <h1 className="text-xl font-semibold">Personel Listesi</h1>
             <p className="text-sm text-muted-foreground">
               Çalışanlar; terapistler için performans ve maaş hesaplama.
             </p>
