@@ -21,7 +21,7 @@ import { MaasFormu } from "./maas-formu";
 import { HakedisFormu } from "./hakedis-formu";
 import { DuzenlePersonelDialog } from "./duzenle-personel-dialog";
 
-type Sekme = "kisisel" | "odemeler";
+type Sekme = "kisisel" | "odemeler" | undefined;
 
 export default async function PersonelDetaySayfasi({
   params,
@@ -32,7 +32,7 @@ export default async function PersonelDetaySayfasi({
 }) {
   const { id } = await params;
   const { ay: ayParam, tab } = await searchParams;
-  const sekme: Sekme = tab === "odemeler" ? "odemeler" : "kisisel";
+  const sekme: Sekme = tab === "kisisel" || tab === "odemeler" ? tab : undefined;
   const supabase = await createClient();
 
   const {
