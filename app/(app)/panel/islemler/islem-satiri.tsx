@@ -15,17 +15,24 @@ import type { SecenekSatir } from "@/types/randevu";
 import type { IslemTanimiSatir } from "@/types/islem-tanimi";
 import { islemTanimiAktifDurumDegistir, islemTanimiGuncelle } from "./actions";
 
+const paraFormatla = (tutar: number) =>
+  tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+
 export function IslemSatiri({
   islem,
   cihazlar,
   duzenlenebilir,
+  duzenleniyor,
+  onDuzenleBaslat,
+  onDuzenleBitir,
 }: {
   islem: IslemTanimiSatir;
   cihazlar: SecenekSatir[];
   duzenlenebilir: boolean;
+  duzenleniyor: boolean;
+  onDuzenleBaslat: () => void;
+  onDuzenleBitir: () => void;
 }) {
-  const [duzenleniyor, setDuzenleniyor] = useState(false);
-  const [duzenleForm, setDuzenleForm] = useState(islem);
   const [ad, setAd] = useState(islem.ad);
   const [muhasebeHizmetIsmi, setMuhasebeHizmetIsmi] = useState(islem.muhasebe_hizmet_ismi ?? "");
   const [muhasebeDokunuldu, setMuhasebeDokunuldu] = useState(Boolean(islem.muhasebe_hizmet_ismi));
@@ -37,7 +44,7 @@ export function IslemSatiri({
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
     if (durum?.success) {
-      setDuzenleniyor(false);
+      onDuzenleBitir();
     }
   }
 
@@ -63,15 +70,54 @@ export function IslemSatiri({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`fiyat-${islem.id}`}>Fiyat (₺)</Label>
+              <Label htmlFor={`vita-${islem.id}`}>Fiyat (₺) — Vita</Label>
               <Input
-                id={`fiyat-${islem.id}`}
-                name="fiyat"
+                id={`vita-${islem.id}`}
+                name="vita_fiyat"
                 type="number"
                 min={0}
                 step="0.01"
-                defaultValue={duzenleForm.fiyat}
+                defaultValue={islem.vita_fiyat}
                 required
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`plus-${islem.id}`}>Fiyat (₺) — Plus (opsiyonel)</Label>
+              <Input
+                id={`plus-${islem.id}`}
+                name="plus_fiyat"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={islem.plus_fiyat ?? ""}
+                placeholder="Boşsa iskonto oranından hesaplanır"
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`elit-${islem.id}`}>Fiyat (₺) — Elit (opsiyonel)</Label>
+              <Input
+                id={`elit-${islem.id}`}
+                name="elit_fiyat"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={islem.elit_fiyat ?? ""}
+                placeholder="Boşsa iskonto oranından hesaplanır"
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`prime-${islem.id}`}>Fiyat (₺) — Prime (opsiyonel)</Label>
+              <Input
+                id={`prime-${islem.id}`}
+                name="prime_fiyat"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={islem.prime_fiyat ?? ""}
+                placeholder="Boşsa iskonto oranından hesaplanır"
                 disabled={isPending}
               />
             </div>
@@ -84,7 +130,7 @@ export function IslemSatiri({
                 min={0}
                 max={100}
                 step="0.01"
-                defaultValue={duzenleForm.kdv_orani}
+                defaultValue={islem.kdv_orani}
                 required
                 disabled={isPending}
               />
@@ -94,7 +140,7 @@ export function IslemSatiri({
               <Select
                 name="gerekli_cihaz_id"
                 disabled={isPending || cihazlar.length === 0}
-                defaultValue={cihazlar.find((c) => c.ad === duzenleForm.cihaz?.ad)?.id}
+                defaultValue={cihazlar.find((c) => c.ad === islem.cihaz?.ad)?.id}
                 items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
               >
                 <SelectTrigger id={`cihaz-${islem.id}`} className="w-full">
@@ -134,13 +180,7 @@ export function IslemSatiri({
             <Button type="submit" size="sm" disabled={isPending}>
               {isPending ? "Kaydediliyor..." : "Kaydet"}
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => setDuzenleniyor(false)}
-            >
+            <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={onDuzenleBitir}>
               Vazgeç
             </Button>
           </div>
@@ -156,11 +196,11 @@ export function IslemSatiri({
           {islem.ad}
         </span>
         <span className="text-muted-foreground">
-          {islem.fiyat.toLocaleString("tr-TR", {
-            style: "currency",
-            currency: "TRY",
-          })}{" "}
-          (KDV %{islem.kdv_orani})
+          Vita {paraFormatla(islem.vita_fiyat)}
+          {islem.plus_fiyat !== null && <> · Plus {paraFormatla(islem.plus_fiyat)}</>}
+          {islem.elit_fiyat !== null && <> · Elit {paraFormatla(islem.elit_fiyat)}</>}
+          {islem.prime_fiyat !== null && <> · Prime {paraFormatla(islem.prime_fiyat)}</>}
+          {" "}(KDV %{islem.kdv_orani})
         </span>
       </div>
       {duzenlenebilir && (
@@ -181,11 +221,10 @@ export function IslemSatiri({
             size="sm"
             variant="outline"
             onClick={() => {
-              setDuzenleForm(islem);
               setAd(islem.ad);
               setMuhasebeHizmetIsmi(islem.muhasebe_hizmet_ismi ?? "");
               setMuhasebeDokunuldu(Boolean(islem.muhasebe_hizmet_ismi));
-              setDuzenleniyor(true);
+              onDuzenleBaslat();
             }}
           >
             Düzenle

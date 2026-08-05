@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import type { HastaBakiyeHareket } from "@/types/hasta-detay";
+import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
+import { etkinFiyatHesapla } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import { GeriLink } from "../geri-link";
 import { CariOdemeSekmesi } from "../sekmeler/cari-odeme-sekmesi";
 import { hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
@@ -33,7 +35,7 @@ export default async function CariOdemeSayfasi({
   }
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
-  const [paketSatisSonucu, odemeSonucu, islemTanimiSonucu, paketSonucu, bakiyeHareketSonucu] =
+  const [paketSatisSonucu, odemeSonucu, islemTanimiSonucu, paketSonucu, bakiyeHareketSonucu, oranlarSonucu] =
     await Promise.all([
       supabase
         .from("paket_satis")
@@ -51,7 +53,11 @@ export default async function CariOdemeSayfasi({
         .order("created_at", { ascending: false })
         .limit(20)
         .returns<OdemeGecmisSatir[]>(),
-      supabase.from("islem_tanimi").select("id, ad, fiyat, kdv_orani").eq("aktif", true).order("ad"),
+      supabase
+        .from("islem_tanimi")
+        .select("id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani")
+        .eq("aktif", true)
+        .order("ad"),
       supabase.from("paket").select("id, ad, fiyat, kdv_orani").eq("aktif", true).order("ad"),
       supabase
         .from("hasta_bakiye_hareket")
@@ -60,18 +66,27 @@ export default async function CariOdemeSayfasi({
         .order("created_at", { ascending: false })
         .limit(30)
         .returns<HastaBakiyeHareket[]>(),
+      supabase
+        .from("iskonto_oranlari")
+        .select("plus_pct, elit_pct, prime_pct")
+        .maybeSingle<IskontoOranlariYuzde>(),
     ]);
 
   const aktifPaketler = paketSatisSonucu.data ?? [];
   const odemeGecmisi = odemeSonucu.data ?? [];
   const bakiyeHareketleri = bakiyeHareketSonucu.data ?? [];
+  const oranlar = oranlarSonucu.data ?? null;
 
+  // Fiyat burada sadece Ödeme Al ekranındaki ürün seçimi/toplam önizlemesi
+  // için hesaplanıyor — otoriter fiyat odeme_olustur RPC'sinin içinde
+  // islem_tanimi_etkin_fiyat() ile bağımsızca yeniden hesaplanır (client'ın
+  // gönderdiği fiyata hiç güvenilmez).
   const satilabilirUrunler: SatilabilirUrun[] = [
     ...(islemTanimiSonucu.data ?? []).map((i) => ({
       id: i.id,
       ad: i.ad,
       tur: "islem" as const,
-      fiyat: i.fiyat,
+      fiyat: etkinFiyatHesapla(i, hasta.kategori, oranlar),
       kdv_orani: i.kdv_orani,
     })),
     ...(paketSonucu.data ?? []).map((p) => ({
@@ -88,6 +103,7 @@ export default async function CariOdemeSayfasi({
       <GeriLink hastaId={id} baslik="Cari & Ödeme" />
       <CariOdemeSekmesi
         hastaId={hasta.id}
+        hastaKategori={hasta.kategori}
         duzenlenebilir={duzenlenebilir}
         aktifPaketler={aktifPaketler}
         satilabilirUrunler={satilabilirUrunler}

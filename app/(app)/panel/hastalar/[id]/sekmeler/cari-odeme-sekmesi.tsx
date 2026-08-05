@@ -4,11 +4,20 @@ import { EmptyState } from "@/components/ui/empty-state";
 import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import { BAKIYE_HAREKET_ETIKETLERI, type HastaBakiyeHareket } from "@/types/hasta-detay";
+import type { HastaKategori } from "@/types/hasta";
 import { OdemeFormu } from "../odeme-formu";
 import { FaturaDurum } from "../fatura-durum";
 
+const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
+  vita: "Vita",
+  plus: "Plus",
+  elit: "Elit",
+  prime: "Prime",
+};
+
 export function CariOdemeSekmesi({
   hastaId,
+  hastaKategori,
   duzenlenebilir,
   aktifPaketler,
   satilabilirUrunler,
@@ -16,6 +25,7 @@ export function CariOdemeSekmesi({
   bakiyeHareketleri,
 }: {
   hastaId: string;
+  hastaKategori: HastaKategori;
   duzenlenebilir: boolean;
   aktifPaketler: PaketSatisSatir[];
   satilabilirUrunler: SatilabilirUrun[];
@@ -78,7 +88,12 @@ export function CariOdemeSekmesi({
       {duzenlenebilir && (
         <Card>
           <CardHeader>
-            <CardTitle>Ödeme Al</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Ödeme Al
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                Kategori: {KATEGORI_ETIKETLERI[hastaKategori]}
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <OdemeFormu hastaId={hastaId} urunler={satilabilirUrunler} />

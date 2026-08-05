@@ -42,6 +42,13 @@ const CINSIYET_SECENEKLERI = [
   { value: "belirtilmemis", label: "Belirtmek İstemiyor" },
 ];
 
+const KATEGORI_SECENEKLERI = [
+  { value: "vita", label: "Vita" },
+  { value: "plus", label: "Plus" },
+  { value: "elit", label: "Elit" },
+  { value: "prime", label: "Prime" },
+];
+
 const KIMLIK_TIPI_SECENEKLERI = [
   { value: "tc", label: "T.C. Kimlik No" },
   { value: "pasaport", label: "Pasaport No" },
@@ -301,7 +308,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
   return (
     <form
       action={formAction}
-      key={`${hasta.id}-${hasta.ad_soyad}-${hasta.telefon}-${hasta.dogum_tarihi}-${hasta.cinsiyet}-${hasta.eposta}-${hasta.referans_kanali}-${JSON.stringify(hassas)}`}
+      key={`${hasta.id}-${hasta.ad_soyad}-${hasta.telefon}-${hasta.dogum_tarihi}-${hasta.cinsiyet}-${hasta.kategori}-${hasta.eposta}-${hasta.referans_kanali}-${JSON.stringify(hassas)}`}
       className="flex flex-col gap-5"
     >
       <fieldset className="grid gap-4 sm:grid-cols-2">
@@ -445,7 +452,26 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             </SelectContent>
           </Select>
         </div>
-        <div />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="kategori">Hasta Kategorisi</Label>
+          <Select
+            name="kategori"
+            disabled={isPending}
+            defaultValue={hasta.kategori}
+            items={KATEGORI_SECENEKLERI}
+          >
+            <SelectTrigger id="kategori" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {KATEGORI_SECENEKLERI.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="kimlik_no_tipi">Kimlik Türü</Label>
           <Select

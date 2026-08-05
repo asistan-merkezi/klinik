@@ -8,6 +8,7 @@ export type HastaTemel = Pick<
   | "telefon"
   | "dogum_tarihi"
   | "cinsiyet"
+  | "kategori"
   | "risk_bayraklari"
   | "kvkk_onay_tarihi"
   | "ozel_nitelikli_veri_onay_tarihi"
@@ -20,7 +21,7 @@ export async function hastaTemelGetir(
   const { data } = await supabase
     .from("hasta")
     .select(
-      "id, ad_soyad, telefon, dogum_tarihi, cinsiyet, risk_bayraklari, kvkk_onay_tarihi, ozel_nitelikli_veri_onay_tarihi"
+      "id, ad_soyad, telefon, dogum_tarihi, cinsiyet, kategori, risk_bayraklari, kvkk_onay_tarihi, ozel_nitelikli_veri_onay_tarihi"
     )
     .eq("id", id)
     .single<HastaTemel>();
@@ -34,7 +35,7 @@ export async function hastaDetayFullGetir(
   const { data } = await supabase
     .from("hasta")
     .select(
-      "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi, risk_bayraklari, " +
+      "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, kategori, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi, risk_bayraklari, " +
         "kvkk_onaylayan_tip, kvkk_onaylayan:kullanici!hasta_kvkk_onaylayan_kullanici_id_fkey(ad_soyad), " +
         "ozel_nitelikli_onaylayan_tip, ozel_nitelikli_onaylayan:kullanici!hasta_ozel_nitelikli_onaylayan_kullanici_id_fkey(ad_soyad), " +
         "ticari_ileti_onaylayan_tip, ticari_ileti_onaylayan:kullanici!hasta_ticari_ileti_onaylayan_kullanici_id_fkey(ad_soyad)"

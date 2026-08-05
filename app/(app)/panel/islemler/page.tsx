@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemTanimiSatir } from "@/types/islem-tanimi";
 import { YeniTedaviDialog } from "./yeni-tedavi-dialog";
-import { IslemSatiri } from "./islem-satiri";
+import { TedaviListesi } from "./tedavi-listesi";
 
 export default async function IslemlerSayfasi() {
   const supabase = await createClient();
@@ -29,7 +29,9 @@ export default async function IslemlerSayfasi() {
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
     supabase
       .from("islem_tanimi")
-      .select("id, ad, fiyat, kdv_orani, muhasebe_hizmet_ismi, aktif, cihaz:gerekli_cihaz_id(ad)")
+      .select(
+        "id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi, aktif, cihaz:gerekli_cihaz_id(ad)"
+      )
       .order("ad")
       .returns<IslemTanimiSatir[]>(),
   ]);
@@ -66,16 +68,7 @@ export default async function IslemlerSayfasi() {
               <p className="text-sm text-muted-foreground">Henüz tedavi tanımı yok.</p>
             )}
             {!islemSonucu.error && islemler.length > 0 && (
-              <ul className="flex flex-col divide-y divide-border">
-                {islemler.map((islem) => (
-                  <IslemSatiri
-                    key={islem.id}
-                    islem={islem}
-                    cihazlar={cihazlar}
-                    duzenlenebilir={duzenlenebilir}
-                  />
-                ))}
-              </ul>
+              <TedaviListesi islemler={islemler} cihazlar={cihazlar} duzenlenebilir={duzenlenebilir} />
             )}
           </CardContent>
         </Card>

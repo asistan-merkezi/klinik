@@ -53,8 +53,8 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="fiyat">Fiyat (₺)</Label>
-          <Input id="fiyat" name="fiyat" type="number" min={0} step="0.01" required disabled={isPending} />
+          <Label htmlFor="vita_fiyat">Fiyat (₺) — Vita</Label>
+          <Input id="vita_fiyat" name="vita_fiyat" type="number" min={0} step="0.01" required disabled={isPending} />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -68,6 +68,45 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
             step="0.01"
             defaultValue={20}
             required
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="plus_fiyat">Fiyat (₺) — Plus (opsiyonel)</Label>
+          <Input
+            id="plus_fiyat"
+            name="plus_fiyat"
+            type="number"
+            min={0}
+            step="0.01"
+            placeholder="Boşsa iskonto oranından hesaplanır"
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="elit_fiyat">Fiyat (₺) — Elit (opsiyonel)</Label>
+          <Input
+            id="elit_fiyat"
+            name="elit_fiyat"
+            type="number"
+            min={0}
+            step="0.01"
+            placeholder="Boşsa iskonto oranından hesaplanır"
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="prime_fiyat">Fiyat (₺) — Prime (opsiyonel)</Label>
+          <Input
+            id="prime_fiyat"
+            name="prime_fiyat"
+            type="number"
+            min={0}
+            step="0.01"
+            placeholder="Boşsa iskonto oranından hesaplanır"
             disabled={isPending}
           />
         </div>

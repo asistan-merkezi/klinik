@@ -16,6 +16,7 @@ import {
   UploadCloud,
   QrCode,
   HandCoins,
+  Percent,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ogeler: [
       { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
       { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
+      { href: "/panel/iskonto-oranlari", label: "İskonto Oranları", icon: Percent },
     ],
   },
   {

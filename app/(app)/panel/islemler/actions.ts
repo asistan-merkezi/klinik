@@ -7,10 +7,21 @@ import { createClient } from "@/lib/supabase/server";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
+// Boş bırakılan kademe fiyatı (plus/elit/prime) null'a düşer — o kademe için
+// override yok demektir, islem_tanimi_etkin_fiyat() vita_fiyat + iskonto
+// oranından hesaplar (bkz. 20260805110000_hasta_kategori_iskonto_oranlari.sql).
+const kademeFiyatiSemasi = z
+  .union([z.coerce.number().min(0, "Fiyat 0'dan küçük olamaz."), z.literal("")])
+  .optional()
+  .transform((deger) => (deger === "" || deger === undefined ? null : deger));
+
 const islemSemasi = z.object({
   ad: z.string().trim().min(2, "Ad en az 2 karakter olmalı."),
   gerekli_cihaz_id: z.union([z.string().uuid(), z.literal("")]).optional(),
-  fiyat: z.coerce.number().min(0, "Fiyat 0'dan küçük olamaz."),
+  vita_fiyat: z.coerce.number().min(0, "Fiyat 0'dan küçük olamaz."),
+  plus_fiyat: kademeFiyatiSemasi,
+  elit_fiyat: kademeFiyatiSemasi,
+  prime_fiyat: kademeFiyatiSemasi,
   kdv_orani: z.coerce.number().min(0, "KDV 0-100 arasında olmalı.").max(100, "KDV 0-100 arasında olmalı."),
   muhasebe_hizmet_ismi: z.string().trim().optional(),
 });
@@ -38,7 +49,10 @@ function ayristir(formData: FormData) {
   return islemSemasi.safeParse({
     ad: formData.get("ad"),
     gerekli_cihaz_id: formData.get("gerekli_cihaz_id") ?? "",
-    fiyat: formData.get("fiyat"),
+    vita_fiyat: formData.get("vita_fiyat"),
+    plus_fiyat: formData.get("plus_fiyat") ?? "",
+    elit_fiyat: formData.get("elit_fiyat") ?? "",
+    prime_fiyat: formData.get("prime_fiyat") ?? "",
     kdv_orani: formData.get("kdv_orani"),
     muhasebe_hizmet_ismi: formData.get("muhasebe_hizmet_ismi") ?? "",
   });
@@ -58,13 +72,17 @@ export async function islemTanimiOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, gerekli_cihaz_id, fiyat, kdv_orani, muhasebe_hizmet_ismi } = ayristirma.data;
+  const { ad, gerekli_cihaz_id, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi } =
+    ayristirma.data;
 
   const { error } = await supabase.from("islem_tanimi").insert({
     klinik_id: klinikId,
     ad,
     gerekli_cihaz_id: gerekli_cihaz_id ? gerekli_cihaz_id : null,
-    fiyat,
+    vita_fiyat,
+    plus_fiyat,
+    elit_fiyat,
+    prime_fiyat,
     kdv_orani,
     muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
   });
@@ -96,14 +114,18 @@ export async function islemTanimiGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, gerekli_cihaz_id, fiyat, kdv_orani, muhasebe_hizmet_ismi } = ayristirma.data;
+  const { ad, gerekli_cihaz_id, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi } =
+    ayristirma.data;
 
   const { error } = await supabase
     .from("islem_tanimi")
     .update({
       ad,
       gerekli_cihaz_id: gerekli_cihaz_id ? gerekli_cihaz_id : null,
-      fiyat,
+      vita_fiyat,
+      plus_fiyat,
+      elit_fiyat,
+      prime_fiyat,
       kdv_orani,
       muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
     })

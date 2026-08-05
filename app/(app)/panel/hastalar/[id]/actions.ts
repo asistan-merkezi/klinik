@@ -304,6 +304,7 @@ const temelBilgilerSemasi = z.object({
   telefon: z.string().regex(/^\+90\d{10}$/, "Telefon numarası (başındaki 0 hariç) 10 haneli olmalı."),
   dogum_tarihi: z.union([z.string().date(), z.literal("")]).optional(),
   cinsiyet: z.enum(["kadin", "erkek", "belirtilmemis"]).nullable(),
+  kategori: z.enum(["vita", "plus", "elit", "prime"]),
   eposta: z.string().trim().email("Geçersiz e-posta.").nullable(),
   referans_kanali: z.string().nullable(),
   kimlik_no: z.string().nullable(),
@@ -343,6 +344,7 @@ export async function temelBilgileriGuncelle(
     telefon: formData.get("telefon"),
     dogum_tarihi: formData.get("dogum_tarihi") ?? "",
     cinsiyet: bosIseNull2(formData.get("cinsiyet")),
+    kategori: formData.get("kategori") || "vita",
     eposta: bosIseNull2(formData.get("eposta")),
     referans_kanali: bosIseNull2(formData.get("referans_kanali")),
     kimlik_no: bosIseNull2(formData.get("kimlik_no")),
@@ -367,7 +369,7 @@ export async function temelBilgileriGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad_soyad, telefon, dogum_tarihi, cinsiyet, eposta, referans_kanali, anne_adi, baba_adi, diger_yakini_ad_soyad, ...digerHassas } =
+  const { ad_soyad, telefon, dogum_tarihi, cinsiyet, kategori, eposta, referans_kanali, anne_adi, baba_adi, diger_yakini_ad_soyad, ...digerHassas } =
     ayristirma.data;
 
   const [hastaSonucu, hassasSonucu] = await Promise.all([
@@ -378,6 +380,7 @@ export async function temelBilgileriGuncelle(
         telefon,
         dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
         cinsiyet,
+        kategori,
         eposta,
         referans_kanali,
       })

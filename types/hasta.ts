@@ -1,6 +1,7 @@
 import type { RiskBayragi } from "./hasta-detay";
 
 export type Cinsiyet = "kadin" | "erkek" | "belirtilmemis";
+export type HastaKategori = "vita" | "plus" | "elit" | "prime";
 
 export type HastaSatir = {
   id: string;
@@ -15,6 +16,7 @@ export type OnaylayanTip = "hasta" | "personel";
 
 export type HastaDetay = HastaSatir & {
   cinsiyet: Cinsiyet | null;
+  kategori: HastaKategori;
   eposta: string | null;
   referans_kanali: string | null;
   ozel_nitelikli_veri_onay_tarihi: string | null;
