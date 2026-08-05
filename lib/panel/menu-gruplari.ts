@@ -17,6 +17,7 @@ import {
   QrCode,
   HandCoins,
   Percent,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,7 +41,8 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     icon: UserCog,
     ogeler: [
       { href: "/panel/personel/liste", label: "Personel Listesi", icon: UserCog },
-      { href: "/panel/personel/takip", label: "Personel Maaş", icon: HandCoins },
+      { href: "/panel/personel/maas", label: "Personel Maaş", icon: Banknote },
+      { href: "/panel/personel/takip", label: "Personel Takip", icon: HandCoins },
     ],
   },
   {

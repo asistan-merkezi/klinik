@@ -7,16 +7,8 @@ import type { HakedisTuru, MaasHesaplamaModeli } from "@/types/personel";
 import { ayAraligi } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
 import { PersonelTakipListesi, type TakipSatiri } from "./takip-listesi";
-import { PersonelMaasYilTablosu } from "./maas-yil-tablosu";
 
-type PersonelSatiri = {
-  id: string;
-  ad_soyad: string;
-  gorev: string;
-  maas: number | null;
-  aktif: boolean;
-  ise_giris_tarihi: string | null;
-};
+type PersonelSatiri = { id: string; ad_soyad: string; gorev: string; maas: number | null; aktif: boolean };
 type TerapistSatiri = {
   id: string;
   personel_id: string;
@@ -29,9 +21,9 @@ type TerapistSatiri = {
 export default async function PersonelTakipSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ ay?: string; yil?: string }>;
+  searchParams: Promise<{ ay?: string }>;
 }) {
-  const { ay: ayParam, yil: yilParam } = await searchParams;
+  const { ay: ayParam } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -54,13 +46,9 @@ export default async function PersonelTakipSayfasi({
 
   const ay = ayAraligi(ayParam);
 
-  const guncelYil = new Date().getFullYear();
-  const yil = Number(yilParam) || guncelYil;
-  const yilSecenekleri = Array.from({ length: 6 }, (_, i) => guncelYil - i);
-
   const { data: personelSonucu } = await supabase
     .from("personel")
-    .select("id, ad_soyad, gorev, maas, aktif, ise_giris_tarihi")
+    .select("id, ad_soyad, gorev, maas, aktif")
     .order("ad_soyad")
     .returns<PersonelSatiri[]>();
   const personelListesi = personelSonucu ?? [];
@@ -142,20 +130,11 @@ export default async function PersonelTakipSayfasi({
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold">Personel Maaş</h1>
+          <h1 className="text-xl font-semibold">Personel Takip</h1>
           <p className="text-sm text-muted-foreground">
-            Yıllara göre kategori bazlı sabit maaş tablosu ve aylık alacak/ödeme takibi.
+            Personelin klinikten alacağı — hesaplanan hakediş ile fiilen ödenen tutar arasındaki fark.
           </p>
         </header>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Yıllara Göre Genel Maaş Tablosu</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PersonelMaasYilTablosu personelListesi={personelListesi} yil={yil} yilSecenekleri={yilSecenekleri} />
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
