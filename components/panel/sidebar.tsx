@@ -131,7 +131,7 @@ export function PanelSidebar({
   }, [pathname]);
 
   function dokunmaBasladi(e: React.TouchEvent) {
-    if (menuAcik || window.matchMedia("(min-width: 1024px)").matches) return;
+    if (menuAcik) return;
     const dokunma = e.touches[0];
     if (dokunma.clientX > 24) return; // sadece ekranın sol kenarından başlayan kaydırmalar
     dokunmaBaslangici.current = { x: dokunma.clientX, y: dokunma.clientY };
@@ -163,19 +163,9 @@ export function PanelSidebar({
       onTouchMove={dokunmaHareketEtti}
       onTouchEnd={dokunmaBitti}
     >
-      {/* Masaüstü: sabit sidebar */}
-      <aside className="hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
-        <SidebarIcerik
-          kullaniciAdi={kullaniciAdi}
-          kullaniciRolu={kullaniciRolu}
-          pathname={pathname}
-          temaGecisiGoster
-        />
-      </aside>
-
       <div className="flex flex-1 flex-col overflow-y-auto">
-        {/* Mobil: üst bar + 3 çizgi (hamburger) menü butonu + tema geçişi */}
-        <header className="flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground lg:hidden">
+        {/* Üst bar + 3 çizgi (hamburger) menü butonu + tema geçişi — her ekran boyutunda */}
+        <header className="flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -193,9 +183,9 @@ export function PanelSidebar({
         {children}
       </div>
 
-      {/* Mobil: çekmece (drawer) */}
+      {/* Çekmece (drawer) — her ekran boyutunda */}
       {menuAcik && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMenuAcik(false)}
