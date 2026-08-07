@@ -11,6 +11,11 @@ import { sirketBilgileriGuncelle } from "./actions";
 const textareaClass =
   "rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
+// DB'den "HH:MM:SS" olarak dönebilir; <input type="time"> saniyesiz gösterir.
+function saatKisalt(deger: string | null | undefined) {
+  return deger ? deger.slice(0, 5) : "";
+}
+
 export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri | null }) {
   const [sonuc, formAction, isPending] = useActionState(sirketBilgileriGuncelle, null);
   const [onizleme, setOnizleme] = useState<string | null>(null);
@@ -118,6 +123,63 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
           />
         </div>
       </div>
+
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-1 text-sm font-medium">Çalışma Saatleri</legend>
+        <div className="grid grid-cols-[auto_1fr_auto_1fr] items-center gap-x-3 gap-y-3 sm:grid-cols-[120px_1fr_auto_1fr]">
+          <span className="text-sm text-muted-foreground">Hafta İçi</span>
+          <Input
+            id="hafta_ici_baslangic"
+            name="hafta_ici_baslangic"
+            type="time"
+            disabled={isPending}
+            defaultValue={saatKisalt(bilgiler?.hafta_ici_baslangic)}
+          />
+          <span className="text-sm text-muted-foreground">–</span>
+          <Input
+            id="hafta_ici_bitis"
+            name="hafta_ici_bitis"
+            type="time"
+            disabled={isPending}
+            defaultValue={saatKisalt(bilgiler?.hafta_ici_bitis)}
+          />
+
+          <span className="text-sm text-muted-foreground">Cumartesi</span>
+          <Input
+            id="cumartesi_baslangic"
+            name="cumartesi_baslangic"
+            type="time"
+            disabled={isPending}
+            defaultValue={saatKisalt(bilgiler?.cumartesi_baslangic)}
+          />
+          <span className="text-sm text-muted-foreground">–</span>
+          <Input
+            id="cumartesi_bitis"
+            name="cumartesi_bitis"
+            type="time"
+            disabled={isPending}
+            defaultValue={saatKisalt(bilgiler?.cumartesi_bitis)}
+          />
+
+          <span className="text-sm text-muted-foreground">Pazar</span>
+          <Input
+            id="pazar_baslangic"
+            name="pazar_baslangic"
+            type="time"
+            disabled={isPending}
+            defaultValue={saatKisalt(bilgiler?.pazar_baslangic)}
+          />
+          <span className="text-sm text-muted-foreground">–</span>
+          <Input
+            id="pazar_bitis"
+            name="pazar_bitis"
+            type="time"
+            disabled={isPending}
+            defaultValue={saatKisalt(bilgiler?.pazar_bitis)}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">Kapalı olan bir gün için başlangıç ve bitiş saatlerini boş bırakın.</p>
+      </fieldset>
 
       {sonuc && (
         <p role="alert" className={`text-sm ${sonuc.success ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>

@@ -58,6 +58,12 @@ const sirketSemasi = z.object({
   yetkili_kisi: z.string().nullable(),
   yetkili_telefon: z.string().nullable(),
   yetkili_eposta: z.string().email("Geçersiz yetkili e-postası.").nullable(),
+  hafta_ici_baslangic: z.string().regex(/^\d{2}:\d{2}$/, "Geçersiz saat.").nullable(),
+  hafta_ici_bitis: z.string().regex(/^\d{2}:\d{2}$/, "Geçersiz saat.").nullable(),
+  cumartesi_baslangic: z.string().regex(/^\d{2}:\d{2}$/, "Geçersiz saat.").nullable(),
+  cumartesi_bitis: z.string().regex(/^\d{2}:\d{2}$/, "Geçersiz saat.").nullable(),
+  pazar_baslangic: z.string().regex(/^\d{2}:\d{2}$/, "Geçersiz saat.").nullable(),
+  pazar_bitis: z.string().regex(/^\d{2}:\d{2}$/, "Geçersiz saat.").nullable(),
 });
 
 export async function sirketBilgileriGuncelle(
@@ -83,6 +89,12 @@ export async function sirketBilgileriGuncelle(
     yetkili_kisi: bosIseNull(formData.get("yetkili_kisi")),
     yetkili_telefon: bosIseNull(formData.get("yetkili_telefon")),
     yetkili_eposta: bosIseNull(formData.get("yetkili_eposta")),
+    hafta_ici_baslangic: bosIseNull(formData.get("hafta_ici_baslangic")),
+    hafta_ici_bitis: bosIseNull(formData.get("hafta_ici_bitis")),
+    cumartesi_baslangic: bosIseNull(formData.get("cumartesi_baslangic")),
+    cumartesi_bitis: bosIseNull(formData.get("cumartesi_bitis")),
+    pazar_baslangic: bosIseNull(formData.get("pazar_baslangic")),
+    pazar_bitis: bosIseNull(formData.get("pazar_bitis")),
   });
 
   if (!ayristirma.success) {

@@ -13,4 +13,10 @@ export type SirketBilgileri = {
   yetkili_telefon: string | null;
   yetkili_eposta: string | null;
   logo_url: string | null;
+  hafta_ici_baslangic: string | null;
+  hafta_ici_bitis: string | null;
+  cumartesi_baslangic: string | null;
+  cumartesi_bitis: string | null;
+  pazar_baslangic: string | null;
+  pazar_bitis: string | null;
 };
