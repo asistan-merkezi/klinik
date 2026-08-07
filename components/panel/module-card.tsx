@@ -12,6 +12,8 @@ type ModuleCardProps = {
   /** subtitle metnini "Borç"/"Alacak" gibi durumlarda renklendirmek için. */
   subtitleTone?: "emerald" | "rose";
   warning?: boolean;
+  /** Sağ üstte küçük durum noktası (warning ile aynı slotu paylaşır, warning true ise amber öncelikli). */
+  dot?: "emerald" | "muted" | "sky";
   active?: boolean;
   href?: string;
   onClick?: () => void;
@@ -29,6 +31,7 @@ export function ModuleCard({
   tone,
   subtitleTone,
   warning,
+  dot,
   active,
   href,
   onClick,
@@ -52,7 +55,21 @@ export function ModuleCard({
             aria-hidden
           />
         )}
-        {warning && <span className="size-2 rounded-full bg-amber-500" aria-label="Eksik bilgi" />}
+        {warning ? (
+          <span className="size-2 rounded-full bg-amber-500" aria-label="Eksik bilgi" />
+        ) : (
+          dot && (
+            <span
+              className={cn(
+                "size-2 rounded-full",
+                dot === "emerald" && "bg-emerald-500",
+                dot === "sky" && "bg-sky-500",
+                dot === "muted" && "bg-muted-foreground/40"
+              )}
+              aria-hidden
+            />
+          )
+        )}
       </div>
       <span className="text-sm font-medium text-card-foreground">{label}</span>
       {subtitle && (

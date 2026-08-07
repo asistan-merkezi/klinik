@@ -17,11 +17,12 @@ import {
 } from "@/types/personel";
 import { ayAraligi, gunAraligi, haftaAraligi } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
+import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
 import { MaasFormu } from "./maas-formu";
 import { HakedisFormu } from "./hakedis-formu";
 import { DuzenlePersonelDialog } from "./duzenle-personel-dialog";
 
-type Sekme = "kisisel" | "odemeler" | "cizelge" | undefined;
+type Sekme = "kisisel" | "odemeler" | undefined;
 
 export default async function PersonelDetaySayfasi({
   params,
@@ -32,7 +33,7 @@ export default async function PersonelDetaySayfasi({
 }) {
   const { id } = await params;
   const { ay: ayParam, tab } = await searchParams;
-  const sekme: Sekme = tab === "kisisel" || tab === "odemeler" || tab === "cizelge" ? tab : undefined;
+  const sekme: Sekme = tab === "kisisel" || tab === "odemeler" ? tab : undefined;
   const supabase = await createClient();
 
   const {
@@ -177,6 +178,55 @@ export default async function PersonelDetaySayfasi({
     ? ROL_SECENEKLERI.find((r) => r.value === personel.kullanici?.rol)?.label ?? personel.kullanici.rol
     : null;
 
+  // Çalışma Çizelgesi kartı: her zaman İÇİNDE BULUNULAN ay (Ödemeler
+  // sekmesindeki ay gezinmesinden bağımsız) + bugünün durumu.
+  const ayCari = ayAraligi();
+  const [ayYilStr, ayAyStr] = ayCari.param.split("-");
+  const [donemSonucu, puantajAySonucu, bugunSonucu] = await Promise.all([
+    supabase
+      .from("personel_puantaj_donem")
+      .select("durum, snapshot_net_saat, snapshot_onayli_fm_saat")
+      .eq("personel_id", id)
+      .eq("yil", Number(ayYilStr))
+      .eq("ay", Number(ayAyStr))
+      .maybeSingle(),
+    supabase
+      .from("personel_puantaj")
+      .select("net_calisma_dakika, fazla_mesai_dakika, fm_onay_durumu")
+      .eq("personel_id", id)
+      .gte("tarih", ayCari.baslangicTarih)
+      .lt("tarih", ayCari.bitisTarih),
+    supabase
+      .from("personel_puantaj")
+      .select("giris_saat, durum")
+      .eq("personel_id", id)
+      .eq("tarih", bugunTarih())
+      .maybeSingle(),
+  ]);
+
+  let cizelgeNetSaat = 0;
+  let cizelgeFmSaat = 0;
+  if (donemSonucu.data?.durum === "kapali") {
+    cizelgeNetSaat = donemSonucu.data.snapshot_net_saat ?? 0;
+    cizelgeFmSaat = donemSonucu.data.snapshot_onayli_fm_saat ?? 0;
+  } else {
+    const satirlar = puantajAySonucu.data ?? [];
+    cizelgeNetSaat = dakikaSaate(satirlar.reduce((acc, s) => acc + (s.net_calisma_dakika ?? 0), 0));
+    cizelgeFmSaat = dakikaSaate(
+      satirlar
+        .filter((s) => s.fm_onay_durumu === "onaylandi")
+        .reduce((acc, s) => acc + (s.fazla_mesai_dakika ?? 0), 0)
+    );
+  }
+  const cizelgeSubtitle = `${ayCari.etiket} · ${saatEtiket(cizelgeNetSaat)} sa · ${saatEtiket(cizelgeFmSaat)} sa FM`;
+
+  const bugunKaydi = bugunSonucu.data;
+  const cizelgeDot: "emerald" | "sky" | "muted" = bugunKaydi?.giris_saat
+    ? "emerald"
+    : bugunKaydi?.durum === "izinli" || bugunKaydi?.durum === "raporlu"
+      ? "sky"
+      : "muted";
+
   const adresParcalari = [personel.mahalle, personel.ilce, personel.il].filter(Boolean);
 
   return (
@@ -230,8 +280,9 @@ export default async function PersonelDetaySayfasi({
           <ModuleCard
             icon={CalendarClock}
             label="Çalışma Çizelgesi"
-            active={sekme === "cizelge"}
-            href={`/panel/personel/${id}?tab=cizelge`}
+            subtitle={cizelgeSubtitle}
+            dot={cizelgeDot}
+            href={`/panel/personel/${id}/calisma-cizelgesi`}
           />
         </div>
 
@@ -481,17 +532,6 @@ export default async function PersonelDetaySayfasi({
               </CardContent>
             </Card>
           </>
-        )}
-
-        {sekme === "cizelge" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Çalışma Çizelgesi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">İçerik yakında eklenecek.</p>
-            </CardContent>
-          </Card>
         )}
       </div>
     </div>
