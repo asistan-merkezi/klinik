@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   SIDDET_RENKLERI,
   SIDDET_ETIKETLERI,
+  VAS_ETIKETLERI,
   siddetBandi,
   bolgeBul,
   figurGorseli,
@@ -321,22 +322,35 @@ function BolgePopover({
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Şiddet</span>
-              <span className="font-semibold" style={{ color: SIDDET_RENKLERI[bant] }}>
-                {SIDDET_ETIKETLERI[bant]} · {siddet}/10
+            <div className="flex items-baseline justify-between text-sm">
+              <span className="text-muted-foreground">Ağrı şiddeti</span>
+              <span className="text-lg font-semibold">
+                {siddet}
+                <span className="text-xs font-normal text-muted-foreground">/10</span>
               </span>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={10}
-              value={siddet}
-              onChange={(e) => setSiddet(Number(e.target.value))}
-              className="accent-primary"
-              style={{ accentColor: SIDDET_RENKLERI[bant] }}
-              aria-label="Şiddet (0-10)"
-            />
+            <div className="grid grid-cols-11 gap-1" role="radiogroup" aria-label="Ağrı şiddeti 0-10">
+              {Array.from({ length: 11 }, (_, deger) => (
+                <button
+                  key={deger}
+                  type="button"
+                  role="radio"
+                  aria-checked={siddet === deger}
+                  aria-label={`${deger} — ${VAS_ETIKETLERI[deger]}`}
+                  onClick={() => setSiddet(deger)}
+                  className={cn(
+                    "h-7 rounded-md border text-xs font-semibold transition-colors",
+                    siddet === deger ? "border-transparent text-[#08111C]" : "border-input text-muted-foreground hover:text-foreground"
+                  )}
+                  style={siddet === deger ? { backgroundColor: SIDDET_RENKLERI[siddetBandi(deger)] } : undefined}
+                >
+                  {deger}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs font-semibold" style={{ color: SIDDET_RENKLERI[bant] }}>
+              {VAS_ETIKETLERI[siddet]}
+            </span>
           </div>
 
           <div className="flex flex-col gap-1.5">
