@@ -228,7 +228,60 @@ RETURNS TABLE(vardiya_turu_id uuid, baslangic time, bitis time) AS $$
 $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 
 -- ============================================================
--- 3) personel_puantaj — gün bazlı puantaj kaydı
+-- 3) personel_puantaj_donem — aylık kapanış snapshot'ı (personel_puantaj'tan
+--    ÖNCE oluşturuluyor çünkü personel_puantaj'ın "dönem açık mı" kontrolü
+--    bu tabloyu sorguluyor)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS personel_puantaj_donem (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  klinik_id uuid NOT NULL REFERENCES klinik(id) ON DELETE CASCADE,
+  personel_id uuid NOT NULL REFERENCES personel(id) ON DELETE CASCADE,
+  yil integer NOT NULL CHECK (yil BETWEEN 2020 AND 2100),
+  ay integer NOT NULL CHECK (ay BETWEEN 1 AND 12),
+  durum text NOT NULL DEFAULT 'acik' CHECK (durum IN ('acik', 'kapali')),
+  snapshot_net_saat numeric(8, 2),
+  snapshot_onayli_fm_saat numeric(8, 2),
+  snapshot_eksik_saat numeric(8, 2),
+  snapshot_izin_gun integer,
+  snapshot_devamsizlik_gun integer,
+  kapatan_id uuid REFERENCES kullanici(id) ON DELETE SET NULL,
+  kapatma_tarihi timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (personel_id, yil, ay)
+);
+ALTER TABLE personel_puantaj_donem ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_personel_puantaj_donem_klinik_id ON personel_puantaj_donem(klinik_id);
+
+DROP TRIGGER IF EXISTS trg_personel_puantaj_donem_klinik_id ON personel_puantaj_donem;
+CREATE TRIGGER trg_personel_puantaj_donem_klinik_id
+  BEFORE INSERT ON personel_puantaj_donem
+  FOR EACH ROW EXECUTE FUNCTION derive_klinik_id_from_parent('personel', 'personel_id');
+
+DROP TRIGGER IF EXISTS trg_personel_puantaj_donem_updated_at ON personel_puantaj_donem;
+CREATE TRIGGER trg_personel_puantaj_donem_updated_at
+  BEFORE UPDATE ON personel_puantaj_donem FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_personel_puantaj_donem_audit ON personel_puantaj_donem;
+CREATE TRIGGER trg_personel_puantaj_donem_audit
+  AFTER INSERT OR UPDATE OR DELETE ON personel_puantaj_donem
+  FOR EACH ROW EXECUTE FUNCTION audit_log_yaz();
+
+-- Sadece SELECT policy'si var — INSERT/UPDATE hiç açılmıyor, yazma SADECE
+-- aşağıdaki personel_puantaj_donem_kapat/_yeniden_ac RPC'leri üzerinden
+-- (odeme_olustur/randevu_gelis_isaretle ile aynı desen: çok-tablolu atomik
+-- yazım + manuel yetki kontrolü SECURITY DEFINER fonksiyonda).
+DROP POLICY IF EXISTS "personel_puantaj_donem_select" ON personel_puantaj_donem;
+CREATE POLICY "personel_puantaj_donem_select" ON personel_puantaj_donem
+  FOR SELECT USING (
+    (klinik_id = current_klinik_id() AND current_rol() = 'klinik_admin')
+    OR (klinik_id = current_klinik_id() AND current_rol() = 'resepsiyon' AND resepsiyon_puantaj_gorebilir_mi())
+    OR EXISTS (SELECT 1 FROM personel p WHERE p.id = personel_puantaj_donem.personel_id AND p.kullanici_id = auth.uid())
+    OR is_super_admin()
+  );
+
+-- ============================================================
+-- 4) personel_puantaj — gün bazlı puantaj kaydı
 -- ============================================================
 
 -- net/sapma/fm/eksik dakika hesapları: Postgres GENERATED kolonlar birbirini
@@ -429,57 +482,6 @@ CREATE POLICY "personel_puantaj_guncelle_admin" ON personel_puantaj
   FOR UPDATE USING ((klinik_id = current_klinik_id() AND current_rol() = 'klinik_admin') OR is_super_admin())
   WITH CHECK (
     (klinik_id = current_klinik_id() AND current_rol() = 'klinik_admin' AND personel_puantaj_donemi_acik_mi(personel_id, tarih))
-    OR is_super_admin()
-  );
-
--- ============================================================
--- 4) personel_puantaj_donem — aylık kapanış snapshot'ı
--- ============================================================
-CREATE TABLE IF NOT EXISTS personel_puantaj_donem (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  klinik_id uuid NOT NULL REFERENCES klinik(id) ON DELETE CASCADE,
-  personel_id uuid NOT NULL REFERENCES personel(id) ON DELETE CASCADE,
-  yil integer NOT NULL CHECK (yil BETWEEN 2020 AND 2100),
-  ay integer NOT NULL CHECK (ay BETWEEN 1 AND 12),
-  durum text NOT NULL DEFAULT 'acik' CHECK (durum IN ('acik', 'kapali')),
-  snapshot_net_saat numeric(8, 2),
-  snapshot_onayli_fm_saat numeric(8, 2),
-  snapshot_eksik_saat numeric(8, 2),
-  snapshot_izin_gun integer,
-  snapshot_devamsizlik_gun integer,
-  kapatan_id uuid REFERENCES kullanici(id) ON DELETE SET NULL,
-  kapatma_tarihi timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (personel_id, yil, ay)
-);
-ALTER TABLE personel_puantaj_donem ENABLE ROW LEVEL SECURITY;
-CREATE INDEX IF NOT EXISTS idx_personel_puantaj_donem_klinik_id ON personel_puantaj_donem(klinik_id);
-
-DROP TRIGGER IF EXISTS trg_personel_puantaj_donem_klinik_id ON personel_puantaj_donem;
-CREATE TRIGGER trg_personel_puantaj_donem_klinik_id
-  BEFORE INSERT ON personel_puantaj_donem
-  FOR EACH ROW EXECUTE FUNCTION derive_klinik_id_from_parent('personel', 'personel_id');
-
-DROP TRIGGER IF EXISTS trg_personel_puantaj_donem_updated_at ON personel_puantaj_donem;
-CREATE TRIGGER trg_personel_puantaj_donem_updated_at
-  BEFORE UPDATE ON personel_puantaj_donem FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_personel_puantaj_donem_audit ON personel_puantaj_donem;
-CREATE TRIGGER trg_personel_puantaj_donem_audit
-  AFTER INSERT OR UPDATE OR DELETE ON personel_puantaj_donem
-  FOR EACH ROW EXECUTE FUNCTION audit_log_yaz();
-
--- Sadece SELECT policy'si var — INSERT/UPDATE hiç açılmıyor, yazma SADECE
--- aşağıdaki personel_puantaj_donem_kapat/_yeniden_ac RPC'leri üzerinden
--- (odeme_olustur/randevu_gelis_isaretle ile aynı desen: çok-tablolu atomik
--- yazım + manuel yetki kontrolü SECURITY DEFINER fonksiyonda).
-DROP POLICY IF EXISTS "personel_puantaj_donem_select" ON personel_puantaj_donem;
-CREATE POLICY "personel_puantaj_donem_select" ON personel_puantaj_donem
-  FOR SELECT USING (
-    (klinik_id = current_klinik_id() AND current_rol() = 'klinik_admin')
-    OR (klinik_id = current_klinik_id() AND current_rol() = 'resepsiyon' AND resepsiyon_puantaj_gorebilir_mi())
-    OR EXISTS (SELECT 1 FROM personel p WHERE p.id = personel_puantaj_donem.personel_id AND p.kullanici_id = auth.uid())
     OR is_super_admin()
   );
 
