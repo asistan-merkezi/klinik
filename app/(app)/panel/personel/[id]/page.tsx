@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { User, CreditCard } from "lucide-react";
+import { User, CreditCard, CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,7 @@ import { MaasFormu } from "./maas-formu";
 import { HakedisFormu } from "./hakedis-formu";
 import { DuzenlePersonelDialog } from "./duzenle-personel-dialog";
 
-type Sekme = "kisisel" | "odemeler" | undefined;
+type Sekme = "kisisel" | "odemeler" | "cizelge" | undefined;
 
 export default async function PersonelDetaySayfasi({
   params,
@@ -32,7 +32,7 @@ export default async function PersonelDetaySayfasi({
 }) {
   const { id } = await params;
   const { ay: ayParam, tab } = await searchParams;
-  const sekme: Sekme = tab === "kisisel" || tab === "odemeler" ? tab : undefined;
+  const sekme: Sekme = tab === "kisisel" || tab === "odemeler" || tab === "cizelge" ? tab : undefined;
   const supabase = await createClient();
 
   const {
@@ -212,7 +212,7 @@ export default async function PersonelDetaySayfasi({
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <ModuleCard
             icon={User}
             label="Kişisel Bilgiler"
@@ -226,6 +226,12 @@ export default async function PersonelDetaySayfasi({
             subtitle={terapist ? `${ay.etiket} maaşı` : "Maaş & hakedişler"}
             active={sekme === "odemeler"}
             href={`/panel/personel/${id}?tab=odemeler`}
+          />
+          <ModuleCard
+            icon={CalendarClock}
+            label="Çalışma Çizelgesi"
+            active={sekme === "cizelge"}
+            href={`/panel/personel/${id}?tab=cizelge`}
           />
         </div>
 
@@ -475,6 +481,17 @@ export default async function PersonelDetaySayfasi({
               </CardContent>
             </Card>
           </>
+        )}
+
+        {sekme === "cizelge" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Çalışma Çizelgesi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">İçerik yakında eklenecek.</p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
