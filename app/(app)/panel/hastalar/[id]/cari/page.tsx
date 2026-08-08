@@ -6,7 +6,7 @@ import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import { etkinFiyatHesapla } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import { GeriLink } from "../geri-link";
 import { CariOdemeSekmesi } from "../sekmeler/cari-odeme-sekmesi";
-import { hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
+import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
 
 export default async function CariOdemeSayfasi({
   params,
@@ -14,27 +14,24 @@ export default async function CariOdemeSayfasi({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/giris");
   }
 
-  const hasta = await hastaTemelGetir(supabase, id);
+  const hasta = await hastaTemelGetir(id);
   if (!hasta) {
     notFound();
   }
 
-  const rol = await kullaniciRolGetir(supabase, user.id);
+  const rol = await kullaniciRolGetir(user.id);
   if (rol === "terapist") {
     redirect(`/panel/hastalar/${id}`);
   }
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
+  const supabase = await createClient();
   const [paketSatisSonucu, odemeSonucu, islemTanimiSonucu, paketSonucu, bakiyeHareketSonucu, oranlarSonucu] =
     await Promise.all([
       supabase

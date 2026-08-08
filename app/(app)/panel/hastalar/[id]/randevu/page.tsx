@@ -4,7 +4,7 @@ import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { GeriLink } from "../geri-link";
 import { RandevuSeansSekmesi } from "../sekmeler/randevu-seans-sekmesi";
-import { hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
+import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
 
 const RANDEVU_ARSIV_SELECT =
   "id, baslangic, bitis, durum, gecikme_dakika, terapist(personel(ad_soyad)), oda(ad), islem_tanimi(id, ad), kaynak";
@@ -15,24 +15,21 @@ export default async function RandevuSeansSayfasi({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/giris");
   }
 
-  const hasta = await hastaTemelGetir(supabase, id);
+  const hasta = await hastaTemelGetir(id);
   if (!hasta) {
     notFound();
   }
 
-  const rol = await kullaniciRolGetir(supabase, user.id);
+  const rol = await kullaniciRolGetir(user.id);
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
+  const supabase = await createClient();
   const [periyodikRandevuSonucu, randevuListesiSonucu, islemTanimiSonucu, terapistSonucu, odaSonucu, cihazSonucu] =
     await Promise.all([
       supabase

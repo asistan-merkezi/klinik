@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { HastaOzet } from "@/types/hasta-detay";
 import { SekmeKartlari } from "./sekme-kartlari";
 import { SEKMELER } from "./sekme-tanimlari";
-import { hastaTemelGetir, kullaniciRolGetir } from "./hasta-getir";
+import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "./hasta-getir";
 
 export default async function HastaDetaySayfasi({
   params,
@@ -11,24 +11,21 @@ export default async function HastaDetaySayfasi({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/giris");
   }
 
-  const hasta = await hastaTemelGetir(supabase, id);
+  const hasta = await hastaTemelGetir(id);
   if (!hasta) {
     notFound();
   }
 
-  const rol = await kullaniciRolGetir(supabase, user.id);
+  const rol = await kullaniciRolGetir(user.id);
   const terapistMi = rol === "terapist";
 
+  const supabase = await createClient();
   const { data: ozet } = await supabase
     .from("v_hasta_ozet")
     .select("*")

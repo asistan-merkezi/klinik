@@ -1,4 +1,6 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { cache } from "react";
+import type { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import type { HastaDetay } from "@/types/hasta";
 
 export type HastaTemel = Pick<
@@ -14,10 +16,22 @@ export type HastaTemel = Pick<
   | "ozel_nitelikli_veri_onay_tarihi"
 >;
 
-export async function hastaTemelGetir(
-  supabase: SupabaseClient,
-  id: string
-): Promise<HastaTemel | null> {
+// Hasta Detay layout'u ve altındaki her sekme sayfası (hub, kişisel, tedavi,
+// cari, randevu) aynı auth/hasta/rol sorgularını ayrı ayrı çalıştırıyordu —
+// bir tıklamada layout + page ikisi de aynı veriyi tekrar çekiyordu (4-6
+// gereksiz round-trip). React'in cache()'i ile bu 3 fonksiyon tek bir
+// istek/render ömrü boyunca aynı argümanla ikinci kez çağrıldığında gerçek
+// bir sorgu çalıştırmaz, önceki sonucu döner.
+export const getAuthUser = cache(async (): Promise<User | null> => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+});
+
+export const hastaTemelGetir = cache(async (id: string): Promise<HastaTemel | null> => {
+  const supabase = await createClient();
   const { data } = await supabase
     .from("hasta")
     .select(
@@ -26,12 +40,10 @@ export async function hastaTemelGetir(
     .eq("id", id)
     .single<HastaTemel>();
   return data ?? null;
-}
+});
 
-export async function hastaDetayFullGetir(
-  supabase: SupabaseClient,
-  id: string
-): Promise<HastaDetay | null> {
+export const hastaDetayFullGetir = cache(async (id: string): Promise<HastaDetay | null> => {
+  const supabase = await createClient();
   const { data } = await supabase
     .from("hasta")
     .select(
@@ -43,12 +55,10 @@ export async function hastaDetayFullGetir(
     .eq("id", id)
     .single<HastaDetay>();
   return data ?? null;
-}
+});
 
-export async function kullaniciRolGetir(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<string | null> {
+export const kullaniciRolGetir = cache(async (userId: string): Promise<string | null> => {
+  const supabase = await createClient();
   const { data } = await supabase.from("kullanici").select("rol").eq("id", userId).single();
   return data?.rol ?? null;
-}
+});
