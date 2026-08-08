@@ -39,6 +39,13 @@ export function resitDegilMi(dogumTarihi: string): boolean {
   return yas < 18
 }
 
+/** Telefonu listelerde okunaklı göstermek için "532 2275512" biçimine çevirir (3+7 hane). */
+export function telefonGoster(telefon: string | null | undefined): string {
+  const yerel = telefonYerelHaneleriCikar(telefon)
+  if (yerel.length !== 10) return telefon ?? ""
+  return `${yerel.slice(0, 3)} ${yerel.slice(3)}`
+}
+
 /** Yerel (0xxx...) veya uluslararası formatlı telefonu wa.me linki için 90xxxxxxxxxx biçimine çevirir. */
 export function whatsappLinkOlustur(telefon: string, mesaj: string): string {
   const rakamlar = telefon.replace(/\D/g, "");

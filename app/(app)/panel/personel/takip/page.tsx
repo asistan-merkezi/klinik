@@ -60,19 +60,26 @@ export default async function PersonelTakipSayfasi({
   const terapistListesi = terapistSonucu ?? [];
   const terapistMap = new Map(terapistListesi.map((t) => [t.personel_id, t]));
 
-  const seansSayisiGirdileri = await Promise.all(
-    terapistListesi.map(async (t) => {
-      const { count } = await supabase
-        .from("randevu")
-        .select("id", { count: "exact", head: true })
-        .eq("terapist_id", t.id)
-        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-        .gte("baslangic", ay.baslangic)
-        .lt("baslangic", ay.bitis);
-      return [t.personel_id, count ?? 0] as const;
-    })
-  );
-  const seansSayisiMap = new Map(seansSayisiGirdileri);
+  const terapistIdListesi = terapistListesi.map((t) => t.id);
+  const terapistIdToPersonelId = new Map(terapistListesi.map((t) => [t.id, t.personel_id]));
+
+  const seansSayisiMap = new Map<string, number>();
+  if (terapistIdListesi.length > 0) {
+    const { data: seansSonucu } = await supabase
+      .from("randevu")
+      .select("terapist_id")
+      .in("terapist_id", terapistIdListesi)
+      .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
+      .gte("baslangic", ay.baslangic)
+      .lt("baslangic", ay.bitis)
+      .returns<{ terapist_id: string }[]>();
+
+    for (const s of seansSonucu ?? []) {
+      const personelId = terapistIdToPersonelId.get(s.terapist_id);
+      if (!personelId) continue;
+      seansSayisiMap.set(personelId, (seansSayisiMap.get(personelId) ?? 0) + 1);
+    }
+  }
 
   const { data: hakedisSonucu } = await supabase
     .from("personel_ekstra_hakedis")
