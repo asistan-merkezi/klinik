@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Phone, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { telefonGoster } from "@/lib/utils";
 import { RiskDetayModal } from "./risk-bandi";
 import type { Cinsiyet } from "@/types/hasta";
 
@@ -62,7 +63,7 @@ export function OzetKart({
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Phone className="size-3.5 shrink-0 text-primary" aria-hidden />
             <a href={`tel:${telefon}`} className="tabular-nums hover:text-foreground">
-              {telefon}
+              {telefonGoster(telefon)}
             </a>
             {yas != null && <span className="tabular-nums">· {yas} yaşında</span>}
           </p>

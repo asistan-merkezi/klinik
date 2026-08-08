@@ -5,6 +5,7 @@ import { Users2, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { telefonGoster } from "@/lib/utils";
 import type { HastaDetay } from "@/types/hasta";
 import { ILISKI_TURU_ETIKETLERI } from "@/types/hasta-detay";
 import { DetayliBilgilerKarti } from "../detayli-bilgiler-karti";
@@ -80,7 +81,7 @@ export function KisiselBilgilerSekmesi({
                 <span className="text-muted-foreground">Yakınlık</span>
                 <span>{hassas?.acil_durum_yakinlik ?? "—"}</span>
                 <span className="text-muted-foreground">Telefon</span>
-                <span>{hassas?.acil_durum_telefon ?? "—"}</span>
+                <span>{telefonGoster(hassas?.acil_durum_telefon) || "—"}</span>
               </div>
               <div className="border-t border-border pt-2">
                 <span className="text-muted-foreground">Adres</span>
@@ -148,16 +149,18 @@ export function KisiselBilgilerSekmesi({
             hassas?.diger_yakini_telefon ? (
             <div className="grid grid-cols-2 gap-y-1.5 border-b border-border pb-3 text-sm">
               <span className="text-muted-foreground">Anne</span>
-              <span>{[hassas?.anne_adi, hassas?.anne_telefon].filter(Boolean).join(" · ") || "—"}</span>
+              <span>{[hassas?.anne_adi, telefonGoster(hassas?.anne_telefon)].filter(Boolean).join(" · ") || "—"}</span>
               <span className="text-muted-foreground">Baba</span>
-              <span>{[hassas?.baba_adi, hassas?.baba_telefon].filter(Boolean).join(" · ") || "—"}</span>
+              <span>{[hassas?.baba_adi, telefonGoster(hassas?.baba_telefon)].filter(Boolean).join(" · ") || "—"}</span>
               {(hassas?.diger_yakini_ad_soyad || hassas?.diger_yakini_telefon) && (
                 <>
                   <span className="text-muted-foreground">
                     Diğer Yakını{hassas?.diger_yakini_yakinlik ? ` (${hassas.diger_yakini_yakinlik})` : ""}
                   </span>
                   <span>
-                    {[hassas?.diger_yakini_ad_soyad, hassas?.diger_yakini_telefon].filter(Boolean).join(" · ") || "—"}
+                    {[hassas?.diger_yakini_ad_soyad, telefonGoster(hassas?.diger_yakini_telefon)]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
                   </span>
                 </>
               )}

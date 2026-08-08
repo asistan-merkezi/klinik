@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/datetime";
+import { telefonGoster } from "@/lib/utils";
 import { personelBasvuruDurumGuncelle } from "./actions";
 
 type Basvuru = {
@@ -48,7 +49,7 @@ export function BasvuruListesi({ basvurular }: { basvurular: Basvuru[] }) {
               <div className="flex flex-col">
                 <span className="font-medium">{b.ad_soyad}</span>
                 <span className="text-muted-foreground">
-                  {b.telefon}
+                  {telefonGoster(b.telefon)}
                   {b.eposta ? ` · ${b.eposta}` : ""}
                 </span>
               </div>

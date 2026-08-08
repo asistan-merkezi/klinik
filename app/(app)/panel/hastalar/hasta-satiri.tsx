@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { telefonGoster } from "@/lib/utils";
 import type { HastaSatir } from "@/types/hasta";
 import { kvkkOnayVer } from "./actions";
 
@@ -24,7 +25,7 @@ export function HastaSatiri({ hasta, gecikme }: { hasta: HastaSatir; gecikme?: n
         <Avatar name={hasta.ad_soyad} size="sm" />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate font-medium">{hasta.ad_soyad}</span>
-          <span className="text-sm text-muted-foreground tabular-nums">{hasta.telefon}</span>
+          <span className="text-sm text-muted-foreground tabular-nums">{telefonGoster(hasta.telefon)}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {hasta.kvkk_onay_tarihi ? (

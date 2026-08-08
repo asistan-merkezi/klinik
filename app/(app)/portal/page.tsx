@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatDateTime } from "@/lib/datetime";
+import { telefonGoster } from "@/lib/utils";
 import type { PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import type { PortalRandevuSatir } from "@/types/portal";
@@ -95,7 +96,7 @@ export default async function PortalSayfasi() {
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold">{hasta?.ad_soyad ?? "Portalım"}</h1>
-            <p className="text-sm text-muted-foreground">{hasta?.telefon}</p>
+            <p className="text-sm text-muted-foreground">{telefonGoster(hasta?.telefon)}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" nativeButton={false} render={<Link href="/portal/bilgilerim">Bilgilerim</Link>} />

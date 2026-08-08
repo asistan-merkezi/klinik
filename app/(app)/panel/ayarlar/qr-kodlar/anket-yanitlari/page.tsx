@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/datetime";
-import { cn } from "@/lib/utils";
+import { cn, telefonGoster } from "@/lib/utils";
 
 export default async function AnketYanitlariSayfasi() {
   const supabase = await createClient();
@@ -63,7 +63,7 @@ export default async function AnketYanitlariSayfasi() {
               {y.oneri_metni && <p>{y.oneri_metni}</p>}
               {(y.ad_soyad || y.telefon) && (
                 <p className="text-xs text-muted-foreground">
-                  {[y.ad_soyad, y.telefon].filter(Boolean).join(" · ")}
+                  {[y.ad_soyad, telefonGoster(y.telefon)].filter(Boolean).join(" · ")}
                 </p>
               )}
             </li>

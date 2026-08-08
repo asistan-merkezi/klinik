@@ -15,7 +15,7 @@ import {
   type PersonelMeslekiBelge,
   type TerapistAyarlari,
 } from "@/types/personel";
-import { ayAraligi, gunAraligi, haftaAraligi } from "@/lib/utils";
+import { ayAraligi, gunAraligi, haftaAraligi, telefonGoster } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
 import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
 import { MaasFormu } from "./maas-formu";
@@ -258,7 +258,7 @@ export default async function PersonelDetaySayfasi({
                   href={`tel:${personel.kullanici.telefon}`}
                   className="underline decoration-dotted underline-offset-2 hover:text-foreground"
                 >
-                  {personel.kullanici.telefon}
+                  {telefonGoster(personel.kullanici.telefon)}
                 </a>
               ) : (
                 "Telefon kaydı yok"
@@ -320,7 +320,7 @@ export default async function PersonelDetaySayfasi({
                 )}
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">Telefon</dt>
-                  <dd>{personel.kullanici?.telefon ?? "—"}</dd>
+                  <dd>{telefonGoster(personel.kullanici?.telefon) || "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">T.C. Kimlik No</dt>
@@ -375,7 +375,7 @@ export default async function PersonelDetaySayfasi({
                       <div className="flex items-center justify-between">
                         <dt className="text-muted-foreground">Acil Durum Kişisi</dt>
                         <dd>
-                          {acilKisi.ad_soyad} ({acilKisi.yakinlik}) · {acilKisi.telefon}
+                          {acilKisi.ad_soyad} ({acilKisi.yakinlik}) · {telefonGoster(acilKisi.telefon)}
                         </dd>
                       </div>
                     )}

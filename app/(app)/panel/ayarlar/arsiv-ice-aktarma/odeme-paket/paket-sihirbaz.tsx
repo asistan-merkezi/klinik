@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { telefonGoster } from "@/lib/utils";
 import { AdimBasliklari } from "@/components/panel/ice-aktarma/adim-basliklari";
 import { DosyaSec } from "@/components/panel/ice-aktarma/dosya-sec";
 import { BeklenenSutunlar } from "@/components/panel/ice-aktarma/beklenen-sutunlar";
@@ -183,7 +184,7 @@ export function PaketSihirbazi({ paketler }: { paketler: PaketSecenegi[] }) {
               <OnizlemeTablosu
                 satirlar={benzersizTelefonlar}
                 kolonlar={[
-                  { baslik: "Telefon", render: (t: string) => t },
+                  { baslik: "Telefon", render: (t: string) => telefonGoster(t) || t },
                   {
                     baslik: "Eşleşme",
                     render: (t: string) => {
