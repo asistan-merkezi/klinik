@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { YazdirButonu } from "./yazdir-butonu";
+import { YazdirButonu } from "@/components/panel/yazdir-butonu";
 
 function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode }) {
   return (

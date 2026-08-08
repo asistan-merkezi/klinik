@@ -1,7 +1,13 @@
 import type { createClient } from "@/lib/supabase/server";
 import { maasHesapla } from "@/lib/maas";
 import type { MaasHesaplamaModeli } from "@/types/personel";
-import type { GelirOzeti, SabitPersonelMaliyeti, TerapistPrimSatiri, YillikAy } from "@/types/raporlar";
+import type {
+  GelirOzeti,
+  RandevuDurumOzeti,
+  SabitPersonelMaliyeti,
+  TerapistPrimSatiri,
+  YillikAy,
+} from "@/types/raporlar";
 import type { RaporDonemi } from "@/lib/raporlar/donem";
 import { raporYilDonemi, yilinAylari } from "@/lib/raporlar/donem";
 
@@ -29,7 +35,7 @@ export async function hesaplaSabitPersonelMaliyeti(
 
   const personeller = personelListesi ?? [];
   if (personeller.length === 0) {
-    return { toplamMaas: 0, terapistPrimleri: [] };
+    return { toplamMaas: 0, sabitToplam: 0, ekstraToplam: 0, terapistPrimleri: [] };
   }
 
   const personelIdler = personeller.map((p) => p.id);
@@ -86,7 +92,8 @@ export async function hesaplaSabitPersonelMaliyeti(
 
   const terapistByPersonelId = new Map(terapistler.map((t) => [t.personel_id, t]));
 
-  let toplamMaas = 0;
+  let sabitToplamGenel = 0;
+  let ekstraToplamGenel = 0;
   const terapistPrimleri: TerapistPrimSatiri[] = [];
 
   for (const personel of personeller) {
@@ -106,7 +113,8 @@ export async function hesaplaSabitPersonelMaliyeti(
         seansSayisi,
         ekstraToplam
       );
-      toplamMaas += hesap.toplam;
+      sabitToplamGenel += hesap.taban + hesap.prim;
+      ekstraToplamGenel += hesap.ekstra_toplam;
       terapistPrimleri.push({
         personelId: personel.id,
         adSoyad: personel.ad_soyad,
@@ -117,18 +125,25 @@ export async function hesaplaSabitPersonelMaliyeti(
         aciklama: hesap.aciklama,
       });
     } else {
-      toplamMaas += (personel.maas ?? 0) + ekstraToplam;
+      sabitToplamGenel += personel.maas ?? 0;
+      ekstraToplamGenel += ekstraToplam;
     }
   }
 
-  return { toplamMaas, terapistPrimleri };
+  return {
+    toplamMaas: sabitToplamGenel + ekstraToplamGenel,
+    sabitToplam: sabitToplamGenel,
+    ekstraToplam: ekstraToplamGenel,
+    terapistPrimleri,
+  };
 }
 
 type KlinikHarcamaSatir = { tutar: number };
 
 /**
- * İşletme gideri: kira/fatura/malzeme/diğer kategorisindeki, faturasız
- * (is_faturali=false) klinik_harcama kayıtları. Aynı tutarın hem burada hem
+ * İşletme gideri: kira/fatura/malzeme kategorisindeki, faturasız
+ * (is_faturali=false) klinik_harcama kayıtları. 'diger' kategorisi kendi
+ * ayrı kalemine (hesaplaDigerGiderler) taşındı; aynı tutarın hem burada hem
  * Faturalı Giderler'de çift sayılmaması için is_faturali=false şartı zorunlu.
  */
 export async function hesaplaIsletmeGideri(
@@ -141,6 +156,29 @@ export async function hesaplaIsletmeGideri(
     .select("tutar")
     .eq("klinik_id", klinikId)
     .neq("kategori", "vergi_sgk")
+    .neq("kategori", "diger")
+    .eq("is_faturali", false)
+    .gte("tarih", donem.baslangicTarih)
+    .lt("tarih", donem.bitisTarih)
+    .returns<KlinikHarcamaSatir[]>();
+  return (data ?? []).reduce((acc, satir) => acc + satir.tutar, 0);
+}
+
+/**
+ * Diğer giderler: kategori='diger', faturasız klinik_harcama kayıtları —
+ * daha önce İşletme Gideri'ne dahildi, Raporlar'da ayrı bir kalem olarak
+ * gösterilebilmesi için buraya ayrıldı (kullanıcı kararı).
+ */
+export async function hesaplaDigerGiderler(
+  supabase: SupabaseSunucuClient,
+  klinikId: string,
+  donem: RaporDonemi
+): Promise<number> {
+  const { data } = await supabase
+    .from("klinik_harcama")
+    .select("tutar")
+    .eq("klinik_id", klinikId)
+    .eq("kategori", "diger")
     .eq("is_faturali", false)
     .gte("tarih", donem.baslangicTarih)
     .lt("tarih", donem.bitisTarih)
@@ -240,6 +278,50 @@ export async function hesaplaGelir(
     iskontoToplam,
     netTahsilat: kdvli - iskontoToplam,
   };
+}
+
+type RandevuDurumSatir = {
+  durum: "planlandi" | "geldi" | "gecikmeli_geldi" | "gelmedi" | "ertelendi" | "iptal" | "tamamlandi";
+};
+
+/**
+ * Randevu durum özeti: dönem içinde başlayan randevuların durumu 4 kovaya
+ * indirgenir — tamamlanan (geldi/gecikmeli_geldi/tamamlandi), planlanan
+ * (henüz olacak), ertelenen, iptal+gelmedi (birlikte, ikisi de seansın
+ * gerçekleşmediği anlamına geldiği için tek kovada).
+ */
+export async function hesaplaRandevuDurumOzeti(
+  supabase: SupabaseSunucuClient,
+  klinikId: string,
+  donem: RaporDonemi
+): Promise<RandevuDurumOzeti> {
+  const { data } = await supabase
+    .from("randevu")
+    .select("durum")
+    .eq("klinik_id", klinikId)
+    .gte("baslangic", donem.baslangic)
+    .lt("baslangic", donem.bitis)
+    .returns<RandevuDurumSatir[]>();
+
+  const satirlar = data ?? [];
+  let tamamlanan = 0;
+  let planlanan = 0;
+  let ertelenen = 0;
+  let iptalVeGelmedi = 0;
+
+  for (const satir of satirlar) {
+    if (satir.durum === "geldi" || satir.durum === "gecikmeli_geldi" || satir.durum === "tamamlandi") {
+      tamamlanan += 1;
+    } else if (satir.durum === "planlandi") {
+      planlanan += 1;
+    } else if (satir.durum === "ertelendi") {
+      ertelenen += 1;
+    } else if (satir.durum === "iptal" || satir.durum === "gelmedi") {
+      iptalVeGelmedi += 1;
+    }
+  }
+
+  return { tamamlanan, planlanan, ertelenen, iptalVeGelmedi, toplam: satirlar.length };
 }
 
 /**

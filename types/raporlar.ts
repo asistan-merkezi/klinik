@@ -10,7 +10,17 @@ export type TerapistPrimSatiri = {
 
 export type SabitPersonelMaliyeti = {
   toplamMaas: number;
+  sabitToplam: number;
+  ekstraToplam: number;
   terapistPrimleri: TerapistPrimSatiri[];
+};
+
+export type RandevuDurumOzeti = {
+  tamamlanan: number;
+  planlanan: number;
+  ertelenen: number;
+  iptalVeGelmedi: number;
+  toplam: number;
 };
 
 export type GelirOzeti = {
