@@ -26,7 +26,6 @@ export type RandevuDurumOzeti = {
 export type GelirOzeti = {
   kdvli: number;
   kdvsiz: number;
-  kdvTutari: number;
   iskontoToplam: number;
   netTahsilat: number;
 };

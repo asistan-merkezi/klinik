@@ -231,19 +231,20 @@ export async function hesaplaMuhasebeGideri(
 }
 
 type OdemeGelirSatiri = {
+  faturali: boolean;
   iskonto_tutari: number;
-  odeme_kalemi: { miktar: number; birim_fiyat: number; kdv_orani: number }[];
+  odeme_kalemi: { miktar: number; birim_fiyat: number }[];
 };
 
 /**
- * Gelir: odeme_kalemi'nin o anki fiyat/KDV snapshot'ından (birim_fiyat,
- * kdv_orani) hesaplanır — proje henüz islem_tanimi_fiyat_gecmisi tablosunu
- * hiç oluşturmadı, snapshot doğrudan odeme_kalemi'nde tutuluyor (bkz.
- * odeme_olustur RPC'si). birim_fiyat KDV DAHİL (brüt) fiyat kabul edilir.
- * İskonto KDV oranlarına göre dağıtılmadan tek kalemde (iskontoToplam)
- * ayrıca raporlanır; faturalı ödemelerin `fatura` tablosundaki karşılığı
- * burada tekrar sayılmaz (ayrı bir gelir/gider kalemi değil, aynı gelirin
- * belgesi).
+ * Gelir: KDV'li (brüt)/KDV'siz (net) ayrımı artık KDV oranından değil,
+ * ödemenin faturalı olup olmadığından geliyor (kullanıcı kararı) — faturalı
+ * satışlar KDV'li (brüt) tutarında, faturasız satışlar KDV'siz (net)
+ * tutarında toplanıyor. Gerçek KDV tutarı zaten Muhasebe (Vergi, SGK)
+ * bölümünde ayrıca raporlandığı için burada tekrar hesaplanmıyor. İskonto
+ * tek kalemde (iskontoToplam) ayrıca raporlanır; faturalı ödemelerin
+ * `fatura` tablosundaki karşılığı burada tekrar sayılmaz (ayrı bir
+ * gelir/gider kalemi değil, aynı gelirin belgesi).
  */
 export async function hesaplaGelir(
   supabase: SupabaseSunucuClient,
@@ -252,7 +253,7 @@ export async function hesaplaGelir(
 ): Promise<GelirOzeti> {
   const { data } = await supabase
     .from("odeme")
-    .select("iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, kdv_orani)")
+    .select("faturali, iskonto_tutari, odeme_kalemi(miktar, birim_fiyat)")
     .eq("klinik_id", klinikId)
     .gte("created_at", donem.baslangic)
     .lt("created_at", donem.bitis)
@@ -264,19 +265,19 @@ export async function hesaplaGelir(
 
   for (const odeme of data ?? []) {
     iskontoToplam += odeme.iskonto_tutari;
-    for (const kalem of odeme.odeme_kalemi) {
-      const brut = kalem.miktar * kalem.birim_fiyat;
-      kdvli += brut;
-      kdvsiz += brut / (1 + kalem.kdv_orani / 100);
+    const brutToplam = odeme.odeme_kalemi.reduce((acc, kalem) => acc + kalem.miktar * kalem.birim_fiyat, 0);
+    if (odeme.faturali) {
+      kdvli += brutToplam;
+    } else {
+      kdvsiz += brutToplam;
     }
   }
 
   return {
     kdvli,
     kdvsiz,
-    kdvTutari: kdvli - kdvsiz,
     iskontoToplam,
-    netTahsilat: kdvli - iskontoToplam,
+    netTahsilat: kdvli + kdvsiz - iskontoToplam,
   };
 }
 

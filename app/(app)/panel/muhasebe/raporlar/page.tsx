@@ -404,9 +404,8 @@ function DurumKalemi({ etiket, deger, sinif }: { etiket: string; deger: number; 
 
 function GelirDetayKarti({ gelir }: { gelir: GelirOzeti }) {
   const kalemler = [
-    { etiket: "KDV'li (brüt)", tutar: gelir.kdvli },
-    { etiket: "KDV'siz (net)", tutar: gelir.kdvsiz },
-    { etiket: "KDV tutarı", tutar: gelir.kdvTutari },
+    { etiket: "KDV'li (brüt) — faturalı satışlar", tutar: gelir.kdvli },
+    { etiket: "KDV'siz (net) — faturasız satışlar", tutar: gelir.kdvsiz },
     { etiket: "İskonto", tutar: -gelir.iskontoToplam },
   ];
 
