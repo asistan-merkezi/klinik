@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { OdemeFormu } from "./odeme-formu";
+import { TakipSatiriKart } from "./takip-satiri";
 
 export type TakipSatiri = {
   id: string;
@@ -37,19 +37,22 @@ export function PersonelTakipListesi({ satirlar }: { satirlar: TakipSatiri[] }) 
       map.set(s.gorev, liste);
     }
 
+    let sira = 0;
     return Array.from(map.entries())
       .sort((a, b) => a[0].localeCompare(b[0], "tr"))
       .map(([gorev, liste]) => ({
         gorev,
-        liste: liste.sort((a, b) => a.ad_soyad.localeCompare(b.ad_soyad, "tr")),
+        liste: liste
+          .sort((a, b) => a.ad_soyad.localeCompare(b.ad_soyad, "tr"))
+          .map((satir) => ({ satir, sira: sira++ })),
       }));
   }, [satirlar, arama]);
 
   const odemeAcikSatir = satirlar.find((s) => s.id === odemeAcikId) ?? null;
 
-  function grupToplami(liste: TakipSatiri[]) {
+  function grupToplami(liste: { satir: TakipSatiri }[]) {
     return liste.reduce(
-      (acc, s) => {
+      (acc, { satir: s }) => {
         acc.hakedis += s.hakedis;
         acc.odenen += s.odenen;
         return acc;
@@ -60,13 +63,16 @@ export function PersonelTakipListesi({ satirlar }: { satirlar: TakipSatiri[] }) 
 
   return (
     <div className="flex flex-col gap-5">
-      <Input
-        type="search"
-        placeholder="İsim veya görev ile ara"
-        value={arama}
-        onChange={(e) => setArama(e.target.value)}
-        className="max-w-sm"
-      />
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Input
+          type="search"
+          placeholder="İsim veya görev ile ara"
+          value={arama}
+          onChange={(e) => setArama(e.target.value)}
+          className="h-11 pl-8 focus-visible:ring-ring/50"
+        />
+      </div>
 
       {gruplar.length === 0 && (
         <p className="text-sm text-muted-foreground">Aramayla eşleşen personel bulunamadı.</p>
@@ -77,39 +83,19 @@ export function PersonelTakipListesi({ satirlar }: { satirlar: TakipSatiri[] }) 
         const kalanToplam = toplam.hakedis - toplam.odenen;
 
         return (
-          <div key={gorev} className="flex flex-col gap-1">
+          <div key={gorev} className="flex flex-col gap-2">
             <h2 className="px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               {gorev}
             </h2>
-            <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
-              {liste.map((s) => {
-                const kalan = s.hakedis - s.odenen;
-                return (
-                  <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-3 text-sm">
-                    <Link href={`/panel/personel/${s.id}`} className="flex min-w-0 flex-col hover:underline">
-                      <span className={cn("truncate font-medium", !s.aktif && "text-muted-foreground line-through")}>
-                        {s.ad_soyad}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Hakediş {paraFormat(s.hakedis)} · Ödenen {paraFormat(s.odenen)}
-                      </span>
-                    </Link>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span
-                        className={cn(
-                          "font-semibold tabular-nums",
-                          kalan > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
-                        )}
-                      >
-                        {paraFormat(kalan)}
-                      </span>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setOdemeAcikId(s.id)}>
-                        Ödeme Ekle
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
+            <ul className="flex flex-col gap-2">
+              {liste.map(({ satir, sira }) => (
+                <TakipSatiriKart
+                  key={satir.id}
+                  satir={satir}
+                  gecikme={sira * 40}
+                  onOdemeEkle={() => setOdemeAcikId(satir.id)}
+                />
+              ))}
             </ul>
             <p className="px-1 text-xs text-muted-foreground">
               Grup toplamı: Hakediş {paraFormat(toplam.hakedis)} − Ödenen {paraFormat(toplam.odenen)} ={" "}

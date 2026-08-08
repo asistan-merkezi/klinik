@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HakedisTuru, MaasHesaplamaModeli } from "@/types/personel";
 import { ayAraligi } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
@@ -134,41 +133,38 @@ export default async function PersonelTakipSayfasi({
   });
 
   return (
-    <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="flex-1 bg-background">
+      <div className="mx-auto flex max-w-md flex-col gap-4 p-4 pb-24 sm:max-w-3xl sm:p-8">
         <header>
-          <h1 className="text-xl font-semibold">Personel Takip</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Personel Takip</h1>
           <p className="text-sm text-muted-foreground">
             Personelin klinikten alacağı — hesaplanan hakediş ile fiilen ödenen tutar arasındaki fark.
           </p>
         </header>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Alacak Takibi — {ay.etiket}</CardTitle>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={`/panel/personel/takip?ay=${ay.oncekiParam}`}>‹ Önceki</Link>}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={`/panel/personel/takip?ay=${ay.sonrakiParam}`}>Sonraki ›</Link>}
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {satirlar.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Henüz personel kaydı yok.</p>
-            ) : (
-              <PersonelTakipListesi satirlar={satirlar} />
-            )}
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-sm font-semibold">Alacak Takibi — {ay.etiket}</h2>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/panel/personel/takip?ay=${ay.oncekiParam}`}>‹ Önceki</Link>}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/panel/personel/takip?ay=${ay.sonrakiParam}`}>Sonraki ›</Link>}
+            />
+          </div>
+        </div>
+
+        {satirlar.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Henüz personel kaydı yok.</p>
+        ) : (
+          <PersonelTakipListesi satirlar={satirlar} />
+        )}
       </div>
     </div>
   );

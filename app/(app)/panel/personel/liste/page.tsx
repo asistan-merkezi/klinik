@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { PersonelSatir } from "@/types/personel";
 import { YeniPersonelDialog } from "../yeni-personel-dialog";
 import { PersonelListesi } from "../personel-listesi";
@@ -33,11 +34,11 @@ export default async function PersonelListesiSayfasi() {
   const personelListesi = personelSonucu ?? [];
 
   return (
-    <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="flex-1 bg-background">
+      <div className="mx-auto flex max-w-md flex-col gap-4 p-4 pb-24 sm:max-w-3xl sm:p-8">
         <header className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold">Personel Listesi</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Personel Listesi</h1>
             <p className="text-sm text-muted-foreground">
               Çalışanlar; terapistler için performans ve maaş hesaplama.
             </p>
@@ -49,20 +50,13 @@ export default async function PersonelListesiSayfasi() {
           )}
         </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Çalışanlar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {error && <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>}
-            {!error && personelListesi.length === 0 && (
-              <p className="text-sm text-muted-foreground">Henüz personel kaydı yok.</p>
-            )}
-            {!error && personelListesi.length > 0 && (
-              <PersonelListesi personelListesi={personelListesi} yonetici={yonetici} />
-            )}
-          </CardContent>
-        </Card>
+        {error && <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>}
+        {!error && personelListesi.length === 0 && (
+          <EmptyState icon={Users} title="Henüz personel kaydı yok." />
+        )}
+        {!error && personelListesi.length > 0 && (
+          <PersonelListesi personelListesi={personelListesi} yonetici={yonetici} />
+        )}
       </div>
     </div>
   );
