@@ -1,10 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import { Home } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 import type { RandevuSatir } from "@/types/randevu";
-import { cn, gunAraligi } from "@/lib/utils";
+import type { Klinik } from "@/types/klinik";
+import { gunAraligi } from "@/lib/utils";
 import { VARSAYILAN_TABLET_AYARLARI, type TabletAyarlari } from "@/types/tablet-ayarlari";
 import { TabletEkrani } from "./tablet-ekrani";
 
@@ -49,9 +47,9 @@ export default async function TabletOdaSayfasi({
 
   const { data: klinik } = await supabase
     .from("klinik")
-    .select("logo_url")
+    .select("ad, logo_url, logo_url_koyu, marka_renkleri")
     .eq("id", kullanici?.klinik_id ?? "")
-    .maybeSingle();
+    .maybeSingle<Klinik>();
 
   const { baslangic, bitis } = gunAraligi();
   const { data: randevular } = await supabase
@@ -66,39 +64,12 @@ export default async function TabletOdaSayfasi({
     .returns<RandevuSatir[]>();
 
   return (
-    <div
-      className={cn(
-        tabletAyarlari.tema === "koyu" && "dark",
-        "flex min-h-screen flex-col bg-background text-foreground"
-      )}
-    >
-      <header className="flex items-center justify-between border-b border-border p-4">
-        <div className="flex items-center gap-3">
-          {klinik?.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={klinik.logo_url} alt="" className="h-8 w-auto object-contain" />
-          ) : (
-            <span className="text-sm font-medium text-muted-foreground">Logo</span>
-          )}
-          <h1 className="text-lg font-semibold">{oda.ad}</h1>
-        </div>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          aria-label="Oda değiştir"
-          nativeButton={false}
-          render={
-            <Link href="/panel/tablet">
-              <Home />
-            </Link>
-          }
-        />
-      </header>
-      <TabletEkrani
-        odaId={odaId}
-        baslangicRandevular={randevular ?? []}
-        ayarlar={tabletAyarlari}
-      />
-    </div>
+    <TabletEkrani
+      odaId={odaId}
+      odaAdi={oda.ad}
+      klinik={klinik ?? { ad: "Klinik", logo_url: null, logo_url_koyu: null, marka_renkleri: null }}
+      baslangicRandevular={randevular ?? []}
+      ayarlar={tabletAyarlari}
+    />
   );
 }

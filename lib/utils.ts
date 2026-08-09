@@ -19,6 +19,15 @@ export function isimBasHarfBuyukYap(deger: string): string {
     .join(" ")
 }
 
+/** KVKK gizlilik modu için "Ahmet Yılmaz" → "Ahmet Y." (soyadın ilk harfi + nokta). Tek kelimelik isimlerde (soyad ayırt edilemiyor) değiştirmeden döner. */
+export function adSoyadMaskele(adSoyad: string): string {
+  const parcalar = adSoyad.trim().split(/\s+/)
+  if (parcalar.length < 2) return adSoyad
+  const soyad = parcalar[parcalar.length - 1]
+  const ad = parcalar.slice(0, -1).join(" ")
+  return `${ad} ${soyad.charAt(0).toLocaleUpperCase("tr-TR")}.`
+}
+
 /** Var olan bir telefon değerinden ("0532...", "+90532...", "90532...") +90 önekli 10 haneli giriş kutusunu doldurmak için son 10 haneyi çıkarır. */
 export function telefonYerelHaneleriCikar(telefon: string | null | undefined): string {
   if (!telefon) return ""

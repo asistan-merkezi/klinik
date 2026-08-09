@@ -13,12 +13,21 @@ export type SirketBilgileri = {
   yetkili_telefon: string | null;
   yetkili_eposta: string | null;
   logo_url: string | null;
+  logo_url_koyu: string | null;
   hafta_ici_baslangic: string | null;
   hafta_ici_bitis: string | null;
   cumartesi_baslangic: string | null;
   cumartesi_bitis: string | null;
   pazar_baslangic: string | null;
   pazar_bitis: string | null;
+};
+
+/** Kapı tableti gibi minimal marka-kimliği bağlamlarında kullanılan alan alt kümesi. */
+export type Klinik = {
+  ad: string;
+  logo_url: string | null;
+  logo_url_koyu: string | null;
+  marka_renkleri: { primary?: string } | null;
 };
 
 export type KlinikArac = {

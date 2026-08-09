@@ -14,9 +14,10 @@ import { Button } from "@/components/ui/button";
  * dahil edildi: PanelSidebar'ın mobil header'ı artık kendi inline toggle'ını
  * gösteriyor, kök seviyedeki FAB oraya bindirmesin diye "fab" varyantı
  * /panel altında render edilmiyor (inline varyant zaten sadece sidebar'dan
- * çağrılıyor, bu kontrolden etkilenmez).
+ * çağrılıyor, bu kontrolden etkilenmez). /tablet-onizleme (auth'suz QA
+ * rotası) da tablet ekranının kendi tema seçiciyle yönetildiği için dahil.
  */
-const GIZLI_ROTALAR = ["/giris", "/portal/giris"];
+const GIZLI_ROTALAR = ["/giris", "/portal/giris", "/tablet-onizleme"];
 
 export function ThemeToggle({ variant = "fab" }: { variant?: "fab" | "inline" }) {
   const { theme, setTheme } = useTheme();

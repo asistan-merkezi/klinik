@@ -19,36 +19,72 @@ function saatKisalt(deger: string | null | undefined) {
 export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri | null }) {
   const [sonuc, formAction, isPending] = useActionState(sirketBilgileriGuncelle, null);
   const [onizleme, setOnizleme] = useState<string | null>(null);
+  const [onizlemeKoyu, setOnizlemeKoyu] = useState<string | null>(null);
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
-      <div className="flex items-center gap-4">
-        <div className="flex size-16 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
-          {onizleme || bilgiler?.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={onizleme ?? bilgiler?.logo_url ?? ""}
-              alt="Klinik logosu"
-              className="size-full object-contain"
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex size-16 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+            {onizleme || bilgiler?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={onizleme ?? bilgiler?.logo_url ?? ""}
+                alt="Klinik logosu"
+                className="size-full object-contain"
+              />
+            ) : (
+              <span className="text-xs text-muted-foreground">Logo yok</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="logo">Logo (PNG/JPG/WEBP/SVG, en fazla 2 MB)</Label>
+            <input
+              id="logo"
+              name="logo"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              disabled={isPending}
+              onChange={(e) => {
+                const dosya = e.target.files?.[0];
+                setOnizleme(dosya ? URL.createObjectURL(dosya) : null);
+              }}
+              className="text-sm"
             />
-          ) : (
-            <span className="text-xs text-muted-foreground">Logo yok</span>
-          )}
+          </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="logo">Logo (PNG/JPG/WEBP/SVG, en fazla 2 MB)</Label>
-          <input
-            id="logo"
-            name="logo"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            disabled={isPending}
-            onChange={(e) => {
-              const dosya = e.target.files?.[0];
-              setOnizleme(dosya ? URL.createObjectURL(dosya) : null);
-            }}
-            className="text-sm"
-          />
+
+        <div className="flex items-center gap-4">
+          <div className="flex size-16 items-center justify-center overflow-hidden rounded-lg border border-border bg-slate-900">
+            {onizlemeKoyu || bilgiler?.logo_url_koyu ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={onizlemeKoyu ?? bilgiler?.logo_url_koyu ?? ""}
+                alt="Klinik logosu (koyu tema)"
+                className="size-full object-contain"
+              />
+            ) : (
+              <span className="text-xs text-slate-400">Logo yok</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="logo_koyu">Koyu Tema Logosu (opsiyonel)</Label>
+            <input
+              id="logo_koyu"
+              name="logo_koyu"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              disabled={isPending}
+              onChange={(e) => {
+                const dosya = e.target.files?.[0];
+                setOnizlemeKoyu(dosya ? URL.createObjectURL(dosya) : null);
+              }}
+              className="text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Boş bırakılırsa koyu zeminlerde (ör. kapı tableti) normal logo kullanılır.
+            </p>
+          </div>
         </div>
       </div>
 

@@ -44,6 +44,7 @@
   --color-input-bg: var(--input-bg);
   --color-surface: var(--card);
   --color-border-subtle: var(--border);
+  --color-tablet-zemin: var(--tablet-zemin);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -102,6 +103,13 @@
   --sidebar-accent-foreground: #0F172A;
   --sidebar-border: #E2E8F0;
   --sidebar-ring: #2B7FD4;
+
+  /* Kapı tableti: panelin kendi --background'ından bilinçli olarak ayrı —
+     tam ekran, doku katmanı üstünde okunacak, saf siyah/beyaz olmayan bir
+     zemin (bkz. TabletBackground). */
+  --tablet-zemin: #F8FAFC;
+  --tablet-doku-nokta: #0F172A;
+  --tablet-doku-nokta-opacity: 0.06;
 }
 
 .dark {
@@ -145,6 +153,10 @@
   --sidebar-accent-foreground: #f8fafc;
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: #00f2fe;
+
+  --tablet-zemin: #0B1220;
+  --tablet-doku-nokta: #7DD3FC;
+  --tablet-doku-nokta-opacity: 0.14;
 }
 
 /* :root'taki açık tema değerleriyle birebir aynı — ama koyu temalı bir üst
@@ -188,6 +200,10 @@
   --sidebar-accent-foreground: #0F172A;
   --sidebar-border: #E2E8F0;
   --sidebar-ring: #2B7FD4;
+
+  --tablet-zemin: #F8FAFC;
+  --tablet-doku-nokta: #0F172A;
+  --tablet-doku-nokta-opacity: 0.06;
 }
 
 @layer base {

@@ -1,5 +1,5 @@
 import { Home } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { adSoyadMaskele, cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { TabletAyarlari } from "@/types/tablet-ayarlari";
 
@@ -14,6 +14,7 @@ export function TabletOnizleme({
   terapist_adi_goster,
   islem_adi_goster,
   durum_rengi_goster,
+  soyad_maskele,
   tema,
   logoUrl,
 }: TabletAyarlari & { logoUrl: string | null }) {
@@ -54,7 +55,9 @@ export function TabletOnizleme({
               <span className="text-xs uppercase tracking-widest text-emerald-400">İçeride</span>
               <div className="flex h-10 items-center">
                 {hasta_adi_goster && (
-                  <span className="text-3xl font-bold">{ORNEK.hastaAdi}</span>
+                  <span className="text-3xl font-bold">
+                    {soyad_maskele ? adSoyadMaskele(ORNEK.hastaAdi) : ORNEK.hastaAdi}
+                  </span>
                 )}
               </div>
               <div className="flex h-6 items-center">

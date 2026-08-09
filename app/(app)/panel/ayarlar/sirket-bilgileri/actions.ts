@@ -131,6 +131,32 @@ export async function sirketBilgileriGuncelle(
     guncellenecek.logo_url = `${publicUrl}?v=${Date.now()}`;
   }
 
+  const logoKoyu = formData.get("logo_koyu");
+  if (logoKoyu instanceof File && logoKoyu.size > 0) {
+    if (logoKoyu.size > MAKS_LOGO_BOYUTU) {
+      return { success: false, message: "Koyu tema logosu en fazla 2 MB olabilir." };
+    }
+    const uzanti = IZINLI_LOGO_TIPLERI[logoKoyu.type];
+    if (!uzanti) {
+      return { success: false, message: "Koyu tema logosu PNG, JPG, WEBP veya SVG olmalı." };
+    }
+
+    const yol = `${klinikId}/logo-koyu.${uzanti}`;
+    const { error: yuklemeHatasi } = await supabase.storage
+      .from("klinik-logo")
+      .upload(yol, logoKoyu, { upsert: true, contentType: logoKoyu.type });
+
+    if (yuklemeHatasi) {
+      console.error("Koyu tema logosu yüklenemedi:", yuklemeHatasi);
+      return { success: false, message: "Koyu tema logosu yüklenemedi, lütfen tekrar deneyin." };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("klinik-logo").getPublicUrl(yol);
+    guncellenecek.logo_url_koyu = `${publicUrl}?v=${Date.now()}`;
+  }
+
   const { error } = await supabase.from("klinik").update(guncellenecek).eq("id", klinikId);
 
   if (error) {
