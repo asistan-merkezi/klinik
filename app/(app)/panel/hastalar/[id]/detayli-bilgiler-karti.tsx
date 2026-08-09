@@ -238,6 +238,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
   const [anneAdi, setAnneAdi] = useState(hassas?.anne_adi ?? "");
   const [babaAdi, setBabaAdi] = useState(hassas?.baba_adi ?? "");
   const [digerYakiniAdSoyad, setDigerYakiniAdSoyad] = useState(hassas?.diger_yakini_ad_soyad ?? "");
+  const [acilDurumAdSoyad, setAcilDurumAdSoyad] = useState(hassas?.acil_durum_ad_soyad ?? "");
 
   const kucukMu = dogumTarihi ? resitDegilMi(dogumTarihi) : false;
   const kimlikNoHaneSayisi = kimlikNo.replace(/\D/g, "").length;
@@ -480,7 +481,8 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
           <Input
             id="acil_durum_ad_soyad"
             name="acil_durum_ad_soyad"
-            defaultValue={hassas?.acil_durum_ad_soyad ?? ""}
+            value={acilDurumAdSoyad}
+            onChange={(e) => setAcilDurumAdSoyad(isimBasHarfBuyukYap(e.target.value))}
             disabled={isPending}
           />
         </div>
@@ -493,15 +495,12 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             disabled={isPending}
           />
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="acil_durum_telefon">Telefon</Label>
-          <Input
-            id="acil_durum_telefon"
-            name="acil_durum_telefon"
-            defaultValue={hassas?.acil_durum_telefon ?? ""}
-            disabled={isPending}
-          />
-        </div>
+        <TelefonGirisi
+          ad="acil_durum_telefon"
+          label="Telefon"
+          varsayilanTelefon={hassas?.acil_durum_telefon}
+          disabled={isPending}
+        />
       </fieldset>
 
       {durum && (
