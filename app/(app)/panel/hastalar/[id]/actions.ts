@@ -307,6 +307,7 @@ const temelBilgilerSemasi = z.object({
   kategori: z.enum(["vita", "plus", "elit", "prime"]),
   eposta: z.string().trim().email("Geçersiz e-posta.").nullable(),
   referans_kanali: z.string().nullable(),
+  whatsapp_izin_durumu: z.coerce.boolean(),
   kimlik_no: z.string().nullable(),
   kimlik_no_tipi: z.enum(["tc", "pasaport"]).nullable(),
   il: z.string().nullable(),
@@ -347,6 +348,7 @@ export async function temelBilgileriGuncelle(
     kategori: formData.get("kategori") || "vita",
     eposta: bosIseNull2(formData.get("eposta")),
     referans_kanali: bosIseNull2(formData.get("referans_kanali")),
+    whatsapp_izin_durumu: formData.get("whatsapp_izin_durumu") === "on",
     kimlik_no: bosIseNull2(formData.get("kimlik_no")),
     kimlik_no_tipi: bosIseNull2(formData.get("kimlik_no_tipi")),
     il: bosIseNull2(formData.get("adres_il")),
@@ -369,8 +371,20 @@ export async function temelBilgileriGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad_soyad, telefon, dogum_tarihi, cinsiyet, kategori, eposta, referans_kanali, anne_adi, baba_adi, diger_yakini_ad_soyad, ...digerHassas } =
-    ayristirma.data;
+  const {
+    ad_soyad,
+    telefon,
+    dogum_tarihi,
+    cinsiyet,
+    kategori,
+    eposta,
+    referans_kanali,
+    whatsapp_izin_durumu,
+    anne_adi,
+    baba_adi,
+    diger_yakini_ad_soyad,
+    ...digerHassas
+  } = ayristirma.data;
 
   const [hastaSonucu, hassasSonucu] = await Promise.all([
     supabase
@@ -383,6 +397,7 @@ export async function temelBilgileriGuncelle(
         kategori,
         eposta,
         referans_kanali,
+        whatsapp_izin_durumu,
       })
       .eq("id", hastaId),
     supabase.from("hasta_hassas").upsert(

@@ -4,13 +4,14 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { YazdirButonu } from "@/components/panel/yazdir-butonu";
+import { ONAY_ACIKLAMALARI } from "@/lib/onay-metinleri";
 
 function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode }) {
   return (
-    <fieldset className="mt-6 border-t border-black/20 pt-4 first:mt-0 first:border-t-0 first:pt-0">
-      <legend className="mb-3 text-sm font-semibold uppercase tracking-wide">{baslik}</legend>
+    <section className="mt-6 border-t border-black/20 pt-4 first:mt-0 first:border-t-0 first:pt-0">
+      <p className="mb-3 text-sm font-semibold uppercase tracking-wide">{baslik}</p>
       <div className="grid grid-cols-2 gap-x-6 gap-y-4">{children}</div>
-    </fieldset>
+    </section>
   );
 }
 
@@ -33,11 +34,14 @@ function Alan({
   );
 }
 
-function Onay({ etiket }: { etiket: string }) {
+function Onay({ etiket, aciklama }: { etiket: string; aciklama?: string }) {
   return (
     <div className="col-span-2 flex items-start gap-2">
       <span className="mt-0.5 size-4 shrink-0 border border-black/60" />
-      <span className="text-sm">{etiket}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{etiket}</span>
+        {aciklama && <span className="text-xs text-black/60">{aciklama}</span>}
+      </div>
     </div>
   );
 }
@@ -146,27 +150,25 @@ export default async function KayitFormuSayfasi() {
 
           <Bolum baslik="Geliş Sebebi & Klinik Notları">
             <Alan etiket="Şikayet / Geliş Sebebi" genis satir={2} />
-            <div className="col-span-2 flex items-center justify-between text-sm">
-              <span>Öncelik / Aciliyet Durumu</span>
-              <div className="flex items-center gap-4 text-xs">
-                <span className="flex items-center gap-1">
-                  <span className="size-3.5 shrink-0 border border-black/60" /> Normal
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="size-3.5 shrink-0 border border-black/60" /> Öncelikli
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="size-3.5 shrink-0 border border-black/60" /> Acil
-                </span>
-              </div>
-            </div>
           </Bolum>
 
           <Bolum baslik="Onaylar">
-            <Onay etiket="KVKK Aydınlatma Metni'ni okudum, kişisel verilerimin işlenmesini onaylıyorum." />
-            <Onay etiket="Sağlık verilerimin (tıbbi geçmiş) tedavi amacıyla işlenmesine açık rıza veriyorum." />
-            <Onay etiket="Randevu/paket/bakiye bilgilendirmesi için WhatsApp mesajı almak istiyorum." />
-            <Onay etiket="Kampanya ve bilgilendirme amaçlı SMS/e-posta almak istiyorum." />
+            <Onay
+              etiket="KVKK Aydınlatma Metni'ni okudum, kişisel verilerimin işlenmesini onaylıyorum."
+              aciklama={ONAY_ACIKLAMALARI.kvkk.metin}
+            />
+            <Onay
+              etiket="Sağlık verilerimin (tıbbi geçmiş) tedavi amacıyla işlenmesine açık rıza veriyorum."
+              aciklama={ONAY_ACIKLAMALARI.saglik.metin}
+            />
+            <Onay
+              etiket="Randevu/paket/bakiye bilgilendirmesi için WhatsApp mesajı almak istiyorum."
+              aciklama={ONAY_ACIKLAMALARI.whatsapp.metin}
+            />
+            <Onay
+              etiket="Kampanya ve bilgilendirme amaçlı SMS/e-posta almak istiyorum."
+              aciklama={ONAY_ACIKLAMALARI.ticari.metin}
+            />
           </Bolum>
 
           <div className="mt-10 flex items-end justify-between border-t border-black/20 pt-6 text-sm">

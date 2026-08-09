@@ -14,28 +14,11 @@ import {
 } from "@/components/ui/select";
 import { TelefonGirisi } from "@/components/ui/TelefonGirisi";
 import { cn, isimBasHarfBuyukYap, resitDegilMi } from "@/lib/utils";
+import { ONAY_ACIKLAMALARI } from "@/lib/onay-metinleri";
 import type { HastaDetay } from "@/types/hasta";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import { kvkkOnayVer } from "../actions";
 import { anamnezGuncelle, ozelNitelikliOnayVer, temelBilgileriGuncelle, ticariIletiOnayVer } from "./actions";
-
-const ONAY_ACIKLAMALARI = {
-  kvkk: {
-    baslik: "KVKK Onayı",
-    metin:
-      "6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında; ad-soyad, iletişim bilgileriniz ve klinik kayıtlarınızın randevu planlama, tedavi süreçlerinin yürütülmesi ve yasal yükümlülüklerin yerine getirilmesi amacıyla işlenmesine onay verirsiniz. Verileriniz yalnızca klinik hizmetleri kapsamında saklanır, izniniz olmadan üçüncü kişilerle paylaşılmaz.",
-  },
-  saglik: {
-    baslik: "Sağlık Verisi İşleme Onayı",
-    metin:
-      "Özel nitelikli kişisel veri sayılan sağlık bilgileriniz (tıbbi geçmiş, alerjiler, kullanılan ilaçlar, ağrı skalası, tedavi notları vb.) yalnızca tedavi planınızın oluşturulması ve takibi amacıyla işlenir. Bu onay verilmeden sağlık geçmişi bilgileriniz sisteme kaydedilemez.",
-  },
-  ticari: {
-    baslik: "Ticari İleti Onayı",
-    metin:
-      "Randevu hatırlatmaları dışında; kampanya, indirim ve bilgilendirme amaçlı SMS/WhatsApp/e-posta mesajları almayı kabul edersiniz. Bu onayı istediğiniz zaman geri çekebilirsiniz (WhatsApp'tan \"DUR\" yazarak veya kliniğe bildirerek).",
-  },
-} as const;
 
 const CINSIYET_SECENEKLERI = [
   { value: "kadin", label: "Kadın" },
@@ -172,8 +155,6 @@ function EvetHayirAlan({
   );
 }
 
-type OnayTuru = keyof typeof ONAY_ACIKLAMALARI;
-
 /** KVKK/sağlık verisi/ticari ileti onay satırı — açıklama kutusu + onaylayan bilgisi + onay kutusu (checkbox). */
 function OnaySatiri({
   tur,
@@ -184,7 +165,7 @@ function OnaySatiri({
   onayAction,
   gosterOnayTusu,
 }: {
-  tur: OnayTuru;
+  tur: "kvkk" | "saglik" | "ticari";
   onayTarihi: string | null;
   onaylayanTip: "hasta" | "personel" | null;
   onaylayanAd: string | null;
@@ -548,6 +529,36 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
           onayAction={() => ozelNitelikliOnayVer(hasta.id)}
           gosterOnayTusu
         />
+
+        {/* WhatsApp izni kvkk/sağlık/ticari'nin aksine tek yönlü kilitlenen bir "onay" değil,
+            istendiğinde kapatılabilen bir tercih (bkz. CLAUDE.md: "DUR" yazınca/portaldan false
+            yapılabiliyor) — bu yüzden OnaySatiri'nin kilitli checkbox'ı yerine normal, formla
+            birlikte kaydedilen bir toggle. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">{ONAY_ACIKLAMALARI.whatsapp.baslik}</span>
+            <span className="text-xs text-muted-foreground">
+              {hasta.whatsapp_izin_durumu ? "İzin veriliyor" : "İzin verilmiyor"}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-border p-2 text-xs text-muted-foreground sm:max-w-sm">
+              <span className="font-medium text-foreground">Açıklama: </span>
+              {ONAY_ACIKLAMALARI.whatsapp.metin}
+            </div>
+            <label className="flex shrink-0 items-center gap-1.5 text-xs">
+              <input
+                type="checkbox"
+                name="whatsapp_izin_durumu"
+                defaultChecked={hasta.whatsapp_izin_durumu}
+                disabled={isPending}
+                className="size-4 rounded border-input"
+              />
+              İzin veriyorum
+            </label>
+          </div>
+        </div>
+
         <OnaySatiri
           tur="ticari"
           onayTarihi={hasta.ticari_ileti_onay_tarihi}
