@@ -16,11 +16,21 @@ function Sayfa({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode }) {
+function Bolum({
+  baslik,
+  children,
+  tekSutun,
+}: {
+  baslik: string;
+  children: React.ReactNode;
+  tekSutun?: boolean;
+}) {
   return (
     <section className="mt-8 first:mt-0">
       <p className="mb-3 text-sm font-semibold tracking-wide uppercase">{baslik}</p>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-4">{children}</div>
+      <div className={tekSutun ? "flex flex-col gap-4" : "grid grid-cols-2 gap-x-6 gap-y-4"}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -46,7 +56,7 @@ function Alan({
 
 function Onay({ etiket, aciklama }: { etiket: string; aciklama?: string }) {
   return (
-    <div className="col-span-2 flex min-w-0 items-start gap-2">
+    <div className="flex w-full min-w-0 items-start gap-2">
       <span className="mt-0.5 size-4 shrink-0 border border-black/60" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-sm break-words">{etiket}</span>
@@ -58,7 +68,7 @@ function Onay({ etiket, aciklama }: { etiket: string; aciklama?: string }) {
 
 function EvetHayirSatiri({ etiket, aciklamaEtiketi }: { etiket: string; aciklamaEtiketi?: string }) {
   return (
-    <div className="col-span-2 flex flex-col gap-2 pb-3">
+    <div className="flex w-full flex-col gap-2 pb-3">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm">{etiket}</span>
         <div className="flex items-center gap-4 text-xs">
@@ -158,7 +168,7 @@ export default async function KayitFormuSayfasi() {
 
         {/* Sayfa 2: Tıbbi Ön Geçmiş */}
         <Sayfa>
-          <Bolum baslik="Tıbbi Ön Geçmiş">
+          <Bolum baslik="Tıbbi Ön Geçmiş" tekSutun>
             <EvetHayirSatiri etiket="⚠ Alerji Durumu" aciklamaEtiketi="İlaç, lateks, lokal/genel anestezi, gıda vb. detaylar" />
             <EvetHayirSatiri etiket="🩸 Kan Sulandırıcı Kullanımı" aciklamaEtiketi="İlaç adı, dozu ve en son ne zaman alındığı" />
             <EvetHayirSatiri etiket="Kronik Hastalıklar" aciklamaEtiketi="Hipertansiyon, diyabet, kalp, astım vb. detayı" />
@@ -173,11 +183,11 @@ export default async function KayitFormuSayfasi() {
 
         {/* Sayfa 3: Geliş Sebebi & Klinik Notları, Onaylar, imza */}
         <Sayfa>
-          <Bolum baslik="Geliş Sebebi & Klinik Notları">
-            <Alan etiket="Şikayet / Geliş Sebebi" genis satir={2} />
+          <Bolum baslik="Geliş Sebebi & Klinik Notları" tekSutun>
+            <Alan etiket="Şikayet / Geliş Sebebi" satir={2} />
           </Bolum>
 
-          <Bolum baslik="Onaylar">
+          <Bolum baslik="Onaylar" tekSutun>
             <Onay
               etiket="KVKK Aydınlatma Metni'ni okudum, kişisel verilerimin işlenmesini onaylıyorum."
               aciklama={ONAY_ACIKLAMALARI.kvkk.metin}
