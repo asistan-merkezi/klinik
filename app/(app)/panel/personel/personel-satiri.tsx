@@ -65,6 +65,7 @@ export function PersonelSatiri({
                 variant="outline"
                 size="sm"
                 disabled={isPending}
+                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
                 onClick={() => puantajKaydet("giris")}
               >
                 Giriş
@@ -74,6 +75,7 @@ export function PersonelSatiri({
                 variant="outline"
                 size="sm"
                 disabled={isPending}
+                className="border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20"
                 onClick={() => puantajKaydet("cikis")}
               >
                 Çıkış
@@ -81,6 +83,7 @@ export function PersonelSatiri({
               <Button
                 variant="outline"
                 size="sm"
+                className="border-sky-500/30 bg-sky-500/10 text-sky-700 hover:bg-sky-500/20 dark:border-sky-500/30 dark:text-sky-400 dark:hover:bg-sky-500/20"
                 nativeButton={false}
                 render={<Link href={`/panel/personel/${personel.id}?tab=odemeler`}>Ödeme</Link>}
               />
