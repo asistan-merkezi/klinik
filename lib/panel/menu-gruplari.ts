@@ -29,7 +29,6 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ogeler: [
       { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
       { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
-      { href: "/panel/iskonto-oranlari", label: "İskonto Oranları", icon: Percent },
     ],
   },
   {
@@ -41,6 +40,11 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
       { href: "/panel/muhasebe/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
       { href: "/panel/muhasebe/giderler", label: "Giderler", icon: TrendingDown },
       { href: "/panel/muhasebe/raporlar", label: "Raporlar", icon: BarChart3 },
+      {
+        href: "/panel/muhasebe/kategori-iskonto-oranlari",
+        label: "Kategori / İskonto Oranları",
+        icon: Percent,
+      },
     ],
   },
   {

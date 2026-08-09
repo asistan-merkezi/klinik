@@ -68,6 +68,6 @@ export async function iskontoOranlariGuncelle(
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/iskonto-oranlari");
+  revalidatePath("/panel/muhasebe/kategori-iskonto-oranlari");
   return { success: true, message: "İskonto oranları kaydedildi." };
 }

@@ -33,7 +33,7 @@ export default async function IskontoOranlariSayfasi() {
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold">İskonto Oranları</h1>
+          <h1 className="text-xl font-semibold">Kategori / İskonto Oranları</h1>
           <p className="text-sm text-muted-foreground">
             Hasta kategorisine (Vita/Plus/Elit/Prime) göre tedavi fiyatına otomatik uygulanacak
             iskonto yüzdeleri — bir tedavide o kademe için özel fiyat girilmemişse burada
