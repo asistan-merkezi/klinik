@@ -12,33 +12,20 @@ export function KayitFormuPdfButonu() {
     setIndiriliyor(true);
     setHata(null);
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas-pro"),
-        import("jspdf"),
-      ]);
-
-      const sayfalar = Array.from(document.querySelectorAll<HTMLElement>(".pdf-sayfa"));
-      let pdf: InstanceType<typeof jsPDF> | null = null;
-      const genislikMm = 210;
-
-      for (const sayfa of sayfalar) {
-        const canvas = await html2canvas(sayfa, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
-        const yukseklikMm = (canvas.height * genislikMm) / canvas.width;
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-
-        if (!pdf) {
-          pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [genislikMm, yukseklikMm] });
-        } else {
-          pdf.addPage([genislikMm, yukseklikMm], "portrait");
-        }
-        pdf.addImage(imgData, "JPEG", 0, 0, genislikMm, yukseklikMm);
+      const yanit = await fetch("/api/hasta-kayit-formu/pdf");
+      if (!yanit.ok) {
+        throw new Error(`PDF isteği başarısız: ${yanit.status}`);
       }
 
-      pdf?.save("hasta-kayit-formu.pdf");
+      const blob = await yanit.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "hasta-kayit-formu.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Kayıt formu PDF oluşturma hatası:", err);
       setHata("PDF oluşturulamadı, lütfen tekrar deneyin.");
