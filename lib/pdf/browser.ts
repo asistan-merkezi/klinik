@@ -14,10 +14,15 @@ export async function pdfIcinTarayiciBaslat(): Promise<Browser> {
 
   if (sunucusuz) {
     const chromium = (await import("@sparticuz/chromium")).default;
+    // chromium.args zaten "--headless='shell'" flag'ini içeriyor (v149'da
+    // ayrı bir chromium.headless getter'ı kalmadı) — headless_shell binary'si
+    // sadece bu eski-stil headless modu destekliyor, `headless:true` (yeni
+    // headless mod) verilirse çakışan/yanlış bir flag daha eklenip başlatma
+    // başarısız olabiliyor, o yüzden burada da aynı "shell" değeri veriliyor.
     return puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
-      headless: true,
+      headless: "shell",
     });
   }
 

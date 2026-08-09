@@ -37,27 +37,34 @@ export async function GET() {
     logoUrl: klinik?.logo_url ?? null,
   });
 
-  const browser = await pdfIcinTarayiciBaslat();
   try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "load" });
-    await page.emulateMediaType("print");
-    await page.evaluateHandle("document.fonts.ready");
+    const browser = await pdfIcinTarayiciBaslat();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "load" });
+      await page.emulateMediaType("print");
+      await page.evaluateHandle("document.fonts.ready");
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      displayHeaderFooter: false,
-      margin: { top: "15mm", right: "15mm", bottom: "15mm", left: "15mm" },
-    });
+      const pdf = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        displayHeaderFooter: false,
+        margin: { top: "15mm", right: "15mm", bottom: "15mm", left: "15mm" },
+      });
 
-    return new NextResponse(Buffer.from(pdf), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="hasta-kayit-formu.pdf"',
-      },
-    });
-  } finally {
-    await browser.close();
+      return new NextResponse(Buffer.from(pdf), {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": 'attachment; filename="hasta-kayit-formu.pdf"',
+        },
+      });
+    } finally {
+      await browser.close();
+    }
+  } catch (err) {
+    // Vercel fonksiyon loglarında görünür — sorun çıktığında (chromium
+    // başlatma, protokol uyuşmazlığı vb.) buradan teşhis edilebilir.
+    console.error("Kayıt formu PDF oluşturma hatası:", err);
+    return NextResponse.json({ error: "PDF oluşturulamadı." }, { status: 500 });
   }
 }
