@@ -26,36 +26,45 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
   const [vergiDairesi, setVergiDairesi] = useState(bilgiler?.vergi_dairesi ?? "");
   const [yetkiliKisi, setYetkiliKisi] = useState(bilgiler?.yetkili_kisi ?? "");
   const [onizleme, setOnizleme] = useState<string | null>(null);
+  const [logoDosyasi, setLogoDosyasi] = useState<File | null>(null);
   const [hazirlaniyor, setHazirlaniyor] = useState(false);
   const [hazirlamaHatasi, setHazirlamaHatasi] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  async function dosyaSecildi(
-    dosya: File,
-    inputRef: React.RefObject<HTMLInputElement | null>,
-    setOnizlemeUrl: (url: string | null) => void,
-    setHazirlaniyorFlag: (deger: boolean) => void
-  ) {
+  async function dosyaSecildi(dosya: File) {
     setHazirlamaHatasi(null);
-    setHazirlaniyorFlag(true);
+    setHazirlaniyor(true);
     try {
       const hazirDosya = await logoHazirla(dosya);
-      const dt = new DataTransfer();
-      dt.items.add(hazirDosya);
-      if (inputRef.current) inputRef.current.files = dt.files;
-      setOnizlemeUrl(URL.createObjectURL(hazirDosya));
+      setLogoDosyasi(hazirDosya);
+      setOnizleme(URL.createObjectURL(hazirDosya));
     } catch (e) {
       console.error("Logo hazırlanamadı:", e);
       setHazirlamaHatasi("Görsel hazırlanamadı, lütfen başka bir dosya deneyin.");
-      setOnizlemeUrl(null);
-      if (inputRef.current) inputRef.current.value = "";
+      setLogoDosyasi(null);
+      setOnizleme(null);
+      if (logoInputRef.current) logoInputRef.current.value = "";
     } finally {
-      setHazirlaniyorFlag(false);
+      setHazirlaniyor(false);
     }
   }
 
+  // Seçilen logo, işlenmiş File nesnesi olarak React state'inde tutulur (sadece
+  // <input type="file"> öğesine güvenilmez): React 19'da bir form action denemesi
+  // sonrasında (örn. Storage'a yükleme geçici bir hatayla başarısız olduğunda)
+  // dosya girişleri sıfırlanabiliyor — kullanıcı "Kaydet"e tekrar bastığında native
+  // input boş kalıp logo hiç yüklenmeden diğer alanlar "kaydedildi" görünebiliyordu.
+  // FormData'yı elle kurup her denemede state'teki dosyayı yeniden eklemek bu riski ortadan kaldırır.
+  function gonder(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const veri = new FormData(e.currentTarget);
+    veri.delete("logo");
+    if (logoDosyasi) veri.set("logo", logoDosyasi, logoDosyasi.name);
+    formAction(veri);
+  }
+
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form onSubmit={gonder} className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-4">
           <div className="flex size-16 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
@@ -83,9 +92,10 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
                 const dosya = e.target.files?.[0];
                 if (!dosya) {
                   setOnizleme(null);
+                  setLogoDosyasi(null);
                   return;
                 }
-                void dosyaSecildi(dosya, logoInputRef, setOnizleme, setHazirlaniyor);
+                void dosyaSecildi(dosya);
               }}
               className="text-sm"
             />
