@@ -235,6 +235,35 @@ export default async function PersonelDetaySayfasi({
 
   const adresParcalari = [personel.mahalle, personel.ilce, personel.il].filter(Boolean);
 
+  const odemelerKarti = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Ödemeler — {ay.etiket}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {yonetici && <HakedisFormu personelId={id} />}
+        {hakedisler.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Bu ay için ödeme kaydı yok.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border">
+            {hakedisler.map((h) => (
+              <li key={h.id} className="flex items-center justify-between py-2 text-sm">
+                <div className="flex flex-col">
+                  <span className="font-medium">{TUR_ETIKET[h.tur]}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(h.tarih).toLocaleDateString("tr-TR")}
+                    {h.aciklama && ` · ${h.aciklama}`}
+                  </span>
+                </div>
+                <span>{h.tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -414,15 +443,18 @@ export default async function PersonelDetaySayfasi({
         {sekme === "odemeler" && (
           <>
             {!terapist && (
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">
-                    Bu personel terapist değil, performans/prim takibi yapılmıyor.
-                    {yonetici && personel.maas != null &&
-                      ` Sabit maaş: ${personel.maas.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}`}
-                  </p>
-                </CardContent>
-              </Card>
+              <>
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-muted-foreground">
+                      Bu personel terapist değil, performans/prim takibi yapılmıyor.
+                      {yonetici && personel.maas != null &&
+                        ` Sabit maaş: ${personel.maas.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}`}
+                    </p>
+                  </CardContent>
+                </Card>
+                {odemelerKarti}
+              </>
             )}
 
             {terapist && (
@@ -448,6 +480,8 @@ export default async function PersonelDetaySayfasi({
                     </div>
                   </CardContent>
                 </Card>
+
+                {odemelerKarti}
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
@@ -510,33 +544,6 @@ export default async function PersonelDetaySayfasi({
                 )}
               </>
             )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Ödemeler — {ay.etiket}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                {yonetici && <HakedisFormu personelId={id} />}
-                {hakedisler.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Bu ay için ödeme kaydı yok.</p>
-                ) : (
-                  <ul className="flex flex-col divide-y divide-border">
-                    {hakedisler.map((h) => (
-                      <li key={h.id} className="flex items-center justify-between py-2 text-sm">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{TUR_ETIKET[h.tur]}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(h.tarih).toLocaleDateString("tr-TR")}
-                            {h.aciklama && ` · ${h.aciklama}`}
-                          </span>
-                        </div>
-                        <span>{h.tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
           </>
         )}
       </div>
