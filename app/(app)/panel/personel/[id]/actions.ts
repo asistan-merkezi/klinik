@@ -22,7 +22,7 @@ const maasAyarSemasi = z.object({
 });
 
 const hakedisSemasi = z.object({
-  tur: z.enum(["yol", "yemek", "mesai", "sgk", "diger"]),
+  tur: z.enum(["yol", "yemek", "mesai", "avans", "diger"]),
   tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
@@ -139,10 +139,10 @@ export async function hakedisEkle(
   });
 
   if (error) {
-    console.error("Ekstra hakediş eklenemedi:", error);
-    return { success: false, message: "Hakediş eklenemedi, lütfen tekrar deneyin." };
+    console.error("Ödeme eklenemedi:", error);
+    return { success: false, message: "Ödeme eklenemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath(`/panel/personel/${personelId}`);
-  return { success: true, message: "Hakediş eklendi." };
+  return { success: true, message: "Ödeme eklendi." };
 }

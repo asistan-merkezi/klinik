@@ -87,12 +87,11 @@ export default async function PersonelTakipSayfasi({
     .lt("tarih", ay.bitisTarih)
     .returns<{ personel_id: string; tur: HakedisTuru; tutar: number }[]>();
 
-  // Hakediş = personelin eline geçen tutar; SGK işveren tarafından devlete
-  // yatırılan bir gider olduğu için (personelin "alacağı" değil) buraya dahil
-  // edilmiyor — bkz. personel/liste sayfasındaki bordro maliyeti görünümü.
+  // Hakediş = personelin eline geçen tutar (yol/yemek/mesai/avans/diğer).
+  // SGK işveren tarafından devlete yatırılan bir gider olduğu için (personelin
+  // "alacağı" değil) bu tabloda hiç tutulmuyor — bkz. Muhasebe > Kamusal Giderler.
   const ekstraToplamMap = new Map<string, number>();
   for (const h of hakedisSonucu ?? []) {
-    if (h.tur === "sgk") continue;
     ekstraToplamMap.set(h.personel_id, (ekstraToplamMap.get(h.personel_id) ?? 0) + h.tutar);
   }
 

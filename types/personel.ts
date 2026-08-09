@@ -1,7 +1,7 @@
 import type { Cinsiyet } from "./hasta";
 
 export type MaasHesaplamaModeli = "sabit" | "islem_basi_prim" | "barajli_prim";
-export type HakedisTuru = "yol" | "yemek" | "mesai" | "sgk" | "diger";
+export type HakedisTuru = "yol" | "yemek" | "mesai" | "avans" | "diger";
 export type CalismaTipi = "tam_zamanli" | "yari_zamanli" | "vardiyali" | "prim_usulu";
 
 export const CALISMA_TIPI_SECENEKLERI: { value: CalismaTipi; label: string }[] = [

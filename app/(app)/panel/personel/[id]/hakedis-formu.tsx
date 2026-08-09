@@ -18,7 +18,7 @@ const TUR_SECENEKLERI: { value: HakedisTuru; label: string }[] = [
   { value: "yol", label: "Yol" },
   { value: "yemek", label: "Yemek" },
   { value: "mesai", label: "Fazla Mesai" },
-  { value: "sgk", label: "SGK" },
+  { value: "avans", label: "Avans" },
   { value: "diger", label: "Diğer" },
 ];
 
@@ -75,7 +75,7 @@ export function HakedisFormu({ personelId }: { personelId: string }) {
       )}
 
       <Button type="submit" size="sm" disabled={isPending} className="w-fit">
-        {isPending ? "Ekleniyor..." : "Hakediş ekle"}
+        {isPending ? "Ekleniyor..." : "Ödeme ekle"}
       </Button>
     </form>
   );

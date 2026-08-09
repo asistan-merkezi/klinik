@@ -199,7 +199,7 @@ export default async function PersonelDetaySayfasi({
     yol: "Yol",
     yemek: "Yemek",
     mesai: "Fazla Mesai",
-    sgk: "SGK",
+    avans: "Avans",
     diger: "Diğer",
   };
 
@@ -479,7 +479,7 @@ export default async function PersonelDetaySayfasi({
                           <dd>{hesap.prim.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</dd>
                         </div>
                         <div className="flex items-center justify-between">
-                          <dt className="text-muted-foreground">Ekstra Hakedişler</dt>
+                          <dt className="text-muted-foreground">Ödemeler</dt>
                           <dd>
                             {hesap.ekstra_toplam.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
                           </dd>
@@ -513,12 +513,12 @@ export default async function PersonelDetaySayfasi({
 
             <Card>
               <CardHeader>
-                <CardTitle>Ekstra Hakedişler — {ay.etiket}</CardTitle>
+                <CardTitle>Ödemeler — {ay.etiket}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {yonetici && <HakedisFormu personelId={id} />}
                 {hakedisler.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Bu ay için hakediş kaydı yok.</p>
+                  <p className="text-sm text-muted-foreground">Bu ay için ödeme kaydı yok.</p>
                 ) : (
                   <ul className="flex flex-col divide-y divide-border">
                     {hakedisler.map((h) => (
