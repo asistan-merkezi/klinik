@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SirketBilgileri } from "@/types/klinik";
+import { logoHazirla } from "./logo-hazirla";
 import { sirketBilgileriGuncelle } from "./actions";
 
 const textareaClass =
@@ -20,6 +21,35 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
   const [sonuc, formAction, isPending] = useActionState(sirketBilgileriGuncelle, null);
   const [onizleme, setOnizleme] = useState<string | null>(null);
   const [onizlemeKoyu, setOnizlemeKoyu] = useState<string | null>(null);
+  const [hazirlaniyor, setHazirlaniyor] = useState(false);
+  const [hazirlaniyorKoyu, setHazirlaniyorKoyu] = useState(false);
+  const [hazirlamaHatasi, setHazirlamaHatasi] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const logoKoyuInputRef = useRef<HTMLInputElement>(null);
+
+  async function dosyaSecildi(
+    dosya: File,
+    inputRef: React.RefObject<HTMLInputElement | null>,
+    setOnizlemeUrl: (url: string | null) => void,
+    setHazirlaniyorFlag: (deger: boolean) => void
+  ) {
+    setHazirlamaHatasi(null);
+    setHazirlaniyorFlag(true);
+    try {
+      const hazirDosya = await logoHazirla(dosya);
+      const dt = new DataTransfer();
+      dt.items.add(hazirDosya);
+      if (inputRef.current) inputRef.current.files = dt.files;
+      setOnizlemeUrl(URL.createObjectURL(hazirDosya));
+    } catch (e) {
+      console.error("Logo hazırlanamadı:", e);
+      setHazirlamaHatasi("Görsel hazırlanamadı, lütfen başka bir dosya deneyin.");
+      setOnizlemeUrl(null);
+      if (inputRef.current) inputRef.current.value = "";
+    } finally {
+      setHazirlaniyorFlag(false);
+    }
+  }
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
@@ -38,19 +68,25 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
             )}
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="logo">Logo (PNG/JPG/WEBP/SVG, en fazla 2 MB)</Label>
+            <Label htmlFor="logo">Logo (otomatik optimize edilir)</Label>
             <input
+              ref={logoInputRef}
               id="logo"
               name="logo"
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              disabled={isPending}
+              accept="image/png,image/jpeg,image/webp,image/svg+xml,.heic,.heif"
+              disabled={isPending || hazirlaniyor}
               onChange={(e) => {
                 const dosya = e.target.files?.[0];
-                setOnizleme(dosya ? URL.createObjectURL(dosya) : null);
+                if (!dosya) {
+                  setOnizleme(null);
+                  return;
+                }
+                void dosyaSecildi(dosya, logoInputRef, setOnizleme, setHazirlaniyor);
               }}
               className="text-sm"
             />
+            {hazirlaniyor && <p className="text-xs text-muted-foreground">Hazırlanıyor...</p>}
           </div>
         </div>
 
@@ -70,23 +106,30 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
           <div className="flex flex-col gap-2">
             <Label htmlFor="logo_koyu">Koyu Tema Logosu (opsiyonel)</Label>
             <input
+              ref={logoKoyuInputRef}
               id="logo_koyu"
               name="logo_koyu"
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              disabled={isPending}
+              accept="image/png,image/jpeg,image/webp,image/svg+xml,.heic,.heif"
+              disabled={isPending || hazirlaniyorKoyu}
               onChange={(e) => {
                 const dosya = e.target.files?.[0];
-                setOnizlemeKoyu(dosya ? URL.createObjectURL(dosya) : null);
+                if (!dosya) {
+                  setOnizlemeKoyu(null);
+                  return;
+                }
+                void dosyaSecildi(dosya, logoKoyuInputRef, setOnizlemeKoyu, setHazirlaniyorKoyu);
               }}
               className="text-sm"
             />
+            {hazirlaniyorKoyu && <p className="text-xs text-muted-foreground">Hazırlanıyor...</p>}
             <p className="text-xs text-muted-foreground">
               Boş bırakılırsa koyu zeminlerde (ör. kapı tableti) normal logo kullanılır.
             </p>
           </div>
         </div>
       </div>
+      {hazirlamaHatasi && <p className="text-sm text-destructive">{hazirlamaHatasi}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2 sm:col-span-2">
@@ -223,7 +266,7 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="w-fit">
+      <Button type="submit" disabled={isPending || hazirlaniyor || hazirlaniyorKoyu} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Kaydet"}
       </Button>
     </form>

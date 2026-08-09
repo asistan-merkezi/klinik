@@ -13,7 +13,6 @@ const IZINLI_LOGO_TIPLERI: Record<string, string> = {
   "image/webp": "webp",
   "image/svg+xml": "svg",
 };
-const MAKS_LOGO_BOYUTU = 2 * 1024 * 1024; // 2 MB
 
 async function yetkiliKlinikAdminGetir() {
   const supabase = await createClient();
@@ -105,9 +104,6 @@ export async function sirketBilgileriGuncelle(
 
   const logo = formData.get("logo");
   if (logo instanceof File && logo.size > 0) {
-    if (logo.size > MAKS_LOGO_BOYUTU) {
-      return { success: false, message: "Logo en fazla 2 MB olabilir." };
-    }
     const uzanti = IZINLI_LOGO_TIPLERI[logo.type];
     if (!uzanti) {
       return { success: false, message: "Logo PNG, JPG, WEBP veya SVG olmalı." };
@@ -133,9 +129,6 @@ export async function sirketBilgileriGuncelle(
 
   const logoKoyu = formData.get("logo_koyu");
   if (logoKoyu instanceof File && logoKoyu.size > 0) {
-    if (logoKoyu.size > MAKS_LOGO_BOYUTU) {
-      return { success: false, message: "Koyu tema logosu en fazla 2 MB olabilir." };
-    }
     const uzanti = IZINLI_LOGO_TIPLERI[logoKoyu.type];
     if (!uzanti) {
       return { success: false, message: "Koyu tema logosu PNG, JPG, WEBP veya SVG olmalı." };
