@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { cikisYap } from "@/app/(app)/panel/actions";
 import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PanelLogo } from "@/components/panel/panel-logo";
+import type { Klinik } from "@/types/klinik";
 
 const ANA_OGELER = [
   { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
@@ -36,12 +38,14 @@ function girdiAktifMi(pathname: string, href: string, tamEslesme?: boolean) {
 }
 
 function SidebarIcerik({
+  klinik,
   kullaniciAdi,
   kullaniciRolu,
   pathname,
   linkTiklandi,
   temaGecisiGoster,
 }: {
+  klinik: Klinik;
   kullaniciAdi: string;
   kullaniciRolu: string;
   pathname: string;
@@ -51,8 +55,8 @@ function SidebarIcerik({
   return (
     <>
       <div className="border-b border-sidebar-border px-4 py-4">
-        <p className="text-sm font-semibold">Klinik Asistanı</p>
-        <p className="truncate text-xs text-muted-foreground">
+        <PanelLogo klinik={klinik} />
+        <p className="mt-2 truncate text-xs text-muted-foreground">
           {kullaniciAdi} — {kullaniciRolu}
         </p>
       </div>
@@ -116,10 +120,12 @@ function SidebarIcerik({
 }
 
 export function PanelSidebar({
+  klinik,
   kullaniciAdi,
   kullaniciRolu,
   children,
 }: {
+  klinik: Klinik;
   kullaniciAdi: string;
   kullaniciRolu: string;
   children: React.ReactNode;
@@ -165,9 +171,9 @@ export function PanelSidebar({
       onTouchMove={dokunmaHareketEtti}
       onTouchEnd={dokunmaBitti}
     >
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        {/* Üst bar + 3 çizgi (hamburger) menü butonu + tema geçişi — her ekran boyutunda */}
-        <header className="flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground">
+      <div className="flex flex-1 flex-col overflow-y-auto print:contents">
+        {/* Üst bar + 3 çizgi (hamburger) menü butonu + tema geçişi — her ekran boyutunda; yazdırmada gizli (uygulama navigasyonu, çıktının parçası değil) */}
+        <header className="flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground print:hidden">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -177,7 +183,7 @@ export function PanelSidebar({
             >
               <Menu className="size-5" aria-hidden />
             </button>
-            <p className="text-sm font-semibold">Klinik Asistanı</p>
+            <PanelLogo klinik={klinik} />
           </div>
           <ThemeToggle variant="inline" />
         </header>
@@ -187,7 +193,7 @@ export function PanelSidebar({
 
       {/* Çekmece (drawer) — her ekran boyutunda */}
       {menuAcik && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 print:hidden">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMenuAcik(false)}
@@ -206,6 +212,7 @@ export function PanelSidebar({
               </button>
             </div>
             <SidebarIcerik
+              klinik={klinik}
               kullaniciAdi={kullaniciAdi}
               kullaniciRolu={kullaniciRolu}
               pathname={pathname}
