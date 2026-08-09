@@ -13,7 +13,7 @@ export function KayitFormuPdfButonu() {
     setHata(null);
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
+        import("html2canvas-pro"),
         import("jspdf"),
       ]);
 
@@ -39,7 +39,8 @@ export function KayitFormuPdfButonu() {
       }
 
       pdf?.save("hasta-kayit-formu.pdf");
-    } catch {
+    } catch (err) {
+      console.error("Kayıt formu PDF oluşturma hatası:", err);
       setHata("PDF oluşturulamadı, lütfen tekrar deneyin.");
     } finally {
       setIndiriliyor(false);
