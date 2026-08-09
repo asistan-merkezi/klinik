@@ -104,41 +104,56 @@ export function TabletEkrani({
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center">
-      {ayarlar.durum_rengi_goster &&
-        (mevcut ? (
-          <StatusBadge tone="rose">Meşgul</StatusBadge>
-        ) : (
-          <StatusBadge tone="emerald">Müsait</StatusBadge>
-        ))}
+      {mevcut || sonraki ? (
+        <>
+          <div className="flex h-7 items-center">
+            {ayarlar.durum_rengi_goster &&
+              (mevcut ? (
+                <StatusBadge tone="rose">Meşgul</StatusBadge>
+              ) : (
+                <StatusBadge tone="emerald">Müsait</StatusBadge>
+              ))}
+          </div>
 
-      {mevcut ? (
-        <>
-          <span className="text-sm uppercase tracking-widest text-emerald-400">İçeride</span>
-          {ayarlar.hasta_adi_goster && (
-            <span className="text-5xl font-bold">{mevcut.hasta?.ad_soyad ?? "—"}</span>
-          )}
-          {ayarlar.terapist_adi_goster && (
-            <span className="text-xl text-foreground/80">
-              {mevcut.terapist?.personel?.ad_soyad ?? "—"}
-            </span>
-          )}
-          {ayarlar.islem_adi_goster && (
-            <span className="text-lg text-foreground/70">{mevcut.islem_tanimi?.ad ?? "—"}</span>
-          )}
-        </>
-      ) : sonraki ? (
-        <>
-          <span className="text-sm uppercase tracking-widest text-muted-foreground">Sıradaki</span>
-          {ayarlar.hasta_adi_goster && (
-            <span className="text-5xl font-bold">{sonraki.hasta?.ad_soyad ?? "—"}</span>
-          )}
-          <span className="text-xl text-foreground/80">
-            {ayarlar.terapist_adi_goster && `${sonraki.terapist?.personel?.ad_soyad ?? "—"} · `}
-            {formatTime(sonraki.baslangic)}
+          <span
+            className={`text-sm uppercase tracking-widest ${
+              mevcut ? "text-emerald-400" : "text-muted-foreground"
+            }`}
+          >
+            {mevcut ? "İçeride" : "Sıradaki"}
           </span>
-          {ayarlar.islem_adi_goster && (
-            <span className="text-lg text-foreground/70">{sonraki.islem_tanimi?.ad ?? "—"}</span>
-          )}
+
+          <div className="flex h-16 items-center">
+            {ayarlar.hasta_adi_goster && (
+              <span className="text-5xl font-bold">
+                {(mevcut ?? sonraki)?.hasta?.ad_soyad ?? "—"}
+              </span>
+            )}
+          </div>
+
+          <div className="flex h-8 items-center">
+            {mevcut ? (
+              ayarlar.terapist_adi_goster && (
+                <span className="text-xl text-foreground/80">
+                  {mevcut.terapist?.personel?.ad_soyad ?? "—"}
+                </span>
+              )
+            ) : (
+              <span className="text-xl text-foreground/80">
+                {ayarlar.terapist_adi_goster &&
+                  `${sonraki?.terapist?.personel?.ad_soyad ?? "—"} · `}
+                {formatTime(sonraki!.baslangic)}
+              </span>
+            )}
+          </div>
+
+          <div className="flex h-7 items-center">
+            {ayarlar.islem_adi_goster && (
+              <span className="text-lg text-foreground/70">
+                {(mevcut ?? sonraki)?.islem_tanimi?.ad ?? "—"}
+              </span>
+            )}
+          </div>
         </>
       ) : (
         <span className="text-3xl font-semibold text-muted-foreground">Oda boş</span>
