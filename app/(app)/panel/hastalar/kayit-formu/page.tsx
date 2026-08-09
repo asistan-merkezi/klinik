@@ -44,11 +44,11 @@ function Alan({
 
 function Onay({ etiket, aciklama }: { etiket: string; aciklama?: string }) {
   return (
-    <div className="col-span-2 flex items-start gap-2">
+    <div className="col-span-2 flex min-w-0 items-start gap-2">
       <span className="mt-0.5 size-4 shrink-0 border border-black/60" />
-      <div className="flex flex-col gap-0.5">
-        <span className="text-sm">{etiket}</span>
-        {aciklama && <span className="text-xs text-black/60">{aciklama}</span>}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-sm break-words">{etiket}</span>
+        {aciklama && <span className="text-xs break-words text-black/60">{aciklama}</span>}
       </div>
     </div>
   );
