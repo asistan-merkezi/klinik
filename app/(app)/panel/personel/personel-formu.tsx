@@ -74,6 +74,7 @@ export function PersonelFormu(props: Props) {
   const [uzmanlikTescilNo, setUzmanlikTescilNo] = useState(initialData?.uzmanlik_tescil_no ?? "");
 
   const adimRefleri = useRef<Record<number, HTMLDivElement | null>>({});
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Not: oluşturma modunda dialog'u başarı sonrası kapatmıyoruz — geçici şifre
   // sadece bir kez gösteriliyor, admin'in kopyalayabilmesi için ekranda kalmalı.
@@ -105,7 +106,7 @@ export function PersonelFormu(props: Props) {
   const ADIM_BASLIKLARI = ["Kişisel Bilgiler", "İş Bilgileri", "Sistem Yetkileri", "Mesleki Belgeler"];
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form ref={formRef} action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {ADIM_BASLIKLARI.slice(0, sonAdim).map((baslik, i) => {
           const n = i + 1;
@@ -413,7 +414,7 @@ export function PersonelFormu(props: Props) {
             İleri ›
           </Button>
         ) : (
-          <Button type="submit" disabled={isPending}>
+          <Button type="button" onClick={() => formRef.current?.requestSubmit()} disabled={isPending}>
             {isPending ? "Kaydediliyor..." : duzenleMi ? "Kaydet" : "Personel hesabı oluştur"}
           </Button>
         )}
