@@ -8,8 +8,10 @@ import { ONAY_ACIKLAMALARI } from "@/lib/onay-metinleri";
 
 function Sayfa({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-neutral-200 shadow-sm">
-      <div className="pdf-sayfa bg-white p-8 text-black sm:p-10">{children}</div>
+    <div className="mx-auto w-[794px] max-w-full overflow-hidden rounded-xl border border-neutral-200 shadow-sm">
+      <div className="pdf-sayfa box-border w-[794px] max-w-full bg-white p-8 text-black sm:p-10">
+        {children}
+      </div>
     </div>
   );
 }
@@ -104,7 +106,7 @@ export default async function KayitFormuSayfasi() {
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex max-w-[850px] flex-col gap-6">
         <div className="flex items-center justify-between">
           <Button variant="outline" nativeButton={false} render={<Link href="/panel/hastalar"><ArrowLeft /> Hastalara dön</Link>} />
           <KayitFormuPdfButonu />
