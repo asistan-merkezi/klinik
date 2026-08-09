@@ -6,9 +6,11 @@ import { kayitFormuHtmlOlustur } from "@/lib/pdf/kayit-formu-html";
 // Puppeteer Node.js API'lerine (child_process, fs) ihtiyaç duyar — Edge
 // runtime'da çalışmaz.
 export const runtime = "nodejs";
-// Soğuk başlatma + Chromium açılışı + render birkaç saniye sürebilir.
-// Vercel Hobby planında üst sınır 60s'dir; Pro planda 300s'ye çıkarılabilir.
-export const maxDuration = 30;
+// Soğuk başlatmada 67MB'lık brotli chromium binary'sinin /tmp'ye açılması +
+// Chromium açılışı + render birkaç saniye sürebilir (3-6s Chromium açılışı,
+// üstüne brotli decompress) — 30s bazen yetmiyordu, Hobby planının izin
+// verdiği üst sınıra (60s) çekildi.
+export const maxDuration = 60;
 
 export async function GET() {
   const supabase = await createClient();

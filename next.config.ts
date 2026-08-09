@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   // bundler'ının bunları paketlemeye çalışıp bozması yerine dışarıda
   // (node_modules'ten olduğu gibi) bırakılması gerekiyor.
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
+  // @sparticuz/chromium kendi .br (brotli) binary'lerinin yolunu
+  // `import.meta.url` ile ÇALIŞMA ANINDA hesaplıyor (bkz. paket içindeki
+  // getBinPath()) — literal bir require()/import() olmadığı için Next'in
+  // dosya izleme (file tracing) statik analizi bu 67MB'lık dosyaları
+  // otomatik bulamıyor; elle dahil edilmezse serverless fonksiyonda
+  // "Could not find Chromium"/ENOENT ile çalışma anında patlar.
+  outputFileTracingIncludes: {
+    "/api/hasta-kayit-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
   experimental: {
     serverActions: {
       // Şirket Bilgileri formu tek istekte 2 logo dosyası gönderebiliyor;
