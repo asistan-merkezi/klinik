@@ -6,12 +6,16 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn, telefonGoster } from "@/lib/utils";
+import { formatTime } from "@/lib/datetime";
 import type { PersonelSatir } from "@/types/personel";
 import { hizliPuantajKaydet } from "./actions";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+
+type AcikPanel = "giris" | "cikis" | null;
 
 export function PersonelSatiri({
   personel,
@@ -25,10 +29,29 @@ export function PersonelSatiri({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [sonuc, setSonuc] = useState<{ success: boolean; message: string } | null>(null);
+  const [acikPanel, setAcikPanel] = useState<AcikPanel>(null);
+  const [duzenleModu, setDuzenleModu] = useState(false);
+  const [saat, setSaat] = useState("");
 
-  function puantajKaydet(tur: "giris" | "cikis") {
+  function panelAc(tur: "giris" | "cikis") {
+    setSonuc(null);
+    setDuzenleModu(false);
+    setSaat(formatTime(new Date().toISOString()));
+    setAcikPanel((p) => (p === tur ? null : tur));
+  }
+
+  function panelKapat() {
+    setAcikPanel(null);
+    setDuzenleModu(false);
+  }
+
+  function kaydet() {
+    if (!acikPanel) return;
+    const tur = acikPanel;
     startTransition(async () => {
-      setSonuc(await hizliPuantajKaydet(personel.id, tur));
+      const r = await hizliPuantajKaydet(personel.id, tur, saat);
+      setSonuc(r);
+      if (r?.success) panelKapat();
     });
   }
 
@@ -65,8 +88,11 @@ export function PersonelSatiri({
                 variant="outline"
                 size="sm"
                 disabled={isPending}
-                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
-                onClick={() => puantajKaydet("giris")}
+                className={cn(
+                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20",
+                  acikPanel === "giris" && "ring-2 ring-emerald-500/50"
+                )}
+                onClick={() => panelAc("giris")}
               >
                 Giriş
               </Button>
@@ -75,8 +101,11 @@ export function PersonelSatiri({
                 variant="outline"
                 size="sm"
                 disabled={isPending}
-                className="border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20"
-                onClick={() => puantajKaydet("cikis")}
+                className={cn(
+                  "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20",
+                  acikPanel === "cikis" && "ring-2 ring-amber-500/50"
+                )}
+                onClick={() => panelAc("cikis")}
               >
                 Çıkış
               </Button>
@@ -88,6 +117,48 @@ export function PersonelSatiri({
                 render={<Link href={`/panel/personel/${personel.id}?tab=odemeler`}>Ödeme</Link>}
               />
             </div>
+
+            {acikPanel && (
+              <div className="flex items-center gap-2 rounded-lg border border-border p-2">
+                <span className="text-xs text-muted-foreground">
+                  {acikPanel === "giris" ? "Giriş saati" : "Çıkış saati"}
+                </span>
+                {duzenleModu ? (
+                  <Input
+                    type="time"
+                    value={saat}
+                    onChange={(e) => setSaat(e.target.value)}
+                    disabled={isPending}
+                    className="h-7 w-24 px-1.5 text-xs"
+                  />
+                ) : (
+                  <span className="font-medium tabular-nums">{saat}</span>
+                )}
+                <div className="ml-auto flex gap-1.5">
+                  {duzenleModu ? (
+                    <Button type="button" size="sm" disabled={isPending || !saat} onClick={kaydet}>
+                      Kaydet
+                    </Button>
+                  ) : (
+                    <>
+                      <Button type="button" size="sm" disabled={isPending} onClick={kaydet}>
+                        Onayla
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isPending}
+                        onClick={() => setDuzenleModu(true)}
+                      >
+                        Düzenle
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {sonuc && (
               <p
                 role="alert"
