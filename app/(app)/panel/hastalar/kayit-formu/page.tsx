@@ -8,7 +8,7 @@ import { ONAY_ACIKLAMALARI } from "@/lib/onay-metinleri";
 
 function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode }) {
   return (
-    <section className="mt-6 border-t border-black/20 pt-4 first:mt-0 first:border-t-0 first:pt-0">
+    <section className="mt-6 border-t border-border pt-4 first:mt-0 first:border-t-0 first:pt-0 print:border-black/20">
       <p className="mb-3 text-sm font-semibold uppercase tracking-wide">{baslik}</p>
       <div className="grid grid-cols-2 gap-x-6 gap-y-4">{children}</div>
     </section>
@@ -26,9 +26,9 @@ function Alan({
 }) {
   return (
     <div className={genis ? "col-span-2 flex flex-col gap-1" : "flex flex-col gap-1"}>
-      <span className="text-xs text-black/70">{etiket}</span>
+      <span className="text-xs text-muted-foreground print:text-black/70">{etiket}</span>
       {Array.from({ length: satir ?? 1 }).map((_, i) => (
-        <span key={i} className="h-6 border-b border-black/40" />
+        <span key={i} className="h-6 border-b border-border print:border-black/40" />
       ))}
     </div>
   );
@@ -37,10 +37,10 @@ function Alan({
 function Onay({ etiket, aciklama }: { etiket: string; aciklama?: string }) {
   return (
     <div className="col-span-2 flex items-start gap-2">
-      <span className="mt-0.5 size-4 shrink-0 border border-black/60" />
+      <span className="mt-0.5 size-4 shrink-0 border border-foreground/60 print:border-black/60" />
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">{etiket}</span>
-        {aciklama && <span className="text-xs text-black/60">{aciklama}</span>}
+        {aciklama && <span className="text-xs text-muted-foreground print:text-black/60">{aciklama}</span>}
       </div>
     </div>
   );
@@ -48,21 +48,21 @@ function Onay({ etiket, aciklama }: { etiket: string; aciklama?: string }) {
 
 function EvetHayirSatiri({ etiket, aciklamaEtiketi }: { etiket: string; aciklamaEtiketi?: string }) {
   return (
-    <div className="col-span-2 flex flex-col gap-2 border-b border-black/10 pb-3">
+    <div className="col-span-2 flex flex-col gap-2 border-b border-border/60 pb-3 print:border-black/10">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm">{etiket}</span>
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1">
-            <span className="size-3.5 shrink-0 border border-black/60" /> Evet
+            <span className="size-3.5 shrink-0 border border-foreground/60 print:border-black/60" /> Evet
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-3.5 shrink-0 border border-black/60" /> Hayır
+            <span className="size-3.5 shrink-0 border border-foreground/60 print:border-black/60" /> Hayır
           </span>
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <span className="text-xs text-black/70">{aciklamaEtiketi ?? "Açıklama"}</span>
-        <span className="h-6 border-b border-black/40" />
+        <span className="text-xs text-muted-foreground print:text-black/70">{aciklamaEtiketi ?? "Açıklama"}</span>
+        <span className="h-6 border-b border-border print:border-black/40" />
       </div>
     </div>
   );
@@ -103,7 +103,7 @@ export default async function KayitFormuSayfasi() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-8 text-card-foreground print:rounded-none print:border-0 print:bg-white print:p-10 print:text-black">
-          <header className="mb-6 flex items-end justify-between border-b border-black/30 pb-4">
+          <header className="mb-6 flex items-end justify-between border-b border-border pb-4 print:border-black/30">
             <div>
               <p className="text-lg font-semibold">{klinikAdi}</p>
               <p className="text-sm text-muted-foreground print:text-black/70">
@@ -175,7 +175,7 @@ export default async function KayitFormuSayfasi() {
             />
           </Bolum>
 
-          <div className="mt-10 flex items-end justify-between border-t border-black/20 pt-6 text-sm">
+          <div className="mt-10 flex items-end justify-between border-t border-border pt-6 text-sm print:border-black/20">
             <span>Ad Soyad: ________________________________</span>
             <span>İmza: ________________________________</span>
           </div>
