@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SirketBilgileri } from "@/types/klinik";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { logoHazirla } from "./logo-hazirla";
 import { sirketBilgileriGuncelle } from "./actions";
 
@@ -19,13 +20,11 @@ function saatKisalt(deger: string | null | undefined) {
 
 export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri | null }) {
   const [sonuc, formAction, isPending] = useActionState(sirketBilgileriGuncelle, null);
+  const [unvan, setUnvan] = useState(bilgiler?.unvan ?? "");
   const [onizleme, setOnizleme] = useState<string | null>(null);
-  const [onizlemeKoyu, setOnizlemeKoyu] = useState<string | null>(null);
   const [hazirlaniyor, setHazirlaniyor] = useState(false);
-  const [hazirlaniyorKoyu, setHazirlaniyorKoyu] = useState(false);
   const [hazirlamaHatasi, setHazirlamaHatasi] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const logoKoyuInputRef = useRef<HTMLInputElement>(null);
 
   async function dosyaSecildi(
     dosya: File,
@@ -89,52 +88,19 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
             {hazirlaniyor && <p className="text-xs text-muted-foreground">Hazırlanıyor...</p>}
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex size-16 items-center justify-center overflow-hidden rounded-lg border border-border bg-slate-900">
-            {onizlemeKoyu || bilgiler?.logo_url_koyu ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={onizlemeKoyu ?? bilgiler?.logo_url_koyu ?? ""}
-                alt="Klinik logosu (koyu tema)"
-                className="size-full object-contain"
-              />
-            ) : (
-              <span className="text-xs text-slate-400">Logo yok</span>
-            )}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="logo_koyu">Koyu Tema Logosu (opsiyonel)</Label>
-            <input
-              ref={logoKoyuInputRef}
-              id="logo_koyu"
-              name="logo_koyu"
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml,.heic,.heif"
-              disabled={isPending || hazirlaniyorKoyu}
-              onChange={(e) => {
-                const dosya = e.target.files?.[0];
-                if (!dosya) {
-                  setOnizlemeKoyu(null);
-                  return;
-                }
-                void dosyaSecildi(dosya, logoKoyuInputRef, setOnizlemeKoyu, setHazirlaniyorKoyu);
-              }}
-              className="text-sm"
-            />
-            {hazirlaniyorKoyu && <p className="text-xs text-muted-foreground">Hazırlanıyor...</p>}
-            <p className="text-xs text-muted-foreground">
-              Boş bırakılırsa koyu zeminlerde (ör. kapı tableti) normal logo kullanılır.
-            </p>
-          </div>
-        </div>
       </div>
       {hazirlamaHatasi && <p className="text-sm text-destructive">{hazirlamaHatasi}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="unvan">Şirket Ünvanı</Label>
-          <Input id="unvan" name="unvan" disabled={isPending} defaultValue={bilgiler?.unvan ?? ""} />
+          <Input
+            id="unvan"
+            name="unvan"
+            disabled={isPending}
+            value={unvan}
+            onChange={(e) => setUnvan(isimBasHarfBuyukYap(e.target.value))}
+          />
         </div>
 
         <fieldset className="flex flex-col gap-3 sm:col-span-2">
@@ -266,7 +232,7 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
         </p>
       )}
 
-      <Button type="submit" disabled={isPending || hazirlaniyor || hazirlaniyorKoyu} className="w-fit">
+      <Button type="submit" disabled={isPending || hazirlaniyor} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Kaydet"}
       </Button>
     </form>
