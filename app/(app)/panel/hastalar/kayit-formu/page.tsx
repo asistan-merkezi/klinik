@@ -125,9 +125,13 @@ export default async function KayitFormuSayfasi() {
           </Bolum>
 
           <Bolum baslik="Veli Bilgisi (18 yaş altı hasta için)">
-            <Alan etiket="Ad Soyad" />
-            <Alan etiket="Yakınlığı" />
-            <Alan etiket="Telefon" />
+            <Alan etiket="Anne Adı" />
+            <Alan etiket="Anne Telefonu" />
+            <Alan etiket="Baba Adı" />
+            <Alan etiket="Baba Telefonu" />
+            <Alan etiket="Diğer Yakını Ad Soyad" />
+            <Alan etiket="Diğer Yakını Telefonu" />
+            <Alan etiket="Diğer Yakını Yakınlık Derecesi (Teyze, Amca, Dede...)" genis />
           </Bolum>
 
           <Bolum baslik="Acil Durum Kişisi">
