@@ -45,6 +45,11 @@ export function PersonelSatiri({
     setDuzenleModu(false);
   }
 
+  function duzenlemeyiVazgec() {
+    setDuzenleModu(false);
+    setSaat(formatTime(new Date().toISOString()));
+  }
+
   function kaydet() {
     if (!acikPanel) return;
     const tur = acikPanel;
@@ -136,9 +141,14 @@ export function PersonelSatiri({
                 )}
                 <div className="ml-auto flex gap-1.5">
                   {duzenleModu ? (
-                    <Button type="button" size="sm" disabled={isPending || !saat} onClick={kaydet}>
-                      Kaydet
-                    </Button>
+                    <>
+                      <Button type="button" size="sm" disabled={isPending || !saat} onClick={kaydet}>
+                        Kaydet
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={duzenlemeyiVazgec}>
+                        Vazgeç
+                      </Button>
+                    </>
                   ) : (
                     <>
                       <Button type="button" size="sm" disabled={isPending} onClick={kaydet}>

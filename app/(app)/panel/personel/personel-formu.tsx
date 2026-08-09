@@ -5,6 +5,7 @@ import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TelefonGirisi } from "@/components/ui/TelefonGirisi";
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ import {
   type PersonelHassasMaskeli,
   type PersonelMeslekiBelge,
 } from "@/types/personel";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { personelHesabiOlustur, personelBilgileriGuncelle } from "./actions";
 
 type Props =
@@ -62,6 +64,14 @@ export function PersonelFormu(props: Props) {
   const [rol, setRol] = useState<KullaniciRol>(initialData?.kullanici?.rol ?? "terapist");
   const meslekiVar = rol === "terapist";
   const sonAdim = meslekiVar ? 4 : 3;
+
+  const [adSoyad, setAdSoyad] = useState(initialData?.ad_soyad ?? "");
+  const [dogumYeri, setDogumYeri] = useState(initialData?.dogum_yeri ?? "");
+  const [acilAdSoyad, setAcilAdSoyad] = useState(initialAcilKisi?.ad_soyad ?? "");
+  const [acilYakinlik, setAcilYakinlik] = useState(initialAcilKisi?.yakinlik ?? "");
+  const [unvan, setUnvan] = useState(initialData?.gorev ?? "");
+  const [departman, setDepartman] = useState(initialData?.departman ?? "");
+  const [uzmanlikTescilNo, setUzmanlikTescilNo] = useState(initialData?.uzmanlik_tescil_no ?? "");
 
   const adimRefleri = useRef<Record<number, HTMLDivElement | null>>({});
 
@@ -121,7 +131,14 @@ export function PersonelFormu(props: Props) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="ad_soyad">Ad Soyad</Label>
-            <Input id="ad_soyad" name="ad_soyad" required disabled={isPending} defaultValue={initialData?.ad_soyad ?? ""} />
+            <Input
+              id="ad_soyad"
+              name="ad_soyad"
+              required
+              disabled={isPending}
+              value={adSoyad}
+              onChange={(e) => setAdSoyad(isimBasHarfBuyukYap(e.target.value))}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="dogum_tarihi">Doğum Tarihi</Label>
@@ -135,7 +152,13 @@ export function PersonelFormu(props: Props) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="dogum_yeri">Doğum Yeri</Label>
-            <Input id="dogum_yeri" name="dogum_yeri" disabled={isPending} defaultValue={initialData?.dogum_yeri ?? ""} />
+            <Input
+              id="dogum_yeri"
+              name="dogum_yeri"
+              disabled={isPending}
+              value={dogumYeri}
+              onChange={(e) => setDogumYeri(isimBasHarfBuyukYap(e.target.value))}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="cinsiyet">Cinsiyet</Label>
@@ -169,10 +192,7 @@ export function PersonelFormu(props: Props) {
               <p className="flex h-8 items-center text-sm text-muted-foreground">{initialData.eposta} (giriş e-postası değiştirilemez)</p>
             </div>
           )}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="gsm">GSM Numarası</Label>
-            <Input id="gsm" name="gsm" required disabled={isPending} defaultValue={initialData?.kullanici?.telefon ?? ""} />
-          </div>
+          <TelefonGirisi ad="gsm" label="GSM Numarası" varsayilanTelefon={initialData?.kullanici?.telefon} disabled={isPending} />
         </div>
 
         <fieldset className="flex flex-col gap-3">
@@ -202,16 +222,25 @@ export function PersonelFormu(props: Props) {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="acil_ad_soyad">Ad Soyad</Label>
-              <Input id="acil_ad_soyad" name="acil_ad_soyad" disabled={isPending} defaultValue={initialAcilKisi?.ad_soyad ?? ""} />
+              <Input
+                id="acil_ad_soyad"
+                name="acil_ad_soyad"
+                disabled={isPending}
+                value={acilAdSoyad}
+                onChange={(e) => setAcilAdSoyad(isimBasHarfBuyukYap(e.target.value))}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="acil_yakinlik">Yakınlık</Label>
-              <Input id="acil_yakinlik" name="acil_yakinlik" disabled={isPending} defaultValue={initialAcilKisi?.yakinlik ?? ""} />
+              <Input
+                id="acil_yakinlik"
+                name="acil_yakinlik"
+                disabled={isPending}
+                value={acilYakinlik}
+                onChange={(e) => setAcilYakinlik(isimBasHarfBuyukYap(e.target.value))}
+              />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="acil_telefon">Telefon</Label>
-              <Input id="acil_telefon" name="acil_telefon" disabled={isPending} defaultValue={initialAcilKisi?.telefon ?? ""} />
-            </div>
+            <TelefonGirisi ad="acil_telefon" label="Telefon" varsayilanTelefon={initialAcilKisi?.telefon} disabled={isPending} />
           </div>
         </fieldset>
 
@@ -238,11 +267,25 @@ export function PersonelFormu(props: Props) {
       <div ref={(el) => { adimRefleri.current[2] = el; }} className={adim === 2 ? "grid gap-4 sm:grid-cols-2" : "hidden"}>
         <div className="flex flex-col gap-2">
           <Label htmlFor="unvan">Unvan / Branş</Label>
-          <Input id="unvan" name="unvan" required disabled={isPending} placeholder="Fizyoterapist, Resepsiyon..." defaultValue={initialData?.gorev ?? ""} />
+          <Input
+            id="unvan"
+            name="unvan"
+            required
+            disabled={isPending}
+            placeholder="Fizyoterapist, Resepsiyon..."
+            value={unvan}
+            onChange={(e) => setUnvan(isimBasHarfBuyukYap(e.target.value))}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="departman">Departman</Label>
-          <Input id="departman" name="departman" disabled={isPending} defaultValue={initialData?.departman ?? ""} />
+          <Input
+            id="departman"
+            name="departman"
+            disabled={isPending}
+            value={departman}
+            onChange={(e) => setDepartman(isimBasHarfBuyukYap(e.target.value))}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="ise_giris_tarihi">İşe Başlama Tarihi</Label>
@@ -274,7 +317,13 @@ export function PersonelFormu(props: Props) {
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="uzmanlik_tescil_no">Uzmanlık / Diploma / Tescil No</Label>
-          <Input id="uzmanlik_tescil_no" name="uzmanlik_tescil_no" disabled={isPending} defaultValue={initialData?.uzmanlik_tescil_no ?? ""} />
+          <Input
+            id="uzmanlik_tescil_no"
+            name="uzmanlik_tescil_no"
+            disabled={isPending}
+            value={uzmanlikTescilNo}
+            onChange={(e) => setUzmanlikTescilNo(isimBasHarfBuyukYap(e.target.value))}
+          />
         </div>
       </div>
 
