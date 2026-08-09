@@ -5,6 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { KlinikArac } from "@/types/klinik";
 import {
   ODEME_TIPI_ETIKET,
   DURUM_ETIKET,
@@ -34,22 +35,26 @@ export type KamusalOdemeSatirDurumlu = KamusalOdemeSatir & { durum: KamusalOdeme
 export function OdemeTablosu({
   satirlar,
   yonetici,
+  araclar,
 }: {
   satirlar: KamusalOdemeSatirDurumlu[];
   yonetici: boolean;
+  araclar: KlinikArac[];
 }) {
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
   const [silinecekId, setSilinecekId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const duzenlenenSatir = satirlar.find((s) => s.id === duzenlenenId) ?? null;
+  const aracMap = new Map(araclar.map((a) => [a.id, a]));
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full min-w-[720px] text-sm">
+      <table className="w-full min-w-[800px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
             <th className="px-3 py-2 text-left font-medium">Ödeme Tipi</th>
+            <th className="px-3 py-2 text-left font-medium">Araç</th>
             <th className="px-3 py-2 text-left font-medium">Dönem</th>
             <th className="px-3 py-2 text-right font-medium">Tutar</th>
             <th className="px-3 py-2 text-left font-medium">Vade</th>
@@ -62,6 +67,9 @@ export function OdemeTablosu({
           {satirlar.map((satir) => (
             <tr key={satir.id} className="border-b border-border last:border-b-0">
               <td className="px-3 py-2 font-medium">{ODEME_TIPI_ETIKET[satir.odeme_tipi]}</td>
+              <td className="px-3 py-2 text-muted-foreground">
+                {satir.arac_id ? aracMap.get(satir.arac_id)?.plaka ?? "—" : "—"}
+              </td>
               <td className="px-3 py-2 text-muted-foreground">{donemFormat(satir.donem_ay, satir.donem_yil)}</td>
               <td className="px-3 py-2 text-right tabular-nums">{paraFormat(satir.tutar)}</td>
               <td className="px-3 py-2 text-muted-foreground">{tarihFormat(satir.vade_tarihi)}</td>
@@ -138,6 +146,7 @@ export function OdemeTablosu({
               action={kamusalOdemeGuncelle.bind(null, duzenlenenSatir.id)}
               gonderButonEtiketi="Güncelle"
               duzenlenecek={duzenlenenSatir}
+              araclar={araclar}
               basariliOlunca={() => setDuzenlenenId(null)}
             />
           )}

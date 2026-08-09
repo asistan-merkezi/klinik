@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { ARAC_GEREKTIREN_TIPLER } from "@/types/kamusal-odeme";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -29,6 +30,7 @@ const odemeSemasi = z.object({
   vade_tarihi: z.string().min(1, "Vade tarihi seçilmeli."),
   odeme_tarihi: z.string().trim().optional(),
   notlar: z.string().trim().optional(),
+  arac_id: z.string().trim().optional(),
 });
 
 async function yetkiliBaglantiGetir() {
@@ -76,7 +78,11 @@ export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData)
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar } = ayristirma.data;
+  const { odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar, arac_id } = ayristirma.data;
+
+  if (ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && !arac_id) {
+    return { success: false, message: "Bu ödeme tipi için araç seçilmeli." };
+  }
 
   const { error } = await supabase.from("kamusal_odeme").insert({
     klinik_id: klinikId,
@@ -87,6 +93,7 @@ export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData)
     vade_tarihi,
     odeme_tarihi: odeme_tarihi ? odeme_tarihi : null,
     notlar: notlar ? notlar : null,
+    arac_id: ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null,
     olusturan_kullanici_id: user!.id,
   });
 
@@ -118,7 +125,11 @@ export async function kamusalOdemeGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar } = ayristirma.data;
+  const { odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar, arac_id } = ayristirma.data;
+
+  if (ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && !arac_id) {
+    return { success: false, message: "Bu ödeme tipi için araç seçilmeli." };
+  }
 
   const { error } = await supabase
     .from("kamusal_odeme")
@@ -130,6 +141,7 @@ export async function kamusalOdemeGuncelle(
       vade_tarihi,
       odeme_tarihi: odeme_tarihi ? odeme_tarihi : null,
       notlar: notlar ? notlar : null,
+      arac_id: ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null,
     })
     .eq("id", id);
 

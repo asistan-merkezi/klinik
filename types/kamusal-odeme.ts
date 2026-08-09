@@ -31,6 +31,9 @@ export const ODEME_TIPI_ETIKET = Object.fromEntries(
   ODEME_TIPI_SECENEKLERI.map((s) => [s.value, s.label])
 ) as Record<OdemeTipi, string>;
 
+/** Bu ödeme tiplerinde araç seçimi açılır — Şirket Bilgileri > Araçlar'dan (klinik_arac) beslenir. */
+export const ARAC_GEREKTIREN_TIPLER: OdemeTipi[] = ["motorlu_tasitlar_vergisi", "trafik_cezasi"];
+
 export const DONEM_AY_SECENEKLERI: { value: number; label: string }[] = [
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
@@ -47,6 +50,7 @@ export type KamusalOdemeSatir = {
   vade_tarihi: string;
   odeme_tarihi: string | null;
   notlar: string | null;
+  arac_id: string | null;
 };
 
 /** `bugun` "yyyy-MM-dd" formatında (bkz. lib/datetime.ts bugunIstanbulTarihi) — date string karşılaştırması için. */

@@ -11,7 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ODEME_TIPI_SECENEKLERI, DONEM_AY_SECENEKLERI, type KamusalOdemeSatir } from "@/types/kamusal-odeme";
+import type { KlinikArac } from "@/types/klinik";
+import {
+  ODEME_TIPI_SECENEKLERI,
+  DONEM_AY_SECENEKLERI,
+  ARAC_GEREKTIREN_TIPLER,
+  type KamusalOdemeSatir,
+  type OdemeTipi,
+} from "@/types/kamusal-odeme";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 type OdemeAction = (onceki: SonucDurumu, formData: FormData) => Promise<SonucDurumu>;
@@ -22,6 +29,7 @@ export function OdemeFormu({
   duzenlenecek,
   varsayilanDonemAy,
   varsayilanDonemYil,
+  araclar,
   basariliOlunca,
 }: {
   action: OdemeAction;
@@ -29,11 +37,14 @@ export function OdemeFormu({
   duzenlenecek?: KamusalOdemeSatir;
   varsayilanDonemAy?: number;
   varsayilanDonemYil?: number;
+  araclar: KlinikArac[];
   basariliOlunca?: () => void;
 }) {
   const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(action, null);
   const [gorulenDurum, setGorulenDurum] = useState<SonucDurumu>(null);
+  const [odemeTipi, setOdemeTipi] = useState<OdemeTipi | undefined>(duzenlenecek?.odeme_tipi);
+  const aracGerekli = odemeTipi != null && ARAC_GEREKTIREN_TIPLER.includes(odemeTipi);
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
@@ -55,7 +66,8 @@ export function OdemeFormu({
           name="odeme_tipi"
           required
           disabled={isPending}
-          defaultValue={duzenlenecek?.odeme_tipi}
+          value={odemeTipi}
+          onValueChange={(v) => setOdemeTipi(v as OdemeTipi)}
           items={ODEME_TIPI_SECENEKLERI}
         >
           <SelectTrigger id={`${idOnEki}-odeme_tipi`} className="w-full">
@@ -70,6 +82,36 @@ export function OdemeFormu({
           </SelectContent>
         </Select>
       </div>
+
+      {aracGerekli && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`${idOnEki}-arac_id`}>Araç</Label>
+          {araclar.length === 0 ? (
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Kayıtlı araç yok — Şirket Bilgileri &gt; Araçlar&apos;dan araç ekleyin.
+            </p>
+          ) : (
+            <Select
+              name="arac_id"
+              required
+              disabled={isPending}
+              defaultValue={duzenlenecek?.arac_id ?? undefined}
+              items={araclar.map((a) => ({ value: a.id, label: `${a.plaka} — ${a.marka} ${a.model}` }))}
+            >
+              <SelectTrigger id={`${idOnEki}-arac_id`} className="w-full">
+                <SelectValue placeholder="Seçiniz..." />
+              </SelectTrigger>
+              <SelectContent>
+                {araclar.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.plaka} — {a.marka} {a.model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <Label htmlFor={`${idOnEki}-tutar`}>Tutar (₺)</Label>

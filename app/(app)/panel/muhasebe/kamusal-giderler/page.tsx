@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ayAraligi } from "@/lib/utils";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { kamusalOdemeDurumHesapla, type KamusalOdemeSatir } from "@/types/kamusal-odeme";
+import type { KlinikArac } from "@/types/klinik";
 import { YeniOdemeButonu } from "./yeni-odeme-butonu";
 import { OdemeTablosu } from "./odeme-tablosu";
 
@@ -79,10 +80,10 @@ export default async function KamusalGiderlerSayfasi({
   const ay = ayAraligi(ayParam);
   const [donemYil, donemAy] = ay.param.split("-").map(Number);
 
-  const [ayKayitlariSonuc, yilKayitlariSonuc] = await Promise.all([
+  const [ayKayitlariSonuc, yilKayitlariSonuc, araclarSonuc] = await Promise.all([
     supabase
       .from("kamusal_odeme")
-      .select("id, odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar")
+      .select("id, odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar, arac_id")
       .eq("klinik_id", klinikId)
       .eq("donem_yil", donemYil)
       .eq("donem_ay", donemAy)
@@ -94,7 +95,15 @@ export default async function KamusalGiderlerSayfasi({
       .eq("klinik_id", klinikId)
       .eq("donem_yil", donemYil)
       .returns<{ tutar: number; odeme_tarihi: string | null }[]>(),
+    supabase
+      .from("klinik_arac")
+      .select("id, marka, model, plaka")
+      .eq("klinik_id", klinikId)
+      .order("plaka")
+      .returns<KlinikArac[]>(),
   ]);
+
+  const araclar = araclarSonuc.data ?? [];
 
   const bugun = bugunIstanbulTarihi();
   const ayKayitlari = (ayKayitlariSonuc.data ?? []).map((satir) => ({
@@ -119,7 +128,9 @@ export default async function KamusalGiderlerSayfasi({
               Vergi, SGK ve diğer resmi kesinti/ödeme takibi.
             </p>
           </div>
-          {yonetici && <YeniOdemeButonu varsayilanDonemAy={donemAy} varsayilanDonemYil={donemYil} />}
+          {yonetici && (
+            <YeniOdemeButonu varsayilanDonemAy={donemAy} varsayilanDonemYil={donemYil} araclar={araclar} />
+          )}
         </header>
 
         <OzetKarti baslik={`${donemYil} Yılı`} odenen={yilOdenen} bekleyen={yilBekleyen} />
@@ -147,7 +158,7 @@ export default async function KamusalGiderlerSayfasi({
         {ayKayitlari.length === 0 ? (
           <p className="text-sm text-muted-foreground">Bu ay için kayıtlı kamusal ödeme yok.</p>
         ) : (
-          <OdemeTablosu satirlar={ayKayitlari} yonetici={yonetici} />
+          <OdemeTablosu satirlar={ayKayitlari} yonetici={yonetici} araclar={araclar} />
         )}
       </div>
     </div>
