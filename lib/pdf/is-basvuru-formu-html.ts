@@ -1,7 +1,7 @@
-import { kayitFormuIcerikHtml } from "@/lib/pdf/kayit-formu-sablon";
+import { isBasvuruFormuIcerikHtml } from "@/lib/pdf/is-basvuru-formu-sablon";
 import { gorseliDataUriyeCevir, pdfBelgesiOlustur } from "@/lib/pdf/pdf-yardimcilari";
 
-export async function kayitFormuHtmlOlustur({
+export async function isBasvuruFormuHtmlOlustur({
   klinikAdi,
   logoUrl,
 }: {
@@ -9,6 +9,6 @@ export async function kayitFormuHtmlOlustur({
   logoUrl: string | null;
 }): Promise<string> {
   const logoDataUri = await gorseliDataUriyeCevir(logoUrl);
-  const icerikHtml = kayitFormuIcerikHtml({ klinikAdi, logoDataUri });
+  const icerikHtml = isBasvuruFormuIcerikHtml({ klinikAdi, logoDataUri });
   return pdfBelgesiOlustur(icerikHtml);
 }

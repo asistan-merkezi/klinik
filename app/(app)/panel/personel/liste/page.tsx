@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import type { PersonelSatir } from "@/types/personel";
 import { YeniPersonelDialog } from "../yeni-personel-dialog";
 import { PersonelListesi } from "../personel-listesi";
+import { IsBasvuruFormuPdfButonu } from "@/components/panel/is-basvuru-formu-pdf-butonu";
 
 export default async function PersonelListesiSayfasi() {
   const supabase = await createClient();
@@ -36,18 +37,17 @@ export default async function PersonelListesiSayfasi() {
   return (
     <div className="flex-1 bg-background">
       <div className="mx-auto flex max-w-md flex-col gap-4 p-4 pb-24 sm:max-w-3xl sm:p-8">
-        <header className="flex items-start justify-between gap-4">
+        <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Personel Listesi</h1>
             <p className="text-sm text-muted-foreground">
               Çalışanlar; terapistler için performans ve maaş hesaplama.
             </p>
           </div>
-          {yonetici && (
-            <div className="shrink-0">
-              <YeniPersonelDialog />
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <IsBasvuruFormuPdfButonu />
+            {yonetici && <YeniPersonelDialog />}
+          </div>
         </header>
 
         {error && <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>}

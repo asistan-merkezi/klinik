@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
   // "Could not find Chromium"/ENOENT ile çalışma anında patlar.
   outputFileTracingIncludes: {
     "/api/hasta-kayit-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/is-basvuru-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   experimental: {
     serverActions: {
