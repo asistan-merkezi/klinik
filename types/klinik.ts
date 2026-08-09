@@ -20,3 +20,10 @@ export type SirketBilgileri = {
   pazar_baslangic: string | null;
   pazar_bitis: string | null;
 };
+
+export type KlinikArac = {
+  id: string;
+  marka: string;
+  model: string;
+  plaka: string;
+};

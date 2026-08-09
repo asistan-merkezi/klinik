@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { SirketBilgileri } from "@/types/klinik";
+import type { KlinikArac, SirketBilgileri } from "@/types/klinik";
 import { SirketBilgileriFormu } from "./sirket-bilgileri-formu";
+import { AraclarKarti } from "./araclar-karti";
 
 export default async function SirketBilgileriSayfasi() {
   const supabase = await createClient();
@@ -31,6 +32,15 @@ export default async function SirketBilgileriSayfasi() {
     .eq("id", kullanici?.klinik_id ?? "")
     .maybeSingle<SirketBilgileri>();
 
+  const { data: araclarSonuc } = await supabase
+    .from("klinik_arac")
+    .select("id, marka, model, plaka")
+    .eq("klinik_id", kullanici?.klinik_id ?? "")
+    .order("created_at", { ascending: true })
+    .returns<KlinikArac[]>();
+
+  const araclar = araclarSonuc ?? [];
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -53,6 +63,15 @@ export default async function SirketBilgileriSayfasi() {
                 Bu bilgileri yalnızca klinik yöneticisi düzenleyebilir.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Araçlar</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AraclarKarti araclar={araclar} duzenlenebilir={duzenlenebilir} />
           </CardContent>
         </Card>
       </div>

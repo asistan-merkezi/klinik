@@ -141,3 +141,63 @@ export async function sirketBilgileriGuncelle(
   revalidatePath("/panel/ayarlar/sirket-bilgileri");
   return { success: true, message: "Şirket bilgileri kaydedildi." };
 }
+
+const aracSemasi = z.object({
+  marka: z.string().trim().min(1, "Marka gerekli."),
+  model: z.string().trim().min(1, "Model gerekli."),
+  plaka: z.string().trim().min(1, "Plaka gerekli."),
+});
+
+export async function aracEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const ayristirma = aracSemasi.safeParse({
+    marka: formData.get("marka"),
+    model: formData.get("model"),
+    plaka: formData.get("plaka"),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase.from("klinik_arac").insert({
+    klinik_id: klinikId,
+    marka: ayristirma.data.marka,
+    model: ayristirma.data.model,
+    plaka: ayristirma.data.plaka,
+    olusturan_kullanici_id: user?.id ?? null,
+  });
+
+  if (error) {
+    console.error("Araç eklenemedi:", error);
+    return { success: false, message: "Araç eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  return { success: true, message: "Araç eklendi." };
+}
+
+export async function aracSil(id: string): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { error } = await supabase.from("klinik_arac").delete().eq("id", id).eq("klinik_id", klinikId);
+
+  if (error) {
+    console.error("Araç silinemedi:", error);
+    return { success: false, message: "Araç silinemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  return { success: true, message: "Araç silindi." };
+}
