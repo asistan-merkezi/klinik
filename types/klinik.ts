@@ -1,4 +1,5 @@
 export type SirketBilgileri = {
+  ad: string;
   unvan: string | null;
   il: string | null;
   ilce: string | null;

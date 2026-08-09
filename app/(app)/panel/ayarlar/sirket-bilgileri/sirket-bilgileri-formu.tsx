@@ -5,6 +5,7 @@ import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TelefonGirisi } from "@/components/ui/TelefonGirisi";
 import type { SirketBilgileri } from "@/types/klinik";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { logoHazirla } from "./logo-hazirla";
@@ -20,7 +21,10 @@ function saatKisalt(deger: string | null | undefined) {
 
 export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri | null }) {
   const [sonuc, formAction, isPending] = useActionState(sirketBilgileriGuncelle, null);
+  const [ad, setAd] = useState(bilgiler?.ad ?? "");
   const [unvan, setUnvan] = useState(bilgiler?.unvan ?? "");
+  const [vergiDairesi, setVergiDairesi] = useState(bilgiler?.vergi_dairesi ?? "");
+  const [yetkiliKisi, setYetkiliKisi] = useState(bilgiler?.yetkili_kisi ?? "");
   const [onizleme, setOnizleme] = useState<string | null>(null);
   const [hazirlaniyor, setHazirlaniyor] = useState(false);
   const [hazirlamaHatasi, setHazirlamaHatasi] = useState<string | null>(null);
@@ -93,7 +97,19 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="unvan">Şirket Ünvanı</Label>
+          <Label htmlFor="ad">Şirket Adı (pdf, mail, mesajlarda kullanılacak)</Label>
+          <Input
+            id="ad"
+            name="ad"
+            required
+            disabled={isPending}
+            value={ad}
+            onChange={(e) => setAd(isimBasHarfBuyukYap(e.target.value))}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="unvan">Şirket Fatura Ünvanı</Label>
           <Input
             id="unvan"
             name="unvan"
@@ -127,21 +143,21 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="vergi_dairesi">Vergi Dairesi</Label>
-          <Input id="vergi_dairesi" name="vergi_dairesi" disabled={isPending} defaultValue={bilgiler?.vergi_dairesi ?? ""} />
+          <Input
+            id="vergi_dairesi"
+            name="vergi_dairesi"
+            disabled={isPending}
+            value={vergiDairesi}
+            onChange={(e) => setVergiDairesi(isimBasHarfBuyukYap(e.target.value))}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="vergi_no">Vergi Numarası</Label>
           <Input id="vergi_no" name="vergi_no" disabled={isPending} defaultValue={bilgiler?.vergi_no ?? ""} />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="telefon">Şirket Telefonu</Label>
-          <Input id="telefon" name="telefon" disabled={isPending} defaultValue={bilgiler?.telefon ?? ""} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="whatsapp_no">WhatsApp Numarası</Label>
-          <Input id="whatsapp_no" name="whatsapp_no" disabled={isPending} defaultValue={bilgiler?.whatsapp_no ?? ""} />
-        </div>
+        <TelefonGirisi ad="telefon" label="Şirket Telefonu" varsayilanTelefon={bilgiler?.telefon} disabled={isPending} />
+        <TelefonGirisi ad="whatsapp_no" label="WhatsApp Numarası" varsayilanTelefon={bilgiler?.whatsapp_no} disabled={isPending} />
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="eposta">E-posta</Label>
@@ -151,12 +167,20 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
 
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="yetkili_kisi">Yetkili Kişi</Label>
-          <Input id="yetkili_kisi" name="yetkili_kisi" disabled={isPending} defaultValue={bilgiler?.yetkili_kisi ?? ""} />
+          <Input
+            id="yetkili_kisi"
+            name="yetkili_kisi"
+            disabled={isPending}
+            value={yetkiliKisi}
+            onChange={(e) => setYetkiliKisi(isimBasHarfBuyukYap(e.target.value))}
+          />
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="yetkili_telefon">Yetkili Telefon Numarası</Label>
-          <Input id="yetkili_telefon" name="yetkili_telefon" disabled={isPending} defaultValue={bilgiler?.yetkili_telefon ?? ""} />
-        </div>
+        <TelefonGirisi
+          ad="yetkili_telefon"
+          label="Yetkili Telefon Numarası"
+          varsayilanTelefon={bilgiler?.yetkili_telefon}
+          disabled={isPending}
+        />
         <div className="flex flex-col gap-2">
           <Label htmlFor="yetkili_eposta">Yetkili Mail Adresi</Label>
           <Input

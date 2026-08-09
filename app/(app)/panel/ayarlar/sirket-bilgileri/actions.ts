@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -44,6 +45,7 @@ function bosIseNull(deger: FormDataEntryValue | null) {
 }
 
 const sirketSemasi = z.object({
+  ad: z.string().trim().min(1, "Şirket adı gerekli."),
   unvan: z.string().nullable(),
   il: z.string().nullable(),
   ilce: z.string().nullable(),
@@ -75,6 +77,7 @@ export async function sirketBilgileriGuncelle(
   }
 
   const ayristirma = sirketSemasi.safeParse({
+    ad: formData.get("ad"),
     unvan: bosIseNull(formData.get("unvan")),
     il: bosIseNull(formData.get("adres_il")),
     ilce: bosIseNull(formData.get("adres_ilce")),
@@ -100,7 +103,13 @@ export async function sirketBilgileriGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const guncellenecek: Record<string, string | null> = { ...ayristirma.data };
+  const guncellenecek: Record<string, string | null> = {
+    ...ayristirma.data,
+    ad: isimBasHarfBuyukYap(ayristirma.data.ad),
+    unvan: ayristirma.data.unvan ? isimBasHarfBuyukYap(ayristirma.data.unvan) : null,
+    vergi_dairesi: ayristirma.data.vergi_dairesi ? isimBasHarfBuyukYap(ayristirma.data.vergi_dairesi) : null,
+    yetkili_kisi: ayristirma.data.yetkili_kisi ? isimBasHarfBuyukYap(ayristirma.data.yetkili_kisi) : null,
+  };
 
   const logo = formData.get("logo");
   if (logo instanceof File && logo.size > 0) {
