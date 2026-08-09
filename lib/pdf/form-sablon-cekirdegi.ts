@@ -33,8 +33,20 @@ export const stil = {
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "24px", rowGap: "16px" },
   grid3: { display: "grid", gridTemplateColumns: "2fr 1fr 1fr", columnGap: "24px", rowGap: "16px" },
   flexKol: { display: "flex", flexDirection: "column", gap: "16px" },
-  alan: { display: "flex", flexDirection: "column", gap: "4px" },
-  alanGenis: { display: "flex", flexDirection: "column", gap: "4px", gridColumn: "1 / -1" },
+  // justifyContent:flex-end — grid satırındaki hücreler grid tarafından eşit
+  // yüksekliğe (stretch) getiriliyor; bir hücrenin etiketi (örn. "Çalışma
+  // Süresi (Başlangıç - Bitiş)") iki satıra sarılıp komşularından uzun
+  // olduğunda, alt hizalama olmadan doldurulacak çizgi her hücrede farklı
+  // yükseklikte kalıyordu (satır kayması). Alt hizalamayla çizgiler etiket
+  // uzunluğundan bağımsız olarak satır boyunca hep aynı seviyede oturuyor.
+  alan: { display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: "4px" },
+  alanGenis: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-end",
+    gap: "4px",
+    gridColumn: "1 / -1",
+  },
   etiket: { fontSize: "10.5px", color: renk.metinSoluk },
   cizgiSatir: { display: "block", height: "22px", borderBottom: `1px solid ${renk.cizgi}` },
 } as const;
