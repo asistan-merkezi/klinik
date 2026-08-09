@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { MenuGrubuSayfasi } from "@/components/panel/menu-grubu-sayfasi";
-import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
 
-export default async function PersonelHubSayfasi() {
+// Personel Maaş ve Personel Takip şimdilik gezinmeden kaldırıldı (kullanıcı
+// kararı: "personel detayına girilince zaten takip ediliyor" — Personel
+// Detay > Ödemeler sekmesi bu ihtiyacı karşılıyor). Route'lar (maas/, takip/)
+// silinmedi, sadece erişilemez hale getirildi; ileride geri alınabilir.
+export default async function PersonelSayfasi() {
   const supabase = await createClient();
 
   const {
@@ -14,7 +16,5 @@ export default async function PersonelHubSayfasi() {
     redirect("/giris");
   }
 
-  const grup = MENU_GRUPLARI.find((g) => g.key === "personel")!;
-
-  return <MenuGrubuSayfasi grup={grup} />;
+  redirect("/panel/personel/liste");
 }

@@ -1,5 +1,4 @@
 import {
-  UserCog,
   Receipt,
   Landmark,
   TrendingDown,
@@ -15,9 +14,7 @@ import {
   ListChecks,
   UploadCloud,
   QrCode,
-  HandCoins,
   Percent,
-  Banknote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,16 +30,6 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
       { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
       { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
       { href: "/panel/iskonto-oranlari", label: "İskonto Oranları", icon: Percent },
-    ],
-  },
-  {
-    key: "personel",
-    label: "Personel",
-    icon: UserCog,
-    ogeler: [
-      { href: "/panel/personel/liste", label: "Personel Listesi", icon: UserCog },
-      { href: "/panel/personel/maas", label: "Personel Maaş", icon: Banknote },
-      { href: "/panel/personel/takip", label: "Personel Takip", icon: HandCoins },
     ],
   },
   {

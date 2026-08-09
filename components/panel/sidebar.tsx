@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Users,
+  UserCog,
   CalendarDays,
   Package,
   DoorOpen,
@@ -21,6 +22,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const ANA_OGELER = [
   { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
   { href: "/panel/hastalar", label: "Hastalar", icon: Users },
+  { href: "/panel/personel", label: "Personel", icon: UserCog },
   { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
   { href: "/panel/paketler", label: "Paketler", icon: Package },
   { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
