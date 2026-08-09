@@ -5,14 +5,15 @@ import { raporAyDonemi } from "./donem";
 type FakeSatir = Record<string, unknown>;
 
 /**
- * klinik_harcama üzerindeki eq/neq/gte/lt zincirini in-memory filtreleyen
- * minimal sahte Supabase client'ı — gerçek PostgREST builder'ının tipini
- * taklit etmeye çalışmak yerine sadece bu testin kullandığı zinciri karşılar.
+ * klinik_harcama/kamusal_odeme üzerindeki eq/neq/not/gte/lt zincirini
+ * in-memory filtreleyen minimal sahte Supabase client'ı — tablo adına göre
+ * ayrı satır kümeleri tutar (gerçek PostgREST builder'ının tipini taklit
+ * etmeye çalışmak yerine sadece bu testlerin kullandığı zinciri karşılar).
  */
-function fakeSupabase(rows: FakeSatir[]) {
+function fakeSupabase(tablolar: Record<string, FakeSatir[]>) {
   return {
-    from() {
-      let filtreli = rows;
+    from(tablo: string) {
+      let filtreli = tablolar[tablo] ?? [];
       const builder = {
         select() {
           return builder;
@@ -22,6 +23,10 @@ function fakeSupabase(rows: FakeSatir[]) {
           return builder;
         },
         neq(kolon: string, deger: unknown) {
+          filtreli = filtreli.filter((r) => r[kolon] !== deger);
+          return builder;
+        },
+        not(kolon: string, _op: string, deger: unknown) {
           filtreli = filtreli.filter((r) => r[kolon] !== deger);
           return builder;
         },
@@ -48,9 +53,11 @@ describe("klinik_harcama çift sayım kontrolü", () => {
   const klinikId = "klinik-1";
 
   it("is_faturali=true kayıt İşletme Gideri'ne dahil olmaz, Faturalı Giderler'e dahil olur", async () => {
-    const supabase = fakeSupabase([
-      { klinik_id: klinikId, kategori: "kira", is_faturali: true, tutar: 1000, tarih: "2026-07-15" },
-    ]);
+    const supabase = fakeSupabase({
+      klinik_harcama: [
+        { klinik_id: klinikId, kategori: "kira", is_faturali: true, tutar: 1000, tarih: "2026-07-15" },
+      ],
+    });
 
     const isletmeGideri = await hesaplaIsletmeGideri(supabase, klinikId, donem);
     const faturaliGiderler = await hesaplaFaturaliGiderler(supabase, klinikId, donem);
@@ -60,9 +67,11 @@ describe("klinik_harcama çift sayım kontrolü", () => {
   });
 
   it("is_faturali=false kayıt sadece İşletme Gideri'ne dahil olur", async () => {
-    const supabase = fakeSupabase([
-      { klinik_id: klinikId, kategori: "malzeme", is_faturali: false, tutar: 500, tarih: "2026-07-10" },
-    ]);
+    const supabase = fakeSupabase({
+      klinik_harcama: [
+        { klinik_id: klinikId, kategori: "malzeme", is_faturali: false, tutar: 500, tarih: "2026-07-10" },
+      ],
+    });
 
     const isletmeGideri = await hesaplaIsletmeGideri(supabase, klinikId, donem);
     const faturaliGiderler = await hesaplaFaturaliGiderler(supabase, klinikId, donem);
@@ -70,18 +79,22 @@ describe("klinik_harcama çift sayım kontrolü", () => {
     expect(isletmeGideri).toBe(500);
     expect(faturaliGiderler).toBe(0);
   });
+});
 
-  it("kategori='vergi_sgk' kayıt sadece Muhasebe giderine dahil olur, İşletme/Faturalı Giderler'e girmez", async () => {
-    const supabase = fakeSupabase([
-      { klinik_id: klinikId, kategori: "vergi_sgk", is_faturali: false, tutar: 2000, tarih: "2026-07-05" },
-    ]);
+describe("kamusal_odeme — Muhasebe (Vergi, SGK) gideri", () => {
+  const donem = raporAyDonemi(2026, 7);
+  const klinikId = "klinik-1";
 
-    const isletmeGideri = await hesaplaIsletmeGideri(supabase, klinikId, donem);
-    const faturaliGiderler = await hesaplaFaturaliGiderler(supabase, klinikId, donem);
+  it("sadece ödeme_tarihi dolu (fiilen ödenmiş) ve dönem içine düşen kayıtlar sayılır", async () => {
+    const supabase = fakeSupabase({
+      kamusal_odeme: [
+        { klinik_id: klinikId, tutar: 2000, odeme_tarihi: "2026-07-05" },
+        { klinik_id: klinikId, tutar: 999, odeme_tarihi: null }, // henüz ödenmedi (Bekliyor/Gecikti), sayılmaz
+        { klinik_id: klinikId, tutar: 500, odeme_tarihi: "2026-06-20" }, // dönem dışı, sayılmaz
+      ],
+    });
+
     const muhasebeGideri = await hesaplaMuhasebeGideri(supabase, klinikId, donem);
-
-    expect(isletmeGideri).toBe(0);
-    expect(faturaliGiderler).toBe(0);
     expect(muhasebeGideri).toBe(2000);
   });
 });

@@ -43,6 +43,11 @@ export function formatDateForInput(utcIso: string): string {
   return formatInTimeZone(new Date(utcIso), CLINIC_TZ, "yyyy-MM-dd");
 }
 
+/** Şu anın İstanbul takvim tarihi, "yyyy-MM-dd" — `date` kolonlarıyla (vade_tarihi vb.) string karşılaştırması için. */
+export function bugunIstanbulTarihi(): string {
+  return formatInTimeZone(new Date(), CLINIC_TZ, "yyyy-MM-dd");
+}
+
 /** UTC ISO -> `<input type="time">` için İstanbul saatiyle "HH:mm". */
 export function formatTimeForInput(utcIso: string): string {
   return formatTime(utcIso);

@@ -2,14 +2,48 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ayAraligi } from "@/lib/utils";
-import { YeniGiderButonu } from "./yeni-gider-butonu";
-
-type HarcamaSatir = { id: string; tutar: number; tarih: string; aciklama: string | null };
+import { bugunIstanbulTarihi } from "@/lib/datetime";
+import { kamusalOdemeDurumHesapla, type KamusalOdemeSatir } from "@/types/kamusal-odeme";
+import { YeniOdemeButonu } from "./yeni-odeme-butonu";
+import { OdemeTablosu } from "./odeme-tablosu";
 
 const paraFormat = (tutar: number) =>
   tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+
+function OzetKarti({
+  baslik,
+  odenen,
+  bekleyen,
+}: {
+  baslik: string;
+  odenen: number;
+  bekleyen: number;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      <Card>
+        <CardContent className="flex flex-col gap-1">
+          <p className="text-sm text-muted-foreground">{baslik} — Ödenen</p>
+          <p className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">{paraFormat(odenen)}</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="flex flex-col gap-1">
+          <p className="text-sm text-muted-foreground">{baslik} — Bekleyen</p>
+          <p className="text-xl font-semibold text-amber-600 dark:text-amber-400">{paraFormat(bekleyen)}</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="flex flex-col gap-1">
+          <p className="text-sm text-muted-foreground">{baslik} — Toplam</p>
+          <p className="text-xl font-semibold">{paraFormat(odenen + bekleyen)}</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default async function KamusalGiderlerSayfasi({
   searchParams,
@@ -43,23 +77,41 @@ export default async function KamusalGiderlerSayfasi({
   const yonetici = kullanici?.rol === "klinik_admin";
   const klinikId = kullanici?.klinik_id ?? "";
   const ay = ayAraligi(ayParam);
+  const [donemYil, donemAy] = ay.param.split("-").map(Number);
 
-  const { data: harcamaSonuc } = await supabase
-    .from("klinik_harcama")
-    .select("id, tutar, tarih, aciklama")
-    .eq("klinik_id", klinikId)
-    .eq("kategori", "vergi_sgk")
-    .gte("tarih", ay.baslangicTarih)
-    .lt("tarih", ay.bitisTarih)
-    .order("tarih", { ascending: false })
-    .returns<HarcamaSatir[]>();
+  const [ayKayitlariSonuc, yilKayitlariSonuc] = await Promise.all([
+    supabase
+      .from("kamusal_odeme")
+      .select("id, odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar")
+      .eq("klinik_id", klinikId)
+      .eq("donem_yil", donemYil)
+      .eq("donem_ay", donemAy)
+      .order("vade_tarihi", { ascending: true })
+      .returns<KamusalOdemeSatir[]>(),
+    supabase
+      .from("kamusal_odeme")
+      .select("tutar, odeme_tarihi")
+      .eq("klinik_id", klinikId)
+      .eq("donem_yil", donemYil)
+      .returns<{ tutar: number; odeme_tarihi: string | null }[]>(),
+  ]);
 
-  const harcamalar = harcamaSonuc ?? [];
-  const ayToplami = harcamalar.reduce((acc, h) => acc + h.tutar, 0);
+  const bugun = bugunIstanbulTarihi();
+  const ayKayitlari = (ayKayitlariSonuc.data ?? []).map((satir) => ({
+    ...satir,
+    durum: kamusalOdemeDurumHesapla(satir, bugun),
+  }));
+
+  const ayOdenen = ayKayitlari.filter((s) => s.durum === "odendi").reduce((acc, s) => acc + s.tutar, 0);
+  const ayBekleyen = ayKayitlari.filter((s) => s.durum !== "odendi").reduce((acc, s) => acc + s.tutar, 0);
+
+  const yilKayitlari = yilKayitlariSonuc.data ?? [];
+  const yilOdenen = yilKayitlari.filter((s) => s.odeme_tarihi).reduce((acc, s) => acc + s.tutar, 0);
+  const yilBekleyen = yilKayitlari.filter((s) => !s.odeme_tarihi).reduce((acc, s) => acc + s.tutar, 0);
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">Kamusal Giderler</h1>
@@ -67,8 +119,10 @@ export default async function KamusalGiderlerSayfasi({
               Vergi, SGK ve diğer resmi kesinti/ödeme takibi.
             </p>
           </div>
-          {yonetici && <YeniGiderButonu />}
+          {yonetici && <YeniOdemeButonu varsayilanDonemAy={donemAy} varsayilanDonemYil={donemYil} />}
         </header>
+
+        <OzetKarti baslik={`${donemYil} Yılı`} odenen={yilOdenen} bekleyen={yilBekleyen} />
 
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-sm font-semibold">{ay.etiket}</h2>
@@ -88,37 +142,13 @@ export default async function KamusalGiderlerSayfasi({
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{ay.etiket} — Kayıtlar</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {harcamalar.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Bu ay için kayıtlı kamusal gider yok.</p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-border">
-                {harcamalar.map((h) => (
-                  <li key={h.id} className="flex items-center justify-between py-2 text-sm">
-                    <div className="flex flex-col">
-                      <span className="font-medium">{h.aciklama ?? "Vergi / SGK"}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(h.tarih).toLocaleDateString("tr-TR")}
-                      </span>
-                    </div>
-                    <span>{paraFormat(h.tutar)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+        <OzetKarti baslik={ay.etiket} odenen={ayOdenen} bekleyen={ayBekleyen} />
 
-            {harcamalar.length > 0 && (
-              <div className="flex items-center justify-between border-t border-border pt-3 font-semibold">
-                <span>Ay Toplamı</span>
-                <span className="text-rose-600 dark:text-rose-400">{paraFormat(ayToplami)}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {ayKayitlari.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Bu ay için kayıtlı kamusal ödeme yok.</p>
+        ) : (
+          <OdemeTablosu satirlar={ayKayitlari} yonetici={yonetici} />
+        )}
       </div>
     </div>
   );

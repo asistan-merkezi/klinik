@@ -155,7 +155,6 @@ export async function hesaplaIsletmeGideri(
     .from("klinik_harcama")
     .select("tutar")
     .eq("klinik_id", klinikId)
-    .neq("kategori", "vergi_sgk")
     .neq("kategori", "diger")
     .eq("is_faturali", false)
     .gte("tarih", donem.baslangicTarih)
@@ -201,7 +200,6 @@ export async function hesaplaFaturaliGiderler(
     .from("klinik_harcama")
     .select("tutar")
     .eq("klinik_id", klinikId)
-    .neq("kategori", "vergi_sgk")
     .eq("is_faturali", true)
     .gte("tarih", donem.baslangicTarih)
     .lt("tarih", donem.bitisTarih)
@@ -210,9 +208,13 @@ export async function hesaplaFaturaliGiderler(
 }
 
 /**
- * Muhasebe (vergi/SGK) gideri: kategori='vergi_sgk' olan klinik_harcama
- * kayıtları — personel SGK işveren payı da (kullanıcı kararıyla) burada
- * elle girilir, personel şemasında ayrı bir SGK kolonu yok.
+ * Muhasebe (vergi/SGK) gideri: kamusal_odeme'de fiilen ÖDENMİŞ (odeme_tarihi
+ * dolu) kayıtların, ödeme tarihi bu dönemin içine düşenlerin toplamı — nakit
+ * bazlı raporlama (henüz ödenmemiş/vadesi gelmemiş tutarlar gerçekleşmiş bir
+ * gider sayılmaz, Kamusal Giderler ekranındaki "Bekleyen" tutarına dahildir).
+ * Personel SGK işveren payı da (kullanıcı kararıyla) burada elle girilir,
+ * personel şemasında ayrı bir SGK kolonu yok. Önceki turda klinik_harcama
+ * (kategori='vergi_sgk') kullanılıyordu, bkz. migration 20260809120000.
  */
 export async function hesaplaMuhasebeGideri(
   supabase: SupabaseSunucuClient,
@@ -220,12 +222,12 @@ export async function hesaplaMuhasebeGideri(
   donem: RaporDonemi
 ): Promise<number> {
   const { data } = await supabase
-    .from("klinik_harcama")
+    .from("kamusal_odeme")
     .select("tutar")
     .eq("klinik_id", klinikId)
-    .eq("kategori", "vergi_sgk")
-    .gte("tarih", donem.baslangicTarih)
-    .lt("tarih", donem.bitisTarih)
+    .not("odeme_tarihi", "is", null)
+    .gte("odeme_tarihi", donem.baslangicTarih)
+    .lt("odeme_tarihi", donem.bitisTarih)
     .returns<KlinikHarcamaSatir[]>();
   return (data ?? []).reduce((acc, satir) => acc + satir.tutar, 0);
 }
@@ -339,7 +341,7 @@ export async function hesaplaYillikOzet(
   const yilDonemi = raporYilDonemi(yil);
   const aylar = yilinAylari(yil);
 
-  const [harcamaSonuc, odemeSonuc, randevuSonuc] = await Promise.all([
+  const [harcamaSonuc, kamusalOdemeSonuc, odemeSonuc, randevuSonuc] = await Promise.all([
     supabase
       .from("klinik_harcama")
       .select("tutar, tarih")
@@ -347,6 +349,14 @@ export async function hesaplaYillikOzet(
       .gte("tarih", yilDonemi.baslangicTarih)
       .lt("tarih", yilDonemi.bitisTarih)
       .returns<{ tutar: number; tarih: string }[]>(),
+    supabase
+      .from("kamusal_odeme")
+      .select("tutar, odeme_tarihi")
+      .eq("klinik_id", klinikId)
+      .not("odeme_tarihi", "is", null)
+      .gte("odeme_tarihi", yilDonemi.baslangicTarih)
+      .lt("odeme_tarihi", yilDonemi.bitisTarih)
+      .returns<{ tutar: number; odeme_tarihi: string }[]>(),
     supabase
       .from("odeme")
       .select("created_at, odeme_kalemi(miktar, birim_fiyat)")
@@ -365,13 +375,18 @@ export async function hesaplaYillikOzet(
   ]);
 
   const harcamalar = harcamaSonuc.data ?? [];
+  const kamusalOdemeler = kamusalOdemeSonuc.data ?? [];
   const odemeler = odemeSonuc.data ?? [];
   const randevular = randevuSonuc.data ?? [];
 
   return aylar.map((ayDonemi, index) => {
-    const gider = harcamalar
-      .filter((h) => h.tarih >= ayDonemi.baslangicTarih && h.tarih < ayDonemi.bitisTarih)
-      .reduce((acc, h) => acc + h.tutar, 0);
+    const gider =
+      harcamalar
+        .filter((h) => h.tarih >= ayDonemi.baslangicTarih && h.tarih < ayDonemi.bitisTarih)
+        .reduce((acc, h) => acc + h.tutar, 0) +
+      kamusalOdemeler
+        .filter((k) => k.odeme_tarihi >= ayDonemi.baslangicTarih && k.odeme_tarihi < ayDonemi.bitisTarih)
+        .reduce((acc, k) => acc + k.tutar, 0);
 
     const gelir = odemeler
       .filter((o) => o.created_at >= ayDonemi.baslangic && o.created_at < ayDonemi.bitis)
