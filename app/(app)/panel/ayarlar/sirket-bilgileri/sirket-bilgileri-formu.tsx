@@ -97,7 +97,7 @@ export function SirketBilgileriFormu({ bilgiler }: { bilgiler: SirketBilgileri |
                 }
                 void dosyaSecildi(dosya);
               }}
-              className="text-sm"
+              className="text-sm file:cursor-pointer file:underline"
             />
             {hazirlaniyor && <p className="text-xs text-muted-foreground">Hazırlanıyor...</p>}
           </div>
