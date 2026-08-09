@@ -1,4 +1,5 @@
 import { Home } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { TabletAyarlari } from "@/types/tablet-ayarlari";
 
@@ -13,6 +14,7 @@ export function TabletOnizleme({
   terapist_adi_goster,
   islem_adi_goster,
   durum_rengi_goster,
+  tema,
   logoUrl,
 }: TabletAyarlari & { logoUrl: string | null }) {
   const hicbirSeyGosterilmiyor =
@@ -23,7 +25,12 @@ export function TabletOnizleme({
       <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Önizleme
       </span>
-      <div className="dark overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-sm">
+      <div
+        className={cn(
+          tema === "koyu" && "dark",
+          "overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-sm"
+        )}
+      >
         <div className="flex items-center justify-between border-b border-border p-3">
           <div className="flex items-center gap-2">
             {logoUrl ? (

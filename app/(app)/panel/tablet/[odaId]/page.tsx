@@ -4,7 +4,7 @@ import { Home } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import type { RandevuSatir } from "@/types/randevu";
-import { gunAraligi } from "@/lib/utils";
+import { cn, gunAraligi } from "@/lib/utils";
 import { VARSAYILAN_TABLET_AYARLARI, type TabletAyarlari } from "@/types/tablet-ayarlari";
 import { TabletEkrani } from "./tablet-ekrani";
 
@@ -66,7 +66,12 @@ export default async function TabletOdaSayfasi({
     .returns<RandevuSatir[]>();
 
   return (
-    <div className="dark flex min-h-screen flex-col bg-background text-foreground">
+    <div
+      className={cn(
+        tabletAyarlari.tema === "koyu" && "dark",
+        "flex min-h-screen flex-col bg-background text-foreground"
+      )}
+    >
       <header className="flex items-center justify-between border-b border-border p-4">
         <div className="flex items-center gap-3">
           {klinik?.logo_url ? (

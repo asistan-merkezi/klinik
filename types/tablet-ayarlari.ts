@@ -1,8 +1,11 @@
+export type TabletTemasi = "acik" | "koyu";
+
 export type TabletAyarlari = {
   hasta_adi_goster: boolean;
   terapist_adi_goster: boolean;
   islem_adi_goster: boolean;
   durum_rengi_goster: boolean;
+  tema: TabletTemasi;
 };
 
 export const VARSAYILAN_TABLET_AYARLARI: TabletAyarlari = {
@@ -10,4 +13,5 @@ export const VARSAYILAN_TABLET_AYARLARI: TabletAyarlari = {
   terapist_adi_goster: true,
   islem_adi_goster: true,
   durum_rengi_goster: true,
+  tema: "koyu",
 };
