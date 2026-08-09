@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { CirclePlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import type { KlinikArac } from "@/types/klinik";
 import { aracEkle, aracSil } from "./actions";
 
@@ -60,13 +61,19 @@ function AracSatiri({ arac, duzenlenebilir }: { arac: KlinikArac; duzenlenebilir
 
 export function AraclarKarti({ araclar, duzenlenebilir }: { araclar: KlinikArac[]; duzenlenebilir: boolean }) {
   const [sonuc, formAction, isPending] = useActionState(aracEkle, null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [marka, setMarka] = useState("");
+  const [model, setModel] = useState("");
+  const [gorulenSonuc, setGorulenSonuc] = useState(sonuc);
+  const [formKey, setFormKey] = useState(0);
 
-  useEffect(() => {
+  if (sonuc !== gorulenSonuc) {
+    setGorulenSonuc(sonuc);
     if (sonuc?.success) {
-      formRef.current?.reset();
+      setMarka("");
+      setModel("");
+      setFormKey((k) => k + 1);
     }
-  }, [sonuc]);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -82,7 +89,7 @@ export function AraclarKarti({ araclar, duzenlenebilir }: { araclar: KlinikArac[
 
       {duzenlenebilir && (
         <form
-          ref={formRef}
+          key={formKey}
           action={formAction}
           className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-end"
         >
@@ -90,13 +97,27 @@ export function AraclarKarti({ araclar, duzenlenebilir }: { araclar: KlinikArac[
             <label htmlFor="marka" className="text-xs text-muted-foreground">
               Marka
             </label>
-            <Input id="marka" name="marka" required disabled={isPending} />
+            <Input
+              id="marka"
+              name="marka"
+              required
+              disabled={isPending}
+              value={marka}
+              onChange={(e) => setMarka(isimBasHarfBuyukYap(e.target.value))}
+            />
           </div>
           <div className="flex flex-1 flex-col gap-1">
             <label htmlFor="model" className="text-xs text-muted-foreground">
               Model
             </label>
-            <Input id="model" name="model" required disabled={isPending} />
+            <Input
+              id="model"
+              name="model"
+              required
+              disabled={isPending}
+              value={model}
+              onChange={(e) => setModel(isimBasHarfBuyukYap(e.target.value))}
+            />
           </div>
           <div className="flex flex-1 flex-col gap-1">
             <label htmlFor="plaka" className="text-xs text-muted-foreground">

@@ -175,8 +175,8 @@ export async function aracEkle(_onceki: SonucDurumu, formData: FormData): Promis
 
   const { error } = await supabase.from("klinik_arac").insert({
     klinik_id: klinikId,
-    marka: ayristirma.data.marka,
-    model: ayristirma.data.model,
+    marka: isimBasHarfBuyukYap(ayristirma.data.marka),
+    model: isimBasHarfBuyukYap(ayristirma.data.model),
     plaka: ayristirma.data.plaka,
     olusturan_kullanici_id: user?.id ?? null,
   });
