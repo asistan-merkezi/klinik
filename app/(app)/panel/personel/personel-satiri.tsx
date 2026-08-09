@@ -142,11 +142,11 @@ export function PersonelSatiri({
                 <div className="ml-auto flex gap-1.5">
                   {duzenleModu ? (
                     <>
-                      <Button type="button" size="sm" disabled={isPending || !saat} onClick={kaydet}>
-                        Kaydet
-                      </Button>
                       <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={duzenlemeyiVazgec}>
                         Vazgeç
+                      </Button>
+                      <Button type="button" size="sm" disabled={isPending || !saat} onClick={kaydet}>
+                        Kaydet
                       </Button>
                     </>
                   ) : (
