@@ -47,6 +47,18 @@ export function MaasFormu({
         </div>
 
         <div className="flex flex-col gap-2">
+          <Label htmlFor="maas_gecerlilik_tarihi">Geçerlilik Tarihi</Label>
+          <Input
+            id="maas_gecerlilik_tarihi"
+            name="maas_gecerlilik_tarihi"
+            type="date"
+            defaultValue={new Date().toISOString().slice(0, 10)}
+            required
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
           <Label htmlFor="maas_hesaplama_modeli">Hesaplama Modeli</Label>
           <Select
             name="maas_hesaplama_modeli"

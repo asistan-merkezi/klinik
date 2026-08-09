@@ -9,6 +9,7 @@ import {
   CALISMA_TIPI_SECENEKLERI,
   ROL_SECENEKLERI,
   type HakedisSatir,
+  type MaasGecmisiSatir,
   type PersonelAcilKisi,
   type PersonelDetay,
   type PersonelHassasMaskeli,
@@ -121,7 +122,7 @@ export default async function PersonelDetaySayfasi({
 
   const terapist = terapistSonucu.data;
 
-  const [acilSonucu, meslekiSonucu, hassasSonucu, gunSonucu, haftaSonucu, aySonucu] = await Promise.all([
+  const [acilSonucu, meslekiSonucu, hassasSonucu, gunSonucu, haftaSonucu, aySonucu, maasGecmisiSonucu] = await Promise.all([
     yonetici
       ? supabase
           .from("personel_acil_kisi")
@@ -168,10 +169,20 @@ export default async function PersonelDetaySayfasi({
           .gte("baslangic", ay.baslangic)
           .lt("baslangic", ay.bitis)
       : Promise.resolve({ count: 0 }),
+    terapist
+      ? supabase
+          .from("personel_maas_gecmisi")
+          .select("id, maas, gecerlilik_tarihi")
+          .eq("personel_id", id)
+          .order("gecerlilik_tarihi", { ascending: false })
+          .limit(24)
+          .returns<MaasGecmisiSatir[]>()
+      : Promise.resolve({ data: null as MaasGecmisiSatir[] | null }),
   ]);
 
   const acilKisi = acilSonucu.data;
   const mesleki = meslekiSonucu.data;
+  const maasGecmisi = maasGecmisiSonucu.data ?? [];
   const maskeliHassas = (hassasSonucu.data as PersonelHassasMaskeli | null) ?? null;
 
   const gunSayisi = gunSonucu.count ?? 0;
@@ -539,6 +550,28 @@ export default async function PersonelDetaySayfasi({
                         personel={personel}
                         terapist={terapist}
                       />
+                    </CardContent>
+                  </Card>
+                )}
+
+                {maasGecmisi.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Maaş Geçmişi</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="flex flex-col divide-y divide-border">
+                        {maasGecmisi.map((m) => (
+                          <li key={m.id} className="flex items-center justify-between py-2 text-sm">
+                            <span className="text-muted-foreground">
+                              {new Date(m.gecerlilik_tarihi).toLocaleDateString("tr-TR")} itibarıyla
+                            </span>
+                            <span className="font-medium">
+                              {m.maas.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </CardContent>
                   </Card>
                 )}

@@ -15,6 +15,7 @@ function bosIseNull(deger: FormDataEntryValue | null) {
 
 const maasAyarSemasi = z.object({
   maas: z.coerce.number().min(0, "Maaş 0'dan küçük olamaz.").nullable(),
+  maas_gecerlilik_tarihi: z.string().min(1, "Geçerlilik tarihi seçilmeli."),
   maas_hesaplama_modeli: z.enum(["sabit", "islem_basi_prim", "barajli_prim"]),
   prim_sabit_tutar: z.coerce.number().min(0, "Prim tutarı 0'dan küçük olamaz.").nullable(),
   baraj_seans_sayisi: z.coerce.number().int("Tam sayı olmalı.").min(1, "Baraj en az 1 seans olmalı.").nullable(),
@@ -63,6 +64,7 @@ export async function maasAyarlariGuncelle(
 
   const ayristirma = maasAyarSemasi.safeParse({
     maas: bosIseNull(formData.get("maas")),
+    maas_gecerlilik_tarihi: formData.get("maas_gecerlilik_tarihi"),
     maas_hesaplama_modeli: formData.get("maas_hesaplama_modeli"),
     prim_sabit_tutar: bosIseNull(formData.get("prim_sabit_tutar")),
     baraj_seans_sayisi: bosIseNull(formData.get("baraj_seans_sayisi")),
@@ -73,8 +75,16 @@ export async function maasAyarlariGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { maas, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari } =
-    ayristirma.data;
+  const {
+    maas,
+    maas_gecerlilik_tarihi,
+    maas_hesaplama_modeli,
+    prim_sabit_tutar,
+    baraj_seans_sayisi,
+    baraj_bonus_tutari,
+  } = ayristirma.data;
+
+  const { data: eskiPersonel } = await supabase.from("personel").select("maas").eq("id", personelId).single();
 
   const [personelSonucu, terapistSonucu] = await Promise.all([
     supabase.from("personel").update({ maas }).eq("id", personelId),
@@ -92,6 +102,27 @@ export async function maasAyarlariGuncelle(
   if (personelSonucu.error || terapistSonucu.error) {
     console.error("Maaş ayarları güncellenemedi:", personelSonucu.error, terapistSonucu.error);
     return { success: false, message: "Maaş ayarları güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  // Maaş fiilen değiştiyse geçmişe bir satır düşülür (kullanıcı kararı: "hangi
+  // tarihte hangi maaşı alıyor kayıt olsun") — prim/baraj ayarı değişse bile
+  // maaş aynıysa geçmiş tabloya gereksiz tekrar satır eklenmez.
+  if (maas != null && maas !== eskiPersonel?.maas) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error: gecmisHata } = await supabase.from("personel_maas_gecmisi").insert({
+      klinik_id: klinikId,
+      personel_id: personelId,
+      maas,
+      gecerlilik_tarihi: maas_gecerlilik_tarihi,
+      ekleyen_kullanici_id: user?.id ?? null,
+    });
+
+    if (gecmisHata) {
+      console.error("Maaş geçmişi kaydedilemedi:", gecmisHata);
+    }
   }
 
   revalidatePath(`/panel/personel/${personelId}`);

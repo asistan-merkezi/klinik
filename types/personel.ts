@@ -113,3 +113,9 @@ export type PersonelOdemeSatir = {
   tarih: string;
   aciklama: string | null;
 };
+
+export type MaasGecmisiSatir = {
+  id: string;
+  maas: number;
+  gecerlilik_tarihi: string;
+};
