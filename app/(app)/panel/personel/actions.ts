@@ -6,6 +6,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tcKimlikGecerliMi } from "@/lib/tc-kimlik";
+import { bugunTarih } from "@/lib/puantaj";
+import { formatTime } from "@/lib/datetime";
 
 type SonucDurumu = { success: boolean; message: string; geciciSifre?: string } | null;
 
@@ -458,4 +460,71 @@ export async function personelBilgileriGuncelle(
   revalidatePath(`/panel/personel/${personelId}`);
   revalidatePath("/panel/personel/liste");
   return { success: true, message: uyari ? `Kaydedildi. ${uyari}` : "Kaydedildi." };
+}
+
+/**
+ * Personel Listesi kutucuklarındaki tek tıkla Giriş/Çıkış — o anki saati
+ * "şimdi" olarak bugünün personel_puantaj satırına yazar (sayfa değiştirmeden).
+ * Çalışma Çizelgesi'ndeki gunKaydet ile aynı RLS/yetki sınırı (klinik_admin) —
+ * personel_puantaj INSERT/UPDATE policy'leri zaten sadece admin'e açık, burada
+ * ayrıca uygulama katmanında da erken reddediliyor. Var olan bir saati asla
+ * sessizce ezmiyor (yanlışlıkla iki kez tıklanırsa mevcut kayıt korunur, admin
+ * düzeltmek isterse Çalışma Çizelgesi'nden elle değiştirir).
+ */
+export async function hizliPuantajKaydet(
+  personelId: string,
+  tur: "giris" | "cikis"
+): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const tarih = bugunTarih();
+  const simdi = new Date().toISOString();
+
+  const { data: mevcut } = await supabase
+    .from("personel_puantaj")
+    .select("id, giris_saat, cikis_saat")
+    .eq("personel_id", personelId)
+    .eq("tarih", tarih)
+    .maybeSingle();
+
+  let hata;
+
+  if (tur === "giris") {
+    if (mevcut?.giris_saat) {
+      return { success: false, message: `Bugün için giriş zaten kaydedilmiş (${formatTime(mevcut.giris_saat)}).` };
+    }
+    if (mevcut) {
+      ({ error: hata } = await supabase.from("personel_puantaj").update({ giris_saat: simdi }).eq("id", mevcut.id));
+    } else {
+      ({ error: hata } = await supabase
+        .from("personel_puantaj")
+        .insert({ personel_id: personelId, tarih, giris_saat: simdi }));
+    }
+  } else {
+    if (!mevcut?.giris_saat) {
+      return { success: false, message: "Önce giriş kaydedilmeli." };
+    }
+    if (mevcut.cikis_saat) {
+      return { success: false, message: `Bugün için çıkış zaten kaydedilmiş (${formatTime(mevcut.cikis_saat)}).` };
+    }
+    ({ error: hata } = await supabase.from("personel_puantaj").update({ cikis_saat: simdi }).eq("id", mevcut.id));
+  }
+
+  if (hata) {
+    console.error("Hızlı puantaj kaydedilemedi:", hata);
+    if (hata.code === "42501" || hata.message?.includes("row-level security")) {
+      return { success: false, message: "Bu ay dönemi kapalı olduğu için kaydedilemiyor." };
+    }
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath(`/panel/personel/${personelId}/calisma-cizelgesi`);
+  revalidatePath("/panel/personel/liste");
+  return {
+    success: true,
+    message: tur === "giris" ? `Giriş kaydedildi (${formatTime(simdi)}).` : `Çıkış kaydedildi (${formatTime(simdi)}).`,
+  };
 }
