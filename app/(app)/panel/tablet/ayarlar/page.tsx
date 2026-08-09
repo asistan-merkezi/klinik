@@ -35,7 +35,7 @@ export default async function TabletAyarlarSayfasi() {
 
   const { data: klinik } = await supabase
     .from("klinik")
-    .select("logo_url")
+    .select("ad, logo_url, logo_url_koyu, marka_renkleri")
     .eq("id", kullanici?.klinik_id ?? "")
     .maybeSingle();
 
@@ -51,7 +51,10 @@ export default async function TabletAyarlarSayfasi() {
         </header>
 
         {duzenlenebilir ? (
-          <TabletAyarlariIstemci ayarlar={ayarlar} logoUrl={klinik?.logo_url ?? null} />
+          <TabletAyarlariIstemci
+            ayarlar={ayarlar}
+            klinik={klinik ?? { ad: "Klinik", logo_url: null, logo_url_koyu: null, marka_renkleri: null }}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">
             Bu ayarları yalnızca klinik yöneticisi düzenleyebilir.

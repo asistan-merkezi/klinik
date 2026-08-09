@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import type { TabletAyarlari, TabletTemasi } from "@/types/tablet-ayarlari";
+import type { Klinik } from "@/types/klinik";
 import { TabletAyarlariFormu } from "./tablet-ayarlari-formu";
-import { TabletOnizleme } from "./tablet-onizleme";
+import { TabletTasarimOrnekleri } from "./tablet-tasarim-ornekleri";
 
 export function TabletAyarlariIstemci({
   ayarlar,
-  logoUrl,
+  klinik,
 }: {
   ayarlar: TabletAyarlari;
-  logoUrl: string | null;
+  klinik: Klinik;
 }) {
   const [durumlar, setDurumlar] = useState<TabletAyarlari>(ayarlar);
 
@@ -30,7 +31,7 @@ export function TabletAyarlariIstemci({
         onTemaDegisiklik={temaDegistir}
       />
       <div className="lg:sticky lg:top-8">
-        <TabletOnizleme {...durumlar} logoUrl={logoUrl} />
+        <TabletTasarimOrnekleri klinik={klinik} />
       </div>
     </div>
   );
