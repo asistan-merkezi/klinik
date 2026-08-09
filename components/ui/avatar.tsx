@@ -13,7 +13,7 @@ export function Avatar({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full font-semibold",
+        "flex shrink-0 items-center justify-center rounded-full border border-border/70 font-semibold",
         size === "sm" ? "size-9 text-xs" : "size-11 text-sm",
         renkUret(name),
         className

@@ -29,7 +29,7 @@ export function HastaSatiri({ hasta, gecikme }: { hasta: HastaSatir; gecikme?: n
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {hasta.kvkk_onay_tarihi ? (
-            <StatusBadge tone="emerald">
+            <StatusBadge tone="emerald" className="border border-emerald-500/30">
               <CheckCircle2 className="size-3.5" aria-hidden />
               KVKK onaylı · {new Date(hasta.kvkk_onay_tarihi).toLocaleDateString("tr-TR")}
             </StatusBadge>
@@ -38,7 +38,7 @@ export function HastaSatiri({ hasta, gecikme }: { hasta: HastaSatir; gecikme?: n
               type="button"
               size="sm"
               variant="outline"
-              className="h-11 w-fit"
+              className="h-11 w-fit border-border bg-background hover:bg-muted"
               disabled={kvkkPending}
               onClick={(e) => {
                 e.stopPropagation();

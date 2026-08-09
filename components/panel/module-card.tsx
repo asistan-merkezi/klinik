@@ -22,7 +22,7 @@ type ModuleCardProps = {
 };
 
 const KART_SINIFI =
-  "group flex h-full min-h-28 flex-col items-start gap-2 rounded-2xl border p-4 text-left backdrop-blur-md transition-all hover:border-primary/40 hover:bg-card active:scale-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "group flex h-full min-h-28 flex-col items-start gap-2 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 dark:border-white/10 dark:bg-card/70 dark:backdrop-blur-md";
 
 export function ModuleCard({
   icon: Icon,
@@ -40,7 +40,7 @@ export function ModuleCard({
 }: ModuleCardProps) {
   const sinif = cn(
     KART_SINIFI,
-    active ? "border-primary/60 bg-card shadow-[0_0_0_1px_rgba(0,242,254,0.35),0_4px_20px_-4px_rgba(0,242,254,0.45)]" : "border-white/10 bg-card/70",
+    active && "border-primary/60 shadow-[0_0_0_1px_rgba(0,242,254,0.35),0_4px_20px_-4px_rgba(0,242,254,0.45)] dark:bg-card",
     className
   );
 

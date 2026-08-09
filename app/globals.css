@@ -60,7 +60,10 @@
      bağımsız (zaten hedef paletle örtüşüyordu, sadece küçük alfa
      düzeltmeleri aldı). */
   color-scheme: light;
-  --background: #F8FAFC;
+  /* 2026-08-09 kararı: kart/kutucuklar zeminden ayrışmıyordu (background ve
+     card neredeyse aynı tondaydı, border da çok açıktı) — background artık
+     belirgin gri, card saf beyaz, border net görünür (bkz. brand-ui talebi). */
+  --background: #F1F5F9;
   --foreground: #0F172A;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
@@ -73,15 +76,15 @@
   --primary: #2B7FD4;
   --primary-foreground: #FFFFFF;
   --primary-hover: #1E5A99;
-  --secondary: #F1F5F9;
+  --secondary: #E2E8F0;
   --secondary-foreground: #0F172A;
-  --muted: #F1F5F9;
+  --muted: #E2E8F0;
   --muted-foreground: #64748B;
   --accent: #E0F2FE;
   --accent-foreground: #0F172A;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #E2E8F0;
-  --input: #E2E8F0;
+  --border: #CBD5E1;
+  --input: #CBD5E1;
   --input-bg: #FFFFFF;
   --ring: #2B7FD4;
   --surface-2: #FFFFFF;
