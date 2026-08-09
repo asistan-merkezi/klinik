@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, TriangleAlert, Droplet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { KayitFormuPdfButonu } from "@/components/panel/kayit-formu-pdf-butonu";
@@ -66,11 +66,22 @@ function Onay({ etiket, aciklama }: { etiket: string; aciklama?: string }) {
   );
 }
 
-function EvetHayirSatiri({ etiket, aciklamaEtiketi }: { etiket: string; aciklamaEtiketi?: string }) {
+function EvetHayirSatiri({
+  etiket,
+  aciklamaEtiketi,
+  ikon,
+}: {
+  etiket: string;
+  aciklamaEtiketi?: string;
+  ikon?: React.ReactNode;
+}) {
   return (
     <div className="flex w-full flex-col gap-2 pb-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm">{etiket}</span>
+        <span className="flex items-center gap-1.5 text-sm">
+          {ikon}
+          {etiket}
+        </span>
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1">
             <span className="size-3.5 shrink-0 border border-black/60" /> Evet
@@ -169,8 +180,16 @@ export default async function KayitFormuSayfasi() {
         {/* Sayfa 2: Tıbbi Ön Geçmiş */}
         <Sayfa>
           <Bolum baslik="Tıbbi Ön Geçmiş" tekSutun>
-            <EvetHayirSatiri etiket="⚠ Alerji Durumu" aciklamaEtiketi="İlaç, lateks, lokal/genel anestezi, gıda vb. detaylar" />
-            <EvetHayirSatiri etiket="🩸 Kan Sulandırıcı Kullanımı" aciklamaEtiketi="İlaç adı, dozu ve en son ne zaman alındığı" />
+            <EvetHayirSatiri
+              etiket="Alerji Durumu"
+              aciklamaEtiketi="İlaç, lateks, lokal/genel anestezi, gıda vb. detaylar"
+              ikon={<TriangleAlert className="size-4 shrink-0" />}
+            />
+            <EvetHayirSatiri
+              etiket="Kan Sulandırıcı Kullanımı"
+              aciklamaEtiketi="İlaç adı, dozu ve en son ne zaman alındığı"
+              ikon={<Droplet className="size-4 shrink-0" />}
+            />
             <EvetHayirSatiri etiket="Kronik Hastalıklar" aciklamaEtiketi="Hipertansiyon, diyabet, kalp, astım vb. detayı" />
             <EvetHayirSatiri etiket="Sürekli Kullanılan İlaçlar" aciklamaEtiketi="Düzenli alınan tüm ilaçların adları" />
             <EvetHayirSatiri etiket="Geçirilmiş Ameliyatlar" aciklamaEtiketi="Ameliyat türü ve yılları" />

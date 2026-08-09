@@ -100,11 +100,35 @@ function onay(etiket: string, aciklama?: string): string {
   </div>`;
 }
 
-function evetHayirSatiri(etiket: string, aciklamaEtiketi?: string): string {
+type IkonTuru = "uyari" | "damla";
+
+/**
+ * Emoji (⚠ 🩸) yerine — @sparticuz/chromium'un Lambda ortamında emoji
+ * font'u yok (sistem fontu minimal), glyph bulunamayıp boş kutu basıyordu.
+ * Font gömmek (Noto Color Emoji ~10MB) bundle'ı şişirir ve siyah-beyaz
+ * baskıda renkli emoji zaten anlamsız — onun yerine lucide-react'in
+ * TriangleAlert/Droplet path verisiyle birebir aynı, inline (harici
+ * referans yok) SVG gömülüyor; `stroke="currentColor"` ile çevresindeki
+ * metin rengini takip ediyor.
+ */
+function svgIkon(tur: IkonTuru): string {
+  const yol: Record<IkonTuru, string> = {
+    uyari:
+      '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    damla:
+      '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+  };
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="${css({ flexShrink: 0, verticalAlign: "middle" })}">${yol[tur]}</svg>`;
+}
+
+function evetHayirSatiri(etiket: string, aciklamaEtiketi?: string, ikon?: IkonTuru): string {
   const kutuStil = css({ width: "12px", height: "12px", border: `1px solid ${renk.kutuCizgi}`, flexShrink: 0 });
+  const etiketIcerik = ikon
+    ? `<span style="${css({ display: "flex", alignItems: "center", gap: "6px" })}">${svgIkon(ikon)}${kacir(etiket)}</span>`
+    : kacir(etiket);
   return `<div style="${css({ display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "12px", breakInside: "avoid" })}">
     <div style="${css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" })}">
-      <span style="${css({ fontSize: "12.5px" })}">${kacir(etiket)}</span>
+      <span style="${css({ fontSize: "12.5px" })}">${etiketIcerik}</span>
       <div style="${css({ display: "flex", alignItems: "center", gap: "16px", fontSize: "10.5px" })}">
         <span style="${css({ display: "flex", alignItems: "center", gap: "4px" })}"><span style="${kutuStil}"></span> Evet</span>
         <span style="${css({ display: "flex", alignItems: "center", gap: "4px" })}"><span style="${kutuStil}"></span> Hayır</span>
@@ -122,9 +146,9 @@ function sayfa(govde: string, sonSayfa: boolean): string {
   return `<div class="sayfa" style="${disStil}">${govde}</div>`;
 }
 
-const TIBBI_GECMIS_SATIRLARI: { etiket: string; aciklamaEtiketi: string }[] = [
-  { etiket: "⚠ Alerji Durumu", aciklamaEtiketi: "İlaç, lateks, lokal/genel anestezi, gıda vb. detaylar" },
-  { etiket: "🩸 Kan Sulandırıcı Kullanımı", aciklamaEtiketi: "İlaç adı, dozu ve en son ne zaman alındığı" },
+const TIBBI_GECMIS_SATIRLARI: { etiket: string; aciklamaEtiketi: string; ikon?: IkonTuru }[] = [
+  { etiket: "Alerji Durumu", aciklamaEtiketi: "İlaç, lateks, lokal/genel anestezi, gıda vb. detaylar", ikon: "uyari" },
+  { etiket: "Kan Sulandırıcı Kullanımı", aciklamaEtiketi: "İlaç adı, dozu ve en son ne zaman alındığı", ikon: "damla" },
   { etiket: "Kronik Hastalıklar", aciklamaEtiketi: "Hipertansiyon, diyabet, kalp, astım vb. detayı" },
   { etiket: "Sürekli Kullanılan İlaçlar", aciklamaEtiketi: "Düzenli alınan tüm ilaçların adları" },
   { etiket: "Geçirilmiş Ameliyatlar", aciklamaEtiketi: "Ameliyat türü ve yılları" },
@@ -181,7 +205,7 @@ export function kayitFormuIcerikHtml({
   const sayfa2 = sayfa(
     bolum(
       "Tıbbi Ön Geçmiş",
-      TIBBI_GECMIS_SATIRLARI.map((s) => evetHayirSatiri(s.etiket, s.aciklamaEtiketi)).join(""),
+      TIBBI_GECMIS_SATIRLARI.map((s) => evetHayirSatiri(s.etiket, s.aciklamaEtiketi, s.ikon)).join(""),
       { ilk: true, tekSutun: true }
     ),
     false
