@@ -27,7 +27,7 @@ export function TabletOnizleme({
       </span>
       <div
         className={cn(
-          tema === "koyu" && "dark",
+          tema === "koyu" ? "dark" : "light",
           "overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-sm"
         )}
       >

@@ -147,6 +147,49 @@
   --sidebar-ring: #00f2fe;
 }
 
+/* :root'taki açık tema değerleriyle birebir aynı — ama koyu temalı bir üst
+   elemanın (ör. panel varsayılan .dark'ı) içine gömülü küçük bir alanı
+   (tablet tema önizlemesi gibi) zorla açık göstermek için kullanılır. Sadece
+   .dark class'ını KALDIRMAK yetmez, çünkü CSS custom property'leri üst
+   elemandan miras kalmaya devam eder — burada değerler yeniden tanımlanmalı. */
+.light {
+  color-scheme: light;
+  --background: #F1F5F9;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #2B7FD4;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #1E5A99;
+  --secondary: #E2E8F0;
+  --secondary-foreground: #0F172A;
+  --muted: #E2E8F0;
+  --muted-foreground: #64748B;
+  --accent: #E0F2FE;
+  --accent-foreground: #0F172A;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #CBD5E1;
+  --input: #CBD5E1;
+  --input-bg: #FFFFFF;
+  --ring: #2B7FD4;
+  --surface-2: #FFFFFF;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #2B7FD4;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #2B7FD4;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

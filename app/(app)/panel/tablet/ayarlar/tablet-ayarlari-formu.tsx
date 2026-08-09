@@ -68,7 +68,7 @@ export function TabletAyarlariFormu({
                   />
                   <div
                     className={cn(
-                      secenek.deger === "koyu" && "dark",
+                      secenek.deger === "koyu" ? "dark" : "light",
                       "flex h-14 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background"
                     )}
                   >
