@@ -21,11 +21,6 @@ const SECENEKLER: {
     etiket: "Oda Durumu Renk Kodu",
     aciklama: "Kırmızı: Meşgul, Yeşil: Müsait",
   },
-  {
-    anahtar: "soyad_maskele",
-    etiket: "Soyadı Maskele (KVKK)",
-    aciklama: "Örn: Ahmet Y.",
-  },
 ];
 
 const TEMA_SECENEKLERI: { deger: TabletTemasi; etiket: string }[] = [

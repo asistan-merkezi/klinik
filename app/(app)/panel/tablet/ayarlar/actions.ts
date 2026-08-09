@@ -35,7 +35,6 @@ const tabletAyarlariSemasi = z.object({
   terapist_adi_goster: z.boolean(),
   islem_adi_goster: z.boolean(),
   durum_rengi_goster: z.boolean(),
-  soyad_maskele: z.boolean(),
   tema: z.enum(["acik", "koyu"]),
 });
 
@@ -53,7 +52,6 @@ export async function tabletAyarlariGuncelle(
     terapist_adi_goster: formData.get("terapist_adi_goster") === "on",
     islem_adi_goster: formData.get("islem_adi_goster") === "on",
     durum_rengi_goster: formData.get("durum_rengi_goster") === "on",
-    soyad_maskele: formData.get("soyad_maskele") === "on",
     tema: formData.get("tema"),
   });
 

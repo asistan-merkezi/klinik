@@ -135,9 +135,10 @@ export function TabletEkrani({
   const renk = ayarlar.durum_rengi_goster ? durumBilgisi.renk : NOTR_RENK;
   const auraOpacity = ayarlar.durum_rengi_goster ? durumBilgisi.auraOpacity : 0;
 
+  // KVKK: soyad her zaman maskelenir (opsiyonel değil, bkz. kullanıcı kararı).
   function hastaAdiGoster(adSoyad: string | undefined | null) {
     if (!adSoyad) return "—";
-    return ayarlar.soyad_maskele ? adSoyadMaskele(adSoyad) : adSoyad;
+    return adSoyadMaskele(adSoyad);
   }
 
   // "mesgul" ise mevcut, "hazirlaniyor" ise sonraki — ikisinde de merkez blok
