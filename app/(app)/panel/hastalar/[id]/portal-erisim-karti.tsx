@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { QrKart } from "@/components/panel/qr-kart";
 import { whatsappLinkOlustur } from "@/lib/utils";
 import { portalErisimiAc, portalSifreSifirla, portalErisimDurumDegistir } from "./actions";
 
@@ -127,6 +129,18 @@ export function PortalErisimKarti({
         <p className="text-xs text-muted-foreground">
           Hasta <span className="font-mono">/portal/giris</span> adresinden telefon numarası + şifreyle giriş yapar.
         </p>
+      )}
+
+      {durum.var && durum.aktif && (
+        <div className="max-w-xs">
+          <QrKart
+            icon={<QrCode className="size-5 text-primary" aria-hidden />}
+            baslik="Portal Giriş QR'ı"
+            aciklama="Hasta bu kodu kendi telefonuyla okutunca giriş ekranına gider, telefon numarası önceden dolu gelir (şifreyi yine kendisi girer). Basılı kart olarak verilebilir veya WhatsApp'tan gönderilebilir."
+            yol={`/portal/giris?telefon=${encodeURIComponent(telefon)}`}
+            dosyaAdi="portal-giris-qr"
+          />
+        </div>
       )}
     </div>
   );

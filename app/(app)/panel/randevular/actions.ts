@@ -20,6 +20,9 @@ const randevuSemasi = z.object({
   tarih: z.string().min(1, "Tarih gerekli."),
   saat: z.string().min(1, "Saat gerekli."),
   sure_dakika: z.coerce.number().int().min(5, "Süre en az 5 dakika olmalı.").max(480, "Süre en fazla 480 dakika olabilir."),
+  /** Doluysa (Bekleyen Randevu Talepleri'nden açılan formda) randevu başarıyla
+   *  oluşunca ilgili randevu_talebi satırı da onaylanmış olarak işaretlenir. */
+  talep_id: z.union([z.string().uuid(), z.literal("")]).optional(),
 });
 
 /**
@@ -66,13 +69,15 @@ export async function randevuOlustur(
     tarih: formData.get("tarih"),
     saat: formData.get("saat"),
     sure_dakika: formData.get("sure_dakika"),
+    talep_id: formData.get("talep_id") ?? "",
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
+  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika, talep_id } =
+    ayristirma.data;
 
   let baslangicIso: string;
   try {
@@ -82,17 +87,21 @@ export async function randevuOlustur(
   }
   const bitisIso = new Date(new Date(baslangicIso).getTime() + sure_dakika * 60_000).toISOString();
 
-  const { error } = await supabase.from("randevu").insert({
-    klinik_id: kullanici.klinik_id,
-    hasta_id,
-    terapist_id,
-    oda_id,
-    islem_tanimi_id,
-    cihaz_id: cihaz_id ? cihaz_id : null,
-    baslangic: baslangicIso,
-    bitis: bitisIso,
-    olusturan_kullanici_id: user.id,
-  });
+  const { data: yeniRandevu, error } = await supabase
+    .from("randevu")
+    .insert({
+      klinik_id: kullanici.klinik_id,
+      hasta_id,
+      terapist_id,
+      oda_id,
+      islem_tanimi_id,
+      cihaz_id: cihaz_id ? cihaz_id : null,
+      baslangic: baslangicIso,
+      bitis: bitisIso,
+      olusturan_kullanici_id: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     console.error("Randevu oluşturulamadı:", error);
@@ -105,10 +114,50 @@ export async function randevuOlustur(
     return { success: false, message: "Randevu oluşturulamadı, lütfen tekrar deneyin." };
   }
 
+  if (talep_id) {
+    const { error: talepHata } = await supabase
+      .from("randevu_talebi")
+      .update({
+        durum: "onaylandi",
+        olusturulan_randevu_id: yeniRandevu.id,
+        yanit_kullanici_id: user.id,
+        yanit_tarihi: new Date().toISOString(),
+      })
+      .eq("id", talep_id);
+    if (talepHata) {
+      console.error("Randevu talebi güncellenemedi (randevu yine de oluşturuldu):", talepHata);
+    }
+  }
+
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   revalidateHastaDetay(hasta_id);
   return { success: true, message: "Randevu oluşturuldu." };
+}
+
+/** Bekleyen Randevu Talepleri kartındaki "Reddet" — iptalTalebiReddet ile aynı iskelet. */
+export async function randevuTalebiReddet(talepId: string): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { error } = await supabase
+    .from("randevu_talebi")
+    .update({ durum: "reddedildi", yanit_kullanici_id: user.id, yanit_tarihi: new Date().toISOString() })
+    .eq("id", talepId);
+
+  if (error) {
+    console.error("Randevu talebi reddedilemedi:", error);
+    return { success: false, message: "İşlem başarısız, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  return { success: true, message: "Randevu talebi reddedildi." };
 }
 
 export async function randevuGuncelle(

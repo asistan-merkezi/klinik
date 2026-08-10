@@ -231,3 +231,52 @@ export async function iptalTalebiOlustur(randevuId: string): Promise<SonucDurumu
   revalidatePath("/portal");
   return { success: true, message: "İptal talebiniz gönderildi, kliniğinizin onayı bekleniyor." };
 }
+
+const randevuTalebiSemasi = z.object({
+  islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
+  tercih_tarih: z.string().min(1, "Tarih gerekli."),
+  tercih_saat: z.string().optional(),
+  not_metni: z.string().trim().optional(),
+});
+
+/**
+ * Hasta portaldan yeni bir randevu TALEP eder (mevcut iptalTalebiOlustur ile
+ * aynı "talep + resepsiyon onayı" modeli) — kesin randevu değil, resepsiyon
+ * panelden ("Bekleyen Randevu Talepleri") uygun terapist/oda atayarak gerçek
+ * randevuyu oluşturur.
+ */
+export async function randevuTalebiOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, hastaId } = await hastaIdGetir();
+  if (!hastaId) {
+    return { success: false, message: "Hasta bilgisi bulunamadı." };
+  }
+
+  const ayristirma = randevuTalebiSemasi.safeParse({
+    islem_tanimi_id: formData.get("islem_tanimi_id"),
+    tercih_tarih: formData.get("tercih_tarih"),
+    tercih_saat: formData.get("tercih_saat") ?? "",
+    not_metni: formData.get("not_metni") ?? "",
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { islem_tanimi_id, tercih_tarih, tercih_saat, not_metni } = ayristirma.data;
+
+  const { error } = await supabase.from("randevu_talebi").insert({
+    hasta_id: hastaId,
+    islem_tanimi_id,
+    tercih_tarih,
+    tercih_saat: tercih_saat ? tercih_saat : null,
+    not_metni: not_metni ? not_metni : null,
+  });
+
+  if (error) {
+    console.error("Randevu talebi oluşturulamadı:", error);
+    return { success: false, message: "Randevu talebi gönderilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/portal");
+  return { success: true, message: "Randevu talebiniz gönderildi, kliniğiniz en kısa sürede sizinle iletişime geçecek." };
+}

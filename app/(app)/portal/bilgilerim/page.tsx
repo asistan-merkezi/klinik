@@ -34,7 +34,7 @@ export default async function PortalBilgilerimSayfasi() {
     supabase
       .from("hasta")
       .select(
-        "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi"
+        "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi, updated_at, son_guncelleyen_tip"
       )
       .eq("id", hastaId)
       .single<HastaDetay>(),

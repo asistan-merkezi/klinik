@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
-import type { BekleyenIptalTalebiSatir } from "@/types/portal";
+import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { YeniRandevuDialog } from "./yeni-randevu-dialog";
 import { PeriyodikRandevuDialog } from "./periyodik-randevu-dialog";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
+import { BekleyenRandevuTalepleri } from "./bekleyen-randevu-talepleri";
 
 export default async function RandevularSayfasi() {
   const supabase = await createClient();
@@ -52,6 +53,7 @@ export default async function RandevularSayfasi() {
     personelSonucu,
     protokolSonucu,
     iptalTalepleriSonucu,
+    randevuTalepleriSonucu,
   ] = await Promise.all([
       supabase
         .from("randevu")
@@ -78,10 +80,17 @@ export default async function RandevularSayfasi() {
         .eq("durum", "bekliyor")
         .order("created_at")
         .returns<BekleyenIptalTalebiSatir[]>(),
+      supabase
+        .from("randevu_talebi")
+        .select("id, hasta_id, islem_tanimi_id, tercih_tarih, tercih_saat, not_metni, created_at, hasta(ad_soyad), islem_tanimi(ad)")
+        .eq("durum", "bekliyor")
+        .order("created_at")
+        .returns<BekleyenRandevuTalebiSatir[]>(),
     ]);
 
   const randevular = randevularSonucu.data ?? [];
   const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
+  const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
   const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({
     id: m.id,
     ad: m.ad_soyad,
@@ -130,6 +139,24 @@ export default async function RandevularSayfasi() {
             </CardHeader>
             <CardContent>
               <BekleyenIptalTalepleri talepler={bekleyenIptalTalepleri} />
+            </CardContent>
+          </Card>
+        )}
+
+        {bekleyenRandevuTalepleri.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Bekleyen Randevu Talepleri</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BekleyenRandevuTalepleri
+                talepler={bekleyenRandevuTalepleri}
+                hastalar={hastalar}
+                terapistler={terapistler}
+                odalar={odalar}
+                cihazlar={cihazlar}
+                tedaviler={tedaviler}
+              />
             </CardContent>
           </Card>
         )}

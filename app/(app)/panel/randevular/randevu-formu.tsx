@@ -27,6 +27,13 @@ type Props = {
   onBasarili?: () => void;
   /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
   sabitHasta?: { id: string; ad: string };
+  /**
+   * Bekleyen Randevu Talepleri'nden "Randevu Oluştur" ile açılınca dolar —
+   * hasta/tedavi/tarih/saat hastanın talebiyle önceden doldurulur, gizli bir
+   * talep_id input'u eklenir (randevuOlustur başarılı olunca ilgili
+   * randevu_talebi satırını da onaylanmış olarak işaretler).
+   */
+  talep?: { id: string; hastaId: string; hastaAd: string; islemTanimiId: string; tarih: string; saat?: string };
 };
 
 export function RandevuFormu({
@@ -37,7 +44,9 @@ export function RandevuFormu({
   tedaviler,
   onBasarili,
   sabitHasta,
+  talep,
 }: Props) {
+  const efektifSabitHasta = sabitHasta ?? (talep ? { id: talep.hastaId, ad: talep.hastaAd } : undefined);
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
 
@@ -54,20 +63,23 @@ export function RandevuFormu({
 
   const searchParams = useSearchParams();
   const bugun = formatDateForInput(new Date().toISOString());
-  // Günün Çizelgesi'nde boş alana tıklanınca oda/tarih/saat buradan gelir.
+  // Günün Çizelgesi'nde boş alana tıklanınca oda/tarih/saat buradan gelir;
+  // talep prop'u varsa (Bekleyen Randevu Talepleri'nden açılan form) hastanın
+  // tercihi öncelikli.
   const onOdaId = searchParams.get("oda_id") ?? undefined;
-  const onTarih = searchParams.get("tarih") ?? bugun;
-  const onSaat = searchParams.get("saat") ?? undefined;
+  const onTarih = talep?.tarih ?? searchParams.get("tarih") ?? bugun;
+  const onSaat = talep?.saat ?? searchParams.get("saat") ?? undefined;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {talep && <input type="hidden" name="talep_id" value={talep.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="hasta_arama">Hasta</Label>
-          {sabitHasta ? (
+          {efektifSabitHasta ? (
             <>
-              <Input value={sabitHasta.ad} disabled readOnly />
-              <input type="hidden" name="hasta_id" value={sabitHasta.id} />
+              <Input value={efektifSabitHasta.ad} disabled readOnly />
+              <input type="hidden" name="hasta_id" value={efektifSabitHasta.id} />
             </>
           ) : (
             <HastaArama id="hasta_arama" hastalar={hastalar} required disabled={isPending} />
@@ -123,6 +135,7 @@ export function RandevuFormu({
             name="islem_tanimi_id"
             required
             disabled={isPending}
+            defaultValue={talep?.islemTanimiId}
             items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="islem_tanimi_id" className="w-full">

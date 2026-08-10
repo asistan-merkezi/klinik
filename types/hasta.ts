@@ -28,4 +28,7 @@ export type HastaDetay = HastaSatir & {
   ozel_nitelikli_onaylayan: { ad_soyad: string } | null;
   ticari_ileti_onaylayan_tip: OnaylayanTip | null;
   ticari_ileti_onaylayan: { ad_soyad: string } | null;
+  /** Sadece bu iki alanı seçen sorgularda dolu gelir (bkz. Portal Bilgilerim). */
+  updated_at?: string;
+  son_guncelleyen_tip?: OnaylayanTip | null;
 };

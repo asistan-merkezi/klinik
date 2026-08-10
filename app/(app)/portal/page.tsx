@@ -7,9 +7,15 @@ import { formatDate, formatDateTime } from "@/lib/datetime";
 import { telefonGoster } from "@/lib/utils";
 import type { PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
-import type { PortalRandevuSatir } from "@/types/portal";
+import type { PortalRandevuSatir, PortalRandevuTalebiSatir } from "@/types/portal";
 import { portalCikisYap } from "./actions";
 import { IptalTalepButonu } from "./iptal-talep-butonu";
+
+const TALEP_DURUM_ETIKET: Record<PortalRandevuTalebiSatir["durum"], string> = {
+  bekliyor: "İnceleniyor",
+  onaylandi: "Onaylandı",
+  reddedildi: "Reddedildi",
+};
 
 const DURUM_ETIKET: Record<PortalRandevuSatir["durum"], string> = {
   planlandi: "Planlandı",
@@ -45,7 +51,7 @@ export default async function PortalSayfasi() {
   const hastaId = mk.hasta_id;
   const simdi = new Date().toISOString();
 
-  const [hastaSonucu, yaklasanSonucu, gecmisSonucu, paketSonucu, odemeSonucu] = await Promise.all([
+  const [hastaSonucu, yaklasanSonucu, gecmisSonucu, paketSonucu, odemeSonucu, randevuTalepleriSonucu] = await Promise.all([
     supabase.from("hasta").select("ad_soyad, telefon").eq("id", hastaId).single(),
     supabase
       .from("randevu")
@@ -82,6 +88,13 @@ export default async function PortalSayfasi() {
       .order("created_at", { ascending: false })
       .limit(20)
       .returns<OdemeGecmisSatir[]>(),
+    supabase
+      .from("randevu_talebi")
+      .select("id, islem_tanimi(ad), tercih_tarih, tercih_saat, not_metni, durum, created_at")
+      .eq("hasta_id", hastaId)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .returns<PortalRandevuTalebiSatir[]>(),
   ]);
 
   const hasta = hastaSonucu.data;
@@ -89,6 +102,7 @@ export default async function PortalSayfasi() {
   const gecmisRandevular = gecmisSonucu.data ?? [];
   const aktifPaketler = paketSonucu.data ?? [];
   const odemeGecmisi = odemeSonucu.data ?? [];
+  const randevuTalepleri = randevuTalepleriSonucu.data ?? [];
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -99,6 +113,7 @@ export default async function PortalSayfasi() {
             <p className="text-sm text-muted-foreground">{telefonGoster(hasta?.telefon)}</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button nativeButton={false} render={<Link href="/portal/randevu-talep">Randevu Talep Et</Link>} />
             <Button variant="outline" nativeButton={false} render={<Link href="/portal/bilgilerim">Bilgilerim</Link>} />
             <form action={portalCikisYap}>
               <Button type="submit" variant="outline">
@@ -171,6 +186,31 @@ export default async function PortalSayfasi() {
             )}
           </CardContent>
         </Card>
+
+        {randevuTalepleri.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Randevu Taleplerim</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="flex flex-col divide-y divide-border">
+                {randevuTalepleri.map((t) => (
+                  <li key={t.id} className="flex flex-col gap-1 py-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{t.islem_tanimi?.ad ?? "—"}</span>
+                      <span className="text-muted-foreground">{TALEP_DURUM_ETIKET[t.durum]}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Tercih: {formatDate(t.tercih_tarih)}
+                      {t.tercih_saat ? ` · ${t.tercih_saat.slice(0, 5)}` : ""}
+                    </span>
+                    {t.not_metni && <span className="text-xs text-muted-foreground">Not: {t.not_metni}</span>}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

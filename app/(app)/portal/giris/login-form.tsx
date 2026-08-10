@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { portalGirisYap } from "./actions";
 
-export function PortalLoginForm() {
+export function PortalLoginForm({ defaultTelefon }: { defaultTelefon?: string }) {
   const [durum, formAction, isPending] = useActionState(portalGirisYap, null);
 
   return (
@@ -18,6 +18,7 @@ export function PortalLoginForm() {
           name="telefon"
           type="tel"
           autoComplete="tel"
+          defaultValue={defaultTelefon}
           required
           disabled={isPending}
         />

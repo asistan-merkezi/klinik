@@ -40,6 +40,21 @@ export function BilgilerFormu({
   const [durum, formAction, isPending] = useActionState(bilgileriGuncelle, null);
   const saglikRizaVarMi = Boolean(hasta.ozel_nitelikli_veri_onay_tarihi);
 
+  // hasta ve hasta_hassas AYNI submit'te birlikte güncelleniyor (bkz.
+  // bilgileriGuncelle) — ikisinden hangisinin updated_at'i daha yeniyse onun
+  // son_guncelleyen_tip'i gösteriliyor. Personel adı/ID'si BİLİNÇLİ OLARAK
+  // gösterilmiyor (panelin staff-facing footer'ının aksine, hastaya başka
+  // bir çalışanın kimliğini göstermek gereksiz/uygunsuz) — sadece "siz mi
+  // klinik mi değiştirdi" ayrımı yapılıyor.
+  const hastaZaman = hasta.updated_at ? new Date(hasta.updated_at).getTime() : 0;
+  const hassasZaman = hassas?.updated_at ? new Date(hassas.updated_at).getTime() : 0;
+  const sonDegisiklik =
+    hastaZaman === 0 && hassasZaman === 0
+      ? null
+      : hastaZaman >= hassasZaman
+        ? { zaman: hasta.updated_at!, tip: hasta.son_guncelleyen_tip }
+        : { zaman: hassas!.updated_at, tip: hassas!.son_guncelleyen_tip };
+
   return (
     <form
       action={formAction}
@@ -279,6 +294,13 @@ export function BilgilerFormu({
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Bilgilerimi kaydet"}
       </Button>
+
+      {sonDegisiklik && (
+        <p className="text-xs text-muted-foreground">
+          Son değişiklik: {new Date(sonDegisiklik.zaman).toLocaleString("tr-TR")} —{" "}
+          {sonDegisiklik.tip === "hasta" ? "Siz" : "Klinik personeli"}
+        </p>
+      )}
     </form>
   );
 }
