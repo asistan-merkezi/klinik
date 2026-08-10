@@ -12,6 +12,16 @@ export type HastaSatir = {
   whatsapp_izin_durumu: boolean;
 };
 
+// Hastalar listesi (/panel/hastalar) satırı — cari borç noktası ve eksik
+// bilgi rozeti için HastaSatir'in üstüne eklenen alanlar. `bakiye` hasta
+// tablosundan değil ayrı bir v_hasta_ozet sorgusundan gelip sayfada
+// birleştiriliyor (view'ın kendi FK ilişkisi olmadığı için embed edilemiyor).
+export type HastaListeSatiri = HastaSatir & {
+  eposta: string | null;
+  hasta_hassas: { adres: string | null } | null;
+  bakiye: number;
+};
+
 export type OnaylayanTip = "hasta" | "personel";
 
 export type HastaDetay = HastaSatir & {

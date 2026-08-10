@@ -4,7 +4,7 @@ import { FileText, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { HastaSatir } from "@/types/hasta";
+import type { HastaListeSatiri } from "@/types/hasta";
 import { YeniHastaDialog } from "./yeni-hasta-dialog";
 import { HastaSatiri } from "./hasta-satiri";
 import { HastaAramaKutusu } from "./hasta-arama-kutusu";
@@ -29,7 +29,9 @@ export default async function HastalarSayfasi({
 
   let sorgu = supabase
     .from("hasta")
-    .select("id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu")
+    .select(
+      "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, eposta, hasta_hassas(adres)"
+    )
     .order("ad_soyad")
     .limit(50);
 
@@ -38,8 +40,20 @@ export default async function HastalarSayfasi({
     sorgu = sorgu.or(`ad_soyad.ilike.%${guvenliArama}%,telefon.ilike.%${guvenliArama}%`);
   }
 
-  const { data, error } = await sorgu.returns<HastaSatir[]>();
-  const hastalar = data ?? [];
+  const { data, error } = await sorgu.returns<Omit<HastaListeSatiri, "bakiye">[]>();
+  const hastalarHam = data ?? [];
+
+  const hastaIdler = hastalarHam.map((h) => h.id);
+  const { data: bakiyeVerisi } =
+    hastaIdler.length > 0
+      ? await supabase.from("v_hasta_ozet").select("hasta_id, bakiye").in("hasta_id", hastaIdler)
+      : { data: [] as { hasta_id: string; bakiye: number }[] };
+  const bakiyeMap = new Map((bakiyeVerisi ?? []).map((b) => [b.hasta_id, b.bakiye]));
+
+  const hastalar: HastaListeSatiri[] = hastalarHam.map((h) => ({
+    ...h,
+    bakiye: bakiyeMap.get(h.id) ?? 0,
+  }));
 
   return (
     <div className="flex-1 bg-background">
