@@ -1,16 +1,13 @@
 import { Wallet, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
+import { BAKIYE_HAREKET_ETIKETLERI, type HastaBakiyeHareket } from "@/types/hasta-detay";
 import type { PaketSatisSatir } from "@/types/odeme";
-import {
-  BAKIYE_HAREKET_ETIKETLERI,
-  type BakiyeHareketTuru,
-  type HastaBakiyeHareket,
-} from "@/types/hasta-detay";
 import type { HastaKategori } from "@/types/hasta";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
+import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
 import { BakiyeHareketiEkleButonu } from "../bakiye-hareketi-formu";
+import { BakiyeHareketSatiri } from "../bakiye-hareket-satiri";
 
 const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
   vita: "Vita",
@@ -18,15 +15,6 @@ const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
   elit: "Elit",
   prime: "Prime",
 };
-
-const BAKIYE_HAREKET_TONLARI: Record<BakiyeHareketTuru, StatusTone> = {
-  odeme: "emerald",
-  kredi: "emerald",
-  iade: "sky",
-  borc: "rose",
-};
-
-const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
 function kategoriYuzdesi(kategori: HastaKategori, oranlar: IskontoOranlariYuzde | null): number {
   if (kategori === "vita") return 0;
@@ -96,6 +84,7 @@ export function CariOdemeSekmesi({
   duzenlenebilir,
   aktifPaketler,
   bakiyeHareketleri,
+  faturaBilgisi,
 }: {
   hastaId: string;
   hastaKategori: HastaKategori;
@@ -104,6 +93,7 @@ export function CariOdemeSekmesi({
   duzenlenebilir: boolean;
   aktifPaketler: PaketSatisSatir[];
   bakiyeHareketleri: HastaBakiyeHareket[];
+  faturaBilgisi: FaturaBilgisiKontrol;
 }) {
   const kategoriPct = kategoriYuzdesi(hastaKategori, iskontoOranlari);
   const hareketGorunumleri = hareketleriGorunumeCevir(bakiyeHareketleri, guncelBakiye);
@@ -135,64 +125,22 @@ export function CariOdemeSekmesi({
                 </thead>
                 <tbody>
                   {hareketGorunumleri.map(
-                    ({ hareket: h, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, bakiyeSonrasi }) => {
-                      const tarih = new Date(h.created_at);
-                      const tonu = BAKIYE_HAREKET_TONLARI[h.tur];
-                      const isaret = h.tur === "borc" ? "-" : "+";
-
-                      return (
-                        <tr key={h.id} className="border-b border-border last:border-b-0 align-top">
-                          <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                            {tarih.toLocaleDateString("tr-TR")}
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                            {tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex flex-col gap-1">
-                              <span className="font-medium">{islemAdi}</span>
-                              <StatusBadge tone={tonu} className="w-fit">
-                                {BAKIYE_HAREKET_ETIKETLERI[h.tur]}
-                              </StatusBadge>
-                              {h.aciklama && (
-                                <span className="text-xs text-muted-foreground">{h.aciklama}</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">{terapistAdi ?? "—"}</td>
-                          <td
-                            className={`px-3 py-2 text-right tabular-nums font-medium ${
-                              h.tur === "borc" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
-                            }`}
-                          >
-                            {isaret}
-                            {paraFormat(h.tutar)}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            {kategoriIskontoTutari > 0 ? (
-                              <div className="flex flex-col items-end">
-                                <span>{paraFormat(kategoriIskontoTutari)}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {KATEGORI_ETIKETLERI[hastaKategori]} %{kategoriPct}
-                                </span>
-                              </div>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            {manuelIskontoTutari > 0 ? paraFormat(manuelIskontoTutari) : "—"}
-                          </td>
-                          <td
-                            className={`px-3 py-2 text-right tabular-nums font-medium ${
-                              bakiyeSonrasi < 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
-                            }`}
-                          >
-                            {paraFormat(bakiyeSonrasi)}
-                          </td>
-                        </tr>
-                      );
-                    }
+                    ({ hareket, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, bakiyeSonrasi }) => (
+                      <BakiyeHareketSatiri
+                        key={hareket.id}
+                        hastaId={hastaId}
+                        hareket={hareket}
+                        islemAdi={islemAdi}
+                        terapistAdi={terapistAdi}
+                        kategoriIskontoTutari={kategoriIskontoTutari}
+                        manuelIskontoTutari={manuelIskontoTutari}
+                        bakiyeSonrasi={bakiyeSonrasi}
+                        kategoriEtiketi={KATEGORI_ETIKETLERI[hastaKategori]}
+                        kategoriPct={kategoriPct}
+                        duzenlenebilir={duzenlenebilir}
+                        faturaBilgisi={faturaBilgisi}
+                      />
+                    )
                   )}
                 </tbody>
               </table>

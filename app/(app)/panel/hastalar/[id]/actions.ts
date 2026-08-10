@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
+import { FATURA_ALAN_ETIKETLERI } from "@/lib/fatura/eksik-bilgi";
 import { revalidateHastaDetay } from "./revalidate";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -193,7 +194,91 @@ export async function bakiyeHareketiEkle(
   }
 
   revalidateHastaDetay(hastaId);
-  return { success: true, message: "Bakiye hareketi eklendi." };
+  return { success: true, message: "Ödeme eklendi." };
+}
+
+const borcKapatSemasi = z.object({
+  hareket_id: z.string().uuid(),
+  iskonto_tutari: z.coerce.number().min(0, "İskonto 0'dan küçük olamaz."),
+  faturali: z.coerce.boolean().optional(),
+  yontem: z.enum(["kredi_karti", "banka_havalesi", "nakit"]),
+  aciklama: z.string().trim().optional(),
+});
+
+const BORC_KAPAT_HATA_MESAJLARI: Record<string, string> = {
+  yetkisiz: "Bu işlem için yetkiniz yok.",
+  hareket_bulunamadi: "Bakiye hareketi bulunamadı.",
+  gecersiz_hareket_turu: "Bu hareket bir borç kaydı değil.",
+  zaten_kapatilmis: "Bu borç zaten kapatılmış.",
+  iskonto_fazla: "İskonto tutarı borç tutarından büyük olamaz.",
+  gecersiz_odeme_tipi: "Geçersiz ödeme tipi.",
+};
+
+function borcKapatHatasiniCevir(mesaj: string | undefined) {
+  if (!mesaj) {
+    return "Borç kapatılamadı, lütfen tekrar deneyin.";
+  }
+  if (mesaj.includes("fatura_bilgisi_eksik")) {
+    const eksikKisim = mesaj.split(":")[1]?.trim() ?? "";
+    const eksikAlanlar = eksikKisim
+      .split(",")
+      .map((a) => FATURA_ALAN_ETIKETLERI[a.trim()] ?? a.trim())
+      .filter(Boolean);
+    return eksikAlanlar.length > 0
+      ? `Fatura için eksik bilgi: ${eksikAlanlar.join(", ")}.`
+      : "Fatura için hasta bilgileri eksik.";
+  }
+  for (const [anahtar, turkce] of Object.entries(BORC_KAPAT_HATA_MESAJLARI)) {
+    if (mesaj.includes(anahtar)) {
+      return turkce;
+    }
+  }
+  return "Borç kapatılamadı, lütfen tekrar deneyin.";
+}
+
+export async function borcKapat(
+  hastaId: string,
+  hareketId: string,
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const { supabase, klinikId, hasta, yetkisiz } = await yetkiliHastaVeKlinikGetir(hastaId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!hasta || !klinikId) {
+    return { success: false, message: "Hasta bulunamadı." };
+  }
+
+  const ayristirma = borcKapatSemasi.safeParse({
+    hareket_id: hareketId,
+    iskonto_tutari: formData.get("iskonto_tutari") || 0,
+    faturali: formData.get("faturali") === "on",
+    yontem: formData.get("yontem"),
+    aciklama: formData.get("aciklama") ?? "",
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { hareket_id, iskonto_tutari, faturali, yontem, aciklama } = ayristirma.data;
+
+  const { error } = await supabase.rpc("hasta_bakiye_hareket_borc_kapat", {
+    p_hareket_id: hareket_id,
+    p_iskonto_tutari: iskonto_tutari,
+    p_faturali: faturali ?? false,
+    p_yontem: yontem,
+    p_aciklama: aciklama ? aciklama : null,
+  });
+
+  if (error) {
+    console.error("Borç kapatılamadı:", error);
+    return { success: false, message: borcKapatHatasiniCevir(error.message) };
+  }
+
+  revalidateHastaDetay(hastaId);
+  return { success: true, message: "Borç kapatıldı." };
 }
 
 export async function faturaTetikle(faturaId: string): Promise<SonucDurumu> {

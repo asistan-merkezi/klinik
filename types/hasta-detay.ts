@@ -252,6 +252,7 @@ export type HastaBakiyeHareket = {
   tutar: number;
   aciklama: string | null;
   created_at: string;
+  odeme_id: string | null;
   randevu: HastaBakiyeHareketRandevu | null;
   odeme: HastaBakiyeHareketOdeme | null;
 };
