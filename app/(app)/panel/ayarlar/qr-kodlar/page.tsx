@@ -48,7 +48,7 @@ export default async function QrKodlariSayfasi() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <QrKart
-            icon={UserPlus}
+            icon={<UserPlus className="size-5 text-primary" aria-hidden />}
             baslik="Hasta Ön Kayıt"
             aciklama="Hasta kendi ad-soyad, telefon ve kimlik bilgilerini girerek ön kayıt oluşturur. Kayıtlar doğrudan Hastalar listesinde görünür."
             yol={`/kayit/hasta/${klinikId}`}
@@ -57,7 +57,7 @@ export default async function QrKodlariSayfasi() {
             goruntuleEtiket="Hastalar listesini görüntüle"
           />
           <QrKart
-            icon={ClipboardEdit}
+            icon={<ClipboardEdit className="size-5 text-primary" aria-hidden />}
             baslik="Anket ve Öneriler"
             aciklama="Hasta memnuniyet puanı ve öneri bırakır; isim/telefon opsiyoneldir."
             yol={`/anket/${klinikId}`}
