@@ -59,7 +59,7 @@ function ArsivGrubu({ etiket, liste }: { etiket: string; liste: IsBasvurusu[] })
         </span>
       </button>
       {acik && (
-        <div className="border-t border-border px-3">
+        <div className="border-t border-border p-3">
           <BasvuruListesi basvurular={liste} />
         </div>
       )}

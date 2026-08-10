@@ -9,7 +9,7 @@ export function BasvuruListesi({ basvurular }: { basvurular: IsBasvurusu[] }) {
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-border">
+    <ul className="flex flex-col gap-2">
       {basvurular.map((b) => (
         <BasvuruSatiri key={b.id} basvuru={b} />
       ))}
