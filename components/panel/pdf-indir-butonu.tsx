@@ -5,17 +5,20 @@ import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type ButtonVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
+type ButtonSize = "default" | "sm" | "lg";
 
 export function PdfIndirButonu({
   endpoint,
   dosyaAdi,
   etiket,
   variant = "default",
+  size = "default",
 }: {
   endpoint: string;
   dosyaAdi: string;
   etiket: string;
   variant?: ButtonVariant;
+  size?: ButtonSize;
 }) {
   const [indiriliyor, setIndiriliyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
@@ -48,7 +51,7 @@ export function PdfIndirButonu({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button type="button" variant={variant} onClick={pdfOlustur} disabled={indiriliyor}>
+      <Button type="button" variant={variant} size={size} onClick={pdfOlustur} disabled={indiriliyor}>
         {indiriliyor ? <Loader2 className="animate-spin" /> : <Download />}
         {indiriliyor ? "PDF oluşturuluyor..." : etiket}
       </Button>

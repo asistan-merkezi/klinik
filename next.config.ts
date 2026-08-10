@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/hasta-kayit-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/is-basvuru-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/hasta-cari-hareketler/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   experimental: {
     serverActions: {

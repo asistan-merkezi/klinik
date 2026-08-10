@@ -7,6 +7,10 @@
     "app/api/is-basvuru-formu/pdf/route.ts": {
       "memory": 1769,
       "maxDuration": 60
+    },
+    "app/api/hasta-cari-hareketler/pdf/route.ts": {
+      "memory": 1769,
+      "maxDuration": 60
     }
   }
 }

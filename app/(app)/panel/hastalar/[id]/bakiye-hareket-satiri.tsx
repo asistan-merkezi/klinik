@@ -7,8 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { BAKIYE_HAREKET_ETIKETLERI, type BakiyeHareketTuru, type HastaBakiyeHareket } from "@/types/hasta-detay";
-import type { OdemeYontemi } from "@/types/odeme";
-import { OdemeTipiSecici } from "./odeme-tipi-secici";
 import {
   faturaEksikAlanlariBul,
   FATURA_ALAN_ETIKETLERI,
@@ -152,9 +150,8 @@ function BorcDuzenleDialog({
   const kapatAction = borcKapat.bind(null, hastaId, hareket.id);
   const [durum, formAction, isPending] = useActionState(kapatAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
-  const [iskonto, setIskonto] = useState(0);
+  const [iskontoMetni, setIskontoMetni] = useState("");
   const [faturali, setFaturali] = useState(false);
-  const [yontem, setYontem] = useState<OdemeYontemi>("nakit");
   const [aciklama, setAciklama] = useState("");
 
   if (durum !== gorulenDurum) {
@@ -164,6 +161,7 @@ function BorcDuzenleDialog({
     }
   }
 
+  const iskonto = Number(iskontoMetni) || 0;
   const netToplam = Math.max(hareket.tutar - iskonto, 0);
   const eksikAlanlar = faturaEksikAlanlariBul(faturaBilgisi);
   const faturaEngelli = faturali && eksikAlanlar.length > 0;
@@ -175,7 +173,7 @@ function BorcDuzenleDialog({
           <DialogTitle>Borç Satırını Düzenle</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-3">
-          <input type="hidden" name="yontem" value={yontem} />
+          <input type="hidden" name="yontem" value="nakit" />
 
           <div className="rounded-lg border border-border p-3 text-sm">
             <div className="flex justify-between">
@@ -193,8 +191,9 @@ function BorcDuzenleDialog({
               min={0}
               max={hareket.tutar}
               step="0.01"
-              value={iskonto}
-              onChange={(e) => setIskonto(Number(e.target.value) || 0)}
+              placeholder="0"
+              value={iskontoMetni}
+              onChange={(e) => setIskontoMetni(e.target.value)}
               disabled={isPending}
             />
           </div>
@@ -220,11 +219,6 @@ function BorcDuzenleDialog({
               Bilgiler sekmesinden tamamlayın.
             </p>
           )}
-
-          <div className="flex flex-col gap-1">
-            <Label>Ödeme Tipi</Label>
-            <OdemeTipiSecici value={yontem} onChange={setYontem} disabled={isPending} />
-          </div>
 
           <div className="flex flex-col gap-1">
             <Label htmlFor={`${idOnEki}-aciklama`}>Açıklama (opsiyonel)</Label>

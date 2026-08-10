@@ -81,6 +81,7 @@ export default async function CariOdemeSayfasi({
       <GeriLink hastaId={id} baslik="Cari & Ödeme" />
       <CariOdemeSekmesi
         hastaId={hasta.id}
+        hastaAdSoyad={hasta.ad_soyad}
         hastaKategori={hasta.kategori}
         iskontoOranlari={oranlar}
         guncelBakiye={guncelBakiye}

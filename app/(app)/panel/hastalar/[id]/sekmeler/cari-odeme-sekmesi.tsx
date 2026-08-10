@@ -1,11 +1,13 @@
 import { Wallet, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BAKIYE_HAREKET_ETIKETLERI, type HastaBakiyeHareket } from "@/types/hasta-detay";
+import { PdfIndirButonu } from "@/components/panel/pdf-indir-butonu";
+import type { HastaBakiyeHareket } from "@/types/hasta-detay";
 import type { PaketSatisSatir } from "@/types/odeme";
 import type { HastaKategori } from "@/types/hasta";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
+import { hareketleriGorunumeCevir } from "@/lib/hasta/bakiye-hareket-gorunum";
 import { BakiyeHareketiEkleButonu } from "../bakiye-hareketi-formu";
 import { BakiyeHareketSatiri } from "../bakiye-hareket-satiri";
 
@@ -23,61 +25,22 @@ function kategoriYuzdesi(kategori: HastaKategori, oranlar: IskontoOranlariYuzde 
   return oranlar?.prime_pct ?? 0;
 }
 
-type HareketGorunum = {
-  hareket: HastaBakiyeHareket;
-  islemAdi: string;
-  terapistAdi: string | null;
-  kategoriIskontoTutari: number;
-  manuelIskontoTutari: number;
-  bakiyeSonrasi: number;
-};
-
-// hareketler created_at DESC (en yeni ilk) sırayla geliyor — kümülatif bakiye
-// güncelBakiye'den (o anki gerçek toplam) geriye doğru hesaplanıyor, ki sadece
-// son 30 hareket çekilse bile (limit) rakamlar doğru kalsın. Bakiye etkisi
-// v_hasta_ozet ile aynı kural: kredi +, borç −, ödeme/iade bakiyeyi değiştirmez
-// (ödeme zaten tahsilatın audit-trail kaydı, borç/kredi cari hesabı oluşturur).
-function hareketleriGorunumeCevir(
-  hareketler: HastaBakiyeHareket[],
-  guncelBakiye: number
-): HareketGorunum[] {
-  let bakiye = guncelBakiye;
-  const sonuc: HareketGorunum[] = [];
-
-  for (const h of hareketler) {
-    const bakiyeSonrasi = bakiye;
-    const etki = h.tur === "kredi" ? h.tutar : h.tur === "borc" ? -h.tutar : 0;
-    bakiye -= etki;
-
-    let islemAdi = BAKIYE_HAREKET_ETIKETLERI[h.tur];
-    let terapistAdi: string | null = null;
-    let kategoriIskontoTutari = 0;
-    let manuelIskontoTutari = 0;
-
-    if (h.randevu) {
-      islemAdi = h.randevu.islem_tanimi?.ad ?? islemAdi;
-      terapistAdi = h.randevu.terapist?.personel?.ad_soyad ?? null;
-      if (h.randevu.islem_tanimi) {
-        kategoriIskontoTutari = Math.max(0, h.randevu.islem_tanimi.vita_fiyat - h.tutar);
-      }
-    } else if (h.odeme) {
-      const adlar = h.odeme.odeme_kalemi.map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—");
-      if (adlar.length > 0) islemAdi = adlar.join(", ");
-      kategoriIskontoTutari = h.odeme.odeme_kalemi.reduce((acc, k) => {
-        if (!k.islem_tanimi) return acc;
-        return acc + Math.max(0, (k.islem_tanimi.vita_fiyat - k.birim_fiyat) * k.miktar);
-      }, 0);
-      manuelIskontoTutari = h.odeme.iskonto_tutari;
-    }
-
-    sonuc.push({ hareket: h, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, bakiyeSonrasi });
-  }
-
-  return sonuc;
+function dosyaAdiGuvenliYap(metin: string): string {
+  return metin
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 export function CariOdemeSekmesi({
   hastaId,
+  hastaAdSoyad,
   hastaKategori,
   iskontoOranlari,
   guncelBakiye,
@@ -87,6 +50,7 @@ export function CariOdemeSekmesi({
   faturaBilgisi,
 }: {
   hastaId: string;
+  hastaAdSoyad: string;
   hastaKategori: HastaKategori;
   iskontoOranlari: IskontoOranlariYuzde | null;
   guncelBakiye: number;
@@ -101,9 +65,18 @@ export function CariOdemeSekmesi({
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>Bakiye Hareketleri</CardTitle>
-          {duzenlenebilir && <BakiyeHareketiEkleButonu hastaId={hastaId} />}
+          <div className="flex flex-wrap items-center gap-2">
+            {duzenlenebilir && <BakiyeHareketiEkleButonu hastaId={hastaId} />}
+            <PdfIndirButonu
+              endpoint={`/api/hasta-cari-hareketler/pdf?hastaId=${hastaId}`}
+              dosyaAdi={`cari-hareketler-${dosyaAdiGuvenliYap(hastaAdSoyad)}.pdf`}
+              etiket="PDF İndir"
+              variant="outline"
+              size="sm"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {hareketGorunumleri.length === 0 ? (

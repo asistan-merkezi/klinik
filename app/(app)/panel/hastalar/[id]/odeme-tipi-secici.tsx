@@ -12,8 +12,14 @@ export const ODEME_TIPI_ETIKETLERI: Record<OdemeYontemi, string> = {
   banka_havalesi: "Havale",
 };
 const ODEME_TIPI_SIRASI: OdemeYontemi[] = ["nakit", "kredi_karti", "banka_havalesi"];
+// "!" (important) önekleri bilinçli: Button'ın variant="outline" sınıfları
+// (border-border/bg-surface-2) Tailwind'in derlenmiş CSS'inde bu emerald
+// sınıflarından SONRA tanımlanıyor — aynı özgüllükte "sonraki kazanır"
+// kuralı yüzünden className override'ı sessizce kaybediyordu (kullanıcı
+// bildirdi: seçili kutu/buton renklenmiyordu). "!" ile override garantiye
+// alındı, Tailwind kaynak sıralamasına bağımlı kalınmadı.
 export const ODEME_TIPI_SECILI_SINIFI =
-  "border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-500/90";
+  "!border-emerald-500 !bg-emerald-500 !text-white hover:!bg-emerald-600 dark:hover:!bg-emerald-500/90";
 
 export function OdemeTipiSecici({
   value,
