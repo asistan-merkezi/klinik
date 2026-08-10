@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { randevuSeansiTamamla } from "../../randevular/actions";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import type {
   HastaHedef,
@@ -285,7 +286,26 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
         .limit(30)
         .returns<HastaSeansSatir[]>();
       if (error) throw error;
-      return data ?? [];
+      const seanslar = data ?? [];
+
+      // seans_degerlendirme ayrı bir sorguyla çekilip eşleniyor — randevu'ya
+      // embed edilmiyor, çünkü PostgREST'in 1:1 ters-FK embed'lerinde
+      // (randevu_id UNIQUE) sürüme göre dizi/obje davranışı değişebiliyor;
+      // ayrı sorgu + client-side eşleme belirsizliği tamamen ortadan kaldırıyor.
+      const randevuIdler = seanslar.map((s) => s.id);
+      if (randevuIdler.length > 0) {
+        const { data: degerlendirmeler } = await supabase
+          .from("seans_degerlendirme")
+          .select("randevu_id, puan, oneri_metni")
+          .in("randevu_id", randevuIdler);
+
+        const map = new Map((degerlendirmeler ?? []).map((d) => [d.randevu_id, d]));
+        for (const s of seanslar) {
+          s.degerlendirme = map.get(s.id) ?? null;
+        }
+      }
+
+      return seanslar;
     },
   });
 }
@@ -296,34 +316,22 @@ type SeansTamamlaGirdi = {
 };
 
 /**
- * Seans Geçmişi'ndeki "Seansı Tamamla" — durum'u 'tamamlandi' yapar,
- * işlem açıklamasını ve tamamlayanı (client'tan gelen değere göre değil,
- * oturumdaki kullanıcının auth.uid()'sine göre) kaydeder. Günün
- * Çizelgesi'nin randevu tablosundaki her değişiklikte tetiklenen Realtime
- * aboneliği sayesinde bu güncelleme orada da otomatik gri "Tamamlandı"
- * olarak yansır — ayrıca bir revalidatePath'e gerek yok.
+ * Seans Geçmişi'ndeki "Seansı Tamamla" — artık ham bir client-side update
+ * DEĞİL, Randevu Detay Paneli'ndeki "Seansı Bitir" butonuyla PAYLAŞILAN
+ * randevuSeansiTamamla server action'ını çağırıyor (bkz.
+ * app/(app)/panel/randevular/actions.ts) — iki UI tek fonksiyona iniyor,
+ * tablet hangi yoldan tetiklenirse tetiklensin aynı 'tamamlandi' durumunu
+ * görüyor. Günün Çizelgesi'nin randevu tablosundaki her değişiklikte
+ * tetiklenen Realtime aboneliği sayesinde bu güncelleme orada da otomatik
+ * yansır.
  */
 export function useSeansTamamla(hastaId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ randevuId, aciklama }: SeansTamamlaGirdi) => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Oturum bulunamadı.");
-
-      const { error } = await supabase
-        .from("randevu")
-        .update({
-          durum: "tamamlandi",
-          tamamlanma_aciklamasi: aciklama,
-          tamamlayan_kullanici_id: user.id,
-          tamamlanma_tarihi: new Date().toISOString(),
-        })
-        .eq("id", randevuId);
-      if (error) throw error;
+      const sonuc = await randevuSeansiTamamla(randevuId, aciklama);
+      if (!sonuc?.success) throw new Error(sonuc?.message ?? "Seans tamamlanamadı.");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hasta_seans_gecmisi", hastaId] });

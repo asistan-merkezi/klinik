@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateForInput, formatTimeForInput } from "@/lib/datetime";
 import type { RandevuDurum, RandevuSatir } from "@/types/randevu";
-import { randevuGelisIsaretle, randevuDurumGuncelle, randevuErtele } from "./actions";
+import { randevuGelisIsaretle, randevuDurumGuncelle, randevuErtele, randevuSeansiTamamla } from "./actions";
 
 type Sonuc = { success: boolean; message: string } | null;
-type AcikForm = "gecikmeli" | "ertelendi" | null;
+type AcikForm = "gecikmeli" | "ertelendi" | "tamamla" | null;
 
 // Çizelgedeki kutucuk renkleriyle aynı (bkz. randevu-kutusu.tsx): geldi/gecikmeli
 // yeşil, gelmedi/iptal kırmızı, ertelendi açık mavi.
@@ -20,6 +20,7 @@ const AKTIF_SINIFI: Partial<Record<RandevuDurum, string>> = {
   gelmedi: "border-destructive bg-destructive text-white hover:bg-destructive/90",
   iptal: "border-destructive bg-destructive text-white hover:bg-destructive/90",
   ertelendi: "border-sky-500 bg-sky-500 text-white hover:bg-sky-600 dark:hover:bg-sky-500/90",
+  tamamlandi: "border-violet-500 bg-violet-500 text-white hover:bg-violet-600 dark:hover:bg-violet-500/90",
 };
 
 /**
@@ -39,6 +40,7 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
   const [gecikmeDakika, setGecikmeDakika] = useState("15");
   const [ertelemeTarih, setErtelemeTarih] = useState(() => formatDateForInput(randevu.baslangic));
   const [ertelemeSaat, setErtelemeSaat] = useState(() => formatTimeForInput(randevu.baslangic));
+  const [tamamlaAciklama, setTamamlaAciklama] = useState("");
 
   function calistir(hedefDurum: RandevuDurum, eylem: () => Promise<Sonuc>) {
     startTransition(async () => {
@@ -108,6 +110,16 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
         >
           İptal
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isPending}
+          className={cn(butonSinifi("tamamlandi"))}
+          onClick={() => setAcikForm((f) => (f === "tamamla" ? null : "tamamla"))}
+        >
+          Seansı Bitir
+        </Button>
       </div>
 
       {acikForm === "gecikmeli" && (
@@ -170,6 +182,33 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
                 formData.set("saat", ertelemeSaat);
                 return randevuErtele(randevu.id, formData);
               })
+            }
+          >
+            Kaydet
+          </Button>
+        </div>
+      )}
+
+      {acikForm === "tamamla" && (
+        <div className="flex flex-col gap-2 rounded-lg border border-border p-2.5">
+          <Label htmlFor="tamamla_aciklama">İşlem Açıklaması</Label>
+          <textarea
+            id="tamamla_aciklama"
+            value={tamamlaAciklama}
+            onChange={(e) => setTamamlaAciklama(e.target.value)}
+            rows={2}
+            required
+            disabled={isPending}
+            placeholder="Bu seansta yapılan işlemi kısaca açıklayın..."
+            className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+          <Button
+            type="button"
+            size="sm"
+            className="w-fit"
+            disabled={isPending || !tamamlaAciklama.trim()}
+            onClick={() =>
+              calistir("tamamlandi", () => randevuSeansiTamamla(randevu.id, tamamlaAciklama.trim()))
             }
           >
             Kaydet

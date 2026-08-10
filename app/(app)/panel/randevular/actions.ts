@@ -366,6 +366,60 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
   };
 }
 
+const seansTamamlaSemasi = z.object({
+  aciklama: z.string().trim().min(1, "İşlem açıklaması gerekli."),
+});
+
+/**
+ * "Seansı Bitir" — randevu.durum='tamamlandi' yapar, açıklamayı ve
+ * tamamlayanı (client'tan gelen değere göre değil, oturumdaki kullanıcının
+ * auth.uid()'sine göre) kaydeder. Hasta Detay > Seans Geçmişi'ndeki mevcut
+ * "Seansı Tamamla" formu (useSeansTamamla) ve Randevu Detay Paneli'ndeki
+ * "Seansı Bitir" butonu artık İKİSİ DE bu tek fonksiyonu çağırıyor — hangi
+ * yoldan tetiklenirse tetiklensin oda tabletindeki realtime abonelik aynı
+ * 'tamamlandi' durumunu görüp seans sonu anket QR'ını gösteriyor.
+ */
+export async function randevuSeansiTamamla(randevuId: string, aciklama: string): Promise<SonucDurumu> {
+  const ayristirma = seansTamamlaSemasi.safeParse({ aciklama });
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Açıklama gerekli." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data, error } = await supabase
+    .from("randevu")
+    .update({
+      durum: "tamamlandi",
+      tamamlanma_aciklamasi: ayristirma.data.aciklama,
+      tamamlayan_kullanici_id: user.id,
+      tamamlanma_tarihi: new Date().toISOString(),
+    })
+    .eq("id", randevuId)
+    .select("hasta_id")
+    .single();
+
+  if (error) {
+    console.error("Seans tamamlanamadı:", error);
+    return { success: false, message: "Seans tamamlanamadı, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  if (data?.hasta_id) {
+    revalidateHastaDetay(data.hasta_id);
+  }
+
+  return { success: true, message: "Seans tamamlandı." };
+}
+
 type SonucDurumu2 = { success: boolean; message: string } | null;
 
 export async function iptalTalebiOnayla(talepId: string, randevuId: string): Promise<SonucDurumu2> {

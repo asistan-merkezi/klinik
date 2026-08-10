@@ -15,6 +15,7 @@ import {
   UploadCloud,
   QrCode,
   Percent,
+  ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,6 +38,11 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     icon: Wallet,
     ogeler: [
       { href: "/panel/muhasebe/faturalar", label: "Faturalar", icon: Receipt },
+      {
+        href: "/panel/muhasebe/satin-alma-faturalari",
+        label: "Satın Alma Faturaları",
+        icon: ShoppingCart,
+      },
       { href: "/panel/muhasebe/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
       { href: "/panel/muhasebe/giderler", label: "Giderler", icon: TrendingDown },
       { href: "/panel/muhasebe/raporlar", label: "Raporlar", icon: BarChart3 },

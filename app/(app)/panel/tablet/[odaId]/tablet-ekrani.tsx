@@ -16,12 +16,13 @@ import { ODA_DURUMU } from "@/lib/tablet/oda-durumu";
 import { odaDurumuHesapla } from "@/lib/tablet/oda-durumu-hesapla";
 import { useIdle } from "@/lib/tablet/use-idle";
 import { useMinuteTick } from "@/lib/hooks/use-minute-tick";
+import { SeansSonuAnketQr } from "./seans-sonu-anket-qr";
 import type { RandevuSatir } from "@/types/randevu";
 import type { Klinik } from "@/types/klinik";
 import type { TabletAyarlari } from "@/types/tablet-ayarlari";
 
 const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi(id, ad)";
+  "id, baslangic, bitis, durum, hasta_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi(id, ad)";
 
 const NOTR_RENK = "#64748B";
 
@@ -127,6 +128,21 @@ export function TabletEkrani({
     return { mevcut: null, sonraki: gelecekPlanli[0] ?? null };
   }, [randevular, simdi]);
 
+  // Seans sonu anket QR'ı: oda boşken (mevcut===null), o gün bu odada
+  // tamamlanmış (en son biteni) randevu varsa gösterilir. mevcut her zaman
+  // geldi/gecikmeli_geldi'ye öncelikli olduğu için sonraki hasta check-in
+  // olduğunda bu otomatik null'a düşer — ayrı bir "kaybol" tetikleyicisi
+  // gerekmiyor (kullanıcı kararı: "seans tamamlanınca gözüksün diğer hasta
+  // gelene kadar").
+  const sonTamamlanan = useMemo(() => {
+    if (mevcut) return null;
+    const tamamlananlar = randevular.filter((r) => r.durum === "tamamlandi");
+    if (tamamlananlar.length === 0) return null;
+    return tamamlananlar.reduce((enSon, r) =>
+      new Date(r.bitis).getTime() > new Date(enSon.bitis).getTime() ? r : enSon
+    );
+  }, [randevular, mevcut]);
+
   const durum = useMemo(
     () => (simdi ? odaDurumuHesapla(mevcut, sonraki, simdi) : "musait"),
     [mevcut, sonraki, simdi]
@@ -219,7 +235,7 @@ export function TabletEkrani({
             </div>
           ) : (
             <>
-              {ayarlar.durum_rengi_goster && <DurumRozeti durum={durum} />}
+              {ayarlar.durum_rengi_goster && !sonTamamlanan && <DurumRozeti durum={durum} />}
 
               {odaSahibi ? (
                 <>
@@ -240,6 +256,8 @@ export function TabletEkrani({
                     </span>
                   )}
                 </>
+              ) : sonTamamlanan ? (
+                <SeansSonuAnketQr randevuId={sonTamamlanan.id} />
               ) : (
                 <>
                   <span className="text-5xl font-medium tracking-tight md:text-6xl">

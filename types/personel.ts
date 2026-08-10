@@ -90,6 +90,7 @@ export type PersonelDetay = {
   sgk_sicil_no: string | null;
   ise_giris_tarihi: string | null;
   ise_baslama_notu: string | null;
+  puantaj_pin_guncelleme_tarihi: string | null;
   kullanici: { telefon: string | null; rol: KullaniciRol } | null;
 };
 

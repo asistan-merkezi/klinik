@@ -19,7 +19,7 @@ export default async function FaturalarSayfasi() {
         <header>
           <h1 className="text-xl font-semibold">Faturalar</h1>
           <p className="text-sm text-muted-foreground">
-            Paraşüt üzerinden kesilen faturaların toplu görünümü.
+            Muhasebe Programı üzerinden kesilen faturaların toplu görünümü.
           </p>
         </header>
 

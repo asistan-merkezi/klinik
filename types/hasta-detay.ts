@@ -217,6 +217,7 @@ export type HastaSeansSatir = {
   tamamlanma_aciklamasi: string | null;
   tamamlayan_kullanici: { ad_soyad: string } | null;
   tamamlanma_tarihi: string | null;
+  degerlendirme?: { puan: number | null; oneri_metni: string | null } | null;
 };
 
 export type BakiyeHareketTuru = "odeme" | "iade" | "kredi" | "borc";

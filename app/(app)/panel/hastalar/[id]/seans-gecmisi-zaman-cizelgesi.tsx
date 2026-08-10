@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -175,6 +175,27 @@ function TedaviBilgisiKarti({
                 : ""
             }
           />
+          {seans.degerlendirme && (seans.degerlendirme.puan != null || seans.degerlendirme.oneri_metni) && (
+            <div className="grid grid-cols-[110px_1fr] gap-2 text-sm">
+              <span className="font-medium text-muted-foreground">Hasta Değerlendirmesi:</span>
+              <span className="flex flex-col gap-0.5">
+                {seans.degerlendirme.puan != null && (
+                  <span className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star
+                        key={n}
+                        className={cn(
+                          "size-3.5",
+                          n <= seans.degerlendirme!.puan! ? "fill-amber-400 text-amber-400" : "text-muted-foreground"
+                        )}
+                      />
+                    ))}
+                  </span>
+                )}
+                {seans.degerlendirme.oneri_metni && <span>{seans.degerlendirme.oneri_metni}</span>}
+              </span>
+            </div>
+          )}
         </>
       )}
 

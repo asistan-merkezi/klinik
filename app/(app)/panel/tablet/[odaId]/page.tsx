@@ -55,7 +55,7 @@ export default async function TabletOdaSayfasi({
   const { data: randevular } = await supabase
     .from("randevu")
     .select(
-      "id, baslangic, bitis, durum, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi(id, ad)"
+      "id, baslangic, bitis, durum, hasta_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi(id, ad)"
     )
     .eq("oda_id", odaId)
     .gte("baslangic", baslangic)
