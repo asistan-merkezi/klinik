@@ -47,6 +47,13 @@ export function hareketleriGorunumeCevir(
         if (!k.islem_tanimi) return acc;
         return acc + Math.max(0, (k.islem_tanimi.vita_fiyat - k.birim_fiyat) * k.miktar);
       }, 0);
+    }
+
+    // Borç kapatmadan doğan 'kredi' satırı hem randevu'ya (terapist/işlem adı
+    // için) hem odeme'ye (borç kapatırken girilen iskonto için) bağlı — yukarıdaki
+    // randevu dalı öncelikli olduğu için odeme.iskonto_tutari ayrıca burada
+    // okunmazsa "Borç Satırını Düzenle"de girilen iskonto tabloda hiç görünmüyordu.
+    if (h.odeme) {
       manuelIskontoTutari = h.odeme.iskonto_tutari;
     }
 

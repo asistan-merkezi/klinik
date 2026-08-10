@@ -49,8 +49,7 @@ export function BakiyeHareketSatiri({
   faturaBilgisi: FaturaBilgisiKontrol;
 }) {
   const [acik, setAcik] = useState(false);
-  const kapaliBorc = hareket.tur === "borc" && hareket.odeme_id != null;
-  const tikanabilir = duzenlenebilir && hareket.tur === "borc" && !kapaliBorc;
+  const tikanabilir = duzenlenebilir && hareket.tur === "borc";
 
   const tarih = new Date(hareket.created_at);
   const tonu = BAKIYE_HAREKET_TONLARI[hareket.tur];
@@ -75,11 +74,6 @@ export function BakiyeHareketSatiri({
               <StatusBadge tone={tonu} className="w-fit">
                 {BAKIYE_HAREKET_ETIKETLERI[hareket.tur]}
               </StatusBadge>
-              {kapaliBorc && (
-                <StatusBadge tone="emerald" className="w-fit">
-                  Ödendi
-                </StatusBadge>
-              )}
             </div>
             {hareket.aciklama && <span className="text-xs text-muted-foreground">{hareket.aciklama}</span>}
           </div>

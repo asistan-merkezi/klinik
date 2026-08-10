@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -230,6 +231,18 @@ function OnaySatiri({
 function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassasSatir | null }) {
   const guncelleAction = temelBilgileriGuncelle.bind(null, hasta.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
+  const queryClient = useQueryClient();
+
+  // Bu form bir Server Action'la kaydediyor (revalidatePath sadece RSC cache'ini
+  // etkiler); ekrandaki hassas verisi ise client-side TanStack Query'den geliyor
+  // (30sn staleTime, bkz. query-provider.tsx) — kayıt başarılı olunca cache elle
+  // invalidate edilmezse, sekmeden çıkıp geri dönüldüğünde kaydedilmemiş gibi
+  // görünen eski veri gösterilmeye devam eder.
+  useEffect(() => {
+    if (durum?.success) {
+      queryClient.invalidateQueries({ queryKey: ["hasta_hassas", hasta.id] });
+    }
+  }, [durum, queryClient, hasta.id]);
 
   const [adSoyad, setAdSoyad] = useState(hasta.ad_soyad ?? "");
   const [dogumTarihi, setDogumTarihi] = useState(hasta.dogum_tarihi ?? "");
@@ -580,6 +593,14 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
 function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassasSatir | null }) {
   const guncelleAction = anamnezGuncelle.bind(null, hasta.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
+  const queryClient = useQueryClient();
+
+  // Aynı cache tazeliği sorunu (bkz. TemelBilgilerFormu) anamnez alanları için de geçerli.
+  useEffect(() => {
+    if (durum?.success) {
+      queryClient.invalidateQueries({ queryKey: ["hasta_hassas", hasta.id] });
+    }
+  }, [durum, queryClient, hasta.id]);
 
   return (
     <form action={formAction} key={JSON.stringify(hassas)} className="flex flex-col gap-5">
