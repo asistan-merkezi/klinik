@@ -37,7 +37,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     label: "Muhasebe",
     icon: Wallet,
     ogeler: [
-      { href: "/panel/muhasebe/faturalar", label: "Faturalar", icon: Receipt },
+      { href: "/panel/muhasebe/faturalar", label: "Kesilen Faturalar", icon: Receipt },
       {
         href: "/panel/muhasebe/satin-alma-faturalari",
         label: "Satın Alma Faturaları",

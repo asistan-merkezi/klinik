@@ -17,7 +17,7 @@ export default async function FaturalarSayfasi() {
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold">Faturalar</h1>
+          <h1 className="text-xl font-semibold">Kesilen Faturalar</h1>
           <p className="text-sm text-muted-foreground">
             Muhasebe Programı üzerinden kesilen faturaların toplu görünümü.
           </p>
