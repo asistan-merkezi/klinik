@@ -229,12 +229,31 @@ export const BAKIYE_HAREKET_ETIKETLERI: Record<BakiyeHareketTuru, string> = {
   borc: "Borç",
 };
 
+export type HastaBakiyeHareketRandevu = {
+  terapist: { personel: { ad_soyad: string } | null } | null;
+  islem_tanimi: { ad: string; vita_fiyat: number } | null;
+};
+
+export type HastaBakiyeHareketOdemeKalemi = {
+  miktar: number;
+  birim_fiyat: number;
+  islem_tanimi: { ad: string; vita_fiyat: number } | null;
+  paket_satis: { paket: { ad: string } | null } | null;
+};
+
+export type HastaBakiyeHareketOdeme = {
+  iskonto_tutari: number;
+  odeme_kalemi: HastaBakiyeHareketOdemeKalemi[];
+};
+
 export type HastaBakiyeHareket = {
   id: string;
   tur: BakiyeHareketTuru;
   tutar: number;
   aciklama: string | null;
   created_at: string;
+  randevu: HastaBakiyeHareketRandevu | null;
+  odeme: HastaBakiyeHareketOdeme | null;
 };
 
 export type HastaKarsilastirma = {

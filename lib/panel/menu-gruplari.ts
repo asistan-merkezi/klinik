@@ -65,7 +65,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
       { href: "/panel/ayarlar/yetkilendirme", label: "Yetkilendirme", icon: ShieldCheck },
       {
         href: "/panel/ayarlar/arsiv-ice-aktarma",
-        label: "Arşiv İçe Aktarma, Arşiv Yükleme ve Yedekleme",
+        label: "Arşiv Yükleme ve Yedekleme",
         icon: UploadCloud,
       },
       { href: "/panel/ayarlar/qr-kodlar", label: "QR Kodları", icon: QrCode },

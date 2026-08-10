@@ -32,8 +32,15 @@ export default async function CariOdemeSayfasi({
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
   const supabase = await createClient();
-  const [paketSatisSonucu, odemeSonucu, islemTanimiSonucu, paketSonucu, bakiyeHareketSonucu, oranlarSonucu] =
-    await Promise.all([
+  const [
+    paketSatisSonucu,
+    odemeSonucu,
+    islemTanimiSonucu,
+    paketSonucu,
+    bakiyeHareketSonucu,
+    oranlarSonucu,
+    ozetSonucu,
+  ] = await Promise.all([
       supabase
         .from("paket_satis")
         .select("id, kalan_adet, gecerlilik_bitis_tarihi, durum, paket(ad, seans_sayisi)")
@@ -58,7 +65,11 @@ export default async function CariOdemeSayfasi({
       supabase.from("paket").select("id, ad, fiyat, kdv_orani").eq("aktif", true).order("ad"),
       supabase
         .from("hasta_bakiye_hareket")
-        .select("id, tur, tutar, aciklama, created_at")
+        .select(
+          "id, tur, tutar, aciklama, created_at, " +
+            "randevu(terapist(personel(ad_soyad)), islem_tanimi(ad, vita_fiyat)), " +
+            "odeme(iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad, vita_fiyat), paket_satis(paket(ad))))"
+        )
         .eq("hasta_id", id)
         .order("created_at", { ascending: false })
         .limit(30)
@@ -67,12 +78,14 @@ export default async function CariOdemeSayfasi({
         .from("iskonto_oranlari")
         .select("plus_pct, elit_pct, prime_pct")
         .maybeSingle<IskontoOranlariYuzde>(),
+      supabase.from("v_hasta_ozet").select("bakiye").eq("hasta_id", id).maybeSingle<{ bakiye: number }>(),
     ]);
 
   const aktifPaketler = paketSatisSonucu.data ?? [];
   const odemeGecmisi = odemeSonucu.data ?? [];
   const bakiyeHareketleri = bakiyeHareketSonucu.data ?? [];
   const oranlar = oranlarSonucu.data ?? null;
+  const guncelBakiye = ozetSonucu.data?.bakiye ?? 0;
 
   // Fiyat burada sadece Ödeme Al ekranındaki ürün seçimi/toplam önizlemesi
   // için hesaplanıyor — otoriter fiyat odeme_olustur RPC'sinin içinde
@@ -101,6 +114,8 @@ export default async function CariOdemeSayfasi({
       <CariOdemeSekmesi
         hastaId={hasta.id}
         hastaKategori={hasta.kategori}
+        iskontoOranlari={oranlar}
+        guncelBakiye={guncelBakiye}
         duzenlenebilir={duzenlenebilir}
         aktifPaketler={aktifPaketler}
         satilabilirUrunler={satilabilirUrunler}
