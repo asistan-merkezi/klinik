@@ -1,9 +1,8 @@
-import { Wallet, Package, Receipt } from "lucide-react";
+import { Wallet, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
-import type { SatilabilirUrun, PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
-import { YONTEM_ETIKETLERI } from "@/types/odeme";
+import type { PaketSatisSatir } from "@/types/odeme";
 import {
   BAKIYE_HAREKET_ETIKETLERI,
   type BakiyeHareketTuru,
@@ -11,8 +10,6 @@ import {
 } from "@/types/hasta-detay";
 import type { HastaKategori } from "@/types/hasta";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
-import { OdemeFormu } from "../odeme-formu";
-import { FaturaDurum } from "../fatura-durum";
 import { BakiyeHareketiEkleButonu } from "../bakiye-hareketi-formu";
 
 const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
@@ -98,8 +95,6 @@ export function CariOdemeSekmesi({
   guncelBakiye,
   duzenlenebilir,
   aktifPaketler,
-  satilabilirUrunler,
-  odemeGecmisi,
   bakiyeHareketleri,
 }: {
   hastaId: string;
@@ -108,8 +103,6 @@ export function CariOdemeSekmesi({
   guncelBakiye: number;
   duzenlenebilir: boolean;
   aktifPaketler: PaketSatisSatir[];
-  satilabilirUrunler: SatilabilirUrun[];
-  odemeGecmisi: OdemeGecmisSatir[];
   bakiyeHareketleri: HastaBakiyeHareket[];
 }) {
   const kategoriPct = kategoriYuzdesi(hastaKategori, iskontoOranlari);
@@ -231,64 +224,6 @@ export function CariOdemeSekmesi({
         </CardContent>
       </Card>
 
-      {duzenlenebilir && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Ödeme Al
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                Kategori: {KATEGORI_ETIKETLERI[hastaKategori]}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <OdemeFormu hastaId={hastaId} urunler={satilabilirUrunler} />
-            <p className="mt-3 text-xs text-muted-foreground">Taksitli ödeme takibi henüz eklenmedi.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ödeme Geçmişi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {odemeGecmisi.length === 0 ? (
-            <EmptyState icon={Receipt} title="Henüz ödeme yok." />
-          ) : (
-            <ul className="flex flex-col divide-y divide-border">
-              {odemeGecmisi.map((odeme) => {
-                const kalemAdlari = odeme.odeme_kalemi
-                  .map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—")
-                  .join(", ");
-                const toplam = odeme.odeme_satiri.reduce((acc, s) => acc + s.tutar, 0);
-                const yontemler = odeme.odeme_satiri
-                  .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
-                  .join(" + ");
-
-                return (
-                  <li key={odeme.id} className="flex flex-col gap-1 py-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{kalemAdlari}</span>
-                      <span>{toplam.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(odeme.created_at).toLocaleString("tr-TR")} · {yontemler || "—"} ·{" "}
-                      {odeme.faturali ? "Faturalı" : "Faturasız"}
-                      {odeme.iskonto_tutari > 0 &&
-                        ` · İskonto ${odeme.iskonto_tutari.toLocaleString("tr-TR", {
-                          style: "currency",
-                          currency: "TRY",
-                        })}`}
-                    </span>
-                    {odeme.fatura.length > 0 && <FaturaDurum fatura={odeme.fatura[0]} />}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
