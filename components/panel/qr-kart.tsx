@@ -16,9 +16,24 @@ type QrKartProps = {
   dosyaAdi: string;
   goruntuleHref?: string;
   goruntuleEtiket?: string;
+  /** Doluysa başlığın yanında bir "Aktif" checkbox'ı gösterilir (QR Kodları yönetim listesi). */
+  aktifDurumu?: {
+    deger: boolean;
+    degistir: (yeni: boolean) => void;
+    pending: boolean;
+  };
 };
 
-export function QrKart({ icon, baslik, aciklama, yol, dosyaAdi, goruntuleHref, goruntuleEtiket }: QrKartProps) {
+export function QrKart({
+  icon,
+  baslik,
+  aciklama,
+  yol,
+  dosyaAdi,
+  goruntuleHref,
+  goruntuleEtiket,
+  aktifDurumu,
+}: QrKartProps) {
   const [kopyalandi, setKopyalandi] = useState(false);
 
   const { data } = useQuery({
@@ -42,9 +57,23 @@ export function QrKart({ icon, baslik, aciklama, yol, dosyaAdi, goruntuleHref, g
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          {icon}
-          <CardTitle>{baslik}</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {icon}
+            <CardTitle>{baslik}</CardTitle>
+          </div>
+          {aktifDurumu && (
+            <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={aktifDurumu.deger}
+                onChange={(e) => aktifDurumu.degistir(e.target.checked)}
+                disabled={aktifDurumu.pending}
+                className="h-4 w-4 rounded border-input"
+              />
+              Aktif
+            </label>
+          )}
         </div>
         <CardDescription>{aciklama}</CardDescription>
       </CardHeader>

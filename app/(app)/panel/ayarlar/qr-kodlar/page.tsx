@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { UserPlus, ClipboardEdit } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { QrKart } from "@/components/panel/qr-kart";
+import { QrKartYonetilebilir } from "@/components/panel/qr-kart-yonetilebilir";
+import { QR_KOD_TANIMLARI, type QrKodTipi } from "@/lib/qr/qr-kod-tanimlari";
 
 export default async function QrKodlariSayfasi() {
   const supabase = await createClient();
@@ -30,40 +30,46 @@ export default async function QrKodlariSayfasi() {
     );
   }
 
+  // Tablet Görünümü ayarlarıyla aynı desen: klinik_ayarlar.ayarlar tek jsonb
+  // kolonu, admin zaten RLS'ten geçtiği için doğrudan .select() yeterli
+  // (anonim public sayfalardaki gibi RPC'ye gerek yok).
+  const { data: klinikAyarlar } = await supabase
+    .from("klinik_ayarlar")
+    .select("ayarlar")
+    .eq("klinik_id", klinikId)
+    .maybeSingle();
+
+  const qrKodlariAyarlari: Partial<Record<QrKodTipi, { aktif: boolean }>> =
+    (klinikAyarlar?.ayarlar as { qr_kodlari?: Partial<Record<QrKodTipi, { aktif: boolean }>> } | null)?.qr_kodlari ??
+    {};
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <div className="mx-auto flex max-w-2xl flex-col gap-6">
         <header>
           <h1 className="text-xl font-semibold">QR Kodları</h1>
           <p className="text-sm text-muted-foreground">
             Aşağıdaki kare kodları yazdırıp klinikte (resepsiyon, bekleme salonu, ilan panosu vb.) asın.
             Okutan kişi giriş yapmadan ilgili formu doldurur; kayıtlar klinik panelinize düşer. Bu
             bağlantılar herkese açıktır — kare kodun görünür olduğu her yerden erişilebilir olduğunu
-            unutmayın.
+            unutmayın. Bir QR kodunu &quot;Aktif&quot; işaretinden kaldırırsanız, o kodu okutan kişiye
+            &quot;kullanım dışı&quot; mesajı gösterilir; formu tekrar doldurulabilir hâle getirmek için
+            yeniden işaretleyin.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             İş Başvurusu kare kodu artık burada değil — Personel &gt; İş Başvurusu Ekle sayfasında.
           </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <QrKart
-            icon={<UserPlus className="size-5 text-primary" aria-hidden />}
-            baslik="Hasta Ön Kayıt"
-            aciklama="Hasta kendi ad-soyad, telefon ve kimlik bilgilerini girerek ön kayıt oluşturur. Kayıtlar doğrudan Hastalar listesinde görünür."
-            yol={`/kayit/hasta/${klinikId}`}
-            dosyaAdi="hasta-on-kayit-qr"
-            goruntuleHref="/panel/hastalar"
-            goruntuleEtiket="Hastalar listesini görüntüle"
-          />
-          <QrKart
-            icon={<ClipboardEdit className="size-5 text-primary" aria-hidden />}
-            baslik="Anket ve Öneriler"
-            aciklama="Hasta memnuniyet puanı ve öneri bırakır; isim/telefon opsiyoneldir."
-            yol={`/anket/${klinikId}`}
-            dosyaAdi="anket-oneri-qr"
-            goruntuleHref="/panel/ayarlar/qr-kodlar/anket-yanitlari"
-          />
+        <div className="flex flex-col gap-4">
+          {QR_KOD_TANIMLARI.map((tanim) => (
+            <QrKartYonetilebilir
+              key={tanim.tip}
+              tanim={tanim}
+              klinikId={klinikId}
+              baslangicAktif={qrKodlariAyarlari[tanim.tip]?.aktif ?? true}
+            />
+          ))}
         </div>
       </div>
     </div>
