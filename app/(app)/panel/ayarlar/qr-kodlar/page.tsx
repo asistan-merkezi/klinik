@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { Smartphone } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { QrKart } from "@/components/panel/qr-kart";
 import { QrKartYonetilebilir } from "@/components/panel/qr-kart-yonetilebilir";
 import { QR_KOD_TANIMLARI, type QrKodTipi } from "@/lib/qr/qr-kod-tanimlari";
 
@@ -79,6 +81,14 @@ export default async function QrKodlariSayfasi() {
               />
             );
           })}
+
+          <QrKart
+            icon={<Smartphone className="size-5 text-primary" aria-hidden />}
+            baslik="Hasta Portalı Girişi"
+            aciklama="Hasta bu kodu okutunca giriş ekranına gider, kendi telefon numarası + şifresiyle giriş yapar (yeni hesap açmaz — portal erişimi Hasta Detay'dan açılmalı). Bu, tüm kliniklerin ortak giriş sayfası olduğu için diğer kartlardaki gibi bir Aktif/Pasif anahtarı yok; belirli bir hastanın erişimini kapatmak isterseniz Hasta Detay > Portal Erişimi'nden yapabilirsiniz."
+            yol="/portal/giris"
+            dosyaAdi="hasta-portal-giris-qr"
+          />
         </div>
       </div>
     </div>
