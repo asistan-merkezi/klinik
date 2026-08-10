@@ -1,9 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { QrKart } from "./qr-kart";
-import type { QrKodTanimi } from "@/lib/qr/qr-kod-tanimlari";
+import type { QrKodTipi } from "@/lib/qr/qr-kod-tanimlari";
 import { qrKoduDurumGuncelle } from "@/app/(app)/panel/ayarlar/qr-kodlar/actions";
+
+type QrKartYonetilebilirProps = {
+  tip: QrKodTipi;
+  icon: ReactNode;
+  baslik: string;
+  aciklama: string;
+  yol: string;
+  dosyaAdi: string;
+  goruntuleHref?: string;
+  goruntuleEtiket?: string;
+  baslangicAktif: boolean;
+};
 
 /**
  * QR Kodları yönetim listesindeki satır — QrKart'ı sarmalayıp "Aktif"
@@ -11,17 +23,32 @@ import { qrKoduDurumGuncelle } from "@/app/(app)/panel/ayarlar/qr-kodlar/actions
  * Bilgi Giriş Formu'ndaki onay checkbox'larıyla aynı UX: ayrı bir "Kaydet"
  * butonu yok, işaretlenince direkt kaydediliyor). Optimistic değil — sunucu
  * yanıtı gelene kadar checkbox eski değerinde kalır, hata olursa geri alınır.
+ *
+ * `icon` burada ReactNode olarak alınıyor (LucideIcon component referansı
+ * DEĞİL) — çünkü bu bileşen Server Component'ten prop alıyor, ikon
+ * component'ini içeren bir obje/fonksiyon RSC sınırını serialize edilemeden
+ * geçemiyor ("Functions cannot be passed directly to Client Components").
+ * İkon çağıran Server Component'te (page.tsx) önceden render edilmeli.
  */
-export function QrKartYonetilebilir({ tanim, klinikId, baslangicAktif }: { tanim: QrKodTanimi; klinikId: string; baslangicAktif: boolean }) {
+export function QrKartYonetilebilir({
+  tip,
+  icon,
+  baslik,
+  aciklama,
+  yol,
+  dosyaAdi,
+  goruntuleHref,
+  goruntuleEtiket,
+  baslangicAktif,
+}: QrKartYonetilebilirProps) {
   const [aktif, setAktif] = useState(baslangicAktif);
   const [hata, setHata] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const Icon = tanim.icon;
 
   function degistir(yeni: boolean) {
     setHata(null);
     startTransition(async () => {
-      const sonuc = await qrKoduDurumGuncelle(tanim.tip, yeni);
+      const sonuc = await qrKoduDurumGuncelle(tip, yeni);
       if (sonuc?.success) {
         setAktif(yeni);
       } else {
@@ -33,13 +60,13 @@ export function QrKartYonetilebilir({ tanim, klinikId, baslangicAktif }: { tanim
   return (
     <div className="flex flex-col gap-1.5">
       <QrKart
-        icon={<Icon className="size-5 text-primary" aria-hidden />}
-        baslik={tanim.baslik}
-        aciklama={tanim.aciklama}
-        yol={tanim.yol(klinikId)}
-        dosyaAdi={tanim.dosyaAdi}
-        goruntuleHref={tanim.goruntuleHref}
-        goruntuleEtiket={tanim.goruntuleEtiket}
+        icon={icon}
+        baslik={baslik}
+        aciklama={aciklama}
+        yol={yol}
+        dosyaAdi={dosyaAdi}
+        goruntuleHref={goruntuleHref}
+        goruntuleEtiket={goruntuleEtiket}
         aktifDurumu={{ deger: aktif, degistir, pending: isPending }}
       />
       {hata && <p className="text-xs text-destructive">{hata}</p>}

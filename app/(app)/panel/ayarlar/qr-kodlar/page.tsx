@@ -62,14 +62,23 @@ export default async function QrKodlariSayfasi() {
         </header>
 
         <div className="flex flex-col gap-4">
-          {QR_KOD_TANIMLARI.map((tanim) => (
-            <QrKartYonetilebilir
-              key={tanim.tip}
-              tanim={tanim}
-              klinikId={klinikId}
-              baslangicAktif={qrKodlariAyarlari[tanim.tip]?.aktif ?? true}
-            />
-          ))}
+          {QR_KOD_TANIMLARI.map((tanim) => {
+            const Icon = tanim.icon;
+            return (
+              <QrKartYonetilebilir
+                key={tanim.tip}
+                tip={tanim.tip}
+                icon={<Icon className="size-5 text-primary" aria-hidden />}
+                baslik={tanim.baslik}
+                aciklama={tanim.aciklama}
+                yol={tanim.yol(klinikId)}
+                dosyaAdi={tanim.dosyaAdi}
+                goruntuleHref={tanim.goruntuleHref}
+                goruntuleEtiket={tanim.goruntuleEtiket}
+                baslangicAktif={qrKodlariAyarlari[tanim.tip]?.aktif ?? true}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
