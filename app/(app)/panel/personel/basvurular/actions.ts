@@ -25,29 +25,33 @@ async function klinikAdminDogrula() {
   return { supabase, userId: user.id };
 }
 
-export async function personelBasvuruDurumGuncelle(
-  id: string,
-  durum: "onaylandi" | "reddedildi"
-): Promise<SonucDurumu> {
+/**
+ * Sadece "Beklemede" / "Olumsuz" için — "Olumlu" ayrı bir akış (Personel
+ * oluşturma sihirbazını başvuru bilgileriyle açar, bkz. basvuru-satiri.tsx),
+ * burada değil actions.ts'teki personelHesabiOlustur içinde işleniyor.
+ */
+export async function basvuruDurumGuncelle(id: string, durum: "beklemede" | "olumsuz"): Promise<SonucDurumu> {
   const yetki = await klinikAdminDogrula();
   if (!yetki) {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
   const { error } = await yetki.supabase
-    .from("personel_basvuru_taslagi")
+    .from("is_basvurusu")
     .update({
       durum,
       degerlendiren_kullanici_id: yetki.userId,
       degerlendirme_tarihi: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    // Zaten bir personele aktarılmış (olumlu) bir başvuru burada geri alınamaz.
+    .is("personel_id", null);
 
   if (error) {
-    console.error("Personel başvuru taslağı güncellenemedi:", error);
+    console.error("İş başvurusu güncellenemedi:", error);
     return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/ayarlar/qr-kodlar/personel-basvurulari");
+  revalidatePath("/panel/personel/basvurular");
   return { success: true, message: "Güncellendi." };
 }

@@ -15,7 +15,12 @@ export default async function IsBasvuruSayfasi({
   }
 
   return (
-    <KamuFormKarti klinikAd={klinikAd} baslik="İş Başvurusu" aciklama="Kısa bir başvuru formu.">
+    <KamuFormKarti
+      klinikAd={klinikAd}
+      baslik="İş Başvurusu"
+      aciklama="Kişisel bilgiler, eğitim, iş deneyimi ve referanslarınızı içeren başvuru formu."
+      genis
+    >
       <IsBasvuruFormu klinikId={klinikId} />
     </KamuFormKarti>
   );

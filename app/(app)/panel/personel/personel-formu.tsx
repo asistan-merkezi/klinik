@@ -17,6 +17,7 @@ import {
   CALISMA_TIPI_SECENEKLERI,
   CINSIYET_SECENEKLERI,
   ROL_SECENEKLERI,
+  type BasvuruPrefill,
   type KullaniciRol,
   type PersonelAcilKisi,
   type PersonelDetay,
@@ -27,7 +28,7 @@ import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { personelHesabiOlustur, personelBilgileriGuncelle } from "./actions";
 
 type Props =
-  | { mod: "olustur"; onBasarili?: () => void }
+  | { mod: "olustur"; basvuru?: BasvuruPrefill; onBasarili?: () => void }
   | {
       mod: "duzenle";
       personelId: string;
@@ -56,8 +57,13 @@ export function PersonelFormu(props: Props) {
   const initialAcilKisi = duzenleMi ? props.initialAcilKisi : null;
   const initialMesleki = duzenleMi ? props.initialMesleki : null;
   const maskeliHassas = duzenleMi ? props.maskeliHassas : null;
+  // Olumlu bulunan bir İş Başvurusu'ndan "Personel Ekle"ye geçildiğinde
+  // adayın bilgileriyle formu önceden dolduran kaynak — sadece mod=olustur'da.
+  const basvuru = duzenleMi ? undefined : props.basvuru;
 
-  const action = duzenleMi ? personelBilgileriGuncelle.bind(null, props.personelId) : personelHesabiOlustur;
+  const action = duzenleMi
+    ? personelBilgileriGuncelle.bind(null, props.personelId)
+    : personelHesabiOlustur.bind(null, basvuru?.id ?? null);
   const [durum, formAction, isPending] = useActionState(action, null);
 
   const [adim, setAdim] = useState(1);
@@ -65,11 +71,11 @@ export function PersonelFormu(props: Props) {
   const meslekiVar = rol === "terapist";
   const sonAdim = meslekiVar ? 4 : 3;
 
-  const [adSoyad, setAdSoyad] = useState(initialData?.ad_soyad ?? "");
+  const [adSoyad, setAdSoyad] = useState(initialData?.ad_soyad ?? basvuru?.ad_soyad ?? "");
   const [dogumYeri, setDogumYeri] = useState(initialData?.dogum_yeri ?? "");
   const [acilAdSoyad, setAcilAdSoyad] = useState(initialAcilKisi?.ad_soyad ?? "");
   const [acilYakinlik, setAcilYakinlik] = useState(initialAcilKisi?.yakinlik ?? "");
-  const [unvan, setUnvan] = useState(initialData?.gorev ?? "");
+  const [unvan, setUnvan] = useState(initialData?.gorev ?? basvuru?.pozisyon ?? "");
   const [departman, setDepartman] = useState(initialData?.departman ?? "");
   const [uzmanlikTescilNo, setUzmanlikTescilNo] = useState(initialData?.uzmanlik_tescil_no ?? "");
 
@@ -77,10 +83,15 @@ export function PersonelFormu(props: Props) {
   const formRef = useRef<HTMLFormElement>(null);
 
   // Not: oluşturma modunda dialog'u başarı sonrası kapatmıyoruz — geçici şifre
-  // sadece bir kez gösteriliyor, admin'in kopyalayabilmesi için ekranda kalmalı.
+  // sadece bir kez gösteriliyor, admin'in kopyalayabilmesi için ekranda kalmalı
+  // (bu yüzden dialog'u KAPATMAK caller'ın işi değil — sadece bildiriliyor).
   // Düzenleme modunda gösterilecek gizli bir bilgi olmadığı için otomatik kapanır.
+  // Başvurudan aktarım akışında (mod=olustur + basvuru) da bildiriliyor ki
+  // çağıran taraf (İş Başvurusu listesi) satırı "aktarıldı" olarak işaretleyip
+  // aynı başvurudan tekrar personel oluşturulmasını engelleyebilsin — dialog
+  // yine kapanmıyor, şifre gösterimini etkilemiyor.
   useEffect(() => {
-    if (duzenleMi && durum?.success) {
+    if (durum?.success && (duzenleMi || basvuru)) {
       props.onBasarili?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,6 +118,13 @@ export function PersonelFormu(props: Props) {
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-4">
+      {basvuru && (
+        <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary">
+          <strong>{basvuru.ad_soyad}</strong> adlı iş başvurusundan aktarılıyor — bilgileri gözden geçirip
+          tamamlayın.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {ADIM_BASLIKLARI.slice(0, sonAdim).map((baslik, i) => {
           const n = i + 1;
@@ -148,7 +166,7 @@ export function PersonelFormu(props: Props) {
               name="dogum_tarihi"
               type="date"
               disabled={isPending}
-              defaultValue={initialData?.dogum_tarihi ?? ""}
+              defaultValue={initialData?.dogum_tarihi ?? basvuru?.dogum_tarihi ?? ""}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -184,7 +202,20 @@ export function PersonelFormu(props: Props) {
           {!duzenleMi && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="eposta">Kurumsal E-posta</Label>
-              <Input id="eposta" name="eposta" type="email" required disabled={isPending} placeholder="ornek@klinik.com" />
+              <Input
+                id="eposta"
+                name="eposta"
+                type="email"
+                required
+                disabled={isPending}
+                placeholder="ornek@klinik.com"
+                defaultValue={basvuru?.eposta ?? ""}
+              />
+              {basvuru?.eposta && (
+                <p className="text-xs text-muted-foreground">
+                  Adayın başvuruda verdiği e-posta önceden dolduruldu — kurumsal e-posta farklıysa değiştirin.
+                </p>
+              )}
             </div>
           )}
           {duzenleMi && initialData?.eposta && (
@@ -193,7 +224,12 @@ export function PersonelFormu(props: Props) {
               <p className="flex h-8 items-center text-sm text-muted-foreground">{initialData.eposta} (giriş e-postası değiştirilemez)</p>
             </div>
           )}
-          <TelefonGirisi ad="gsm" label="GSM Numarası" varsayilanTelefon={initialData?.kullanici?.telefon} disabled={isPending} />
+          <TelefonGirisi
+            ad="gsm"
+            label="GSM Numarası"
+            varsayilanTelefon={initialData?.kullanici?.telefon ?? basvuru?.telefon}
+            disabled={isPending}
+          />
         </div>
 
         <fieldset className="flex flex-col gap-3">
@@ -212,7 +248,7 @@ export function PersonelFormu(props: Props) {
               name="adres"
               rows={2}
               disabled={isPending}
-              defaultValue={initialData?.adres ?? ""}
+              defaultValue={initialData?.adres ?? basvuru?.adres ?? ""}
               className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
           </div>
@@ -252,7 +288,14 @@ export function PersonelFormu(props: Props) {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="tc_kimlik_no">T.C. Kimlik No</Label>
-              <Input id="tc_kimlik_no" name="tc_kimlik_no" inputMode="numeric" maxLength={11} disabled={isPending} />
+              <Input
+                id="tc_kimlik_no"
+                name="tc_kimlik_no"
+                inputMode="numeric"
+                maxLength={11}
+                disabled={isPending}
+                defaultValue={basvuru?.tc_kimlik_no ?? ""}
+              />
               <p className="text-xs text-muted-foreground">{hassasIpucu(maskeliHassas, "tc_kimlik")}</p>
             </div>
             <div className="flex flex-col gap-1.5">

@@ -4,16 +4,18 @@ export function KamuFormKarti({
   klinikAd,
   baslik,
   aciklama,
+  genis,
   children,
 }: {
   klinikAd: string;
   baslik: string;
   aciklama: string;
+  genis?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="dark flex flex-1 items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+      <Card className={genis ? "w-full max-w-2xl" : "w-full max-w-md"}>
         <CardHeader>
           <CardDescription>{klinikAd}</CardDescription>
           <CardTitle>{baslik}</CardTitle>

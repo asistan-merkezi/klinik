@@ -78,7 +78,12 @@ export function PersonelSatiri({
               {yonetici && personel.maas != null && ` · ${paraFormat(personel.maas)}`}
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            {yonetici && (
+              <StatusBadge tone={personel.bilgiler_tamam ? "emerald" : "amber"}>
+                {personel.bilgiler_tamam ? "Bilgiler Tamam" : "Bilgiler Eksik"}
+              </StatusBadge>
+            )}
             <StatusBadge tone={personel.aktif ? "emerald" : "slate"}>
               {personel.aktif ? "Aktif" : "Pasif"}
             </StatusBadge>

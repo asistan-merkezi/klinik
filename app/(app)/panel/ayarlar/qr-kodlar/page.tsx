@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { UserPlus, Briefcase, ClipboardEdit, Contact } from "lucide-react";
+import { UserPlus, ClipboardEdit } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { QrKart } from "@/components/panel/qr-kart";
 
@@ -41,6 +41,9 @@ export default async function QrKodlariSayfasi() {
             bağlantılar herkese açıktır — kare kodun görünür olduğu her yerden erişilebilir olduğunu
             unutmayın.
           </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            İş Başvurusu kare kodu artık burada değil — Personel &gt; İş Başvurusu Ekle sayfasında.
+          </p>
         </header>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -52,22 +55,6 @@ export default async function QrKodlariSayfasi() {
             dosyaAdi="hasta-on-kayit-qr"
             goruntuleHref="/panel/hastalar"
             goruntuleEtiket="Hastalar listesini görüntüle"
-          />
-          <QrKart
-            icon={Contact}
-            baslik="Personel Başvurusu"
-            aciklama="Kişi kendi bilgilerini girer; klinik_admin onaylamadan hiçbir hesap açılmaz (onay bekleyen taslak)."
-            yol={`/kayit/personel/${klinikId}`}
-            dosyaAdi="personel-basvuru-qr"
-            goruntuleHref="/panel/ayarlar/qr-kodlar/personel-basvurulari"
-          />
-          <QrKart
-            icon={Briefcase}
-            baslik="İş Başvurusu"
-            aciklama="Kısa bir iş başvuru formu — ad soyad, telefon, pozisyon ve mesaj."
-            yol={`/basvuru/is/${klinikId}`}
-            dosyaAdi="is-basvuru-qr"
-            goruntuleHref="/panel/ayarlar/qr-kodlar/is-basvurulari"
           />
           <QrKart
             icon={ClipboardEdit}

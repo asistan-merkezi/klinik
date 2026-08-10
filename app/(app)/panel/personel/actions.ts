@@ -55,10 +55,10 @@ async function yetkiliKlinikAdminGetir() {
   // doğduğunda zaten devrede; sayfa/action seviyesi yetki burada klinik_admin
   // ile sınırlı tutuldu.
   if (!kullanici || kullanici.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { supabase, klinikId: null as string | null, yetkisiz: true as const };
+    return { supabase, klinikId: null as string | null, userId: user.id, yetkisiz: true as const };
   }
 
-  return { supabase, klinikId: kullanici.klinik_id, yetkisiz: false as const };
+  return { supabase, klinikId: kullanici.klinik_id, userId: user.id, yetkisiz: false as const };
 }
 
 // ---------------------------------------------------------------------
@@ -268,12 +268,31 @@ async function yardimciKayitlariIsle(
 }
 
 export async function personelHesabiOlustur(
+  basvuruId: string | null,
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  const { supabase, klinikId, userId, yetkisiz } = await yetkiliKlinikAdminGetir();
   if (yetkisiz || !klinikId) {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  // "Olumlu" ile açılan aktarım akışı — aynı başvuru iki kez "aktarılamaz"
+  // (çift personel/hesap oluşmasın diye, sayfa arka planda revalidate
+  // olmadan iki kez tıklanırsa diye erken kontrol).
+  if (basvuruId) {
+    const { data: basvuru } = await supabase
+      .from("is_basvurusu")
+      .select("id, klinik_id, durum, personel_id")
+      .eq("id", basvuruId)
+      .single();
+
+    if (!basvuru || basvuru.klinik_id !== klinikId) {
+      return { success: false, message: "Başvuru bulunamadı." };
+    }
+    if (basvuru.personel_id) {
+      return { success: false, message: "Bu başvuru zaten bir personele aktarılmış." };
+    }
   }
 
   const eposta = formData.get("eposta");
@@ -352,6 +371,24 @@ export async function personelHesabiOlustur(
     return { success: false, message: "Hesap oluşturulamadı, lütfen tekrar deneyin." };
   }
 
+  // Başvurudan aktarılıyorsa personel oluşur oluşmaz bağla — bundan sonra
+  // (terapist alt kaydı veya yardımcı kayıtlar başarısız olsa bile) aynı
+  // başvurudan ikinci bir personel oluşturulamaz (yukarıdaki erken kontrol).
+  if (basvuruId) {
+    const { error: basvuruError } = await adminClient
+      .from("is_basvurusu")
+      .update({
+        durum: "olumlu",
+        personel_id: yeniPersonel.id,
+        degerlendiren_kullanici_id: userId,
+        degerlendirme_tarihi: new Date().toISOString(),
+      })
+      .eq("id", basvuruId);
+    if (basvuruError) {
+      console.error("is_basvurusu personele bağlanamadı:", basvuruError);
+    }
+  }
+
   if (veri.rol === "terapist") {
     const { error: terapistError } = await adminClient.from("terapist").insert({
       klinik_id: klinikId,
@@ -380,6 +417,7 @@ export async function personelHesabiOlustur(
   );
 
   revalidatePath("/panel/personel/liste");
+  if (basvuruId) revalidatePath("/panel/personel/basvurular");
   return {
     success: true,
     message: uyari ? `Personel hesabı oluşturuldu. ${uyari}` : "Personel hesabı oluşturuldu.",

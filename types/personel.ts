@@ -24,6 +24,48 @@ export type PersonelSatir = {
   maas: number | null;
   aktif: boolean;
   kullanici: { telefon: string | null } | null;
+  bilgiler_tamam?: boolean;
+};
+
+export type BasvuruDurum = "beklemede" | "olumlu" | "olumsuz";
+
+export type IsDeneyimiSatiri = { sirket: string; gorev: string; sure: string };
+export type ReferansSatiri = { ad_soyad: string; telefon: string; baglanti: string };
+
+export type IsBasvurusu = {
+  id: string;
+  ad_soyad: string;
+  telefon: string;
+  eposta: string | null;
+  dogum_tarihi: string | null;
+  tc_kimlik_no: string | null;
+  adres: string | null;
+  pozisyon: string | null;
+  bizi_nereden_duydunuz: string | null;
+  calismaya_baslama_tarihi: string | null;
+  calisma_sekli: "tam_zamanli" | "yari_zamanli" | null;
+  beklenen_ucret: string | null;
+  egitim_okul_bolum: string | null;
+  egitim_mezuniyet_yili: string | null;
+  egitim_sertifikalar: string | null;
+  is_deneyimi: IsDeneyimiSatiri[];
+  referanslar: ReferansSatiri[];
+  durum: BasvuruDurum;
+  personel_id: string | null;
+  created_at: string;
+};
+
+// PersonelFormu (mod="olustur") başvuru bilgileriyle önceden doldurulurken
+// kullanılan alt küme.
+export type BasvuruPrefill = {
+  id: string;
+  ad_soyad: string;
+  telefon: string;
+  eposta: string | null;
+  dogum_tarihi: string | null;
+  tc_kimlik_no: string | null;
+  adres: string | null;
+  pozisyon: string | null;
 };
 
 export type PersonelDetay = {
