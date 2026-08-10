@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import QRCode from "qrcode";
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
 import { Copy, Download, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 type QrKartProps = {
-  icon: LucideIcon;
+  icon: ReactNode;
   baslik: string;
   aciklama: string;
   yol: string;
@@ -19,7 +18,7 @@ type QrKartProps = {
   goruntuleEtiket?: string;
 };
 
-export function QrKart({ icon: Icon, baslik, aciklama, yol, dosyaAdi, goruntuleHref, goruntuleEtiket }: QrKartProps) {
+export function QrKart({ icon, baslik, aciklama, yol, dosyaAdi, goruntuleHref, goruntuleEtiket }: QrKartProps) {
   const [kopyalandi, setKopyalandi] = useState(false);
 
   const { data } = useQuery({
@@ -44,7 +43,7 @@ export function QrKart({ icon: Icon, baslik, aciklama, yol, dosyaAdi, goruntuleH
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Icon className="size-5 text-primary" aria-hidden />
+          {icon}
           <CardTitle>{baslik}</CardTitle>
         </div>
         <CardDescription>{aciklama}</CardDescription>

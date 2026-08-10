@@ -67,7 +67,7 @@ export default async function BasvurularSayfasi() {
           </div>
           {klinikId && (
             <QrKart
-              icon={Briefcase}
+              icon={<Briefcase className="size-5 text-primary" aria-hidden />}
               baslik="İş Başvurusu (Web)"
               aciklama="Aday kendi telefonundan/bilgisayarından doldurur — kayıt aşağıdaki listeye düşer."
               yol={`/basvuru/is/${klinikId}`}
