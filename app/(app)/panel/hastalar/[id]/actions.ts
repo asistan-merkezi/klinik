@@ -110,6 +110,92 @@ export async function odemeAl(
   return { success: true, message: "Ödeme alındı." };
 }
 
+const bakiyeHareketSemasi = z.object({
+  tur: z.enum(["odeme", "iade", "kredi", "borc"]),
+  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tarih: z.string().min(1, "Tarih seçilmeli."),
+  aciklama: z.string().trim().optional(),
+});
+
+async function yetkiliHastaVeKlinikGetir(hastaId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol, klinik_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!kullanici || !["klinik_admin", "resepsiyon"].includes(kullanici.rol) || !kullanici.klinik_id) {
+    return { supabase, klinikId: null, hasta: null, yetkisiz: true as const };
+  }
+
+  // RLS klinik_id = current_klinik_id() ile sınırlar; sonuç dönerse hasta kendi kliniğindendir.
+  const { data: hasta } = await supabase.from("hasta").select("id").eq("id", hastaId).single();
+
+  return { supabase, klinikId: kullanici.klinik_id, hasta, yetkisiz: false as const };
+}
+
+// odeme_olustur/randevu_gelis_isaretle'nin aksine bu manuel hareket bir RPC
+// değil — hasta_bakiye_hareket_ekle_resepsiyon_admin RLS policy'si zaten
+// klinik_admin/resepsiyon'a doğrudan INSERT izni veriyor, ayrı bir SECURITY
+// DEFINER fonksiyon gerekmedi. Ürün/paket seçimi olmayan serbest bir hareket
+// olduğu için (aksi hâlde "Ödeme Al" kartı kullanılır) klinik_id burada elle
+// veriliyor.
+export async function bakiyeHareketiEkle(
+  hastaId: string,
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const { supabase, klinikId, hasta, yetkisiz } = await yetkiliHastaVeKlinikGetir(hastaId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!hasta || !klinikId) {
+    return { success: false, message: "Hasta bulunamadı." };
+  }
+
+  const ayristirma = bakiyeHareketSemasi.safeParse({
+    tur: formData.get("tur"),
+    tutar: formData.get("tutar"),
+    tarih: formData.get("tarih"),
+    aciklama: formData.get("aciklama") ?? "",
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { tur, tutar, tarih, aciklama } = ayristirma.data;
+  const simdi = new Date();
+  const olusturmaZamani = new Date(tarih);
+  olusturmaZamani.setHours(simdi.getHours(), simdi.getMinutes(), simdi.getSeconds());
+
+  const { error } = await supabase.from("hasta_bakiye_hareket").insert({
+    klinik_id: klinikId,
+    hasta_id: hastaId,
+    tur,
+    tutar,
+    aciklama: aciklama ? aciklama : null,
+    created_at: olusturmaZamani.toISOString(),
+  });
+
+  if (error) {
+    console.error("Bakiye hareketi eklenemedi:", error);
+    return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidateHastaDetay(hastaId);
+  return { success: true, message: "Bakiye hareketi eklendi." };
+}
+
 export async function faturaTetikle(faturaId: string): Promise<SonucDurumu> {
   const supabase = await createClient();
   const {

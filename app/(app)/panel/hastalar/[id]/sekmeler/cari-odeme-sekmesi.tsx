@@ -13,6 +13,7 @@ import type { HastaKategori } from "@/types/hasta";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import { OdemeFormu } from "../odeme-formu";
 import { FaturaDurum } from "../fatura-durum";
+import { BakiyeHareketiEkleButonu } from "../bakiye-hareketi-formu";
 
 const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
   vita: "Vita",
@@ -117,8 +118,9 @@ export function CariOdemeSekmesi({
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle>Bakiye Hareketleri</CardTitle>
+          {duzenlenebilir && <BakiyeHareketiEkleButonu hastaId={hastaId} />}
         </CardHeader>
         <CardContent>
           {hareketGorunumleri.length === 0 ? (
