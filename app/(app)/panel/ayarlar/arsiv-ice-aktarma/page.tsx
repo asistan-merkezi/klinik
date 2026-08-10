@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Users, CalendarClock, Wallet } from "lucide-react";
+import { Users, CalendarClock, Wallet, DatabaseBackup } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ModuleCard } from "@/components/panel/module-card";
 
@@ -24,7 +24,7 @@ export default async function ArsivIceAktarmaSayfasi() {
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold">Arşiv İçe Aktarma</h1>
+          <h1 className="text-xl font-semibold">Arşiv İçe Aktarma, Arşiv Yükleme ve Yedekleme</h1>
           <p className="text-sm text-muted-foreground">
             Önceden kullandığınız programdaki verileri Excel/CSV dosyasından toplu olarak aktarın. Aşağıdaki
             sırayla ilerleyin — her bölüm bir önceki bölümün tamamlanmasına dayanır.
@@ -49,6 +49,12 @@ export default async function ArsivIceAktarmaSayfasi() {
             label="3. Ödeme & Paket Geçmişi"
             subtitle="Bakiye hareketleri ve kalan paket hakları"
             href="/panel/ayarlar/arsiv-ice-aktarma/odeme-paket"
+          />
+          <ModuleCard
+            icon={DatabaseBackup}
+            label="Yedekleme"
+            subtitle="Henüz kurulmadı"
+            href="/panel/ayarlar/arsiv-ice-aktarma/yedekleme"
           />
         </div>
       </div>
