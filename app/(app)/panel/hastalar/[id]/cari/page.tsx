@@ -36,10 +36,10 @@ export default async function CariOdemeSayfasi({
     await Promise.all([
     supabase
       .from("paket_satis")
-      .select("id, kalan_adet, gecerlilik_bitis_tarihi, durum, paket(ad, seans_sayisi)")
+      .select("id, kalan_adet, durum, paket(ad, seans_sayisi)")
       .eq("hasta_id", id)
       .eq("durum", "aktif")
-      .order("gecerlilik_bitis_tarihi")
+      .order("satis_tarihi")
       .returns<PaketSatisSatir[]>(),
     supabase
       .from("hasta_bakiye_hareket")

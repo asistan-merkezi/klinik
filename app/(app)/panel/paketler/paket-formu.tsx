@@ -62,17 +62,17 @@ export function PaketFormu({ islemTanimlari }: { islemTanimlari: SecenekSatir[] 
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="gecerlilik_gun">Geçerlilik (gün)</Label>
+          <Label htmlFor="satis_bitis_tarihi">Paket Bitiş Tarihi</Label>
           <Input
-            id="gecerlilik_gun"
-            name="gecerlilik_gun"
-            type="number"
-            min={1}
-            step="1"
-            defaultValue={365}
-            required
+            id="satis_bitis_tarihi"
+            name="satis_bitis_tarihi"
+            type="date"
             disabled={isPending}
           />
+          <p className="text-xs text-muted-foreground">
+            Boş bırakılırsa bu paket süresiz satılabilir. Bu tarih, paketin satışa açık olduğu son
+            tarihtir — satın alan hastanın kullanım süresini etkilemez.
+          </p>
         </div>
 
         <div className="flex flex-col gap-2">

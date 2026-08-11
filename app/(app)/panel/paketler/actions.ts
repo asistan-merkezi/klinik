@@ -11,7 +11,7 @@ const paketSemasi = z.object({
   ad: z.string().trim().min(2, "Ad en az 2 karakter olmalı."),
   islem_tanimi_id: z.string().uuid("İşlem tanımı seçilmeli."),
   seans_sayisi: z.coerce.number().int("Seans sayısı tam sayı olmalı.").min(1, "Seans sayısı en az 1 olmalı."),
-  gecerlilik_gun: z.coerce.number().int("Geçerlilik gün tam sayı olmalı.").min(1, "Geçerlilik en az 1 gün olmalı."),
+  satis_bitis_tarihi: z.string().trim().optional().or(z.literal("")),
   fiyat: z.coerce.number().min(0, "Fiyat 0'dan küçük olamaz."),
   kdv_orani: z.coerce.number().min(0, "KDV 0-100 arasında olmalı.").max(100, "KDV 0-100 arasında olmalı."),
 });
@@ -40,7 +40,7 @@ function ayristir(formData: FormData) {
     ad: formData.get("ad"),
     islem_tanimi_id: formData.get("islem_tanimi_id"),
     seans_sayisi: formData.get("seans_sayisi"),
-    gecerlilik_gun: formData.get("gecerlilik_gun"),
+    satis_bitis_tarihi: formData.get("satis_bitis_tarihi") ?? "",
     fiyat: formData.get("fiyat"),
     kdv_orani: formData.get("kdv_orani"),
   });
@@ -57,14 +57,14 @@ export async function paketOlustur(_onceki: SonucDurumu, formData: FormData): Pr
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, islem_tanimi_id, seans_sayisi, gecerlilik_gun, fiyat, kdv_orani } = ayristirma.data;
+  const { ad, islem_tanimi_id, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani } = ayristirma.data;
 
   const { error } = await supabase.from("paket").insert({
     klinik_id: klinikId,
     ad,
     islem_tanimi_id,
     seans_sayisi,
-    gecerlilik_gun,
+    satis_bitis_tarihi: satis_bitis_tarihi || null,
     fiyat,
     kdv_orani,
   });
@@ -96,7 +96,7 @@ export async function paketGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, islem_tanimi_id, seans_sayisi, gecerlilik_gun, fiyat, kdv_orani } = ayristirma.data;
+  const { ad, islem_tanimi_id, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani } = ayristirma.data;
 
   const { error } = await supabase
     .from("paket")
@@ -104,7 +104,7 @@ export async function paketGuncelle(
       ad,
       islem_tanimi_id,
       seans_sayisi,
-      gecerlilik_gun,
+      satis_bitis_tarihi: satis_bitis_tarihi || null,
       fiyat,
       kdv_orani,
     })

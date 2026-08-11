@@ -17,7 +17,6 @@ export type SatilabilirUrun = {
 export type PaketSatisSatir = {
   id: string;
   kalan_adet: number;
-  gecerlilik_bitis_tarihi: string;
   durum: string;
   paket: { ad: string; seans_sayisi: number } | null;
 };

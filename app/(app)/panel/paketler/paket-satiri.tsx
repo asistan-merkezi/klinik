@@ -15,6 +15,11 @@ import type { SecenekSatir } from "@/types/randevu";
 import type { PaketSatir } from "@/types/paket";
 import { paketAktifDurumDegistir, paketGuncelle } from "./actions";
 
+function satisSuresiDoldu(tarih: string): boolean {
+  const bugun = new Date().toISOString().slice(0, 10);
+  return tarih < bugun;
+}
+
 export function PaketSatiri({
   paket,
   islemTanimlari,
@@ -82,15 +87,12 @@ export function PaketSatiri({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`gecerlilik-${paket.id}`}>Geçerlilik (gün)</Label>
+              <Label htmlFor={`satis-bitis-${paket.id}`}>Paket Bitiş Tarihi</Label>
               <Input
-                id={`gecerlilik-${paket.id}`}
-                name="gecerlilik_gun"
-                type="number"
-                min={1}
-                step="1"
-                defaultValue={duzenleForm.gecerlilik_gun}
-                required
+                id={`satis-bitis-${paket.id}`}
+                name="satis_bitis_tarihi"
+                type="date"
+                defaultValue={duzenleForm.satis_bitis_tarihi ?? ""}
                 disabled={isPending}
               />
             </div>
@@ -155,9 +157,19 @@ export function PaketSatiri({
           {paket.ad}
         </span>
         <span className="text-muted-foreground">
-          {paket.islem_tanimi?.ad ?? "—"} · {paket.seans_sayisi} seans · {paket.gecerlilik_gun} gün ·{" "}
+          {paket.islem_tanimi?.ad ?? "—"} · {paket.seans_sayisi} seans ·{" "}
           {paket.fiyat.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })} (KDV %
           {paket.kdv_orani})
+          {paket.satis_bitis_tarihi && (
+            <>
+              {" · "}
+              {satisSuresiDoldu(paket.satis_bitis_tarihi) ? (
+                <span className="text-destructive">Satış süresi doldu</span>
+              ) : (
+                <>Satış son tarihi {new Date(paket.satis_bitis_tarihi).toLocaleDateString("tr-TR")}</>
+              )}
+            </>
+          )}
         </span>
       </div>
       {duzenlenebilir && (

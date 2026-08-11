@@ -2,7 +2,7 @@ export type PaketSatir = {
   id: string;
   ad: string;
   seans_sayisi: number;
-  gecerlilik_gun: number;
+  satis_bitis_tarihi: string | null;
   fiyat: number;
   kdv_orani: number;
   aktif: boolean;

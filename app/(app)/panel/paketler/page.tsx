@@ -29,7 +29,7 @@ export default async function PaketlerSayfasi() {
     supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
     supabase
       .from("paket")
-      .select("id, ad, seans_sayisi, gecerlilik_gun, fiyat, kdv_orani, aktif, islem_tanimi(ad)")
+      .select("id, ad, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, aktif, islem_tanimi(ad)")
       .order("ad")
       .returns<PaketSatir[]>(),
   ]);

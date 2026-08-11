@@ -74,10 +74,10 @@ export default async function PortalSayfasi() {
       .returns<PortalRandevuSatir[]>(),
     supabase
       .from("paket_satis")
-      .select("id, kalan_adet, gecerlilik_bitis_tarihi, durum, paket(ad, seans_sayisi)")
+      .select("id, kalan_adet, durum, paket(ad, seans_sayisi)")
       .eq("hasta_id", hastaId)
       .eq("durum", "aktif")
-      .order("gecerlilik_bitis_tarihi")
+      .order("satis_tarihi")
       .returns<PaketSatisSatir[]>(),
     supabase
       .from("odeme")
@@ -135,10 +135,7 @@ export default async function PortalSayfasi() {
                 {aktifPaketler.map((ps) => (
                   <li key={ps.id} className="flex items-center justify-between py-3 text-sm">
                     <span className="font-medium">{ps.paket?.ad ?? "—"}</span>
-                    <span className="text-muted-foreground">
-                      {ps.kalan_adet}/{ps.paket?.seans_sayisi ?? "?"} hak kaldı · son kullanım{" "}
-                      {new Date(ps.gecerlilik_bitis_tarihi).toLocaleDateString("tr-TR")}
-                    </span>
+                    <span className="text-muted-foreground">{ps.kalan_adet}/{ps.paket?.seans_sayisi ?? "?"} hak kaldı</span>
                   </li>
                 ))}
               </ul>

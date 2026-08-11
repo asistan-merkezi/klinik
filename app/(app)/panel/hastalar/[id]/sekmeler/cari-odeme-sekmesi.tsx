@@ -127,10 +127,7 @@ export function CariOdemeSekmesi({
               {aktifPaketler.map((ps) => (
                 <li key={ps.id} className="flex items-center justify-between py-3 text-sm">
                   <span className="font-medium">{ps.paket?.ad ?? "—"}</span>
-                  <span className="text-muted-foreground">
-                    {ps.kalan_adet}/{ps.paket?.seans_sayisi ?? "?"} hak kaldı · son kullanım{" "}
-                    {new Date(ps.gecerlilik_bitis_tarihi).toLocaleDateString("tr-TR")}
-                  </span>
+                  <span className="text-muted-foreground">{ps.kalan_adet}/{ps.paket?.seans_sayisi ?? "?"} hak kaldı</span>
                 </li>
               ))}
             </ul>

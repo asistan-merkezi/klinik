@@ -20,8 +20,8 @@ type PaketSecenegi = { id: string; ad: string };
 const HEDEF_ALANLAR: HedefAlan[] = [
   { key: "hasta_telefon", label: "Hasta Telefonu", zorunlu: true },
   { key: "kalan_adet", label: "Kalan Seans Adedi", zorunlu: true },
-  { key: "gecerlilik_bitis_tarihi", label: "Geçerlilik Bitiş Tarihi", zorunlu: true },
   { key: "satis_tarihi", label: "Satış Tarihi" },
+  { key: "gecerlilik_bitis_tarihi", label: "Geçerlilik Bitiş Tarihi (bilgi amaçlı, opsiyonel)" },
 ];
 
 const ADIM_BASLIKLARI = ["Paket Seç ve Dosya Yükle", "Sütun Eşleştir", "Hasta Eşleştir & İçe Aktar"];
@@ -168,7 +168,7 @@ export function PaketSihirbazi({ paketler }: { paketler: PaketSecenegi[] }) {
           </div>
           {!zorunluAlanlarTamam && (
             <p className="text-right text-xs text-destructive">
-              Telefon, Kalan Seans Adedi ve Geçerlilik Bitiş Tarihi alanları zorunludur.
+              Telefon ve Kalan Seans Adedi alanları zorunludur.
             </p>
           )}
         </div>
