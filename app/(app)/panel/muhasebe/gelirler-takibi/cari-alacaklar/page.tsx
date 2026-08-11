@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HandCoins } from "lucide-react";
+import { CariAlacaklarListesi } from "./cari-alacaklar-listesi";
 
 type CariOzetSatiri = {
   hasta_id: string;
@@ -11,8 +11,6 @@ type CariOzetSatiri = {
   tahsil_edilen: number;
   kalan_bakiye: number;
 };
-
-const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
 export default async function CariAlacaklarTakibiSayfasi() {
   const supabase = await createClient();
@@ -60,55 +58,7 @@ export default async function CariAlacaklarTakibiSayfasi() {
         {satirlar.length === 0 ? (
           <EmptyState icon={HandCoins} title="Henüz cari borç kaydı yok." />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                  <th className="px-3 py-2 text-left font-medium">Hasta</th>
-                  <th className="px-3 py-2 text-right font-medium">Toplam Bakiye</th>
-                  <th className="px-3 py-2 text-right font-medium">Tahsil Edilen</th>
-                  <th className="px-3 py-2 text-right font-medium">Kalan Bakiye</th>
-                </tr>
-              </thead>
-              <tbody>
-                {satirlar.map((s) => {
-                  const href = `/panel/hastalar/${s.hasta_id}/cari`;
-                  return (
-                    <tr key={s.hasta_id} className="border-b border-border last:border-b-0 hover:bg-muted/30">
-                      <td className="p-0">
-                        <Link href={href} className="block px-3 py-2 font-medium">
-                          {s.ad_soyad}
-                        </Link>
-                      </td>
-                      <td className="p-0">
-                        <Link href={href} className="block px-3 py-2 text-right tabular-nums">
-                          {paraFormat(s.toplam_bakiye)}
-                        </Link>
-                      </td>
-                      <td className="p-0">
-                        <Link
-                          href={href}
-                          className="block px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400"
-                        >
-                          {paraFormat(s.tahsil_edilen)}
-                        </Link>
-                      </td>
-                      <td className="p-0">
-                        <Link
-                          href={href}
-                          className={`block px-3 py-2 text-right tabular-nums font-semibold ${
-                            s.kalan_bakiye > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
-                          }`}
-                        >
-                          {paraFormat(s.kalan_bakiye)}
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <CariAlacaklarListesi satirlar={satirlar} />
         )}
       </div>
     </div>
