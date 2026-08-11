@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import type { SecenekSatir } from "@/types/randevu";
 import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { paketAktifDurumDegistir, paketGuncelle } from "./actions";
 import { PaketSatisDialog } from "./paket-satis-dialog";
 
@@ -41,6 +42,7 @@ export function PaketSatiri({
 }) {
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const [duzenleForm, setDuzenleForm] = useState(paket);
+  const [adMetni, setAdMetni] = useState(paket.ad);
   const guncelleAction = paketGuncelle.bind(null, paket.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const [aktifPending, startAktifTransition] = useTransition();
@@ -60,7 +62,14 @@ export function PaketSatiri({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <Label htmlFor={`ad-${paket.id}`}>Paket Adı</Label>
-              <Input id={`ad-${paket.id}`} name="ad" defaultValue={duzenleForm.ad} required disabled={isPending} />
+              <Input
+                id={`ad-${paket.id}`}
+                name="ad"
+                value={adMetni}
+                onChange={(e) => setAdMetni(isimBasHarfBuyukYap(e.target.value))}
+                required
+                disabled={isPending}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={`islem-${paket.id}`}>İşlem</Label>
@@ -211,6 +220,7 @@ export function PaketSatiri({
                 variant="outline"
                 onClick={() => {
                   setDuzenleForm(paket);
+                  setAdMetni(isimBasHarfBuyukYap(paket.ad));
                   setDuzenleniyor(true);
                 }}
               >
