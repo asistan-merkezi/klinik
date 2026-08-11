@@ -43,9 +43,17 @@ export function hareketleriGorunumeCevir(
   for (const h of hareketler) {
     const bakiyeSonrasi = bakiye;
 
-    // Manuel iskonto sadece ödeme satırlarında anlamlı (borç satırı hiç
-    // değişmediği için tutarı her zaman zaten tam/orijinal).
-    const manuelIskontoTutari = h.tur === "odeme" ? (h.odeme?.iskonto_tutari ?? 0) : 0;
+    // İskonto sorusu iki yerde var: Borç Kapatma dialogu (BORÇ satırına
+    // tıklanınca) ve Ödeme Al'ın peşin satın alma ekranı (odeme_olustur,
+    // randevu_id hiç yok) — "Ödeme Ekle"de iskonto sorusu YOK. Bu yüzden
+    // borç kapatmanın ürettiği "Ödeme" satırında (randevu_id dolu) iskonto
+    // hiç gösterilmiyor, tıklanan asıl borç satırında gösteriliyor.
+    // `iskontoTutari` bakiye formülü için ayrı tutuluyor (borç kapatmanın
+    // ödeme satırının etkisine dahil edilmesi gerekiyor, görüntülemeden
+    // bağımsız).
+    const iskontoTutari = h.odeme?.iskonto_tutari ?? 0;
+    const manuelIskontoTutari =
+      h.tur === "borc" || (h.tur === "odeme" && h.randevu === null) ? iskontoTutari : 0;
     const odemeYontemMetni = (h.odeme?.odeme_satiri ?? [])
       .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
       .join(" + ");
@@ -65,7 +73,7 @@ export function hareketleriGorunumeCevir(
       // odeme_olustur'dan gelen peşin satın alma ödemesi — hasta_bakiye_hareket.tutar
       // zaten NET (manuel iskonto düşülmüş), brüt (indirim öncesi) tutar
       // manuel iskonto geri eklenerek yeniden kuruluyor.
-      tutarBrut = h.tutar + manuelIskontoTutari;
+      tutarBrut = h.tutar + iskontoTutari;
       const adlar = h.odeme.odeme_kalemi.map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—");
       if (adlar.length > 0) islemAdi = adlar.join(", ");
       kategoriIskontoTutari = h.odeme.odeme_kalemi.reduce((acc, k) => {
@@ -85,7 +93,7 @@ export function hareketleriGorunumeCevir(
           : h.tur === "odeme" && h.odeme_id === null
             ? h.tutar
             : h.tur === "odeme" && h.randevu !== null
-              ? h.tutar + manuelIskontoTutari
+              ? h.tutar + iskontoTutari
               : 0;
     bakiye -= etki;
 
