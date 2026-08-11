@@ -70,7 +70,10 @@ export async function GET(request: NextRequest) {
         tarih: formatDate(hareket.created_at),
         saat: formatTime(hareket.created_at),
         islemTuru: islemAdi,
-        yontemMetni: hareket.tur === "odeme" && odemeYontemMetni ? odemeYontemMetni : null,
+        // Bağımsız "Ödeme Ekle" kayıtlarında odeme_satiri yok (odemeYontemMetni
+        // boş) — ödeme tipi orada aciklama'ya etiket olarak gömülü ("Nakit"
+        // veya "Nakit — not"), o yüzden yöntem yoksa aciklama'ya düşülüyor.
+        yontemMetni: hareket.tur === "odeme" ? (odemeYontemMetni || hareket.aciklama) : null,
         terapist: terapistAdi,
         tutar: `${tutarNegatifMi ? "-" : "+"}${paraFormat(tutarBrut)}`,
         tutarNegatifMi,
