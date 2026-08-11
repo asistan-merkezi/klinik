@@ -51,7 +51,8 @@ export function BakiyeHareketSatiri({
     bakiyeSonrasi,
     odemeYontemMetni,
   } = satir;
-  const tikanabilir = duzenlenebilir && hareket.tur === "borc";
+  const kapatilmisBorc = hareket.tur === "borc" && hareket.odeme_id !== null;
+  const tikanabilir = duzenlenebilir && hareket.tur === "borc" && !kapatilmisBorc;
 
   const tonu = BAKIYE_HAREKET_TONLARI[hareket.tur];
   const isaret = hareket.tur === "borc" ? "-" : "+";
@@ -74,6 +75,11 @@ export function BakiyeHareketSatiri({
                 {BAKIYE_HAREKET_ETIKETLERI[hareket.tur]}
                 {hareket.tur === "odeme" && odemeYontemMetni && ` (${odemeYontemMetni})`}
               </StatusBadge>
+              {kapatilmisBorc && (
+                <StatusBadge tone="slate" className="w-fit">
+                  Ödendi
+                </StatusBadge>
+              )}
             </div>
             {hareket.aciklama && <span className="text-xs text-muted-foreground">{hareket.aciklama}</span>}
           </div>

@@ -15,14 +15,24 @@ export type HareketGorunum = {
 // hareketler created_at DESC (en yeni ilk) sırayla geliyor — kümülatif bakiye
 // güncelBakiye'den (o anki gerçek toplam) geriye doğru hesaplanıyor, ki
 // pencere (sayfada son 30, PDF'te daha geniş) boyutundan bağımsız rakamlar
-// doğru kalsın. Bakiye etkisi v_hasta_ozet ile AYNI kural (ikisi TUTARLI
-// kalmalı, migration 20260813110000): kredi +, borç −, bağımsız ödeme
-// (odeme_id NULL — manuel "Ödeme Ekle") +, geri kalanı (Borç Kapatma'yla
-// kapatılmış satırlar — randevu/odeme_id dolu — ve odeme_olustur'dan gelen
-// peşin satın alma ödemeleri) bakiyeyi değiştirmez. Kapatılmış bir borç
-// satırı kendi kendini sıfırlıyor (-tutar borçtan → 0 etkili "ödeme"ye
-// geçiş), bu yüzden ayrıca +tutar eklenmiyor — eklenirse aynı satır hem
-// borcu hem yeni bir alacağı saymış olurdu.
+// doğru kalsın.
+//
+// Borç Kapatma artık İKİ AYRI, KALICI satır üretiyor (migration
+// 20260813120000, kullanıcı kararı: "işlem ayrı satır, ödeme ayrı satır,
+// borç gelir ödeme girersin borç düşer") — orijinal borç satırı hiç
+// değişmiyor (tur='borc', tutar hep orijinal), kapatma anında AYRI bir
+// 'odeme' satırı ekleniyor (aynı randevu_id'ye bağlı — SADECE bakiye
+// formülünün sinyali için, ekranda tedavi/terapist bilgisi GÖSTERİLMİYOR).
+//
+// Bakiye etkisi v_hasta_ozet ile AYNI kural olmalı (migration 20260813130000):
+//   kredi                                  → +tutar
+//   borc                                   → -tutar (kapatılmış olsa bile)
+//   odeme, odeme_id NULL (manuel Ödeme Ekle)         → +tutar
+//   odeme, randevu_id dolu (borç kapatmanın ödemesi) → +(tutar + iskonto) —
+//     iskonto dahil TAM orijinal borç tutarı kadar telafi ediyor (indirim
+//     klinik tarafından üstlenilen bir write-off)
+//   diğer (odeme_olustur'dan peşin satın alma ödemesi) → 0 (zaten hiç borç
+//     yaratmamıştı)
 export function hareketleriGorunumeCevir(
   hareketler: HastaBakiyeHareket[],
   guncelBakiye: number
@@ -32,43 +42,30 @@ export function hareketleriGorunumeCevir(
 
   for (const h of hareketler) {
     const bakiyeSonrasi = bakiye;
-    const etki =
-      h.tur === "kredi"
-        ? h.tutar
-        : h.tur === "borc"
-          ? -h.tutar
-          : h.tur === "odeme" && h.odeme_id === null
-            ? h.tutar
-            : 0;
-    bakiye -= etki;
 
-    let islemAdi = BAKIYE_HAREKET_ETIKETLERI[h.tur];
-    let terapistAdi: string | null = null;
-    let kategoriIskontoTutari = 0;
-
-    // Kapatılmış bir borç satırı hem randevu'ya (terapist/işlem adı için) hem
-    // odeme'ye (borç kapatırken/ödeme alırken girilen manuel iskonto için) bağlı.
-    // h.tutar bu noktada zaten NET (manuel iskonto düşülmüş, bkz.
-    // hasta_bakiye_hareket_borc_kapat/odeme_olustur) — bu yüzden hem kategori
-    // iskontosunu manuel iskontodan ayrıştırmak hem de brüt (indirim öncesi)
-    // tutarı göstermek için önce manuel iskonto geri eklenip orijinal tutar
-    // yeniden kuruluyor.
-    const manuelIskontoTutari = h.odeme?.iskonto_tutari ?? 0;
-    const tutarBrut = h.tutar + manuelIskontoTutari;
-    // Manuel "Ödeme Ekle" kayıtlarında odeme_id yok (ayrı bir odeme satırı
-    // hiç oluşmuyor), bu yüzden burada boş kalıyor — yöntem bilgisi zaten
-    // o akışta aciklama'ya etiket olarak ekleniyor (bkz. bakiye-hareketi-formu.tsx).
+    // Manuel iskonto sadece ödeme satırlarında anlamlı (borç satırı hiç
+    // değişmediği için tutarı her zaman zaten tam/orijinal).
+    const manuelIskontoTutari = h.tur === "odeme" ? (h.odeme?.iskonto_tutari ?? 0) : 0;
     const odemeYontemMetni = (h.odeme?.odeme_satiri ?? [])
       .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
       .join(" + ");
 
-    if (h.randevu) {
+    let islemAdi = BAKIYE_HAREKET_ETIKETLERI[h.tur];
+    let terapistAdi: string | null = null;
+    let kategoriIskontoTutari = 0;
+    let tutarBrut = h.tutar;
+
+    if (h.tur === "borc" && h.randevu) {
       islemAdi = h.randevu.islem_tanimi?.ad ?? islemAdi;
       terapistAdi = h.randevu.terapist?.personel?.ad_soyad ?? null;
       if (h.randevu.islem_tanimi) {
-        kategoriIskontoTutari = Math.max(0, h.randevu.islem_tanimi.vita_fiyat - tutarBrut);
+        kategoriIskontoTutari = Math.max(0, h.randevu.islem_tanimi.vita_fiyat - h.tutar);
       }
-    } else if (h.odeme) {
+    } else if (h.tur === "odeme" && h.odeme && h.randevu === null) {
+      // odeme_olustur'dan gelen peşin satın alma ödemesi — hasta_bakiye_hareket.tutar
+      // zaten NET (manuel iskonto düşülmüş), brüt (indirim öncesi) tutar
+      // manuel iskonto geri eklenerek yeniden kuruluyor.
+      tutarBrut = h.tutar + manuelIskontoTutari;
       const adlar = h.odeme.odeme_kalemi.map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—");
       if (adlar.length > 0) islemAdi = adlar.join(", ");
       kategoriIskontoTutari = h.odeme.odeme_kalemi.reduce((acc, k) => {
@@ -76,6 +73,21 @@ export function hareketleriGorunumeCevir(
         return acc + Math.max(0, (k.islem_tanimi.vita_fiyat - k.birim_fiyat) * k.miktar);
       }, 0);
     }
+    // else: bağımsız "Ödeme Ekle" VEYA borç kapatmanın ödeme satırı —
+    // kullanıcı kararıyla İşlem Türü sütununda tedavi/terapist bilgisi
+    // gösterilmiyor, generic "Ödeme" (+yöntem) olarak kalıyor.
+
+    const etki =
+      h.tur === "kredi"
+        ? h.tutar
+        : h.tur === "borc"
+          ? -h.tutar
+          : h.tur === "odeme" && h.odeme_id === null
+            ? h.tutar
+            : h.tur === "odeme" && h.randevu !== null
+              ? h.tutar + manuelIskontoTutari
+              : 0;
+    bakiye -= etki;
 
     sonuc.push({
       hareket: h,
