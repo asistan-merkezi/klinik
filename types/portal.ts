@@ -49,3 +49,25 @@ export type BekleyenRandevuTalebiSatir = {
   hasta: { ad_soyad: string } | null;
   islem_tanimi: { ad: string } | null;
 };
+
+/** Hastalar > Bildirimler'deki "Anket ve Öneriler" listesi için (QR, isim/telefon opsiyonel). */
+export type AnketYanitiSatir = {
+  id: string;
+  puan: number | null;
+  oneri_metni: string | null;
+  ad_soyad: string | null;
+  telefon: string | null;
+  created_at: string;
+  goruldu_tarihi: string | null;
+};
+
+/** Hastalar > Bildirimler'deki "Seans Değerlendirmeleri" listesi için (seans sonu QR anketi). */
+export type SeansDegerlendirmeSatir = {
+  id: string;
+  puan: number | null;
+  oneri_metni: string | null;
+  created_at: string;
+  goruldu_tarihi: string | null;
+  hasta: { ad_soyad: string } | null;
+  randevu: { baslangic: string; terapist: { personel: { ad_soyad: string } | null } | null } | null;
+};

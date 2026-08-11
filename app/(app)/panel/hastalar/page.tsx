@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText, Users } from "lucide-react";
+import { Bell, FileText, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -8,6 +8,7 @@ import type { HastaListeSatiri } from "@/types/hasta";
 import { YeniHastaDialog } from "./yeni-hasta-dialog";
 import { HastaSatiri } from "./hasta-satiri";
 import { HastaAramaKutusu } from "./hasta-arama-kutusu";
+import { bildirimSayisiGetir } from "./bildirimler/bildirim-sayisi";
 
 export default async function HastalarSayfasi({
   searchParams,
@@ -23,6 +24,10 @@ export default async function HastalarSayfasi({
   if (!user) {
     redirect("/giris");
   }
+
+  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  const bildirimGorulebilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
+  const bildirimSayisi = bildirimGorulebilir ? await bildirimSayisiGetir(supabase) : 0;
 
   const { q } = await searchParams;
   const arama = q?.trim() ?? "";
@@ -66,6 +71,23 @@ export default async function HastalarSayfasi({
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+            {bildirimGorulebilir && (
+              <Button
+                variant={bildirimSayisi > 0 ? "destructive" : "outline"}
+                nativeButton={false}
+                render={
+                  <Link href="/panel/hastalar/bildirimler">
+                    <Bell />
+                    Bildirimler
+                    {bildirimSayisi > 0 && (
+                      <span className="ml-1 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-white">
+                        {bildirimSayisi}
+                      </span>
+                    )}
+                  </Link>
+                }
+              />
+            )}
             <Button
               variant="outline"
               nativeButton={false}
