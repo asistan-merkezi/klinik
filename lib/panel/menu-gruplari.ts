@@ -1,5 +1,4 @@
 import {
-  Receipt,
   Landmark,
   TrendingDown,
   BarChart3,
@@ -16,6 +15,7 @@ import {
   QrCode,
   Percent,
   ShoppingCart,
+  HandCoins,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,7 +37,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     label: "Muhasebe",
     icon: Wallet,
     ogeler: [
-      { href: "/panel/muhasebe/faturalar", label: "Kesilen Faturalar", icon: Receipt },
+      { href: "/panel/muhasebe/gelirler-takibi", label: "Gelirler Takibi", icon: HandCoins },
       {
         href: "/panel/muhasebe/satin-alma-faturalari",
         label: "Satın Alma Faturaları",
