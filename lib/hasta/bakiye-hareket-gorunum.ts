@@ -117,7 +117,10 @@ export function bakiyeSatirlariOlustur(gorunumler: HareketGorunum[]): BakiyeSati
       islemAdi: g.islemAdi,
       terapistAdi: g.terapistAdi,
       kategoriIskontoTutari: g.kategoriIskontoTutari,
-      manuelIskontoTutari: 0,
+      // İskonto (kategori de manuel de) tedavinin/işlemin kendisine uygulanıyor
+      // — kapatma anındaki tahsilat (Ödeme satırı) sadece ne kadar para
+      // alındığını gösteriyor, indirim orada gösterilmiyor.
+      manuelIskontoTutari: g.manuelIskontoTutari,
       tutarBrut: g.tutarBrut,
       bakiyeSonrasi: null,
     });
@@ -129,7 +132,7 @@ export function bakiyeSatirlariOlustur(gorunumler: HareketGorunum[]): BakiyeSati
       islemAdi: g.islemAdi,
       terapistAdi: null,
       kategoriIskontoTutari: 0,
-      manuelIskontoTutari: g.manuelIskontoTutari,
+      manuelIskontoTutari: 0,
       tutarBrut: g.hareket.tutar,
       bakiyeSonrasi: g.bakiyeSonrasi,
     });

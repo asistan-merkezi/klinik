@@ -14,6 +14,7 @@ import {
   type FaturaBilgisiKontrol,
 } from "@/lib/fatura/eksik-bilgi";
 import { borcKapat } from "./actions";
+import { formatDate, formatTime } from "@/lib/datetime";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -42,7 +43,6 @@ export function BakiyeHareketSatiri({
   const [acik, setAcik] = useState(false);
   const { hareket, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, tutarBrut, bakiyeSonrasi } = satir;
   const tikanabilir = satir.tip === "tekli" && duzenlenebilir && hareket.tur === "borc";
-  const tarih = new Date(satir.tarih);
 
   // "İşlem" satırı: borç kapatılmış (eskiden borç, şimdi tur='odeme') bir
   // kaydın orijinal tedavi/tutar tarafı — Borç rengiyle (rose) aynı görsel
@@ -52,10 +52,8 @@ export function BakiyeHareketSatiri({
   if (satir.tip === "islem") {
     return (
       <tr className="border-b border-border/60 align-top">
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{tarih.toLocaleDateString("tr-TR")}</td>
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-          {tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-        </td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDate(satir.tarih)}</td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(satir.tarih)}</td>
         <td className="px-3 py-2">
           <div className="flex flex-col gap-1">
             <span className="font-medium">{islemAdi}</span>
@@ -79,7 +77,9 @@ export function BakiyeHareketSatiri({
             "—"
           )}
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          {manuelIskontoTutari > 0 ? paraFormat(manuelIskontoTutari) : "—"}
+        </td>
         <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
       </tr>
     );
@@ -88,10 +88,8 @@ export function BakiyeHareketSatiri({
   if (satir.tip === "odeme") {
     return (
       <tr className="border-b border-border last:border-b-0 align-top">
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{tarih.toLocaleDateString("tr-TR")}</td>
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-          {tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-        </td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDate(satir.tarih)}</td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(satir.tarih)}</td>
         <td className="px-3 py-2">
           <StatusBadge tone="emerald" className="w-fit">
             Ödeme
@@ -102,9 +100,7 @@ export function BakiyeHareketSatiri({
           +{paraFormat(hareket.tutar)}
         </td>
         <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
-        <td className="px-3 py-2 text-right tabular-nums">
-          {manuelIskontoTutari > 0 ? paraFormat(manuelIskontoTutari) : "—"}
-        </td>
+        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
         <td
           className={`px-3 py-2 text-right tabular-nums font-medium ${
             (bakiyeSonrasi ?? 0) < 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
@@ -127,10 +123,8 @@ export function BakiyeHareketSatiri({
         }`}
         onClick={tikanabilir ? () => setAcik(true) : undefined}
       >
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{tarih.toLocaleDateString("tr-TR")}</td>
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-          {tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-        </td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDate(satir.tarih)}</td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(satir.tarih)}</td>
         <td className="px-3 py-2">
           <div className="flex flex-col gap-1">
             <span className="font-medium">{islemAdi}</span>
