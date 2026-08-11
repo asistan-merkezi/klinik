@@ -15,6 +15,7 @@ import type { SecenekSatir } from "@/types/randevu";
 import { HAFTANIN_GUNLERI } from "@/types/periyodik-randevu";
 import { periyodikRandevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
+import { KayitliPaketler } from "./kayitli-paketler";
 
 type Props = {
   hastalar: SecenekSatir[];
@@ -39,6 +40,8 @@ export function PeriyodikRandevuFormu({
 }: Props) {
   const [durum, formAction, isPending] = useActionState(periyodikRandevuOlustur, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
+  const [hastaId, setHastaId] = useState(sabitHasta?.id ?? "");
+  const [islemTanimiId, setIslemTanimiId] = useState("");
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
@@ -65,9 +68,23 @@ export function PeriyodikRandevuFormu({
               <input type="hidden" name="hasta_id" value={sabitHasta.id} />
             </>
           ) : (
-            <HastaArama id="periyodik_hasta_arama" hastalar={hastalar} required disabled={isPending} />
+            <HastaArama
+              id="periyodik_hasta_arama"
+              hastalar={hastalar}
+              required
+              disabled={isPending}
+              onSecim={(h) => setHastaId(h.id)}
+              onTemizle={() => setHastaId("")}
+            />
           )}
         </div>
+
+        <KayitliPaketler
+          hastaId={hastaId}
+          secili={islemTanimiId}
+          onSec={setIslemTanimiId}
+          disabled={isPending}
+        />
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="periyodik_terapist_id">Dr / Terapist</Label>
@@ -117,6 +134,8 @@ export function PeriyodikRandevuFormu({
             name="islem_tanimi_id"
             required
             disabled={isPending}
+            value={islemTanimiId}
+            onValueChange={(v) => setIslemTanimiId(v as string)}
             items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="periyodik_islem_tanimi_id" className="w-full">

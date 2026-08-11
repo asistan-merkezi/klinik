@@ -16,6 +16,7 @@ import { formatDateForInput } from "@/lib/datetime";
 import type { SecenekSatir } from "@/types/randevu";
 import { randevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
+import { KayitliPaketler } from "./kayitli-paketler";
 
 type Props = {
   hastalar: SecenekSatir[];
@@ -49,6 +50,8 @@ export function RandevuFormu({
   const efektifSabitHasta = sabitHasta ?? (talep ? { id: talep.hastaId, ad: talep.hastaAd } : undefined);
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
+  const [hastaId, setHastaId] = useState(efektifSabitHasta?.id ?? "");
+  const [islemTanimiId, setIslemTanimiId] = useState(talep?.islemTanimiId ?? "");
 
   // React 19'da form action'ı başarıyla tamamlanınca native alanlar otomatik
   // sıfırlanıyor (HastaArama'nın kendi state'i bundan habersiz kalıp
@@ -82,9 +85,23 @@ export function RandevuFormu({
               <input type="hidden" name="hasta_id" value={efektifSabitHasta.id} />
             </>
           ) : (
-            <HastaArama id="hasta_arama" hastalar={hastalar} required disabled={isPending} />
+            <HastaArama
+              id="hasta_arama"
+              hastalar={hastalar}
+              required
+              disabled={isPending}
+              onSecim={(h) => setHastaId(h.id)}
+              onTemizle={() => setHastaId("")}
+            />
           )}
         </div>
+
+        <KayitliPaketler
+          hastaId={hastaId}
+          secili={islemTanimiId}
+          onSec={setIslemTanimiId}
+          disabled={isPending}
+        />
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="terapist_id">Dr / Terapist</Label>
@@ -135,7 +152,8 @@ export function RandevuFormu({
             name="islem_tanimi_id"
             required
             disabled={isPending}
-            defaultValue={talep?.islemTanimiId}
+            value={islemTanimiId}
+            onValueChange={(v) => setIslemTanimiId(v as string)}
             items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="islem_tanimi_id" className="w-full">

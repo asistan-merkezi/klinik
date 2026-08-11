@@ -6,7 +6,6 @@ import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/typ
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { YeniRandevuDialog } from "./yeni-randevu-dialog";
-import { PeriyodikRandevuDialog } from "./periyodik-randevu-dialog";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
 import { BekleyenRandevuTalepleri } from "./bekleyen-randevu-talepleri";
 
@@ -115,13 +114,6 @@ export default async function RandevularSayfasi() {
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <PeriyodikRandevuDialog
-              hastalar={hastalar}
-              terapistler={terapistler}
-              odalar={odalar}
-              cihazlar={cihazlar}
-              tedaviler={tedaviler}
-            />
             <YeniRandevuDialog
               hastalar={hastalar}
               terapistler={terapistler}
