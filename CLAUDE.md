@@ -319,7 +319,10 @@ Bakiye Hareketleri "Tutar" sütunu, kullanıcının onayıyla net (manuel iskont
 
 Cari Alacaklar Takibi'ne isim arama eklendi (2026-08-13, kullanıcı isteği): tablo bir client bileşene (`cari-alacaklar-listesi.tsx`) taşındı — Personel Listesi'ndeki client-side arama deseniyle (`useState`+`useMemo`, `toLocaleLowerCase("tr")`) birebir aynı, ayrı bir sorgu/route parametresi eklenmedi (dataset zaten sadece cari borcu olan hastalarla sınırlı, büyük veri riski yok). Sayfa (server component) veriyi çekmeye devam ediyor, sadece render'ı bu yeni bileşene devrediyor.
 
-Son güncelleme: 2026-08-13 (Cari Alacaklar Takibi'ne isim arama kutusu eklendi)
+Muhasebe grubundaki "Gelirler Takibi" öğesi "Gelirler Takibi ve Faturalandırma" olarak yeniden adlandırıldı (2026-08-13, kullanıcı isteği) — sadece görünen etiket (`lib/panel/menu-gruplari.ts` + `gelirler-takibi/page.tsx`'teki yerel `GRUP.label`), URL/route slug (`/panel/muhasebe/gelirler-takibi`) değişmedi.
+
+Son güncelleme: 2026-08-13 (Muhasebe > "Gelirler Takibi" ismi "Gelirler Takibi ve Faturalandırma" olarak değiştirildi)
+Önceki güncelleme: 2026-08-13 (Cari Alacaklar Takibi'ne isim arama kutusu eklendi)
 Önceki güncelleme: 2026-08-13 (Bakiye Hareketleri "Tutar" sütunu net yerine brüt/orijinal fiyat gösterecek şekilde düzeltildi)
 Önceki güncelleme: 2026-08-13 (Muhasebe > "Kesilen Faturalar" → "Gelirler Takibi" 2 bölümlü hub'a çevrildi: Kesilen Faturalar taşındı + yeni Cari Alacaklar Takibi ekranı, satır tıklayınca hasta Cari & Ödeme sayfası açılıyor)
 Önceki güncelleme: 2026-08-13 (Hastalar listesi: cari borç kırmızı/yeşil nokta + KVKK onaylı metni yerine eksik bilgi (e-posta/adres/telefon) rozeti)
