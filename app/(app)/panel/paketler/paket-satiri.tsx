@@ -19,6 +19,7 @@ import type { SecenekSatir } from "@/types/randevu";
 import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
 import { paketAktifDurumDegistir, paketGuncelle, paketTekrarla } from "./actions";
 import { PaketSatisDialog } from "./paket-satis-dialog";
+import { PaketKatilimcilarDialog } from "./paket-katilimcilar-dialog";
 
 const SATIS_SINIFI =
   "!border-emerald-500/30 !bg-emerald-500/10 !text-emerald-700 hover:!bg-emerald-500/20 dark:!border-emerald-500/30 dark:!text-emerald-400 dark:hover:!bg-emerald-500/20";
@@ -150,6 +151,18 @@ export function PaketSatiri({
                   disabled={isPending}
                 />
               </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`kota-${paket.id}`}>Kişi Kotası</Label>
+                <Input
+                  id={`kota-${paket.id}`}
+                  name="kisi_kotasi"
+                  type="number"
+                  min={1}
+                  step="1"
+                  defaultValue={duzenleForm.kisi_kotasi ?? ""}
+                  disabled={isPending}
+                />
+              </div>
             </div>
 
             {durum && (
@@ -200,6 +213,7 @@ export function PaketSatiri({
                   )}
                 </>
               )}
+              {paket.kisi_kotasi != null && <> · Kişi kotası {paket.kisi_kotasi}</>}
             </span>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
@@ -209,36 +223,42 @@ export function PaketSatiri({
         </div>
 
         {arsivde ? (
-          duzenlenebilir && (
+          (duzenlenebilir || satisYapabilir) && (
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={tekrarPending}
-                className={TEKRARLA_SINIFI}
-                onClick={() => startTekrarTransition(() => paketTekrarla(paket.id))}
-              >
-                {tekrarPending ? "Tekrarlanıyor..." : "Tekrarla"}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className={DUZENLE_SINIFI}
-                onClick={() => {
-                  setDuzenleForm(paket);
-                  setAdMetni(isimBasHarfBuyukYap(paket.ad));
-                  setDuzenleniyor(true);
-                }}
-              >
-                Düzenle
-              </Button>
+              <PaketKatilimcilarDialog paket={paket} />
+              {duzenlenebilir && (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={tekrarPending}
+                    className={TEKRARLA_SINIFI}
+                    onClick={() => startTekrarTransition(() => paketTekrarla(paket.id))}
+                  >
+                    {tekrarPending ? "Tekrarlanıyor..." : "Tekrarla"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={DUZENLE_SINIFI}
+                    onClick={() => {
+                      setDuzenleForm(paket);
+                      setAdMetni(isimBasHarfBuyukYap(paket.ad));
+                      setDuzenleniyor(true);
+                    }}
+                  >
+                    Düzenle
+                  </Button>
+                </>
+              )}
             </div>
           )
         ) : (
           (duzenlenebilir || satisYapabilir) && (
             <div className="flex flex-wrap gap-2">
+              <PaketKatilimcilarDialog paket={paket} />
               {satisYapabilir &&
                 (satisEngelliMi(paket) ? (
                   <Button type="button" size="sm" variant="outline" disabled title="Bu paket şu an satılamaz.">

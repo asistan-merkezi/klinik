@@ -51,6 +51,7 @@ const HATA_MESAJLARI: Record<string, string> = {
   kalem_yok: "En az bir ürün eklenmeli.",
   iskonto_fazla: "İskonto tutarı toplam tutardan büyük olamaz.",
   odeme_tutari_uyusmuyor: "Ödeme satırları toplamı, ödenecek tutara eşit olmalı.",
+  kota_doldu: "Bu paketin kişi kotası doldu.",
 };
 
 function odemeHatasiniCevir(mesaj: string | undefined) {

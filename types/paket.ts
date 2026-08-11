@@ -15,5 +15,15 @@ export type PaketSatir = {
   kdv_orani: number;
   aktif: boolean;
   tekrar_sayisi: number;
+  kisi_kotasi: number | null;
   islem_tanimi: { ad: string } | null;
+};
+
+export type PaketKatilimciSatir = {
+  paket_satis_id: string;
+  hasta_id: string;
+  ad_soyad: string;
+  kategori: HastaKategori;
+  kalan_adet: number;
+  durum: string;
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useId, useState } from "react";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,14 +23,19 @@ export function PaketSatisDialog({
   paket,
   hastalar,
   className,
+  varsayilanHasta,
+  mod = "satis",
 }: {
   paket: PaketSatir;
-  hastalar: SatisHastaSecenegi[];
+  hastalar?: SatisHastaSecenegi[];
   className?: string;
+  /** Doluysa hasta arama gösterilmez, doğrudan bu hastaya satış yapılır (Yenile akışı). */
+  varsayilanHasta?: SatisHastaSecenegi;
+  mod?: "satis" | "yenile";
 }) {
   const idOnEki = useId();
   const [acik, setAcik] = useState(false);
-  const [seciliHasta, setSeciliHasta] = useState<SatisHastaSecenegi | null>(null);
+  const [seciliHasta, setSeciliHasta] = useState<SatisHastaSecenegi | null>(varsayilanHasta ?? null);
   const [iskontoMetni, setIskontoMetni] = useState("");
 
   const satisAction = odemeAl.bind(null, seciliHasta?.id ?? "");
@@ -41,7 +46,7 @@ export function PaketSatisDialog({
     setGorulenDurum(durum);
     if (durum?.success) {
       setAcik(false);
-      setSeciliHasta(null);
+      setSeciliHasta(varsayilanHasta ?? null);
       setIskontoMetni("");
     }
   }
@@ -56,7 +61,7 @@ export function PaketSatisDialog({
   function kapat(acikMi: boolean) {
     setAcik(acikMi);
     if (!acikMi) {
-      setSeciliHasta(null);
+      setSeciliHasta(varsayilanHasta ?? null);
       setIskontoMetni("");
     }
   }
@@ -68,17 +73,17 @@ export function PaketSatisDialog({
         size="sm"
         variant="outline"
         className={cn(className)}
-        title="Bu paketi bir hastaya sat"
+        title={mod === "yenile" ? "Bu paketi bu hastaya yeniden sat" : "Bu paketi bir hastaya sat"}
         onClick={() => setAcik(true)}
       >
-        <ShoppingCart />
-        Satış
+        {mod === "yenile" ? <RefreshCw /> : <ShoppingCart />}
+        {mod === "yenile" ? "Yenile" : "Satış"}
       </Button>
 
       <Dialog open={acik} onOpenChange={kapat}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Paket Sat: {paket.ad}</DialogTitle>
+            <DialogTitle>{mod === "yenile" ? "Paketi Yenile" : "Paket Sat"}: {paket.ad}</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
             <input type="hidden" name="kalemler_json" value={kalemlerJson} />
@@ -86,14 +91,18 @@ export function PaketSatisDialog({
 
             <div className="flex flex-col gap-1">
               <Label htmlFor={`${idOnEki}-hasta`}>Hasta</Label>
-              <HastaArama
-                id={`${idOnEki}-hasta`}
-                hastalar={hastalar}
-                required
-                disabled={isPending}
-                onSecim={(hasta) => setSeciliHasta(hasta)}
-                onTemizle={() => setSeciliHasta(null)}
-              />
+              {varsayilanHasta ? (
+                <p className="text-sm font-medium">{varsayilanHasta.ad}</p>
+              ) : (
+                <HastaArama
+                  id={`${idOnEki}-hasta`}
+                  hastalar={hastalar ?? []}
+                  required
+                  disabled={isPending}
+                  onSecim={(hasta) => setSeciliHasta(hasta)}
+                  onTemizle={() => setSeciliHasta(null)}
+                />
+              )}
             </div>
 
             {seciliHasta && (

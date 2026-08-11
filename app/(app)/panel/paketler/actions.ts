@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import type { PaketKatilimciSatir } from "@/types/paket";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -14,6 +15,10 @@ const paketSemasi = z.object({
   satis_bitis_tarihi: z.string().trim().optional().or(z.literal("")),
   fiyat: z.coerce.number().min(0, "Fiyat 0'dan küçük olamaz."),
   kdv_orani: z.coerce.number().min(0, "KDV 0-100 arasında olmalı.").max(100, "KDV 0-100 arasında olmalı."),
+  kisi_kotasi: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.coerce.number().int("Kişi kotası tam sayı olmalı.").min(1, "Kişi kotası en az 1 olmalı.").optional()
+  ),
 });
 
 async function klinikIdGetir() {
@@ -43,6 +48,7 @@ function ayristir(formData: FormData) {
     satis_bitis_tarihi: formData.get("satis_bitis_tarihi") ?? "",
     fiyat: formData.get("fiyat"),
     kdv_orani: formData.get("kdv_orani"),
+    kisi_kotasi: formData.get("kisi_kotasi") ?? "",
   });
 }
 
@@ -57,7 +63,7 @@ export async function paketOlustur(_onceki: SonucDurumu, formData: FormData): Pr
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, islem_tanimi_id, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani } = ayristirma.data;
+  const { ad, islem_tanimi_id, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, kisi_kotasi } = ayristirma.data;
 
   const { error } = await supabase.from("paket").insert({
     klinik_id: klinikId,
@@ -67,6 +73,7 @@ export async function paketOlustur(_onceki: SonucDurumu, formData: FormData): Pr
     satis_bitis_tarihi: satis_bitis_tarihi || null,
     fiyat,
     kdv_orani,
+    kisi_kotasi: kisi_kotasi ?? null,
   });
 
   if (error) {
@@ -96,7 +103,7 @@ export async function paketGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, islem_tanimi_id, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani } = ayristirma.data;
+  const { ad, islem_tanimi_id, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, kisi_kotasi } = ayristirma.data;
 
   const { error } = await supabase
     .from("paket")
@@ -107,6 +114,7 @@ export async function paketGuncelle(
       satis_bitis_tarihi: satis_bitis_tarihi || null,
       fiyat,
       kdv_orani,
+      kisi_kotasi: kisi_kotasi ?? null,
     })
     .eq("id", paketId);
 
@@ -173,4 +181,41 @@ export async function paketTekrarla(paketId: string) {
   }
 
   revalidatePath("/panel/paketler");
+}
+
+export async function paketKatilimcilariGetir(paketId: string): Promise<PaketKatilimciSatir[]> {
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("paket_satis")
+    .select("id, hasta_id, kalan_adet, durum, satis_tarihi, hasta(ad_soyad, kategori)")
+    .eq("paket_id", paketId)
+    .eq("klinik_id", klinikId)
+    .order("satis_tarihi", { ascending: false })
+    .returns<
+      {
+        id: string;
+        hasta_id: string;
+        kalan_adet: number;
+        durum: string;
+        hasta: { ad_soyad: string; kategori: PaketKatilimciSatir["kategori"] } | null;
+      }[]
+    >();
+
+  if (error || !data) {
+    console.error("Katılımcılar getirilemedi:", error);
+    return [];
+  }
+
+  return data.map((satir) => ({
+    paket_satis_id: satir.id,
+    hasta_id: satir.hasta_id,
+    ad_soyad: satir.hasta?.ad_soyad ?? "—",
+    kategori: satir.hasta?.kategori ?? "vita",
+    kalan_adet: satir.kalan_adet,
+    durum: satir.durum,
+  }));
 }

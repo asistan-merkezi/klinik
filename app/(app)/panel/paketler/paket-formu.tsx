@@ -94,6 +94,15 @@ export function PaketFormu({ islemTanimlari }: { islemTanimlari: SecenekSatir[] 
             disabled={isPending}
           />
         </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="kisi_kotasi">Kişi Kotası</Label>
+          <Input id="kisi_kotasi" name="kisi_kotasi" type="number" min={1} step="1" disabled={isPending} />
+          <p className="text-xs text-muted-foreground">
+            Boş bırakılırsa sınır yok. Bu paketi aynı anda kullanan farklı kişi sayısı bu sayıya
+            ulaşınca yeni kişilere satış durur (mevcut katılımcıların yenilemesi etkilenmez).
+          </p>
+        </div>
       </div>
 
       {durum && (
