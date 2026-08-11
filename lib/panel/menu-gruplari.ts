@@ -17,6 +17,8 @@ import {
   ShoppingCart,
   HandCoins,
   LifeBuoy,
+  BookOpen,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 
@@ -70,7 +72,15 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
         icon: UploadCloud,
       },
       { href: "/panel/ayarlar/qr-kodlar", label: "QR Kodları", icon: QrCode },
-      { href: "/panel/ayarlar/destek", label: "Destek", icon: LifeBuoy },
+    ],
+  },
+  {
+    key: "destek",
+    label: "Destek",
+    icon: LifeBuoy,
+    ogeler: [
+      { href: "/panel/destek/kullanim-kilavuzu", label: "Kullanım Kılavuzu", icon: BookOpen },
+      { href: "/panel/destek/chatbot", label: "Destek Chatbotu", icon: Bot },
     ],
   },
 ];
