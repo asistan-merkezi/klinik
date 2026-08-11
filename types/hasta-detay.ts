@@ -243,7 +243,6 @@ export type HastaBakiyeHareketOdemeKalemi = {
 };
 
 export type HastaBakiyeHareketOdeme = {
-  created_at: string;
   iskonto_tutari: number;
   odeme_kalemi: HastaBakiyeHareketOdemeKalemi[];
   odeme_satiri: { yontem: OdemeYontemi }[];
@@ -253,6 +252,7 @@ export type HastaBakiyeHareket = {
   id: string;
   tur: BakiyeHareketTuru;
   tutar: number;
+  iskonto_tutari: number;
   aciklama: string | null;
   created_at: string;
   odeme_id: string | null;

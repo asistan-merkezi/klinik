@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     supabase
       .from("hasta_bakiye_hareket")
       .select(
-        "id, tur, tutar, aciklama, created_at, odeme_id, " +
+        "id, tur, tutar, iskonto_tutari, aciklama, created_at, odeme_id, " +
           "randevu(terapist(personel(ad_soyad)), islem_tanimi(ad, vita_fiyat)), " +
           "odeme(iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad, vita_fiyat), paket_satis(paket(ad))), odeme_satiri(yontem))"
       )

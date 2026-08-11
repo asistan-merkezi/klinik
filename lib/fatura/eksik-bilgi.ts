@@ -1,5 +1,5 @@
 // Faturalı işaretlemeden önce hem client (uyarı göstermek için) hem server
-// (hasta_bakiye_hareket_borc_kapat RPC'sinin "fatura_bilgisi_eksik" hata
+// (hasta_bakiye_hareket_borc_duzenle RPC'sinin "fatura_bilgisi_eksik" hata
 // kodunu çevirmek için) aynı alan listesini paylaşsın diye tek yerde tutulur.
 export const FATURA_ALAN_ETIKETLERI: Record<string, string> = {
   ad_soyad: "Ad Soyad",

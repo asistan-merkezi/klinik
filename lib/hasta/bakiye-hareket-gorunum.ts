@@ -17,20 +17,16 @@ export type HareketGorunum = {
 // pencere (sayfada son 30, PDF'te daha geniş) boyutundan bağımsız rakamlar
 // doğru kalsın.
 //
-// Borç Kapatma artık İKİ AYRI, KALICI satır üretiyor (migration
-// 20260813120000, kullanıcı kararı: "işlem ayrı satır, ödeme ayrı satır,
-// borç gelir ödeme girersin borç düşer") — orijinal borç satırı hiç
-// değişmiyor (tur='borc', tutar hep orijinal), kapatma anında AYRI bir
-// 'odeme' satırı ekleniyor (aynı randevu_id'ye bağlı — SADECE bakiye
-// formülünün sinyali için, ekranda tedavi/terapist bilgisi GÖSTERİLMİYOR).
+// Sistem (kullanıcı kararı, en basit hâli): borç satırı randevu/seans
+// tamamlanınca otomatik oluşuyor; iskonto doğrudan o satırın kendi
+// `iskonto_tutari` kolonunda tutuluyor (borç satırına tıklanınca düzenlenir)
+// — ayrı bir "borç kapama" satırı/durumu YOK. Bağımsız "Ödeme Ekle" ise
+// tamamen ayrı bir hareket olarak toplam bakiyeyi doğrudan azaltıyor.
 //
-// Bakiye etkisi v_hasta_ozet ile AYNI kural olmalı (migration 20260813130000):
-//   kredi                                  → +tutar
-//   borc                                   → -tutar (kapatılmış olsa bile)
-//   odeme, odeme_id NULL (manuel Ödeme Ekle)         → +tutar
-//   odeme, randevu_id dolu (borç kapatmanın ödemesi) → +(tutar + iskonto) —
-//     iskonto dahil TAM orijinal borç tutarı kadar telafi ediyor (indirim
-//     klinik tarafından üstlenilen bir write-off)
+// Bakiye etkisi v_hasta_ozet ile AYNI kural olmalı (migration 20260813160000):
+//   kredi                              → +tutar
+//   borc                               → -(tutar - iskonto_tutari)
+//   odeme, odeme_id NULL (Ödeme Ekle)  → +tutar
 //   diğer (odeme_olustur'dan peşin satın alma ödemesi) → 0 (zaten hiç borç
 //     yaratmamıştı)
 export function hareketleriGorunumeCevir(
@@ -43,37 +39,28 @@ export function hareketleriGorunumeCevir(
   for (const h of hareketler) {
     const bakiyeSonrasi = bakiye;
 
-    // İskonto sorusu iki yerde var: Borç Kapatma dialogu (BORÇ satırına
-    // tıklanınca) ve Ödeme Al'ın peşin satın alma ekranı (odeme_olustur,
-    // randevu_id hiç yok) — "Ödeme Ekle"de iskonto sorusu YOK. Bu yüzden
-    // borç kapatmanın ürettiği "Ödeme" satırında (randevu_id dolu) iskonto
-    // hiç gösterilmiyor, tıklanan asıl borç satırında gösteriliyor.
-    // `iskontoTutari` bakiye formülü için ayrı tutuluyor (borç kapatmanın
-    // ödeme satırının etkisine dahil edilmesi gerekiyor, görüntülemeden
-    // bağımsız).
-    const iskontoTutari = h.odeme?.iskonto_tutari ?? 0;
-    const manuelIskontoTutari =
-      h.tur === "borc" || (h.tur === "odeme" && h.randevu === null) ? iskontoTutari : 0;
+    let islemAdi = BAKIYE_HAREKET_ETIKETLERI[h.tur];
+    let terapistAdi: string | null = null;
+    let kategoriIskontoTutari = 0;
+    let manuelIskontoTutari = 0;
+    let tutarBrut = h.tutar;
     const odemeYontemMetni = (h.odeme?.odeme_satiri ?? [])
       .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
       .join(" + ");
 
-    let islemAdi = BAKIYE_HAREKET_ETIKETLERI[h.tur];
-    let terapistAdi: string | null = null;
-    let kategoriIskontoTutari = 0;
-    let tutarBrut = h.tutar;
-
     if (h.tur === "borc" && h.randevu) {
       islemAdi = h.randevu.islem_tanimi?.ad ?? islemAdi;
       terapistAdi = h.randevu.terapist?.personel?.ad_soyad ?? null;
+      manuelIskontoTutari = h.iskonto_tutari;
       if (h.randevu.islem_tanimi) {
         kategoriIskontoTutari = Math.max(0, h.randevu.islem_tanimi.vita_fiyat - h.tutar);
       }
-    } else if (h.tur === "odeme" && h.odeme && h.randevu === null) {
+    } else if (h.tur === "odeme" && h.odeme) {
       // odeme_olustur'dan gelen peşin satın alma ödemesi — hasta_bakiye_hareket.tutar
       // zaten NET (manuel iskonto düşülmüş), brüt (indirim öncesi) tutar
       // manuel iskonto geri eklenerek yeniden kuruluyor.
-      tutarBrut = h.tutar + iskontoTutari;
+      manuelIskontoTutari = h.odeme.iskonto_tutari;
+      tutarBrut = h.tutar + manuelIskontoTutari;
       const adlar = h.odeme.odeme_kalemi.map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—");
       if (adlar.length > 0) islemAdi = adlar.join(", ");
       kategoriIskontoTutari = h.odeme.odeme_kalemi.reduce((acc, k) => {
@@ -81,20 +68,16 @@ export function hareketleriGorunumeCevir(
         return acc + Math.max(0, (k.islem_tanimi.vita_fiyat - k.birim_fiyat) * k.miktar);
       }, 0);
     }
-    // else: bağımsız "Ödeme Ekle" VEYA borç kapatmanın ödeme satırı —
-    // kullanıcı kararıyla İşlem Türü sütununda tedavi/terapist bilgisi
-    // gösterilmiyor, generic "Ödeme" (+yöntem) olarak kalıyor.
+    // else: bağımsız "Ödeme Ekle" — generic "Ödeme" (+yöntem) olarak kalıyor.
 
     const etki =
       h.tur === "kredi"
         ? h.tutar
         : h.tur === "borc"
-          ? -h.tutar
+          ? -(h.tutar - h.iskonto_tutari)
           : h.tur === "odeme" && h.odeme_id === null
             ? h.tutar
-            : h.tur === "odeme" && h.randevu !== null
-              ? h.tutar + iskontoTutari
-              : 0;
+            : 0;
     bakiye -= etki;
 
     sonuc.push({
@@ -111,4 +94,3 @@ export function hareketleriGorunumeCevir(
 
   return sonuc;
 }
-

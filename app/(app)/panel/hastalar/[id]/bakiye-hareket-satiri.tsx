@@ -13,7 +13,7 @@ import {
   FATURA_ALAN_ETIKETLERI,
   type FaturaBilgisiKontrol,
 } from "@/lib/fatura/eksik-bilgi";
-import { borcKapat } from "./actions";
+import { borcDuzenle } from "./actions";
 import { formatDate, formatTime } from "@/lib/datetime";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
@@ -51,8 +51,9 @@ export function BakiyeHareketSatiri({
     bakiyeSonrasi,
     odemeYontemMetni,
   } = satir;
-  const kapatilmisBorc = hareket.tur === "borc" && hareket.odeme_id !== null;
-  const tikanabilir = duzenlenebilir && hareket.tur === "borc" && !kapatilmisBorc;
+  // Borç satırı her zaman düzenlenebilir — kapama/durum kavramı yok, aynı
+  // satır istenildiği kadar tekrar tıklanıp iskontosu güncellenebilir.
+  const tikanabilir = duzenlenebilir && hareket.tur === "borc";
 
   const tonu = BAKIYE_HAREKET_TONLARI[hareket.tur];
   const isaret = hareket.tur === "borc" ? "-" : "+";
@@ -75,11 +76,6 @@ export function BakiyeHareketSatiri({
                 {BAKIYE_HAREKET_ETIKETLERI[hareket.tur]}
                 {hareket.tur === "odeme" && odemeYontemMetni && ` (${odemeYontemMetni})`}
               </StatusBadge>
-              {kapatilmisBorc && (
-                <StatusBadge tone="slate" className="w-fit">
-                  Ödendi
-                </StatusBadge>
-              )}
             </div>
             {hareket.aciklama && <span className="text-xs text-muted-foreground">{hareket.aciklama}</span>}
           </div>
@@ -147,10 +143,10 @@ function BorcDuzenleDialog({
   faturaBilgisi: FaturaBilgisiKontrol;
 }) {
   const idOnEki = useId();
-  const kapatAction = borcKapat.bind(null, hastaId, hareket.id);
-  const [durum, formAction, isPending] = useActionState(kapatAction, null);
+  const duzenleAction = borcDuzenle.bind(null, hastaId, hareket.id);
+  const [durum, formAction, isPending] = useActionState(duzenleAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
-  const [iskontoMetni, setIskontoMetni] = useState("");
+  const [iskontoMetni, setIskontoMetni] = useState(hareket.iskonto_tutari > 0 ? String(hareket.iskonto_tutari) : "");
   const [faturali, setFaturali] = useState(false);
   const [aciklama, setAciklama] = useState("");
 
@@ -173,8 +169,6 @@ function BorcDuzenleDialog({
           <DialogTitle>Borç Satırını Düzenle</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-3">
-          <input type="hidden" name="yontem" value="nakit" />
-
           <div className="rounded-lg border border-border p-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{islemAdi}</span>
@@ -232,7 +226,7 @@ function BorcDuzenleDialog({
           </div>
 
           <div className="flex justify-between text-sm font-medium">
-            <span>Tahsil edilecek</span>
+            <span>Net borç</span>
             <span>{paraFormat(netToplam)}</span>
           </div>
 
