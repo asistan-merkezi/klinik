@@ -37,7 +37,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     label: "Muhasebe",
     icon: Wallet,
     ogeler: [
-      { href: "/panel/muhasebe/gelirler-takibi", label: "Gelirler Takibi", icon: HandCoins },
+      { href: "/panel/muhasebe/gelirler-takibi", label: "Gelirler Takibi ve Faturalandırma", icon: HandCoins },
       {
         href: "/panel/muhasebe/satin-alma-faturalari",
         label: "Satın Alma Faturaları",

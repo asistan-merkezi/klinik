@@ -6,7 +6,7 @@ import type { MenuGrubu } from "@/lib/panel/menu-gruplari";
 
 const GRUP: MenuGrubu = {
   key: "gelirler-takibi",
-  label: "Gelirler Takibi",
+  label: "Gelirler Takibi ve Faturalandırma",
   icon: HandCoins,
   ogeler: [
     { href: "/panel/muhasebe/gelirler-takibi/faturalar", label: "Kesilen Faturalar", icon: Receipt },
