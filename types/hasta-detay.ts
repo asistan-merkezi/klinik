@@ -242,6 +242,7 @@ export type HastaBakiyeHareketOdemeKalemi = {
 };
 
 export type HastaBakiyeHareketOdeme = {
+  created_at: string;
   iskonto_tutari: number;
   odeme_kalemi: HastaBakiyeHareketOdemeKalemi[];
 };

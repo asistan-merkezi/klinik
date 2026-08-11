@@ -52,6 +52,26 @@ export function BakiyeHareketSatiri({
 }) {
   const [acik, setAcik] = useState(false);
   const tikanabilir = duzenlenebilir && hareket.tur === "borc";
+  // Kapatılmış (eskiden borç, şimdi tur='odeme') ve bir randevuya bağlı
+  // satırlar — kullanıcı kararıyla "İşlem" (tedavi/tutar/kategori iskontosu)
+  // ve "Ödeme" (tahsilat/manuel iskonto/bakiye) diye iki ayrı satır olarak
+  // gösteriliyor; kayıt arka planda hâlâ tek satır (bakiye matematiği
+  // değişmiyor), bölünme sadece görünüm katmanında.
+  const kapaliBorc = hareket.tur === "odeme" && hareket.randevu !== null;
+
+  if (kapaliBorc) {
+    return (
+      <IslemOdemeSatirCifti
+        hareket={hareket}
+        islemAdi={islemAdi}
+        terapistAdi={terapistAdi}
+        kategoriIskontoTutari={kategoriIskontoTutari}
+        manuelIskontoTutari={manuelIskontoTutari}
+        tutarBrut={tutarBrut}
+        bakiyeSonrasi={bakiyeSonrasi}
+      />
+    );
+  }
 
   const tarih = new Date(hareket.created_at);
   const tonu = BAKIYE_HAREKET_TONLARI[hareket.tur];
@@ -123,6 +143,86 @@ export function BakiyeHareketSatiri({
           faturaBilgisi={faturaBilgisi}
         />
       )}
+    </>
+  );
+}
+
+function IslemOdemeSatirCifti({
+  hareket,
+  islemAdi,
+  terapistAdi,
+  kategoriIskontoTutari,
+  manuelIskontoTutari,
+  tutarBrut,
+  bakiyeSonrasi,
+}: {
+  hareket: HastaBakiyeHareket;
+  islemAdi: string;
+  terapistAdi: string | null;
+  kategoriIskontoTutari: number;
+  manuelIskontoTutari: number;
+  tutarBrut: number;
+  bakiyeSonrasi: number;
+}) {
+  const islemTarihi = new Date(hareket.created_at);
+  // Ödemenin gerçekte kapatıldığı an — açık borç oluşturulduğu andan (islemTarihi)
+  // farklı bir gün/saat olabilir, bu yüzden odeme.created_at ayrıca kullanılıyor.
+  const odemeTarihi = hareket.odeme?.created_at ? new Date(hareket.odeme.created_at) : islemTarihi;
+
+  return (
+    <>
+      <tr className="border-b border-border/60 align-top">
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+          {islemTarihi.toLocaleDateString("tr-TR")}
+        </td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+          {islemTarihi.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+        </td>
+        <td className="px-3 py-2">
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">{islemAdi}</span>
+            <StatusBadge tone="slate" className="w-fit">
+              İşlem
+            </StatusBadge>
+            {hareket.aciklama && <span className="text-xs text-muted-foreground">{hareket.aciklama}</span>}
+          </div>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground">{terapistAdi ?? "—"}</td>
+        <td className="px-3 py-2 text-right tabular-nums font-medium">{paraFormat(tutarBrut)}</td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          {kategoriIskontoTutari > 0 ? paraFormat(kategoriIskontoTutari) : "—"}
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
+        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
+      </tr>
+      <tr className="border-b border-border last:border-b-0 align-top">
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+          {odemeTarihi.toLocaleDateString("tr-TR")}
+        </td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+          {odemeTarihi.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+        </td>
+        <td className="px-3 py-2">
+          <StatusBadge tone="emerald" className="w-fit">
+            Ödeme
+          </StatusBadge>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground">—</td>
+        <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
+          +{paraFormat(hareket.tutar)}
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          {manuelIskontoTutari > 0 ? paraFormat(manuelIskontoTutari) : "—"}
+        </td>
+        <td
+          className={`px-3 py-2 text-right tabular-nums font-medium ${
+            bakiyeSonrasi < 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
+          }`}
+        >
+          {paraFormat(bakiyeSonrasi)}
+        </td>
+      </tr>
     </>
   );
 }

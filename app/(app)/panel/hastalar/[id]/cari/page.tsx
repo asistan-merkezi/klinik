@@ -46,7 +46,7 @@ export default async function CariOdemeSayfasi({
       .select(
         "id, tur, tutar, aciklama, created_at, odeme_id, " +
           "randevu(terapist(personel(ad_soyad)), islem_tanimi(ad, vita_fiyat)), " +
-          "odeme(iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad, vita_fiyat), paket_satis(paket(ad))))"
+          "odeme(created_at, iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad, vita_fiyat), paket_satis(paket(ad))))"
       )
       .eq("hasta_id", id)
       .order("created_at", { ascending: false })
