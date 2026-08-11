@@ -15,11 +15,14 @@ export type HareketGorunum = {
 // hareketler created_at DESC (en yeni ilk) sırayla geliyor — kümülatif bakiye
 // güncelBakiye'den (o anki gerçek toplam) geriye doğru hesaplanıyor, ki
 // pencere (sayfada son 30, PDF'te daha geniş) boyutundan bağımsız rakamlar
-// doğru kalsın. Bakiye etkisi v_hasta_ozet ile aynı kural: kredi +, borç −,
-// ödeme/iade bakiyeyi değiştirmez (ödeme zaten tahsilatın audit-trail kaydı,
-// borç/kredi cari hesabı oluşturur). Ekrandaki tablo (cari-odeme-sekmesi.tsx)
-// ve Cari Hareketler PDF'i (api/hasta-cari-hareketler/pdf) aynı kaynağı
-// paylaşıyor — rakamların iki yerde de birbirinden sapmaması için.
+// doğru kalsın. Bakiye etkisi v_hasta_ozet ile AYNI kural (ikisi TUTARLI
+// kalmalı, migration 20260813110000): kredi +, borç −, bağımsız ödeme
+// (odeme_id NULL — manuel "Ödeme Ekle") +, geri kalanı (Borç Kapatma'yla
+// kapatılmış satırlar — randevu/odeme_id dolu — ve odeme_olustur'dan gelen
+// peşin satın alma ödemeleri) bakiyeyi değiştirmez. Kapatılmış bir borç
+// satırı kendi kendini sıfırlıyor (-tutar borçtan → 0 etkili "ödeme"ye
+// geçiş), bu yüzden ayrıca +tutar eklenmiyor — eklenirse aynı satır hem
+// borcu hem yeni bir alacağı saymış olurdu.
 export function hareketleriGorunumeCevir(
   hareketler: HastaBakiyeHareket[],
   guncelBakiye: number
@@ -29,7 +32,14 @@ export function hareketleriGorunumeCevir(
 
   for (const h of hareketler) {
     const bakiyeSonrasi = bakiye;
-    const etki = h.tur === "kredi" ? h.tutar : h.tur === "borc" ? -h.tutar : 0;
+    const etki =
+      h.tur === "kredi"
+        ? h.tutar
+        : h.tur === "borc"
+          ? -h.tutar
+          : h.tur === "odeme" && h.odeme_id === null
+            ? h.tutar
+            : 0;
     bakiye -= etki;
 
     let islemAdi = BAKIYE_HAREKET_ETIKETLERI[h.tur];
@@ -82,82 +92,3 @@ export function hareketleriGorunumeCevir(
   return sonuc;
 }
 
-export type BakiyeSatirTuru = "tekli" | "islem" | "odeme";
-
-export type BakiyeSatirGorunum = {
-  key: string;
-  tip: BakiyeSatirTuru;
-  tarih: string;
-  hareket: HastaBakiyeHareket;
-  islemAdi: string;
-  terapistAdi: string | null;
-  kategoriIskontoTutari: number;
-  manuelIskontoTutari: number;
-  tutarBrut: number;
-  bakiyeSonrasi: number | null;
-  odemeYontemMetni: string;
-};
-
-// Kapatılmış (eskiden borç, şimdi tur='odeme') ve bir randevuya bağlı
-// hareketler ekranda "İşlem" (orijinal tedavi tarihi/tutarı) ve "Ödeme"
-// (kapatma anının tarihi/tahsilatı) diye iki ayrı satıra bölünüyor —
-// kullanıcı kararı. Bölünen satırlar kendi gerçek tarihleriyle (İşlem:
-// hareket.created_at, Ödeme: hareket.odeme.created_at) tekrar sıralanıyor;
-// aksi halde ikisi hep aynı (eski, check-in anındaki) konumda bitişik
-// gösterilir ve aradaki başka hareketlerle sıralama karışırdı.
-export function bakiyeSatirlariOlustur(gorunumler: HareketGorunum[]): BakiyeSatirGorunum[] {
-  const satirlar: BakiyeSatirGorunum[] = [];
-
-  for (const g of gorunumler) {
-    const kapaliBorc = g.hareket.tur === "odeme" && g.hareket.randevu !== null;
-
-    if (!kapaliBorc) {
-      satirlar.push({
-        key: g.hareket.id,
-        tip: "tekli",
-        tarih: g.hareket.created_at,
-        hareket: g.hareket,
-        islemAdi: g.islemAdi,
-        terapistAdi: g.terapistAdi,
-        kategoriIskontoTutari: g.kategoriIskontoTutari,
-        manuelIskontoTutari: g.manuelIskontoTutari,
-        tutarBrut: g.tutarBrut,
-        bakiyeSonrasi: g.bakiyeSonrasi,
-        odemeYontemMetni: g.odemeYontemMetni,
-      });
-      continue;
-    }
-
-    satirlar.push({
-      key: `${g.hareket.id}-islem`,
-      tip: "islem",
-      tarih: g.hareket.created_at,
-      hareket: g.hareket,
-      islemAdi: g.islemAdi,
-      terapistAdi: g.terapistAdi,
-      kategoriIskontoTutari: g.kategoriIskontoTutari,
-      // İskonto (kategori de manuel de) tedavinin/işlemin kendisine uygulanıyor
-      // — kapatma anındaki tahsilat (Ödeme satırı) sadece ne kadar para
-      // alındığını gösteriyor, indirim orada gösterilmiyor.
-      manuelIskontoTutari: g.manuelIskontoTutari,
-      tutarBrut: g.tutarBrut,
-      bakiyeSonrasi: null,
-      odemeYontemMetni: "",
-    });
-    satirlar.push({
-      key: `${g.hareket.id}-odeme`,
-      tip: "odeme",
-      tarih: g.hareket.odeme?.created_at ?? g.hareket.created_at,
-      hareket: g.hareket,
-      islemAdi: g.islemAdi,
-      terapistAdi: null,
-      kategoriIskontoTutari: 0,
-      manuelIskontoTutari: 0,
-      tutarBrut: g.hareket.tutar,
-      bakiyeSonrasi: g.bakiyeSonrasi,
-      odemeYontemMetni: g.odemeYontemMetni,
-    });
-  }
-
-  return satirlar.sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
-}

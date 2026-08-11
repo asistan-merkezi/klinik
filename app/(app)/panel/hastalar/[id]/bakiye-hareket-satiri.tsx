@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { BAKIYE_HAREKET_ETIKETLERI, type BakiyeHareketTuru, type HastaBakiyeHareket } from "@/types/hasta-detay";
-import type { BakiyeSatirGorunum } from "@/lib/hasta/bakiye-hareket-gorunum";
+import type { HareketGorunum } from "@/lib/hasta/bakiye-hareket-gorunum";
 import {
   faturaEksikAlanlariBul,
   FATURA_ALAN_ETIKETLERI,
@@ -34,7 +34,7 @@ export function BakiyeHareketSatiri({
   faturaBilgisi,
 }: {
   hastaId: string;
-  satir: BakiyeSatirGorunum;
+  satir: HareketGorunum;
   kategoriEtiketi: string;
   kategoriPct: number;
   duzenlenebilir: boolean;
@@ -51,75 +51,7 @@ export function BakiyeHareketSatiri({
     bakiyeSonrasi,
     odemeYontemMetni,
   } = satir;
-  const tikanabilir = satir.tip === "tekli" && duzenlenebilir && hareket.tur === "borc";
-
-  // "İşlem" satırı: borç kapatılmış (eskiden borç, şimdi tur='odeme') bir
-  // kaydın orijinal tedavi/tutar tarafı — Borç rengiyle (rose) aynı görsel
-  // dilde kalıyor ki açık borçtan farklı bir kategoriymiş gibi görünmesin,
-  // sadece artık tıklanamıyor (ödeme zaten yapılmış). Bakiye/İskonto bu
-  // satırda gösterilmiyor, o bilgi "Ödeme" satırında.
-  if (satir.tip === "islem") {
-    return (
-      <tr className="border-b border-border/60 align-top">
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDate(satir.tarih)}</td>
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(satir.tarih)}</td>
-        <td className="px-3 py-2">
-          <div className="flex flex-col gap-1">
-            <span className="font-medium">{islemAdi}</span>
-            <StatusBadge tone="rose" className="w-fit">
-              Borç
-            </StatusBadge>
-            {hareket.aciklama && <span className="text-xs text-muted-foreground">{hareket.aciklama}</span>}
-          </div>
-        </td>
-        <td className="px-3 py-2 text-muted-foreground">{terapistAdi ?? "—"}</td>
-        <td className="px-3 py-2 text-right tabular-nums font-medium">{paraFormat(tutarBrut)}</td>
-        <td className="px-3 py-2 text-right tabular-nums">
-          {kategoriIskontoTutari > 0 ? (
-            <div className="flex flex-col items-end">
-              <span>{paraFormat(kategoriIskontoTutari)}</span>
-              <span className="text-xs text-muted-foreground">
-                {kategoriEtiketi} %{kategoriPct}
-              </span>
-            </div>
-          ) : (
-            "—"
-          )}
-        </td>
-        <td className="px-3 py-2 text-right tabular-nums">
-          {manuelIskontoTutari > 0 ? paraFormat(manuelIskontoTutari) : "—"}
-        </td>
-        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
-      </tr>
-    );
-  }
-
-  if (satir.tip === "odeme") {
-    return (
-      <tr className="border-b border-border last:border-b-0 align-top">
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDate(satir.tarih)}</td>
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(satir.tarih)}</td>
-        <td className="px-3 py-2">
-          <StatusBadge tone="emerald" className="w-fit">
-            Ödeme{odemeYontemMetni && ` (${odemeYontemMetni})`}
-          </StatusBadge>
-        </td>
-        <td className="px-3 py-2 text-muted-foreground">—</td>
-        <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
-          +{paraFormat(hareket.tutar)}
-        </td>
-        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
-        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">—</td>
-        <td
-          className={`px-3 py-2 text-right tabular-nums font-medium ${
-            (bakiyeSonrasi ?? 0) < 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
-          }`}
-        >
-          {paraFormat(bakiyeSonrasi ?? 0)}
-        </td>
-      </tr>
-    );
-  }
+  const tikanabilir = duzenlenebilir && hareket.tur === "borc";
 
   const tonu = BAKIYE_HAREKET_TONLARI[hareket.tur];
   const isaret = hareket.tur === "borc" ? "-" : "+";
@@ -132,8 +64,8 @@ export function BakiyeHareketSatiri({
         }`}
         onClick={tikanabilir ? () => setAcik(true) : undefined}
       >
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDate(satir.tarih)}</td>
-        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(satir.tarih)}</td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDate(hareket.created_at)}</td>
+        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(hareket.created_at)}</td>
         <td className="px-3 py-2">
           <div className="flex flex-col gap-1">
             <span className="font-medium">{islemAdi}</span>
@@ -172,10 +104,10 @@ export function BakiyeHareketSatiri({
         </td>
         <td
           className={`px-3 py-2 text-right tabular-nums font-medium ${
-            (bakiyeSonrasi ?? 0) < 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
+            bakiyeSonrasi < 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
           }`}
         >
-          {paraFormat(bakiyeSonrasi ?? 0)}
+          {paraFormat(bakiyeSonrasi)}
         </td>
       </tr>
 

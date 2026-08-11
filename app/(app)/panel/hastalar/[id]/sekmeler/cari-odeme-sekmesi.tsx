@@ -7,7 +7,7 @@ import type { PaketSatisSatir } from "@/types/odeme";
 import type { HastaKategori } from "@/types/hasta";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
-import { bakiyeSatirlariOlustur, hareketleriGorunumeCevir } from "@/lib/hasta/bakiye-hareket-gorunum";
+import { hareketleriGorunumeCevir } from "@/lib/hasta/bakiye-hareket-gorunum";
 import { BakiyeHareketiEkleButonu } from "../bakiye-hareketi-formu";
 import { BakiyeHareketSatiri } from "../bakiye-hareket-satiri";
 
@@ -61,7 +61,6 @@ export function CariOdemeSekmesi({
 }) {
   const kategoriPct = kategoriYuzdesi(hastaKategori, iskontoOranlari);
   const hareketGorunumleri = hareketleriGorunumeCevir(bakiyeHareketleri, guncelBakiye);
-  const bakiyeSatirlari = bakiyeSatirlariOlustur(hareketGorunumleri);
 
   return (
     <div className="flex flex-col gap-4">
@@ -80,7 +79,7 @@ export function CariOdemeSekmesi({
           </div>
         </CardHeader>
         <CardContent>
-          {bakiyeSatirlari.length === 0 ? (
+          {hareketGorunumleri.length === 0 ? (
             <EmptyState icon={Wallet} title="Hareket yok." />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
@@ -98,9 +97,9 @@ export function CariOdemeSekmesi({
                   </tr>
                 </thead>
                 <tbody>
-                  {bakiyeSatirlari.map((satir) => (
+                  {hareketGorunumleri.map((satir) => (
                     <BakiyeHareketSatiri
-                      key={satir.key}
+                      key={satir.hareket.id}
                       hastaId={hastaId}
                       satir={satir}
                       kategoriEtiketi={KATEGORI_ETIKETLERI[hastaKategori]}
