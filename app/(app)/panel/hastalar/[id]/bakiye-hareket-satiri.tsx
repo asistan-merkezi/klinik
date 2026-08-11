@@ -30,6 +30,7 @@ export function BakiyeHareketSatiri({
   terapistAdi,
   kategoriIskontoTutari,
   manuelIskontoTutari,
+  tutarBrut,
   bakiyeSonrasi,
   kategoriEtiketi,
   kategoriPct,
@@ -42,6 +43,7 @@ export function BakiyeHareketSatiri({
   terapistAdi: string | null;
   kategoriIskontoTutari: number;
   manuelIskontoTutari: number;
+  tutarBrut: number;
   bakiyeSonrasi: number;
   kategoriEtiketi: string;
   kategoriPct: number;
@@ -85,7 +87,7 @@ export function BakiyeHareketSatiri({
           }`}
         >
           {isaret}
-          {paraFormat(hareket.tutar)}
+          {paraFormat(tutarBrut)}
         </td>
         <td className="px-3 py-2 text-right tabular-nums">
           {kategoriIskontoTutari > 0 ? (

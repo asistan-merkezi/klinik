@@ -98,7 +98,7 @@ export function CariOdemeSekmesi({
                 </thead>
                 <tbody>
                   {hareketGorunumleri.map(
-                    ({ hareket, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, bakiyeSonrasi }) => (
+                    ({ hareket, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, tutarBrut, bakiyeSonrasi }) => (
                       <BakiyeHareketSatiri
                         key={hareket.id}
                         hastaId={hastaId}
@@ -107,6 +107,7 @@ export function CariOdemeSekmesi({
                         terapistAdi={terapistAdi}
                         kategoriIskontoTutari={kategoriIskontoTutari}
                         manuelIskontoTutari={manuelIskontoTutari}
+                        tutarBrut={tutarBrut}
                         bakiyeSonrasi={bakiyeSonrasi}
                         kategoriEtiketi={KATEGORI_ETIKETLERI[hastaKategori]}
                         kategoriPct={kategoriPct}
