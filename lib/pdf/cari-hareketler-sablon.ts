@@ -6,6 +6,8 @@ export type CariHareketlerPdfSatir = {
   islemTuru: string;
   yontemMetni: string | null;
   terapist: string | null;
+  tutar: string;
+  tutarNegatifMi: boolean;
   bakiye: string;
   negatifMi: boolean;
 };
@@ -33,6 +35,7 @@ function satirHtml(satir: CariHareketlerPdfSatir): string {
     <td style="${tabloStil.hucre}">${kacir(satir.saat)}</td>
     <td style="${tabloStil.hucre}">${kacir(satir.islemTuru)}${satir.yontemMetni ? ` (${kacir(satir.yontemMetni)})` : ""}</td>
     <td style="${tabloStil.hucre}">${kacir(satir.terapist ?? "—")}</td>
+    <td style="${css({ padding: "7px 10px", borderBottom: "1px solid rgba(0,0,0,0.12)", textAlign: "right", color: satir.tutarNegatifMi ? "#b91c1c" : "#047857" })}">${kacir(satir.tutar)}</td>
     <td style="${css({ padding: "7px 10px", borderBottom: "1px solid rgba(0,0,0,0.12)", textAlign: "right", fontWeight: 600, color: satir.negatifMi ? "#b91c1c" : renk.metin })}">${kacir(satir.bakiye)}</td>
   </tr>`;
 }
@@ -83,6 +86,7 @@ export function cariHareketlerIcerikHtml({
               <th style="${tabloStil.basHucre}">Saat</th>
               <th style="${tabloStil.basHucre}">İşlem Türü</th>
               <th style="${tabloStil.basHucre}">Terapist</th>
+              <th style="${tabloStil.basHucreSag}">Tutar</th>
               <th style="${tabloStil.basHucreSag}">Bakiye</th>
             </tr>
           </thead>

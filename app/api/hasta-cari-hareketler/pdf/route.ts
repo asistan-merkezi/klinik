@@ -64,13 +64,16 @@ export async function GET(request: NextRequest) {
   const hareketGorunumleri = hareketleriGorunumeCevir(bakiyeHareketSonucu.data ?? [], guncelBakiye);
 
   const satirlar: CariHareketlerPdfSatir[] = hareketGorunumleri.map(
-    ({ hareket, islemAdi, terapistAdi, bakiyeSonrasi, odemeYontemMetni }) => {
+    ({ hareket, islemAdi, terapistAdi, bakiyeSonrasi, odemeYontemMetni, tutarBrut }) => {
+      const tutarNegatifMi = hareket.tur === "borc";
       return {
         tarih: formatDate(hareket.created_at),
         saat: formatTime(hareket.created_at),
         islemTuru: islemAdi,
         yontemMetni: hareket.tur === "odeme" && odemeYontemMetni ? odemeYontemMetni : null,
         terapist: terapistAdi,
+        tutar: `${tutarNegatifMi ? "-" : "+"}${paraFormat(tutarBrut)}`,
+        tutarNegatifMi,
         bakiye: paraFormat(bakiyeSonrasi),
         negatifMi: bakiyeSonrasi < 0,
       };
