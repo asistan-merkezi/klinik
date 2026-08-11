@@ -1,5 +1,6 @@
 import { BAKIYE_HAREKET_ETIKETLERI, type HastaBakiyeHareket } from "@/types/hasta-detay";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
+import { adSoyadMaskele } from "@/lib/utils";
 
 export type HareketGorunum = {
   hareket: HastaBakiyeHareket;
@@ -7,6 +8,7 @@ export type HareketGorunum = {
   terapistAdi: string | null;
   kategoriIskontoTutari: number;
   manuelIskontoTutari: number;
+  iskontoUygulayanAdi: string | null;
   tutarBrut: number;
   bakiyeSonrasi: number;
   odemeYontemMetni: string;
@@ -43,6 +45,7 @@ export function hareketleriGorunumeCevir(
     let terapistAdi: string | null = null;
     let kategoriIskontoTutari = 0;
     let manuelIskontoTutari = 0;
+    let iskontoUygulayanAdi: string | null = null;
     let tutarBrut = h.tutar;
     const odemeYontemMetni = (h.odeme?.odeme_satiri ?? [])
       .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
@@ -52,6 +55,12 @@ export function hareketleriGorunumeCevir(
       islemAdi = h.randevu.islem_tanimi?.ad ?? islemAdi;
       terapistAdi = h.randevu.terapist?.personel?.ad_soyad ?? null;
       manuelIskontoTutari = h.iskonto_tutari;
+      // KVKK: iskontoyu uygulayan personelin adı maskeli gösteriliyor
+      // ("Ahmet Y." gibi — bkz. tablet kiosk'taki aynı hasta-adı maskeleme
+      // kararı, burada personel için yeniden kullanıldı).
+      if (h.iskonto_tutari > 0 && h.iskonto_uygulayan) {
+        iskontoUygulayanAdi = adSoyadMaskele(h.iskonto_uygulayan.ad_soyad);
+      }
       if (h.randevu.islem_tanimi) {
         kategoriIskontoTutari = Math.max(0, h.randevu.islem_tanimi.vita_fiyat - h.tutar);
       }
@@ -86,6 +95,7 @@ export function hareketleriGorunumeCevir(
       terapistAdi,
       kategoriIskontoTutari,
       manuelIskontoTutari,
+      iskontoUygulayanAdi,
       tutarBrut,
       bakiyeSonrasi,
       odemeYontemMetni,

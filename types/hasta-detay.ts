@@ -258,6 +258,7 @@ export type HastaBakiyeHareket = {
   odeme_id: string | null;
   randevu: HastaBakiyeHareketRandevu | null;
   odeme: HastaBakiyeHareketOdeme | null;
+  iskonto_uygulayan: { ad_soyad: string } | null;
 };
 
 export type HastaKarsilastirma = {

@@ -47,6 +47,7 @@ export function BakiyeHareketSatiri({
     terapistAdi,
     kategoriIskontoTutari,
     manuelIskontoTutari,
+    iskontoUygulayanAdi,
     tutarBrut,
     bakiyeSonrasi,
     odemeYontemMetni,
@@ -102,7 +103,14 @@ export function BakiyeHareketSatiri({
           )}
         </td>
         <td className="px-3 py-2 text-right tabular-nums">
-          {manuelIskontoTutari > 0 ? paraFormat(manuelIskontoTutari) : "—"}
+          {manuelIskontoTutari > 0 ? (
+            <div className="flex flex-col items-end">
+              <span>{paraFormat(manuelIskontoTutari)}</span>
+              {iskontoUygulayanAdi && <span className="text-xs text-muted-foreground">{iskontoUygulayanAdi}</span>}
+            </div>
+          ) : (
+            "—"
+          )}
         </td>
         <td
           className={`px-3 py-2 text-right tabular-nums font-medium ${
@@ -203,7 +211,7 @@ function BorcDuzenleDialog({
               className="h-4 w-4 rounded border-input"
             />
             <Label htmlFor={`${idOnEki}-faturali`} className="font-normal">
-              Faturalı
+              Fatura
             </Label>
           </div>
 
