@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MuhasebeEntegrasyonDurum } from "@/types/muhasebe-entegrasyon";
 import { MuhasebeSyncFormu } from "./muhasebe-sync-formu";
+import { formatDateTime } from "@/lib/datetime";
 
 export default async function MuhasebeSyncSayfasi() {
   const supabase = await createClient();
@@ -53,7 +54,7 @@ export default async function MuhasebeSyncSayfasi() {
           <CardContent className="flex flex-col gap-4">
             {durum?.updated_at && (
               <p className="text-xs text-muted-foreground">
-                Son güncelleme: {new Date(durum.updated_at).toLocaleString("tr-TR")}
+                Son güncelleme: {formatDateTime(durum.updated_at)}
               </p>
             )}
 

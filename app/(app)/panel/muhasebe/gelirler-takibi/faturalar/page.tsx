@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Receipt } from "lucide-react";
 import type { FaturaDurumu } from "@/types/odeme";
 import { FaturaDurumHucresi } from "./fatura-satiri";
+import { formatDateTime } from "@/lib/datetime";
 
 type FaturaListSatiri = {
   id: string;
@@ -84,7 +85,7 @@ export default async function FaturalarSayfasi() {
                   return (
                     <tr key={f.id} className="border-b border-border last:border-b-0 align-top">
                       <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                        {new Date(f.created_at).toLocaleString("tr-TR")}
+                        {formatDateTime(f.created_at)}
                       </td>
                       <td className="px-3 py-2 font-medium">{f.odeme?.hasta?.ad_soyad ?? "—"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{f.odeme?.aciklama || "—"}</td>

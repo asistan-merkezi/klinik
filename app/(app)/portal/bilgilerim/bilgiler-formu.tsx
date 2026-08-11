@@ -15,6 +15,7 @@ import {
 import type { HastaDetay } from "@/types/hasta";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import { bilgileriGuncelle } from "../actions";
+import { formatDateTime } from "@/lib/datetime";
 
 const CINSIYET_SECENEKLERI = [
   { value: "kadin", label: "Kadın" },
@@ -297,7 +298,7 @@ export function BilgilerFormu({
 
       {sonDegisiklik && (
         <p className="text-xs text-muted-foreground">
-          Son değişiklik: {new Date(sonDegisiklik.zaman).toLocaleString("tr-TR")} —{" "}
+          Son değişiklik: {formatDateTime(sonDegisiklik.zaman)} —{" "}
           {sonDegisiklik.tip === "hasta" ? "Siz" : "Klinik personeli"}
         </p>
       )}

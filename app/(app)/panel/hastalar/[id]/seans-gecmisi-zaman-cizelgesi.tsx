@@ -15,6 +15,7 @@ import {
   type HastaSeansSatir,
 } from "@/types/hasta-detay";
 import { useHastaSeansGecmisi, useHastaProtokoller, useVucutHaritasi, useSeansTamamla } from "./queries";
+import { CLINIC_TZ } from "@/lib/datetime";
 
 const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   day: "2-digit",
@@ -22,6 +23,7 @@ const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: CLINIC_TZ,
 });
 
 /** "Seansı Tamamla" sadece hastanın gerçekten geldiği bir seans için anlamlı. */

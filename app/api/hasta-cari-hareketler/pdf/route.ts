@@ -5,6 +5,7 @@ import { cariHareketlerHtmlOlustur } from "@/lib/pdf/cari-hareketler-html";
 import { hareketleriGorunumeCevir } from "@/lib/hasta/bakiye-hareket-gorunum";
 import type { HastaBakiyeHareket } from "@/types/hasta-detay";
 import type { CariHareketlerPdfSatir } from "@/lib/pdf/cari-hareketler-sablon";
+import { formatDate, formatTime } from "@/lib/datetime";
 
 // Puppeteer Node.js API'lerine ihtiyaç duyar — Edge runtime'da çalışmaz.
 export const runtime = "nodejs";
@@ -63,10 +64,9 @@ export async function GET(request: NextRequest) {
   const hareketGorunumleri = hareketleriGorunumeCevir(bakiyeHareketSonucu.data ?? [], guncelBakiye);
 
   const satirlar: CariHareketlerPdfSatir[] = hareketGorunumleri.map(({ hareket, islemAdi, terapistAdi, bakiyeSonrasi }) => {
-    const tarih = new Date(hareket.created_at);
     return {
-      tarih: tarih.toLocaleDateString("tr-TR"),
-      saat: tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+      tarih: formatDate(hareket.created_at),
+      saat: formatTime(hareket.created_at),
       islemTuru: islemAdi,
       terapist: terapistAdi,
       bakiye: paraFormat(bakiyeSonrasi),

@@ -14,6 +14,8 @@ import type { HastaOzet, HastaDetayOzet } from "@/types/hasta-detay";
 import type { SekmeAnahtari } from "./sekme-tanimlari";
 import type { HastaTemel } from "./hasta-getir";
 import { useHastaDetayOzet } from "./queries";
+import { formatTime, CLINIC_TZ } from "@/lib/datetime";
+import { formatInTimeZone } from "date-fns-tz";
 
 const IKONLAR: Record<SekmeAnahtari, LucideIcon> = {
   kisisel: User,
@@ -30,9 +32,8 @@ const TONLAR: Record<SekmeAnahtari, IconTileTone> = {
 };
 
 function randevuZamani(tarih: string): string {
-  const d = new Date(tarih);
-  const tarihMetni = d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
-  const saatMetni = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const tarihMetni = formatInTimeZone(new Date(tarih), CLINIC_TZ, "dd.MM");
+  const saatMetni = formatTime(tarih);
   return `Sonraki: ${tarihMetni} ${saatMetni}`;
 }
 

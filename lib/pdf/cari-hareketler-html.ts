@@ -1,5 +1,6 @@
 import { cariHareketlerIcerikHtml, type CariHareketlerPdfSatir } from "@/lib/pdf/cari-hareketler-sablon";
 import { gorseliDataUriyeCevir, pdfBelgesiOlustur } from "@/lib/pdf/pdf-yardimcilari";
+import { formatDateTime } from "@/lib/datetime";
 
 export async function cariHareketlerHtmlOlustur({
   klinikAdi,
@@ -15,7 +16,7 @@ export async function cariHareketlerHtmlOlustur({
   satirlar: CariHareketlerPdfSatir[];
 }): Promise<string> {
   const logoDataUri = await gorseliDataUriyeCevir(logoUrl);
-  const olusturmaTarihi = new Date().toLocaleString("tr-TR");
+  const olusturmaTarihi = formatDateTime(new Date().toISOString());
   const icerikHtml = cariHareketlerIcerikHtml({
     klinikAdi,
     logoDataUri,

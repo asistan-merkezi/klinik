@@ -261,7 +261,7 @@ export default async function PortalSayfasi() {
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(odeme.created_at).toLocaleString("tr-TR")} · {yontemler || "—"} ·{" "}
+                        {formatDateTime(odeme.created_at)} · {yontemler || "—"} ·{" "}
                         {odeme.faturali ? "Faturalı" : "Faturasız"}
                       </span>
                     </li>
