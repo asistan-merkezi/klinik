@@ -84,7 +84,7 @@ export function BekleyenRandevuTalepleri({
       </ul>
 
       <Dialog open={acikTalep != null} onOpenChange={(acik) => !acik && setAcikTalepId(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Randevu Talebinden Randevu Oluştur</DialogTitle>
           </DialogHeader>
