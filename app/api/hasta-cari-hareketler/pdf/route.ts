@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       .select(
         "id, tur, tutar, aciklama, created_at, odeme_id, " +
           "randevu(terapist(personel(ad_soyad)), islem_tanimi(ad, vita_fiyat)), " +
-          "odeme(iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad, vita_fiyat), paket_satis(paket(ad))))"
+          "odeme(iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad, vita_fiyat), paket_satis(paket(ad))), odeme_satiri(yontem))"
       )
       .eq("hasta_id", hastaId)
       .order("created_at", { ascending: false })
@@ -63,16 +63,19 @@ export async function GET(request: NextRequest) {
   const guncelBakiye = ozetSonucu.data?.bakiye ?? 0;
   const hareketGorunumleri = hareketleriGorunumeCevir(bakiyeHareketSonucu.data ?? [], guncelBakiye);
 
-  const satirlar: CariHareketlerPdfSatir[] = hareketGorunumleri.map(({ hareket, islemAdi, terapistAdi, bakiyeSonrasi }) => {
-    return {
-      tarih: formatDate(hareket.created_at),
-      saat: formatTime(hareket.created_at),
-      islemTuru: islemAdi,
-      terapist: terapistAdi,
-      bakiye: paraFormat(bakiyeSonrasi),
-      negatifMi: bakiyeSonrasi < 0,
-    };
-  });
+  const satirlar: CariHareketlerPdfSatir[] = hareketGorunumleri.map(
+    ({ hareket, islemAdi, terapistAdi, bakiyeSonrasi, odemeYontemMetni }) => {
+      return {
+        tarih: formatDate(hareket.created_at),
+        saat: formatTime(hareket.created_at),
+        islemTuru: islemAdi,
+        yontemMetni: hareket.tur === "odeme" && odemeYontemMetni ? odemeYontemMetni : null,
+        terapist: terapistAdi,
+        bakiye: paraFormat(bakiyeSonrasi),
+        negatifMi: bakiyeSonrasi < 0,
+      };
+    }
+  );
 
   const html = await cariHareketlerHtmlOlustur({
     klinikAdi: klinikSonucu.data?.ad ?? "Klinik",

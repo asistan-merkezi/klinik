@@ -4,6 +4,7 @@ export type CariHareketlerPdfSatir = {
   tarih: string;
   saat: string;
   islemTuru: string;
+  yontemMetni: string | null;
   terapist: string | null;
   bakiye: string;
   negatifMi: boolean;
@@ -30,7 +31,7 @@ function satirHtml(satir: CariHareketlerPdfSatir): string {
   return `<tr>
     <td style="${tabloStil.hucre}">${kacir(satir.tarih)}</td>
     <td style="${tabloStil.hucre}">${kacir(satir.saat)}</td>
-    <td style="${tabloStil.hucre}">${kacir(satir.islemTuru)}</td>
+    <td style="${tabloStil.hucre}">${kacir(satir.islemTuru)}${satir.yontemMetni ? ` (${kacir(satir.yontemMetni)})` : ""}</td>
     <td style="${tabloStil.hucre}">${kacir(satir.terapist ?? "—")}</td>
     <td style="${css({ padding: "7px 10px", borderBottom: "1px solid rgba(0,0,0,0.12)", textAlign: "right", fontWeight: 600, color: satir.negatifMi ? "#b91c1c" : renk.metin })}">${kacir(satir.bakiye)}</td>
   </tr>`;

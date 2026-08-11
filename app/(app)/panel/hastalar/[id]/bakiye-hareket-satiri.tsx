@@ -41,7 +41,16 @@ export function BakiyeHareketSatiri({
   faturaBilgisi: FaturaBilgisiKontrol;
 }) {
   const [acik, setAcik] = useState(false);
-  const { hareket, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, tutarBrut, bakiyeSonrasi } = satir;
+  const {
+    hareket,
+    islemAdi,
+    terapistAdi,
+    kategoriIskontoTutari,
+    manuelIskontoTutari,
+    tutarBrut,
+    bakiyeSonrasi,
+    odemeYontemMetni,
+  } = satir;
   const tikanabilir = satir.tip === "tekli" && duzenlenebilir && hareket.tur === "borc";
 
   // "İşlem" satırı: borç kapatılmış (eskiden borç, şimdi tur='odeme') bir
@@ -92,7 +101,7 @@ export function BakiyeHareketSatiri({
         <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatTime(satir.tarih)}</td>
         <td className="px-3 py-2">
           <StatusBadge tone="emerald" className="w-fit">
-            Ödeme
+            Ödeme{odemeYontemMetni && ` (${odemeYontemMetni})`}
           </StatusBadge>
         </td>
         <td className="px-3 py-2 text-muted-foreground">—</td>
@@ -131,6 +140,7 @@ export function BakiyeHareketSatiri({
             <div className="flex flex-wrap items-center gap-1">
               <StatusBadge tone={tonu} className="w-fit">
                 {BAKIYE_HAREKET_ETIKETLERI[hareket.tur]}
+                {hareket.tur === "odeme" && odemeYontemMetni && ` (${odemeYontemMetni})`}
               </StatusBadge>
             </div>
             {hareket.aciklama && <span className="text-xs text-muted-foreground">{hareket.aciklama}</span>}

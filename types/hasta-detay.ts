@@ -1,4 +1,5 @@
 import type { StatusTone } from "@/components/ui/status-badge";
+import type { OdemeYontemi } from "@/types/odeme";
 
 export type RiskSeviyesi = "yuksek" | "orta" | "dusuk";
 
@@ -245,6 +246,7 @@ export type HastaBakiyeHareketOdeme = {
   created_at: string;
   iskonto_tutari: number;
   odeme_kalemi: HastaBakiyeHareketOdemeKalemi[];
+  odeme_satiri: { yontem: OdemeYontemi }[];
 };
 
 export type HastaBakiyeHareket = {

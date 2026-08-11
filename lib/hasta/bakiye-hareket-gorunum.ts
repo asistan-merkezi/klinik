@@ -1,4 +1,5 @@
 import { BAKIYE_HAREKET_ETIKETLERI, type HastaBakiyeHareket } from "@/types/hasta-detay";
+import { YONTEM_ETIKETLERI } from "@/types/odeme";
 
 export type HareketGorunum = {
   hareket: HastaBakiyeHareket;
@@ -8,6 +9,7 @@ export type HareketGorunum = {
   manuelIskontoTutari: number;
   tutarBrut: number;
   bakiyeSonrasi: number;
+  odemeYontemMetni: string;
 };
 
 // hareketler created_at DESC (en yeni ilk) sırayla geliyor — kümülatif bakiye
@@ -43,6 +45,12 @@ export function hareketleriGorunumeCevir(
     // yeniden kuruluyor.
     const manuelIskontoTutari = h.odeme?.iskonto_tutari ?? 0;
     const tutarBrut = h.tutar + manuelIskontoTutari;
+    // Manuel "Ödeme Ekle" kayıtlarında odeme_id yok (ayrı bir odeme satırı
+    // hiç oluşmuyor), bu yüzden burada boş kalıyor — yöntem bilgisi zaten
+    // o akışta aciklama'ya etiket olarak ekleniyor (bkz. bakiye-hareketi-formu.tsx).
+    const odemeYontemMetni = (h.odeme?.odeme_satiri ?? [])
+      .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
+      .join(" + ");
 
     if (h.randevu) {
       islemAdi = h.randevu.islem_tanimi?.ad ?? islemAdi;
@@ -59,7 +67,16 @@ export function hareketleriGorunumeCevir(
       }, 0);
     }
 
-    sonuc.push({ hareket: h, islemAdi, terapistAdi, kategoriIskontoTutari, manuelIskontoTutari, tutarBrut, bakiyeSonrasi });
+    sonuc.push({
+      hareket: h,
+      islemAdi,
+      terapistAdi,
+      kategoriIskontoTutari,
+      manuelIskontoTutari,
+      tutarBrut,
+      bakiyeSonrasi,
+      odemeYontemMetni,
+    });
   }
 
   return sonuc;
@@ -78,6 +95,7 @@ export type BakiyeSatirGorunum = {
   manuelIskontoTutari: number;
   tutarBrut: number;
   bakiyeSonrasi: number | null;
+  odemeYontemMetni: string;
 };
 
 // Kapatılmış (eskiden borç, şimdi tur='odeme') ve bir randevuya bağlı
@@ -105,6 +123,7 @@ export function bakiyeSatirlariOlustur(gorunumler: HareketGorunum[]): BakiyeSati
         manuelIskontoTutari: g.manuelIskontoTutari,
         tutarBrut: g.tutarBrut,
         bakiyeSonrasi: g.bakiyeSonrasi,
+        odemeYontemMetni: g.odemeYontemMetni,
       });
       continue;
     }
@@ -123,6 +142,7 @@ export function bakiyeSatirlariOlustur(gorunumler: HareketGorunum[]): BakiyeSati
       manuelIskontoTutari: g.manuelIskontoTutari,
       tutarBrut: g.tutarBrut,
       bakiyeSonrasi: null,
+      odemeYontemMetni: "",
     });
     satirlar.push({
       key: `${g.hareket.id}-odeme`,
@@ -135,6 +155,7 @@ export function bakiyeSatirlariOlustur(gorunumler: HareketGorunum[]): BakiyeSati
       manuelIskontoTutari: 0,
       tutarBrut: g.hareket.tutar,
       bakiyeSonrasi: g.bakiyeSonrasi,
+      odemeYontemMetni: g.odemeYontemMetni,
     });
   }
 
