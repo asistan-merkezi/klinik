@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,17 +12,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SecenekSatir } from "@/types/randevu";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { paketOlustur } from "./actions";
 
 export function PaketFormu({ islemTanimlari }: { islemTanimlari: SecenekSatir[] }) {
   const [durum, formAction, isPending] = useActionState(paketOlustur, null);
+  const [ad, setAd] = useState("");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="ad">Paket Adı</Label>
-          <Input id="ad" name="ad" placeholder="Örn. 10 Seans Manuel Terapi" required disabled={isPending} />
+          <Input
+            id="ad"
+            name="ad"
+            placeholder="Örn. 10 Seans Manuel Terapi"
+            value={ad}
+            onChange={(e) => setAd(isimBasHarfBuyukYap(e.target.value))}
+            required
+            disabled={isPending}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
