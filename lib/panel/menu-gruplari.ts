@@ -16,6 +16,7 @@ import {
   Percent,
   ShoppingCart,
   HandCoins,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -69,6 +70,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
         icon: UploadCloud,
       },
       { href: "/panel/ayarlar/qr-kodlar", label: "QR Kodları", icon: QrCode },
+      { href: "/panel/ayarlar/destek", label: "Destek", icon: LifeBuoy },
     ],
   },
 ];
