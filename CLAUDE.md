@@ -341,7 +341,10 @@ Nihai model (özet, gelecekte referans için): **Borç** — randevu/seans tamam
 
 Cari Hareketler PDF'ine Terapist ile Bakiye arasına Tutar sütunu eklendi (2026-08-13, kullanıcı isteği) — ekrandaki tabloyla aynı `tutarBrut` değeri, +/- işaretli, borç kırmızı diğerleri yeşil (`lib/pdf/cari-hareketler-sablon.ts` + PDF route).
 
-Son güncelleme: 2026-08-13 (Cari Hareketler PDF'ine Tutar sütunu eklendi)
+Cari Hareketler PDF'inde bağımsız "Ödeme Ekle" kayıtları da artık "Ödeme (Nakit)" gibi parantezli yöntem gösteriyor (2026-08-13, kullanıcı isteği). Bu akışta `odeme_satiri` yok (odemeYontemMetni boş) — yöntem `hareket.aciklama`'ya etiket olarak gömülü ("Nakit" veya "Nakit — not"), PDF route'unda `odemeYontemMetni || hareket.aciklama` ile düşülüyor.
+
+Son güncelleme: 2026-08-13 (Cari Hareketler PDF: bağımsız Ödeme Ekle kayıtlarında da ödeme tipi parantezde gösteriliyor)
+Önceki güncelleme: 2026-08-13 (Cari Hareketler PDF'ine Tutar sütunu eklendi)
 Önceki güncelleme: 2026-08-13 (Borç/Ödeme sistemi baştan yeniden tarif edildi: borç kapama sistemi TAMAMEN kaldırıldı, borç satırı durumsuz/tekrar-düzenlenebilir, iskonto satırın kendi kolonunda, ödeme tamamen bağımsız ve bakiyeyi doğrudan azaltıyor — bu NİHAİ tasarım)
 Önceki güncelleme: 2026-08-13 (Bakiye Hareketleri: İskonto sütunu Ödeme değil Borç satırında gösteriliyor)
 Önceki güncelleme: 2026-08-13 (Borç Kapatma: İşlem ve Ödeme yeniden iki ayrı, kalıcı satır oldu — orijinal borç satırı hiç değişmiyor, kapatma ayrı bir ödeme satırı ekliyor, bakiye buna göre yeniden hesaplanıyor)
