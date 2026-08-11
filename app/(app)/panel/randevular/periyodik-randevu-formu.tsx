@@ -29,6 +29,13 @@ type Props = {
   sabitHasta?: { id: string; ad: string };
 };
 
+type GunSaat = { gun: string; saat: string };
+
+const GUN_SAYISI_SECENEKLERI = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
+  value: String(n),
+  label: n === 1 ? "Haftada 1 gün" : `Haftada ${n} gün`,
+}));
+
 export function PeriyodikRandevuFormu({
   hastalar,
   terapistler,
@@ -42,6 +49,20 @@ export function PeriyodikRandevuFormu({
   const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [hastaId, setHastaId] = useState(sabitHasta?.id ?? "");
   const [islemTanimiId, setIslemTanimiId] = useState("");
+  const [gunler, setGunler] = useState<GunSaat[]>([{ gun: "1", saat: "" }]);
+
+  function gunSayisiDegisti(deger: string) {
+    const n = Number(deger);
+    setGunler((mevcut) => {
+      if (n <= mevcut.length) return mevcut.slice(0, n);
+      const eklenecek = Array.from({ length: n - mevcut.length }, () => ({ gun: "1", saat: "" }));
+      return [...mevcut, ...eklenecek];
+    });
+  }
+
+  function gunSatiriGuncelle(index: number, degisiklik: Partial<GunSaat>) {
+    setGunler((mevcut) => mevcut.map((g, i) => (i === index ? { ...g, ...degisiklik } : g)));
+  }
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
@@ -53,8 +74,9 @@ export function PeriyodikRandevuFormu({
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">
-        Seçilen haftanın günü + saatinde ileriye dönük 5 aylık randevu tek seferde oluşturulur. Bir
-        haftanın saati doluysa o hafta atlanır ve hastaya WhatsApp'tan saat değişikliği için mesaj linki
+        Seçilen gün(ler) + saat(ler)de ileriye dönük 5 aylık randevular tek seferde oluşturulur (haftada
+        birden fazla gün seçilirse her gün için ayrı bir seri açılır, Hasta Detay&apos;da ayrı ayrı yönetilebilir).
+        Bir günün saati doluysa o hafta atlanır ve hastaya WhatsApp&apos;tan saat değişikliği için mesaj linki
         hazırlanır. Süre bitimine 2 hafta kala Hasta Detay sayfasında uyarı çıkar; oradan uzatılabilir,
         gün/saati değiştirilebilir veya iptal edilebilir.
       </p>
@@ -172,30 +194,61 @@ export function PeriyodikRandevuFormu({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="periyodik_haftanin_gunu">Haftanın Günü</Label>
+          <Label htmlFor="periyodik_gun_sayisi">Haftada Kaç Gün</Label>
           <Select
-            name="haftanin_gunu"
             required
             disabled={isPending}
-            defaultValue="1"
-            items={HAFTANIN_GUNLERI}
+            value={String(gunler.length)}
+            onValueChange={(v) => gunSayisiDegisti(v as string)}
+            items={GUN_SAYISI_SECENEKLERI}
           >
-            <SelectTrigger id="periyodik_haftanin_gunu" className="w-full">
+            <SelectTrigger id="periyodik_gun_sayisi" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {HAFTANIN_GUNLERI.map((g) => (
-                <SelectItem key={g.value} value={g.value}>
-                  {g.label}
+              {GUN_SAYISI_SECENEKLERI.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="periyodik_saat">Saat</Label>
-          <Input id="periyodik_saat" name="saat" type="time" required disabled={isPending} />
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label>Gün ve Saatler</Label>
+          <div className="flex flex-col gap-2">
+            {gunler.map((g, i) => (
+              <div key={i} className="grid grid-cols-2 gap-2">
+                <Select
+                  required
+                  disabled={isPending}
+                  value={g.gun}
+                  onValueChange={(v) => gunSatiriGuncelle(i, { gun: v as string })}
+                  items={HAFTANIN_GUNLERI}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HAFTANIN_GUNLERI.map((gg) => (
+                      <SelectItem key={gg.value} value={gg.value}>
+                        {gg.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="time"
+                  required
+                  disabled={isPending}
+                  value={g.saat}
+                  onChange={(e) => gunSatiriGuncelle(i, { saat: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+          <input type="hidden" name="gunler_json" value={JSON.stringify(gunler)} />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -232,7 +285,7 @@ export function PeriyodikRandevuFormu({
                     rel="noreferrer"
                     className="font-medium text-emerald-700 underline dark:text-emerald-400"
                   >
-                    WhatsApp'tan Gönder
+                    WhatsApp&apos;tan Gönder
                   </a>
                 </li>
               ))}

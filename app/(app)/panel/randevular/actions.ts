@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toUTC } from "@/lib/datetime";
 import { whatsappLinkOlustur } from "@/lib/utils";
 import type { RandevuDurum } from "@/types/randevu";
+import { GUN_ETIKETI, type HaftaninGunu } from "@/types/periyodik-randevu";
 import { revalidateHastaDetay } from "../hastalar/[id]/revalidate";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -532,14 +533,30 @@ type PeriyodikSonucu = {
 /** Periyodik randevu serisinin varsayılan/yenileme süresi (ay). */
 const PERIYODIK_SURE_AY = 5;
 
+const gunSaatSemasi = z.object({
+  gun: z.coerce.number().int().min(0).max(6),
+  saat: z.string().min(1),
+});
+
+/**
+ * Haftada birden fazla gün seçilebilir (kullanıcı kararı) — her gün/saat
+ * çifti için ayrı bir periyodik_randevu serisi açılır (bkz. periyodikRandevuOlustur),
+ * bu yüzden aynı gün+saat ikilisi tekrar edemez.
+ */
 const periyodikSemasi = z.object({
   hasta_id: z.string().uuid("Hasta seçilmeli."),
   terapist_id: z.string().uuid("Dr / Terapist seçilmeli."),
   oda_id: z.string().uuid("Oda seçilmeli."),
   islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
   cihaz_id: z.union([z.string().uuid(), z.literal("")]).optional(),
-  haftanin_gunu: z.coerce.number().int().min(0).max(6),
-  saat: z.string().min(1, "Saat gerekli."),
+  gunler: z
+    .array(gunSaatSemasi)
+    .min(1, "En az bir gün ve saat seçilmeli.")
+    .max(7, "En fazla 7 gün seçilebilir.")
+    .refine(
+      (arr) => new Set(arr.map((g) => `${g.gun}-${g.saat}`)).size === arr.length,
+      { message: "Aynı gün ve saat birden fazla kez seçilemez." }
+    ),
   sure_dakika: z.coerce
     .number()
     .int()
@@ -741,14 +758,20 @@ export async function periyodikRandevuOlustur(
     return { success: false, message: "Klinik bilgisi bulunamadı." };
   }
 
+  let gunlerRaw: unknown;
+  try {
+    gunlerRaw = JSON.parse(String(formData.get("gunler_json") ?? "[]"));
+  } catch {
+    return { success: false, message: "Gün/saat bilgisi hatalı." };
+  }
+
   const ayristirma = periyodikSemasi.safeParse({
     hasta_id: formData.get("hasta_id"),
     terapist_id: formData.get("terapist_id"),
     oda_id: formData.get("oda_id"),
     islem_tanimi_id: formData.get("islem_tanimi_id"),
     cihaz_id: formData.get("cihaz_id") ?? "",
-    haftanin_gunu: formData.get("haftanin_gunu"),
-    saat: formData.get("saat"),
+    gunler: gunlerRaw,
     sure_dakika: formData.get("sure_dakika"),
   });
 
@@ -756,8 +779,7 @@ export async function periyodikRandevuOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, haftanin_gunu, saat, sure_dakika } =
-    ayristirma.data;
+  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, gunler, sure_dakika } = ayristirma.data;
 
   const { data: hasta } = await supabase
     .from("hasta")
@@ -774,58 +796,82 @@ export async function periyodikRandevuOlustur(
   const bitisTarihiStr = tarihStr(bitisBilesen.yil, bitisBilesen.ay, bitisBilesen.gun);
   const cihazIdDegeri = cihaz_id ? cihaz_id : null;
 
-  const { data: periyodik, error: periyodikHata } = await supabase
-    .from("periyodik_randevu")
-    .insert({
-      klinik_id: kullanici.klinik_id,
-      hasta_id,
-      terapist_id,
-      oda_id,
-      cihaz_id: cihazIdDegeri,
-      islem_tanimi_id,
-      haftanin_gunu,
-      saat,
-      sure_dakika,
-      bitis_tarihi: bitisTarihiStr,
-      olusturan_kullanici_id: user.id,
-    })
-    .select("id")
-    .single();
+  // Haftada birden fazla gün seçilmişse (kullanıcı kararı) her gün/saat
+  // çifti için ayrı bir periyodik_randevu serisi açılır — Hasta Detay'da
+  // ayrı ayrı listelenip düzenlenebilir/iptal edilebilir olsun diye.
+  const toplamBasariliTarihler: string[] = [];
+  const toplamCakismalar: { tarihEtiketi: string; whatsappLink: string }[] = [];
+  const eklenemeyenGunler: string[] = [];
 
-  if (periyodikHata || !periyodik) {
-    console.error("Periyodik randevu oluşturulamadı:", periyodikHata);
-    return { success: false, message: "Periyodik randevu oluşturulamadı, lütfen tekrar deneyin." };
+  for (const g of gunler) {
+    const { data: periyodik, error: periyodikHata } = await supabase
+      .from("periyodik_randevu")
+      .insert({
+        klinik_id: kullanici.klinik_id,
+        hasta_id,
+        terapist_id,
+        oda_id,
+        cihaz_id: cihazIdDegeri,
+        islem_tanimi_id,
+        haftanin_gunu: g.gun,
+        saat: g.saat,
+        sure_dakika,
+        bitis_tarihi: bitisTarihiStr,
+        olusturan_kullanici_id: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (periyodikHata || !periyodik) {
+      console.error("Periyodik randevu günü oluşturulamadı:", periyodikHata);
+      eklenemeyenGunler.push(GUN_ETIKETI[g.gun as HaftaninGunu]);
+      continue;
+    }
+
+    const { basariliTarihler, cakismalar } = await periyodikSatirlariUret({
+      supabase,
+      klinikId: kullanici.klinik_id,
+      periyodikId: periyodik.id,
+      hastaId: hasta_id,
+      hastaAdSoyad: hasta.ad_soyad,
+      hastaTelefon: hasta.telefon,
+      terapistId: terapist_id,
+      odaId: oda_id,
+      cihazId: cihazIdDegeri,
+      islemTanimiId: islem_tanimi_id,
+      haftaninGunu: g.gun,
+      saat: g.saat,
+      sureDakika: sure_dakika,
+      baslangicBilesen: bugun,
+      bitisBilesen: bitisBilesen,
+      userId: user.id,
+    });
+    toplamBasariliTarihler.push(...basariliTarihler);
+    toplamCakismalar.push(...cakismalar);
   }
 
-  const { basariliTarihler, cakismalar } = await periyodikSatirlariUret({
-    supabase,
-    klinikId: kullanici.klinik_id,
-    periyodikId: periyodik.id,
-    hastaId: hasta_id,
-    hastaAdSoyad: hasta.ad_soyad,
-    hastaTelefon: hasta.telefon,
-    terapistId: terapist_id,
-    odaId: oda_id,
-    cihazId: cihazIdDegeri,
-    islemTanimiId: islem_tanimi_id,
-    haftaninGunu: haftanin_gunu,
-    saat,
-    sureDakika: sure_dakika,
-    baslangicBilesen: bugun,
-    bitisBilesen: bitisBilesen,
-    userId: user.id,
-  });
+  if (eklenemeyenGunler.length === gunler.length) {
+    return { success: false, message: "Periyodik randevu oluşturulamadı, lütfen tekrar deneyin." };
+  }
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   revalidateHastaDetay(hasta_id);
 
-  const mesaj =
-    cakismalar.length > 0
-      ? `Periyodik randevu oluşturuldu (${bitisTarihiStr} tarihine kadar): ${basariliTarihler.length} randevu eklendi, ${cakismalar.length} tarihte çakışma var (aşağıdaki WhatsApp linkleriyle saat değişikliği isteyebilirsiniz).`
-      : `Periyodik randevu oluşturuldu (${bitisTarihiStr} tarihine kadar): ${basariliTarihler.length} randevu eklendi.`;
+  const parcalar = [`${toplamBasariliTarihler.length} randevu eklendi`];
+  if (toplamCakismalar.length > 0) {
+    parcalar.push(`${toplamCakismalar.length} tarihte çakışma var (aşağıdaki WhatsApp linkleriyle saat değişikliği isteyebilirsiniz)`);
+  }
+  if (eklenemeyenGunler.length > 0) {
+    parcalar.push(`${eklenemeyenGunler.join(", ")} günü/günleri oluşturulamadı`);
+  }
+  const mesaj = `Periyodik randevu oluşturuldu (${bitisTarihiStr} tarihine kadar): ${parcalar.join(", ")}.`;
 
-  return { success: true, message: mesaj, cakismalar: cakismalar.length > 0 ? cakismalar : undefined };
+  return {
+    success: true,
+    message: mesaj,
+    cakismalar: toplamCakismalar.length > 0 ? toplamCakismalar : undefined,
+  };
 }
 
 export async function periyodikRandevuIptalEt(periyodikId: string, hastaId: string): Promise<SonucDurumu> {
