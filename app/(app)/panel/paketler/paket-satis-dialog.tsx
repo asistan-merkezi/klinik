@@ -56,6 +56,9 @@ export function PaketSatisDialog({
   const netTutar = iskontoGecerli ? paket.fiyat - iskontoSayi : paket.fiyat;
 
   const kalemlerJson = JSON.stringify([{ tur: "paket", ref_id: paket.id, miktar: 1 }]);
+  // odemeAl'ın satirlar_json zorunluluğunu karşılamak için gönderiliyor —
+  // odeme_olustur RPC'si sadece paket kalemi içeren çağrılarda bunu artık
+  // yok sayıyor (ödeme girilmiyor, borç ekleniyor).
   const satirlarJson = JSON.stringify([{ yontem: "nakit", tutar: netTutar }]);
 
   function kapat(acikMi: boolean) {
@@ -138,9 +141,12 @@ export function PaketSatisDialog({
             </div>
 
             <div className="flex flex-col gap-1">
-              <Label>Net Tutar</Label>
+              <Label>Net Borç Tutarı</Label>
               <p className="text-sm font-medium">
                 {netTutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Ödeme alınmaz — bu tutar hastanın bakiyesine borç olarak eklenir.
               </p>
             </div>
 

@@ -109,7 +109,13 @@ export async function odemeAl(
   }
 
   revalidateHastaDetay(hastaId);
-  return { success: true, message: "Ödeme alındı." };
+  // Sadece paket kalemi içeren satışlarda artık ödeme alınmıyor, borç olarak
+  // ekleniyor (RPC tarafında da aynı ayrım yapılıyor) — mesaj buna göre.
+  const sadecePaket = kalemler_json.length > 0 && kalemler_json.every((k) => k.tur === "paket");
+  return {
+    success: true,
+    message: sadecePaket ? "Paket satışı kaydedildi, tutar borç olarak eklendi." : "Ödeme alındı.",
+  };
 }
 
 const bakiyeHareketSemasi = z.object({
