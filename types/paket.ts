@@ -14,5 +14,6 @@ export type PaketSatir = {
   fiyat: number;
   kdv_orani: number;
   aktif: boolean;
+  tekrar_sayisi: number;
   islem_tanimi: { ad: string } | null;
 };

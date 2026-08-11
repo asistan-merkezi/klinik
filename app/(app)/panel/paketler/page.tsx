@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SecenekSatir } from "@/types/randevu";
 import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
+import { paketArsivdeMi } from "@/lib/paket/satis-suresi";
 import { YeniPaketDialog } from "./yeni-paket-dialog";
 import { PaketSatiri } from "./paket-satiri";
 
@@ -30,7 +31,7 @@ export default async function PaketlerSayfasi() {
     supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
     supabase
       .from("paket")
-      .select("id, ad, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, aktif, islem_tanimi(ad)")
+      .select("id, ad, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, aktif, tekrar_sayisi, islem_tanimi(ad)")
       .order("ad")
       .returns<PaketSatir[]>(),
     supabase.from("hasta").select("id, ad_soyad, kategori").order("ad_soyad"),
@@ -41,6 +42,8 @@ export default async function PaketlerSayfasi() {
     ad: i.ad,
   }));
   const paketler = paketSonucu.data ?? [];
+  const guncelPaketler = paketler.filter((p) => !paketArsivdeMi(p));
+  const arsivPaketler = paketler.filter((p) => paketArsivdeMi(p));
   const hastalar: SatisHastaSecenegi[] = (hastaSonucu.data ?? []).map((h) => ({
     id: h.id,
     ad: h.ad_soyad,
@@ -66,18 +69,18 @@ export default async function PaketlerSayfasi() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Kayıtlı Paketler</CardTitle>
+            <CardTitle>Güncel Paketler</CardTitle>
           </CardHeader>
           <CardContent>
             {paketSonucu.error && (
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             )}
-            {!paketSonucu.error && paketler.length === 0 && (
+            {!paketSonucu.error && guncelPaketler.length === 0 && (
               <p className="text-sm text-muted-foreground">Henüz paket yok.</p>
             )}
-            {!paketSonucu.error && paketler.length > 0 && (
-              <ul className="flex flex-col divide-y divide-border">
-                {paketler.map((paket) => (
+            {!paketSonucu.error && guncelPaketler.length > 0 && (
+              <ul className="flex flex-col gap-3">
+                {guncelPaketler.map((paket, i) => (
                   <PaketSatiri
                     key={paket.id}
                     paket={paket}
@@ -85,6 +88,33 @@ export default async function PaketlerSayfasi() {
                     duzenlenebilir={duzenlenebilir}
                     satisYapabilir={satisYapabilir}
                     hastalar={hastalar}
+                    gecikme={i * 40}
+                  />
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Arşiv Paketler</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!paketSonucu.error && arsivPaketler.length === 0 && (
+              <p className="text-sm text-muted-foreground">Arşivde paket yok.</p>
+            )}
+            {!paketSonucu.error && arsivPaketler.length > 0 && (
+              <ul className="flex flex-col gap-3">
+                {arsivPaketler.map((paket, i) => (
+                  <PaketSatiri
+                    key={paket.id}
+                    paket={paket}
+                    islemTanimlari={islemTanimlari}
+                    duzenlenebilir={duzenlenebilir}
+                    satisYapabilir={satisYapabilir}
+                    hastalar={hastalar}
+                    gecikme={i * 40}
                   />
                 ))}
               </ul>

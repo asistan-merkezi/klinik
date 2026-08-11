@@ -137,3 +137,40 @@ export async function paketAktifDurumDegistir(paketId: string, yeniDurum: boolea
 
   revalidatePath("/panel/paketler");
 }
+
+export async function paketTekrarla(paketId: string) {
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return;
+  }
+
+  const { data: kaynak } = await supabase
+    .from("paket")
+    .select("ad, islem_tanimi_id, seans_sayisi, fiyat, kdv_orani")
+    .eq("id", paketId)
+    .eq("klinik_id", klinikId)
+    .single();
+
+  if (!kaynak) {
+    return;
+  }
+
+  const { error } = await supabase.from("paket").insert({
+    klinik_id: klinikId,
+    ad: kaynak.ad,
+    islem_tanimi_id: kaynak.islem_tanimi_id,
+    seans_sayisi: kaynak.seans_sayisi,
+    fiyat: kaynak.fiyat,
+    kdv_orani: kaynak.kdv_orani,
+    aktif: true,
+    satis_bitis_tarihi: null,
+    tekrar_sayisi: 2,
+  });
+
+  if (error) {
+    console.error("Paket tekrarlanamadı:", error);
+    return;
+  }
+
+  revalidatePath("/panel/paketler");
+}

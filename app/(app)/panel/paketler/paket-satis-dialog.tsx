@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HastaArama } from "@/app/(app)/panel/randevular/hasta-arama";
 import { odemeAl } from "@/app/(app)/panel/hastalar/[id]/actions";
+import { cn } from "@/lib/utils";
 import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
 import type { HastaKategori } from "@/types/hasta";
 
@@ -21,9 +22,11 @@ const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
 export function PaketSatisDialog({
   paket,
   hastalar,
+  className,
 }: {
   paket: PaketSatir;
   hastalar: SatisHastaSecenegi[];
+  className?: string;
 }) {
   const idOnEki = useId();
   const [acik, setAcik] = useState(false);
@@ -64,6 +67,7 @@ export function PaketSatisDialog({
         type="button"
         size="sm"
         variant="outline"
+        className={cn(className)}
         title="Bu paketi bir hastaya sat"
         onClick={() => setAcik(true)}
       >
