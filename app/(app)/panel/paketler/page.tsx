@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SecenekSatir } from "@/types/randevu";
-import type { PaketSatir } from "@/types/paket";
+import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
 import { YeniPaketDialog } from "./yeni-paket-dialog";
 import { PaketSatiri } from "./paket-satiri";
 
@@ -24,14 +24,16 @@ export default async function PaketlerSayfasi() {
     .single();
 
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
+  const satisYapabilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
 
-  const [islemTanimiSonucu, paketSonucu] = await Promise.all([
+  const [islemTanimiSonucu, paketSonucu, hastaSonucu] = await Promise.all([
     supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
     supabase
       .from("paket")
       .select("id, ad, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, aktif, islem_tanimi(ad)")
       .order("ad")
       .returns<PaketSatir[]>(),
+    supabase.from("hasta").select("id, ad_soyad, kategori").order("ad_soyad"),
   ]);
 
   const islemTanimlari: SecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({
@@ -39,6 +41,11 @@ export default async function PaketlerSayfasi() {
     ad: i.ad,
   }));
   const paketler = paketSonucu.data ?? [];
+  const hastalar: SatisHastaSecenegi[] = (hastaSonucu.data ?? []).map((h) => ({
+    id: h.id,
+    ad: h.ad_soyad,
+    kategori: h.kategori,
+  }));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -76,6 +83,8 @@ export default async function PaketlerSayfasi() {
                     paket={paket}
                     islemTanimlari={islemTanimlari}
                     duzenlenebilir={duzenlenebilir}
+                    satisYapabilir={satisYapabilir}
+                    hastalar={hastalar}
                   />
                 ))}
               </ul>

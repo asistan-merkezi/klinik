@@ -8,6 +8,7 @@ import type { HastaKategori } from "@/types/hasta";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
 import { hareketleriGorunumeCevir } from "@/lib/hasta/bakiye-hareket-gorunum";
+import { AktifPaketSatiri } from "@/components/hasta/aktif-paket-satiri";
 import { BakiyeHareketiEkleButonu } from "../bakiye-hareketi-formu";
 import { BakiyeHareketSatiri } from "../bakiye-hareket-satiri";
 
@@ -125,10 +126,7 @@ export function CariOdemeSekmesi({
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {aktifPaketler.map((ps) => (
-                <li key={ps.id} className="flex items-center justify-between py-3 text-sm">
-                  <span className="font-medium">{ps.paket?.ad ?? "—"}</span>
-                  <span className="text-muted-foreground">{ps.kalan_adet}/{ps.paket?.seans_sayisi ?? "?"} hak kaldı</span>
-                </li>
+                <AktifPaketSatiri key={ps.id} paketSatis={ps} />
               ))}
             </ul>
           )}

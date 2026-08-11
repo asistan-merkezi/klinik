@@ -10,7 +10,7 @@ import type { SecenekSatir } from "@/types/randevu";
  * seçilince gizli input'a hasta_id yazılır. Aranan/gösterilen isimler her
  * zaman baş harfleri büyük gösterilir.
  */
-export function HastaArama({
+export function HastaArama<T extends SecenekSatir = SecenekSatir>({
   hastalar,
   name = "hasta_id",
   id,
@@ -18,14 +18,20 @@ export function HastaArama({
   disabled,
   varsayilanId,
   varsayilanAd,
+  onSecim,
+  onTemizle,
 }: {
-  hastalar: SecenekSatir[];
+  hastalar: T[];
   name?: string;
   id?: string;
   required?: boolean;
   disabled?: boolean;
   varsayilanId?: string;
   varsayilanAd?: string;
+  /** Bir hasta seçildiğinde tam satırı (örn. kategori gibi ek alanlarla) parent'a bildirir. */
+  onSecim?: (hasta: T) => void;
+  /** Seçim temizlendiğinde (kullanıcı yazmaya devam ederse) parent'ı bilgilendirir. */
+  onTemizle?: () => void;
 }) {
   const [sorgu, setSorgu] = useState(varsayilanAd ? isimBasHarfBuyukYap(varsayilanAd) : "");
   const [seciliId, setSeciliId] = useState(varsayilanId ?? "");
@@ -62,6 +68,7 @@ export function HastaArama({
           setSorgu(isimBasHarfBuyukYap(e.target.value));
           setSeciliId("");
           setAcik(true);
+          onTemizle?.();
         }}
       />
       {acik && sorgu.trim() !== "" && (
@@ -78,6 +85,7 @@ export function HastaArama({
                   setSorgu(isimBasHarfBuyukYap(m.ad));
                   setSeciliId(m.id);
                   setAcik(false);
+                  onSecim?.(m);
                 }}
               >
                 {isimBasHarfBuyukYap(m.ad)}

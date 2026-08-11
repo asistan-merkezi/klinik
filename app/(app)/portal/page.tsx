@@ -8,6 +8,7 @@ import { telefonGoster } from "@/lib/utils";
 import type { PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 import type { PortalRandevuSatir, PortalRandevuTalebiSatir } from "@/types/portal";
+import { AktifPaketSatiri } from "@/components/hasta/aktif-paket-satiri";
 import { portalCikisYap } from "./actions";
 import { IptalTalepButonu } from "./iptal-talep-butonu";
 
@@ -74,7 +75,7 @@ export default async function PortalSayfasi() {
       .returns<PortalRandevuSatir[]>(),
     supabase
       .from("paket_satis")
-      .select("id, kalan_adet, durum, paket(ad, seans_sayisi)")
+      .select("id, kalan_adet, durum, satis_tarihi, paket(ad, seans_sayisi)")
       .eq("hasta_id", hastaId)
       .eq("durum", "aktif")
       .order("satis_tarihi")
@@ -133,10 +134,7 @@ export default async function PortalSayfasi() {
             ) : (
               <ul className="flex flex-col divide-y divide-border">
                 {aktifPaketler.map((ps) => (
-                  <li key={ps.id} className="flex items-center justify-between py-3 text-sm">
-                    <span className="font-medium">{ps.paket?.ad ?? "—"}</span>
-                    <span className="text-muted-foreground">{ps.kalan_adet}/{ps.paket?.seans_sayisi ?? "?"} hak kaldı</span>
-                  </li>
+                  <AktifPaketSatiri key={ps.id} paketSatis={ps} />
                 ))}
               </ul>
             )}

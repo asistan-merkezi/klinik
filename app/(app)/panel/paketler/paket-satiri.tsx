@@ -12,22 +12,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SecenekSatir } from "@/types/randevu";
-import type { PaketSatir } from "@/types/paket";
+import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
 import { paketAktifDurumDegistir, paketGuncelle } from "./actions";
+import { PaketSatisDialog } from "./paket-satis-dialog";
 
 function satisSuresiDoldu(tarih: string): boolean {
   const bugun = new Date().toISOString().slice(0, 10);
   return tarih < bugun;
 }
 
+function satisEngelliMi(paket: PaketSatir): boolean {
+  if (!paket.aktif) return true;
+  return paket.satis_bitis_tarihi ? satisSuresiDoldu(paket.satis_bitis_tarihi) : false;
+}
+
 export function PaketSatiri({
   paket,
   islemTanimlari,
   duzenlenebilir,
+  satisYapabilir,
+  hastalar,
 }: {
   paket: PaketSatir;
   islemTanimlari: SecenekSatir[];
   duzenlenebilir: boolean;
+  satisYapabilir: boolean;
+  hastalar: SatisHastaSecenegi[];
 }) {
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const [duzenleForm, setDuzenleForm] = useState(paket);
@@ -172,30 +182,42 @@ export function PaketSatiri({
           )}
         </span>
       </div>
-      {duzenlenebilir && (
+      {(duzenlenebilir || satisYapabilir) && (
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={aktifPending}
-            onClick={() =>
-              startAktifTransition(() => paketAktifDurumDegistir(paket.id, !paket.aktif))
-            }
-          >
-            {paket.aktif ? "Pasife al" : "Aktifleştir"}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setDuzenleForm(paket);
-              setDuzenleniyor(true);
-            }}
-          >
-            Düzenle
-          </Button>
+          {satisYapabilir &&
+            (satisEngelliMi(paket) ? (
+              <Button type="button" size="sm" variant="outline" disabled title="Bu paket şu an satılamaz.">
+                Satış
+              </Button>
+            ) : (
+              <PaketSatisDialog paket={paket} hastalar={hastalar} />
+            ))}
+          {duzenlenebilir && (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={aktifPending}
+                onClick={() =>
+                  startAktifTransition(() => paketAktifDurumDegistir(paket.id, !paket.aktif))
+                }
+              >
+                {paket.aktif ? "Pasife al" : "Aktifleştir"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setDuzenleForm(paket);
+                  setDuzenleniyor(true);
+                }}
+              >
+                Düzenle
+              </Button>
+            </>
+          )}
         </div>
       )}
     </li>

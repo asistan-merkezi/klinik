@@ -18,6 +18,7 @@ export type PaketSatisSatir = {
   id: string;
   kalan_adet: number;
   durum: string;
+  satis_tarihi: string;
   paket: { ad: string; seans_sayisi: number } | null;
 };
 

@@ -1,3 +1,11 @@
+import type { HastaKategori } from "./hasta";
+
+export type SatisHastaSecenegi = {
+  id: string;
+  ad: string;
+  kategori: HastaKategori;
+};
+
 export type PaketSatir = {
   id: string;
   ad: string;
