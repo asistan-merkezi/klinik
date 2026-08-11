@@ -64,3 +64,76 @@ export function hareketleriGorunumeCevir(
 
   return sonuc;
 }
+
+export type BakiyeSatirTuru = "tekli" | "islem" | "odeme";
+
+export type BakiyeSatirGorunum = {
+  key: string;
+  tip: BakiyeSatirTuru;
+  tarih: string;
+  hareket: HastaBakiyeHareket;
+  islemAdi: string;
+  terapistAdi: string | null;
+  kategoriIskontoTutari: number;
+  manuelIskontoTutari: number;
+  tutarBrut: number;
+  bakiyeSonrasi: number | null;
+};
+
+// Kapatılmış (eskiden borç, şimdi tur='odeme') ve bir randevuya bağlı
+// hareketler ekranda "İşlem" (orijinal tedavi tarihi/tutarı) ve "Ödeme"
+// (kapatma anının tarihi/tahsilatı) diye iki ayrı satıra bölünüyor —
+// kullanıcı kararı. Bölünen satırlar kendi gerçek tarihleriyle (İşlem:
+// hareket.created_at, Ödeme: hareket.odeme.created_at) tekrar sıralanıyor;
+// aksi halde ikisi hep aynı (eski, check-in anındaki) konumda bitişik
+// gösterilir ve aradaki başka hareketlerle sıralama karışırdı.
+export function bakiyeSatirlariOlustur(gorunumler: HareketGorunum[]): BakiyeSatirGorunum[] {
+  const satirlar: BakiyeSatirGorunum[] = [];
+
+  for (const g of gorunumler) {
+    const kapaliBorc = g.hareket.tur === "odeme" && g.hareket.randevu !== null;
+
+    if (!kapaliBorc) {
+      satirlar.push({
+        key: g.hareket.id,
+        tip: "tekli",
+        tarih: g.hareket.created_at,
+        hareket: g.hareket,
+        islemAdi: g.islemAdi,
+        terapistAdi: g.terapistAdi,
+        kategoriIskontoTutari: g.kategoriIskontoTutari,
+        manuelIskontoTutari: g.manuelIskontoTutari,
+        tutarBrut: g.tutarBrut,
+        bakiyeSonrasi: g.bakiyeSonrasi,
+      });
+      continue;
+    }
+
+    satirlar.push({
+      key: `${g.hareket.id}-islem`,
+      tip: "islem",
+      tarih: g.hareket.created_at,
+      hareket: g.hareket,
+      islemAdi: g.islemAdi,
+      terapistAdi: g.terapistAdi,
+      kategoriIskontoTutari: g.kategoriIskontoTutari,
+      manuelIskontoTutari: 0,
+      tutarBrut: g.tutarBrut,
+      bakiyeSonrasi: null,
+    });
+    satirlar.push({
+      key: `${g.hareket.id}-odeme`,
+      tip: "odeme",
+      tarih: g.hareket.odeme?.created_at ?? g.hareket.created_at,
+      hareket: g.hareket,
+      islemAdi: g.islemAdi,
+      terapistAdi: null,
+      kategoriIskontoTutari: 0,
+      manuelIskontoTutari: g.manuelIskontoTutari,
+      tutarBrut: g.hareket.tutar,
+      bakiyeSonrasi: g.bakiyeSonrasi,
+    });
+  }
+
+  return satirlar.sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
+}
