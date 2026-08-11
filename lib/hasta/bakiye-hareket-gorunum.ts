@@ -38,7 +38,14 @@ export function hareketleriGorunumeCevir(
       islemAdi = h.randevu.islem_tanimi?.ad ?? islemAdi;
       terapistAdi = h.randevu.terapist?.personel?.ad_soyad ?? null;
       if (h.randevu.islem_tanimi) {
-        kategoriIskontoTutari = Math.max(0, h.randevu.islem_tanimi.vita_fiyat - h.tutar);
+        // Borç kapatıldığında h.tutar netleşiyor (manuel iskonto zaten düşülmüş,
+        // bkz. hasta_bakiye_hareket_borc_kapat RPC'si) — kategori iskontosunu
+        // manuel iskontodan ayrıştırmak için önce orijinal (kategori-indirimli
+        // ama manuel-indirimsiz) tutar geri kuruluyor, yoksa manuel iskonto bu
+        // sütuna da sızıp iki kez gösterilmiş oluyordu.
+        const manuelIskontoOnceki = h.odeme?.iskonto_tutari ?? 0;
+        const orijinalTutar = h.tutar + manuelIskontoOnceki;
+        kategoriIskontoTutari = Math.max(0, h.randevu.islem_tanimi.vita_fiyat - orijinalTutar);
       }
     } else if (h.odeme) {
       const adlar = h.odeme.odeme_kalemi.map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—");
@@ -49,10 +56,10 @@ export function hareketleriGorunumeCevir(
       }, 0);
     }
 
-    // Borç kapatmadan doğan 'kredi' satırı hem randevu'ya (terapist/işlem adı
-    // için) hem odeme'ye (borç kapatırken girilen iskonto için) bağlı — yukarıdaki
-    // randevu dalı öncelikli olduğu için odeme.iskonto_tutari ayrıca burada
-    // okunmazsa "Borç Satırını Düzenle"de girilen iskonto tabloda hiç görünmüyordu.
+    // Kapatılmış bir borç satırı hem randevu'ya (terapist/işlem adı için) hem
+    // odeme'ye (borç kapatırken girilen iskonto için) bağlı — yukarıdaki randevu
+    // dalı öncelikli olduğu için odeme.iskonto_tutari ayrıca burada okunmazsa
+    // "Borç Satırını Düzenle"de girilen iskonto tabloda hiç görünmüyordu.
     if (h.odeme) {
       manuelIskontoTutari = h.odeme.iskonto_tutari;
     }
