@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
-import { startOfDayUTC, formatDateForInput, formatTimeForInput } from "@/lib/datetime";
+import { startOfDayUTC, formatDateForInput, formatTimeForInput, formatTime } from "@/lib/datetime";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
-import { Activity, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, LayoutGrid, List, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CanliSaat } from "@/components/panel/canli-saat";
 import { SuAnCizgisi } from "@/components/panel/su-an-cizgisi";
@@ -74,6 +74,7 @@ export function CanliCizelge({
   const router = useRouter();
   const [randevular, setRandevular] = useState(baslangicRandevular);
   const [simdi, setSimdi] = useState<Date | null>(null);
+  const [gorunum, setGorunum] = useState<"cizelge" | "liste">("cizelge");
   const [seciliTarih, setSeciliTarih] = useState(() => formatDateForInput(new Date().toISOString()));
   const [seciliRandevu, setSeciliRandevu] = useState<RandevuSatir | null>(null);
   const [detayAcik, setDetayAcik] = useState(false);
@@ -255,11 +256,31 @@ export function CanliCizelge({
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card text-card-foreground">
       <header className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
-        <div className="flex items-center gap-2">
-          <Activity className="size-4 text-primary" aria-hidden />
-          <h2 className="text-sm font-semibold">
-            {tarihNavigasyonuGoster ? "Randevu Çizelgesi" : "Günün Çizelgesi"}
-          </h2>
+        <div className="flex flex-1 items-center justify-between gap-2 sm:flex-none sm:justify-start">
+          <div className="flex items-center gap-2">
+            <Activity className="size-4 text-primary" aria-hidden />
+            <h2 className="text-sm font-semibold">
+              {tarihNavigasyonuGoster ? "Randevu Çizelgesi" : "Günün Çizelgesi"}
+            </h2>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setGorunum((g) => (g === "cizelge" ? "liste" : "cizelge"))}
+          >
+            {gorunum === "cizelge" ? (
+              <>
+                <List className="mr-1.5 size-4" aria-hidden />
+                Liste
+              </>
+            ) : (
+              <>
+                <LayoutGrid className="mr-1.5 size-4" aria-hidden />
+                Çizelge
+              </>
+            )}
+          </Button>
         </div>
 
         {tarihNavigasyonuGoster && (
@@ -315,7 +336,50 @@ export function CanliCizelge({
         {duyuruMetni}
       </p>
 
-      {sutunlar.length === 0 ? (
+      {gorunum === "liste" ? (
+        gorunumler.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-muted-foreground sm:px-5">Bu tarihte randevu yok.</p>
+        ) : (
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-card">
+                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                  <th className="px-4 py-2 sm:px-5">Saat</th>
+                  <th className="px-4 py-2 sm:px-5">Hasta</th>
+                  <th className="px-4 py-2 sm:px-5">Oda</th>
+                  <th className="px-4 py-2 sm:px-5">Terapist</th>
+                  <th className="px-4 py-2 sm:px-5">İşlem</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {gorunumler.map(({ randevu, durum }) => (
+                  <tr
+                    key={randevu.id}
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
+                    onClick={(e) => randevuKutusunaTiklandi(e, randevu, durum)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        randevuKutusunaTiklandi(e, randevu, durum);
+                      }
+                    }}
+                  >
+                    <td className="px-4 py-2.5 tabular-nums sm:px-5">{formatTime(randevu.baslangic)}</td>
+                    <td className="px-4 py-2.5 font-medium sm:px-5">{randevu.hasta?.ad_soyad ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground sm:px-5">{randevu.oda?.ad ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground sm:px-5">
+                      {randevu.terapist?.personel?.ad_soyad ?? "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground sm:px-5">{randevu.islem_tanimi?.ad ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : sutunlar.length === 0 ? (
         <p className="px-4 py-3 text-sm text-muted-foreground sm:px-5">
           Aktif oda tanımlı değil. Donanım ekranından oda ekleyin.
         </p>
