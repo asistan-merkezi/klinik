@@ -1,5 +1,5 @@
 import { BOLUM_ETIKET, type MesajBolum, type MesajKuralSatir } from "@/types/mesajlasma";
-import { KuralKutucuk } from "./kural-kutucuk";
+import { KuralSatiri } from "./kural-satiri";
 
 export function BolumKartGrubu({ bolum, kurallar }: { bolum: MesajBolum; kurallar: MesajKuralSatir[] }) {
   const aktifSayisi = kurallar.filter((k) => k.aktif).length;
@@ -12,11 +12,11 @@ export function BolumKartGrubu({ bolum, kurallar }: { bolum: MesajBolum; kuralla
           {aktifSayisi}/{kurallar.length} aktif
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <ul className="flex flex-col gap-2">
         {kurallar.map((kural) => (
-          <KuralKutucuk key={kural.id} kural={kural} />
+          <KuralSatiri key={kural.id} kural={kural} />
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
