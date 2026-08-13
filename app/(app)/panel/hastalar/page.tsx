@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bell, FileText, Users } from "lucide-react";
+import { FileText, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { BildirimButonu } from "@/components/panel/bildirim-butonu";
 import type { HastaListeSatiri } from "@/types/hasta";
 import { YeniHastaDialog } from "./yeni-hasta-dialog";
 import { HastaSatiri } from "./hasta-satiri";
@@ -71,23 +72,7 @@ export default async function HastalarSayfasi({
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-            {bildirimGorulebilir && (
-              <Button
-                variant={bildirimSayisi > 0 ? "destructive" : "outline"}
-                nativeButton={false}
-                render={
-                  <Link href="/panel/hastalar/bildirimler">
-                    <Bell />
-                    Bildirimler
-                    {bildirimSayisi > 0 && (
-                      <span className="ml-1 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-white">
-                        {bildirimSayisi}
-                      </span>
-                    )}
-                  </Link>
-                }
-              />
-            )}
+            {bildirimGorulebilir && <BildirimButonu sayisi={bildirimSayisi} />}
             <Button
               variant="outline"
               nativeButton={false}
