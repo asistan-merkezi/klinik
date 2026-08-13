@@ -38,28 +38,30 @@ export function KuralSatiri({ kural: baslangicKural }: { kural: MesajKuralSatir 
     <li>
       <Card
         interactive
-        className={cn("flex-row items-center gap-3 p-3", !kural.aktif && "opacity-60")}
+        className={cn("flex-col gap-3 p-3 sm:flex-row sm:items-center", !kural.aktif && "opacity-60")}
         onClick={() => setAcik(true)}
       >
-        <IconTile icon={Icon} tone={tone} className="shrink-0" />
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <IconTile icon={Icon} tone={tone} className="shrink-0" />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate font-medium">{kural.tetikleyici_adi}</span>
-          <div className="flex flex-wrap items-center gap-1">
-            {!kural.aktif && (
-              <StatusBadge tone="slate" className="border border-border">
-                Pasif
-              </StatusBadge>
-            )}
-            {metniBos && (
-              <StatusBadge tone="amber" className="border border-amber-500/30">
-                Mesaj metni eksik
-              </StatusBadge>
-            )}
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate font-medium">{kural.tetikleyici_adi}</span>
+            <div className="flex flex-wrap items-center gap-1">
+              {!kural.aktif && (
+                <StatusBadge tone="slate" className="border border-border">
+                  Pasif
+                </StatusBadge>
+              )}
+              {metniBos && (
+                <StatusBadge tone="amber" className="border border-amber-500/30">
+                  Mesaj metni eksik
+                </StatusBadge>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 pl-[52px] sm:justify-end sm:pl-0">
           {KANAL_SIRASI.map((kanal) => {
             const kanalAktif = kural[KANAL_ALAN[kanal]];
             return (
