@@ -8,6 +8,7 @@ import { startOfDayUTC, formatDateForInput, formatTimeForInput, formatTime } fro
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { Activity, ChevronLeft, ChevronRight, LayoutGrid, List, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BildirimButonu } from "@/components/panel/bildirim-butonu";
 import { CanliSaat } from "@/components/panel/canli-saat";
 import { SuAnCizgisi } from "@/components/panel/su-an-cizgisi";
 import { RandevuKutusu, gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
@@ -59,6 +60,7 @@ export function CanliCizelge({
   tarihNavigasyonuGoster = false,
   rol = null,
   kendiTerapistId = null,
+  bildirimSayisi,
 }: {
   baslangicRandevular: RandevuSatir[];
   odalar: SecenekSatir[];
@@ -73,6 +75,8 @@ export function CanliCizelge({
   rol?: string | null;
   /** rol==="terapist" ise kendi terapist.id'si — sadece kendi randevularında link aktif olsun diye. */
   kendiTerapistId?: string | null;
+  /** Verilirse (Ana Ekran'daki "Günün Çizelgesi") Liste/Çizelge geçiş butonunun yanında Bildirimler butonu gösterilir. */
+  bildirimSayisi?: number;
 }) {
   const router = useRouter();
   const [randevular, setRandevular] = useState(baslangicRandevular);
@@ -266,25 +270,28 @@ export function CanliCizelge({
               {tarihNavigasyonuGoster ? "Randevu Çizelgesi" : "Günün Çizelgesi"}
             </h2>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={GORUNUM_BUTON_SINIFI}
-            onClick={() => setGorunum((g) => (g === "cizelge" ? "liste" : "cizelge"))}
-          >
-            {gorunum === "cizelge" ? (
-              <>
-                <List className="mr-1.5 size-4" aria-hidden />
-                Liste
-              </>
-            ) : (
-              <>
-                <LayoutGrid className="mr-1.5 size-4" aria-hidden />
-                Çizelge
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={GORUNUM_BUTON_SINIFI}
+              onClick={() => setGorunum((g) => (g === "cizelge" ? "liste" : "cizelge"))}
+            >
+              {gorunum === "cizelge" ? (
+                <>
+                  <List className="mr-1.5 size-4" aria-hidden />
+                  Liste
+                </>
+              ) : (
+                <>
+                  <LayoutGrid className="mr-1.5 size-4" aria-hidden />
+                  Çizelge
+                </>
+              )}
+            </Button>
+            {bildirimSayisi !== undefined && <BildirimButonu sayisi={bildirimSayisi} size="sm" />}
+          </div>
         </div>
 
         {tarihNavigasyonuGoster && (

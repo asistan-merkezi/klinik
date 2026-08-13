@@ -3,14 +3,21 @@ import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Hastalar liste sayfası ve Ana Ekran arasında paylaşılan "Bildirimler"
- * butonu — bekleyen/görülmemiş öğe varsa (bildirim-sayisi.ts) kırmızıya
- * dönüp sayı gösterir, yoksa nötr gri kalır.
+ * Hastalar liste sayfası, Ana Ekran ve günlük çizelgenin (CanliCizelge)
+ * başlığında paylaşılan "Bildirimler" butonu — bekleyen/görülmemiş öğe varsa
+ * (bildirim-sayisi.ts) kırmızıya dönüp sayı gösterir, yoksa nötr gri kalır.
  */
-export function BildirimButonu({ sayisi }: { sayisi: number }) {
+export function BildirimButonu({
+  sayisi,
+  size = "default",
+}: {
+  sayisi: number;
+  size?: "default" | "sm";
+}) {
   return (
     <Button
       variant={sayisi > 0 ? "destructive" : "outline"}
+      size={size}
       nativeButton={false}
       render={
         <Link href="/panel/hastalar/bildirimler">

@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
-import { BildirimButonu } from "@/components/panel/bildirim-butonu";
 import { bildirimSayisiGetir } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-sayisi";
 
 export default async function PanelSayfasi() {
@@ -79,16 +78,6 @@ export default async function PanelSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        {bildirimGorulebilir && (
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-semibold">Ana Ekran</h1>
-              <p className="text-sm text-muted-foreground">Bugünkü canlı randevu akışı.</p>
-            </div>
-            <BildirimButonu sayisi={bildirimSayisi} />
-          </header>
-        )}
-
         {error ? (
           <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
         ) : (
@@ -102,6 +91,7 @@ export default async function PanelSayfasi() {
             protokoller={protokoller}
             rol={rol}
             kendiTerapistId={kendiTerapistId}
+            bildirimSayisi={bildirimGorulebilir ? bildirimSayisi : undefined}
           />
         )}
       </div>
