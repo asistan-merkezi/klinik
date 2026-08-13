@@ -19,6 +19,7 @@ import {
   LifeBuoy,
   BookOpen,
   Bot,
+  MessageSquareWarning,
   type LucideIcon,
 } from "lucide-react";
 
@@ -81,6 +82,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ogeler: [
       { href: "/panel/destek/kullanim-kilavuzu", label: "Kullanım Kılavuzu", icon: BookOpen },
       { href: "/panel/destek/chatbot", label: "Destek Chatbotu", icon: Bot },
+      { href: "/panel/destek/talep-sikayetler", label: "Talep ve Şikayetler", icon: MessageSquareWarning },
     ],
   },
 ];
