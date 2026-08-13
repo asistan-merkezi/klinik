@@ -1,19 +1,7 @@
-import type { LucideIcon } from "lucide-react";
-import type { IconTileTone } from "@/components/ui/icon-tile";
 import { BOLUM_ETIKET, type MesajBolum, type MesajKuralSatir } from "@/types/mesajlasma";
 import { KuralKutucuk } from "./kural-kutucuk";
 
-export function BolumKartGrubu({
-  bolum,
-  kurallar,
-  icon,
-  tone,
-}: {
-  bolum: MesajBolum;
-  kurallar: MesajKuralSatir[];
-  icon: LucideIcon;
-  tone: IconTileTone;
-}) {
+export function BolumKartGrubu({ bolum, kurallar }: { bolum: MesajBolum; kurallar: MesajKuralSatir[] }) {
   const aktifSayisi = kurallar.filter((k) => k.aktif).length;
 
   return (
@@ -26,7 +14,7 @@ export function BolumKartGrubu({
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {kurallar.map((kural) => (
-          <KuralKutucuk key={kural.id} kural={kural} icon={icon} tone={tone} />
+          <KuralKutucuk key={kural.id} kural={kural} />
         ))}
       </div>
     </section>

@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { MessageSquareText, MessageCircle, Mail, Users, CalendarDays, UserCog, Wallet, type LucideIcon } from "lucide-react";
+import { MessageSquareText, MessageCircle, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { IconTileTone } from "@/components/ui/icon-tile";
 import {
   BOLUM_SIRASI,
   KANAL_SIRASI,
@@ -20,13 +19,6 @@ const KANAL_IKON = {
   whatsapp: MessageCircle,
   mail: Mail,
 } as const;
-
-const BOLUM_GORUNUM: Record<MesajBolum, { icon: LucideIcon; tone: IconTileTone }> = {
-  hasta: { icon: Users, tone: "blue" },
-  randevu: { icon: CalendarDays, tone: "cyan" },
-  personel: { icon: UserCog, tone: "violet" },
-  muhasebe: { icon: Wallet, tone: "amber" },
-};
 
 export default async function MesajlasmaSayfasi() {
   const supabase = await createClient();
@@ -118,13 +110,7 @@ export default async function MesajlasmaSayfasi() {
 
         <div className="flex flex-col gap-6">
           {BOLUM_SIRASI.map((bolum) => (
-            <BolumKartGrubu
-              key={bolum}
-              bolum={bolum}
-              kurallar={bolumGruplari.get(bolum) ?? []}
-              icon={BOLUM_GORUNUM[bolum].icon}
-              tone={BOLUM_GORUNUM[bolum].tone}
-            />
+            <BolumKartGrubu key={bolum} bolum={bolum} kurallar={bolumGruplari.get(bolum) ?? []} />
           ))}
         </div>
       </div>
