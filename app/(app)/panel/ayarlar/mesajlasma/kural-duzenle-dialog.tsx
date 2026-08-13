@@ -125,7 +125,7 @@ export function KuralDuzenleDialog({
                 {mesajMetni.length}/{MESAJ_METNI_MAX_UZUNLUK}
               </span>
               <Button type="button" size="sm" disabled={isPending || !metinDegisti} onClick={mesajMetniKaydet}>
-                {metinKaydediliyor ? "Kaydediliyor..." : "Metni Kaydet"}
+                {metinKaydediliyor ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
               </Button>
             </div>
           </div>
