@@ -12,5 +12,11 @@
       "memory": 1769,
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/mesaj-kuyruk-isle",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }

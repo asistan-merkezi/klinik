@@ -1,15 +1,15 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { KANAL_SIRASI, KANAL_ETIKET, type EtkinMesajKurali } from "@/types/mesajlasma";
+import { KANAL_SIRASI, KANAL_ETIKET, type MesajKanal, type EtkinMesajKurali } from "@/types/mesajlasma";
 import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
 import { bilinmeyenDegiskenleriBul } from "@/lib/mesaj/degisken-dogrula";
-import { kuralGuncelle } from "./actions";
+import { kuralGuncelle, testGonder } from "./actions";
 
 const KANAL_ALAN = {
   sms: "sms_aktif",
@@ -50,9 +50,12 @@ export function KuralDuzenleDialog({
 }) {
   const idOnEki = useId();
   const [isPending, startTransition] = useTransition();
+  const [isTestPending, startTestTransition] = useTransition();
+  const herhangiBirIslemVar = isPending || isTestPending;
   const [taslak, setTaslak] = useState<Taslak>(() => taslakOlustur(kural));
   const [hataMesaji, setHataMesaji] = useState<string | null>(null);
   const [sonAcik, setSonAcik] = useState(acik);
+  const [testDurumu, setTestDurumu] = useState<{ kanal: MesajKanal; mesaj: string; basarili: boolean } | null>(null);
 
   const tanim = tetikleyiciGetir(kural.tetikleyici_kodu);
   const gecerliDegiskenler = tanim?.gecerliDegiskenler ?? [];
@@ -67,6 +70,7 @@ export function KuralDuzenleDialog({
     if (acik) {
       setTaslak(taslakOlustur(kural));
       setHataMesaji(null);
+      setTestDurumu(null);
     }
   }
 
@@ -104,6 +108,18 @@ export function KuralDuzenleDialog({
     });
   }
 
+  function testGonderTikla(kanal: MesajKanal) {
+    setTestDurumu(null);
+    startTestTransition(async () => {
+      const sonuc = await testGonder(kural.tetikleyici_kodu, kanal);
+      setTestDurumu({ kanal, mesaj: sonuc.message, basarili: sonuc.success });
+    });
+  }
+
+  // Test Gönder, DB'deki KAYDEDİLMİŞ (props) kural durumunu kullanır —
+  // taslaktaki kaydedilmemiş değişiklikler test sonucunu yanıltmasın.
+  const kaydedilmisAktifKanallar = KANAL_SIRASI.filter((k) => kural[KANAL_ALAN[k]]);
+
   return (
     <Dialog open={acik} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -119,7 +135,7 @@ export function KuralDuzenleDialog({
               type="checkbox"
               className="size-4 accent-emerald-500"
               checked={taslak.aktif}
-              disabled={isPending}
+              disabled={herhangiBirIslemVar}
               onChange={(e) => alanDegistir("aktif", e.target.checked)}
             />
             <Label htmlFor={`${idOnEki}-aktif`} className="font-normal">
@@ -136,7 +152,7 @@ export function KuralDuzenleDialog({
                     type="checkbox"
                     className="size-4 accent-primary"
                     checked={taslak[KANAL_ALAN[kanal]]}
-                    disabled={isPending || !taslak.aktif}
+                    disabled={herhangiBirIslemVar || !taslak.aktif}
                     onChange={(e) => alanDegistir(KANAL_ALAN[kanal], e.target.checked)}
                   />
                   {KANAL_ETIKET[kanal]}
@@ -154,7 +170,7 @@ export function KuralDuzenleDialog({
                   <button
                     key={degisken}
                     type="button"
-                    disabled={isPending}
+                    disabled={herhangiBirIslemVar}
                     onClick={() => degiskenEkle(degisken)}
                     className="inline-flex items-center gap-0.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[0.7rem] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
@@ -171,7 +187,7 @@ export function KuralDuzenleDialog({
               value={taslak.mesaj_metni}
               onChange={(e) => alanDegistir("mesaj_metni", e.target.value)}
               placeholder="Bu tetikleyicide gönderilecek mesaj metnini yazın..."
-              disabled={isPending}
+              disabled={herhangiBirIslemVar}
               className="w-full min-w-0 rounded-lg border border-input bg-input-bg px-2.5 py-1.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30"
             />
             <div className="flex items-center justify-between">
@@ -195,18 +211,54 @@ export function KuralDuzenleDialog({
 
           <Button
             type="button"
-            disabled={isPending || !degisiklikVar || bilinmeyenDegiskenler.length > 0}
+            disabled={herhangiBirIslemVar || !degisiklikVar || bilinmeyenDegiskenler.length > 0}
             onClick={degisiklikleriKaydet}
           >
             {isPending ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
           </Button>
 
-          <div className={cn("flex flex-col gap-1 border-t border-border pt-3")}>
-            <Label className="text-muted-foreground">Test Gönder</Label>
+          <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+            <Label>Test Gönder</Label>
             <span className="text-xs text-muted-foreground">
-              Gerçek sağlayıcı entegrasyonu tamamlanınca (SMS/WhatsApp/Mail) buradan test gönderimi yapılabilecek.
-              Şu an sadece kural/kanal/mesaj metni ayarları kaydediliyor.
+              Kendi telefonunuza/e-postanıza gönderilir, gerçekten 1 kredi düşer (şu an simülasyon modunda — sunucu
+              loguna yazılır, gerçek bir sağlayıcıya gitmez).
             </span>
+            {degisiklikVar && (
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Kaydedilmemiş değişiklikleriniz var — test, en son kaydedilmiş duruma göre gönderilir.
+              </span>
+            )}
+            {!kural.aktif || kaydedilmisAktifKanallar.length === 0 ? (
+              <span className="text-xs text-muted-foreground">
+                Test göndermek için önce kuralı ve en az bir kanalı aktif edip kaydedin.
+              </span>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {kaydedilmisAktifKanallar.map((kanal) => (
+                  <Button
+                    key={kanal}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={herhangiBirIslemVar}
+                    onClick={() => testGonderTikla(kanal)}
+                  >
+                    <Send className="size-3.5" aria-hidden />
+                    {isTestPending ? "Gönderiliyor..." : KANAL_ETIKET[kanal]}
+                  </Button>
+                ))}
+              </div>
+            )}
+            {testDurumu && (
+              <span
+                className={cn(
+                  "text-xs",
+                  testDurumu.basarili ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                )}
+              >
+                {KANAL_ETIKET[testDurumu.kanal]}: {testDurumu.mesaj}
+              </span>
+            )}
           </div>
         </div>
       </DialogContent>
