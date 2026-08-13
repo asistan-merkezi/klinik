@@ -7,7 +7,7 @@ export function BolumKartGrubu({ bolum, kurallar }: { bolum: MesajBolum; kuralla
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">{BOLUM_ETIKET[bolum]}</h2>
+        <h2 className="text-sm font-semibold">{BOLUM_ETIKET[bolum]} Bölümü Mesajları</h2>
         <span className="text-xs text-muted-foreground">
           {aktifSayisi}/{kurallar.length} aktif
         </span>
