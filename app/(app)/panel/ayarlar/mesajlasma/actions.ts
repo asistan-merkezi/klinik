@@ -16,6 +16,8 @@ const TEST_SONUC_MESAJI: Record<string, string> = {
   hata: "Test gönderilemedi.",
 };
 
+const MESAJ_METNI_MAX_UZUNLUK = 1000;
+
 async function klinikAdminDogrula() {
   const supabase = await createClient();
   const {
@@ -65,7 +67,31 @@ export async function kuralAlanGuncelle(
   return { success: true, message: "Güncellendi." };
 }
 
-/** Kural satırındaki "Test Gönder" ikonu — gerçek gönderim yolunu (kredi düşümü + log dahil) test eder. */
+/** Kural düzenleme kutucuğundaki "Metni Kaydet" — o tetikleyicide fiilen gönderilecek mesaj içeriği. */
+export async function kuralMesajMetniGuncelle(kuralId: string, mesajMetni: string): Promise<SonucDurumu> {
+  const yetki = await klinikAdminDogrula();
+  if (!yetki) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const metin = mesajMetni.trim().slice(0, MESAJ_METNI_MAX_UZUNLUK);
+
+  const { error } = await yetki.supabase
+    .from("mesaj_kural")
+    .update({ mesaj_metni: metin })
+    .eq("id", kuralId)
+    .eq("klinik_id", yetki.klinikId);
+
+  if (error) {
+    console.error("Mesaj metni güncellenemedi:", error.message);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/mesajlasma");
+  return { success: true, message: "Mesaj metni kaydedildi." };
+}
+
+/** Kural kutucuğundaki "Test Gönder" — gerçek gönderim yolunu (kredi düşümü + log dahil) test eder. */
 export async function testGonderAction(
   bolum: MesajBolum,
   tetikleyiciKod: string,

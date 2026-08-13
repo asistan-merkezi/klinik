@@ -30,6 +30,7 @@ export type MesajKuralSatir = {
   bolum: MesajBolum;
   tetikleyici_kod: string;
   tetikleyici_adi: string;
+  mesaj_metni: string;
   sms_aktif: boolean;
   whatsapp_aktif: boolean;
   mail_aktif: boolean;

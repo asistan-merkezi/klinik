@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { MessageSquareText, MessageCircle, Mail } from "lucide-react";
+import { MessageSquareText, MessageCircle, Mail, Users, CalendarDays, UserCog, Wallet, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import type { IconTileTone } from "@/components/ui/icon-tile";
 import {
   BOLUM_SIRASI,
   KANAL_SIRASI,
@@ -12,13 +13,20 @@ import {
   type MesajKuralSatir,
   type MesajKrediBakiyeSatir,
 } from "@/types/mesajlasma";
-import { BolumAccordion } from "./bolum-accordion";
+import { BolumKartGrubu } from "./bolum-kart-grubu";
 
 const KANAL_IKON = {
   sms: MessageSquareText,
   whatsapp: MessageCircle,
   mail: Mail,
 } as const;
+
+const BOLUM_GORUNUM: Record<MesajBolum, { icon: LucideIcon; tone: IconTileTone }> = {
+  hasta: { icon: Users, tone: "blue" },
+  randevu: { icon: CalendarDays, tone: "cyan" },
+  personel: { icon: UserCog, tone: "violet" },
+  muhasebe: { icon: Wallet, tone: "amber" },
+};
 
 export default async function MesajlasmaSayfasi() {
   const supabase = await createClient();
@@ -49,7 +57,7 @@ export default async function MesajlasmaSayfasi() {
   const [kurallarSonuc, bakiyelerSonuc] = await Promise.all([
     supabase
       .from("mesaj_kural")
-      .select("id, bolum, tetikleyici_kod, tetikleyici_adi, sms_aktif, whatsapp_aktif, mail_aktif, aktif")
+      .select("id, bolum, tetikleyici_kod, tetikleyici_adi, mesaj_metni, sms_aktif, whatsapp_aktif, mail_aktif, aktif")
       .eq("klinik_id", klinikId)
       .order("bolum")
       .order("tetikleyici_kod")
@@ -72,7 +80,7 @@ export default async function MesajlasmaSayfasi() {
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold">Mesajlaşma</h1>
+          <h1 className="text-xl font-semibold">SMS/Whatsapp/Mail Ayarları</h1>
           <p className="text-sm text-muted-foreground">
             Klinikte tetiklenen olaylarda (hasta, randevu, personel, muhasebe) hangi kanaldan bildirim
             gönderileceğini buradan yapılandırın. Gönderim kredi bazlı çalışır — kredi biterse ilgili
@@ -108,9 +116,15 @@ export default async function MesajlasmaSayfasi() {
           })}
         </div>
 
-        <div className="flex flex-col gap-3">
-          {BOLUM_SIRASI.map((bolum, i) => (
-            <BolumAccordion key={bolum} bolum={bolum} kurallar={bolumGruplari.get(bolum) ?? []} varsayilanAcik={i === 0} />
+        <div className="flex flex-col gap-6">
+          {BOLUM_SIRASI.map((bolum) => (
+            <BolumKartGrubu
+              key={bolum}
+              bolum={bolum}
+              kurallar={bolumGruplari.get(bolum) ?? []}
+              icon={BOLUM_GORUNUM[bolum].icon}
+              tone={BOLUM_GORUNUM[bolum].tone}
+            />
           ))}
         </div>
       </div>
