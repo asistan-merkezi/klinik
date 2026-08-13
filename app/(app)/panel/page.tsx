@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
-import { BildirimButonu } from "@/components/panel/bildirim-butonu";
-import { bildirimSayisiGetir } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-sayisi";
+import { bildirimVerileriGetir } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-verileri";
+import { BildirimListesi } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-listesi";
 
 export default async function PanelSayfasi() {
   const supabase = await createClient();
@@ -20,7 +20,6 @@ export default async function PanelSayfasi() {
   const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
   const rol = kullanici?.rol ?? null;
   const bildirimGorulebilir = rol === "klinik_admin" || rol === "resepsiyon";
-  const bildirimSayisi = bildirimGorulebilir ? await bildirimSayisiGetir(supabase) : 0;
 
   let kendiTerapistId: string | null = null;
   if (rol === "terapist") {
@@ -76,18 +75,12 @@ export default async function PanelSayfasi() {
     console.error("Bugünkü randevular çekilemedi:", error);
   }
 
+  const bildirimVerisi = bildirimGorulebilir ? await bildirimVerileriGetir(supabase) : null;
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        {bildirimGorulebilir && (
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-semibold">Ana Ekran</h1>
-              <p className="text-sm text-muted-foreground">Bugünkü canlı randevu akışı.</p>
-            </div>
-            <BildirimButonu sayisi={bildirimSayisi} />
-          </header>
-        )}
+        {bildirimVerisi && <BildirimListesi veri={bildirimVerisi} bosKenGoster={false} />}
 
         {error ? (
           <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
