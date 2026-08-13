@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { IconTile, type IconTileTone } from "@/components/ui/icon-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
-import { KANAL_SIRASI, KANAL_ETIKET, type MesajBolum, type MesajKuralSatir } from "@/types/mesajlasma";
+import { KANAL_SIRASI, KANAL_ETIKET, type MesajBolum, type EtkinMesajKurali } from "@/types/mesajlasma";
 import { KuralDuzenleDialog } from "./kural-duzenle-dialog";
 
 const KANAL_ALAN = {
@@ -27,7 +27,7 @@ const BOLUM_GORUNUM: Record<MesajBolum, { icon: LucideIcon; tone: IconTileTone }
   muhasebe: { icon: Wallet, tone: "amber" },
 };
 
-export function KuralSatiri({ kural: baslangicKural }: { kural: MesajKuralSatir }) {
+export function KuralSatiri({ kural: baslangicKural }: { kural: EtkinMesajKurali }) {
   const [acik, setAcik] = useState(false);
   const [kural, setKural] = useState(baslangicKural);
   const { icon: Icon, tone } = BOLUM_GORUNUM[kural.bolum];

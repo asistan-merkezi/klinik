@@ -1,7 +1,7 @@
-import { BOLUM_ETIKET, type MesajBolum, type MesajKuralSatir } from "@/types/mesajlasma";
+import { BOLUM_ETIKET, type MesajBolum, type EtkinMesajKurali } from "@/types/mesajlasma";
 import { KuralSatiri } from "./kural-satiri";
 
-export function BolumKartGrubu({ bolum, kurallar }: { bolum: MesajBolum; kurallar: MesajKuralSatir[] }) {
+export function BolumKartGrubu({ bolum, kurallar }: { bolum: MesajBolum; kurallar: EtkinMesajKurali[] }) {
   const aktifSayisi = kurallar.filter((k) => k.aktif).length;
 
   return (
@@ -14,7 +14,7 @@ export function BolumKartGrubu({ bolum, kurallar }: { bolum: MesajBolum; kuralla
       </div>
       <ul className="flex flex-col gap-2">
         {kurallar.map((kural) => (
-          <KuralSatiri key={kural.id} kural={kural} />
+          <KuralSatiri key={kural.tetikleyici_kodu} kural={kural} />
         ))}
       </ul>
     </section>

@@ -1,9 +1,8 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { KrediDetay } from "@/components/mesajlasma/KrediDetay";
-import { KREDI_PAKETLERI } from "@/lib/mesajlasma/kredi-fiyat";
-import { KANAL_ETIKET, type MesajBolum, type MesajKanal, type MesajKrediIslemSatir, type MesajKullanimOzetSatir } from "@/types/mesajlasma";
-import { krediYukle } from "./actions";
+import { KANAL_ETIKET, type MesajKanal, type MesajKrediHareketi, type MesajKullanimOzetSatir } from "@/types/mesajlasma";
+import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
 
 const GECERLI_KANALLAR: MesajKanal[] = ["sms", "whatsapp", "mail"];
 
@@ -45,35 +44,43 @@ export default async function KrediDetaySayfasi({ params }: { params: Promise<{ 
   // ile sınırlı (her ay kendi katlanır bölümünde, bkz. KullanimRaporu).
   const oniki_ay_once = new Date();
   oniki_ay_once.setMonth(oniki_ay_once.getMonth() - 12);
-  const baslangicIso = oniki_ay_once.toISOString().slice(0, 10);
+  const baslangicIso = oniki_ay_once.toISOString();
 
-  const [bakiyeSonuc, islemlerSonuc, logSonuc] = await Promise.all([
-    supabase.from("mesaj_kredi_bakiye").select("bakiye").eq("klinik_id", klinikId).eq("kanal", kanal).maybeSingle(),
+  const [bakiyeSonuc, hareketlerSonuc, kuyrukSonuc] = await Promise.all([
+    supabase.from("mesaj_kredileri").select("bakiye").eq("klinik_id", klinikId).eq("kanal", kanal).maybeSingle(),
     supabase
-      .from("mesaj_kredi_islem")
-      .select("id, kanal, islem_tipi, miktar, tutar, aciklama, created_at")
+      .from("mesaj_kredi_hareketleri")
+      .select("id, kanal, tip, miktar, tutar, aciklama, created_at")
       .eq("klinik_id", klinikId)
       .eq("kanal", kanal)
       .order("created_at", { ascending: false })
       .limit(50)
-      .returns<MesajKrediIslemSatir[]>(),
+      .returns<MesajKrediHareketi[]>(),
+    // Kullanım raporu SADECE gerçekten gönderilmiş, TEST OLMAYAN kuyruk
+    // satırlarını sayar — eski mesaj_log'un aksine artık test gönderimleri
+    // gerçek kullanım istatistiğine karışmıyor.
     supabase
-      .from("mesaj_log")
-      .select("tarih, bolum")
+      .from("mesaj_kuyrugu")
+      .select("tetikleyici_kodu, gonderim_zamani, created_at")
       .eq("klinik_id", klinikId)
       .eq("kanal", kanal)
-      .gte("tarih", baslangicIso)
-      .returns<{ tarih: string; bolum: MesajBolum }[]>(),
+      .eq("durum", "gonderildi")
+      .eq("test_mi", false)
+      .gte("created_at", baslangicIso)
+      .returns<{ tetikleyici_kodu: string; gonderim_zamani: string | null; created_at: string }[]>(),
   ]);
 
   const ozetMap = new Map<string, MesajKullanimOzetSatir>();
-  for (const satir of logSonuc.data ?? []) {
-    const anahtar = `${satir.tarih}-${satir.bolum}`;
+  for (const satir of kuyrukSonuc.data ?? []) {
+    const tanim = tetikleyiciGetir(satir.tetikleyici_kodu);
+    if (!tanim) continue;
+    const tarih = (satir.gonderim_zamani ?? satir.created_at).slice(0, 10);
+    const anahtar = `${tarih}-${tanim.bolum}`;
     const mevcut = ozetMap.get(anahtar);
     if (mevcut) {
       mevcut.toplam_adet += 1;
     } else {
-      ozetMap.set(anahtar, { tarih: satir.tarih, bolum: satir.bolum, toplam_adet: 1 });
+      ozetMap.set(anahtar, { tarih, bolum: tanim.bolum, toplam_adet: 1 });
     }
   }
   const kullanimOzet = Array.from(ozetMap.values()).sort((a, b) => b.tarih.localeCompare(a.tarih));
@@ -83,16 +90,14 @@ export default async function KrediDetaySayfasi({ params }: { params: Promise<{ 
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <header>
           <h1 className="text-xl font-semibold">{KANAL_ETIKET[kanal]} Kredisi</h1>
-          <p className="text-sm text-muted-foreground">Kredi yükleyin ve kullanım geçmişini görüntüleyin.</p>
+          <p className="text-sm text-muted-foreground">Bakiyenizi ve kullanım geçmişinizi görüntüleyin.</p>
         </header>
 
         <KrediDetay
           kanal={kanal}
           bakiye={bakiyeSonuc.data?.bakiye ?? 0}
-          paketler={KREDI_PAKETLERI}
-          islemler={islemlerSonuc.data ?? []}
+          hareketler={hareketlerSonuc.data ?? []}
           kullanimOzet={kullanimOzet}
-          action={krediYukle.bind(null, kanal)}
         />
       </div>
     </div>

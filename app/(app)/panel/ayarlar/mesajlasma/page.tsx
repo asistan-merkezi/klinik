@@ -4,14 +4,8 @@ import { MessageSquareText, MessageCircle, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  BOLUM_SIRASI,
-  KANAL_SIRASI,
-  KANAL_ETIKET,
-  type MesajBolum,
-  type MesajKuralSatir,
-  type MesajKrediBakiyeSatir,
-} from "@/types/mesajlasma";
+import { BOLUM_SIRASI, KANAL_SIRASI, KANAL_ETIKET, type MesajBolum, type EtkinMesajKurali, type MesajKredi } from "@/types/mesajlasma";
+import { etkinKurallariOlustur, type MesajKuraliDbSatiri } from "@/lib/mesaj/kural-cozumle";
 import { BolumKartGrubu } from "./bolum-kart-grubu";
 
 const KANAL_IKON = {
@@ -48,25 +42,19 @@ export default async function MesajlasmaSayfasi() {
 
   const [kurallarSonuc, bakiyelerSonuc] = await Promise.all([
     supabase
-      .from("mesaj_kural")
-      .select("id, bolum, tetikleyici_kod, tetikleyici_adi, mesaj_metni, sms_aktif, whatsapp_aktif, mail_aktif, aktif")
+      .from("mesaj_kurallari")
+      .select("id, tetikleyici_kodu, aktif, sms_aktif, whatsapp_aktif, mail_aktif, mesaj_metni")
       .eq("klinik_id", klinikId)
-      .order("bolum")
-      .order("tetikleyici_kod")
-      .returns<MesajKuralSatir[]>(),
-    supabase
-      .from("mesaj_kredi_bakiye")
-      .select("kanal, bakiye, updated_at")
-      .eq("klinik_id", klinikId)
-      .returns<MesajKrediBakiyeSatir[]>(),
+      .returns<MesajKuraliDbSatiri[]>(),
+    supabase.from("mesaj_kredileri").select("kanal, bakiye, updated_at").eq("klinik_id", klinikId).returns<MesajKredi[]>(),
   ]);
 
-  const kurallar = kurallarSonuc.data ?? [];
+  const etkinKurallar = etkinKurallariOlustur(kurallarSonuc.data ?? []);
   const bakiyeMap = new Map(bakiyelerSonuc.data?.map((b) => [b.kanal, b.bakiye]) ?? []);
 
-  const bolumGruplari = new Map<MesajBolum, MesajKuralSatir[]>();
+  const bolumGruplari = new Map<MesajBolum, EtkinMesajKurali[]>();
   for (const bolum of BOLUM_SIRASI) bolumGruplari.set(bolum, []);
-  for (const kural of kurallar) bolumGruplari.get(kural.bolum)?.push(kural);
+  for (const kural of etkinKurallar) bolumGruplari.get(kural.bolum)?.push(kural);
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -100,7 +88,7 @@ export default async function MesajlasmaSayfasi() {
                     size="sm"
                     variant="outline"
                     nativeButton={false}
-                    render={<Link href={`/panel/ayarlar/mesajlasma/kredi/${kanal}`}>Kredi Yükle</Link>}
+                    render={<Link href={`/panel/ayarlar/mesajlasma/kredi/${kanal}`}>Kredi Detayı</Link>}
                   />
                 </CardContent>
               </Card>

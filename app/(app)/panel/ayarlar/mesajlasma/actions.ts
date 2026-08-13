@@ -3,18 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { testMesajGonder } from "@/lib/mesajlasma/gonderici";
-import type { MesajBolum, MesajKanal } from "@/types/mesajlasma";
+import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
+import { bilinmeyenDegiskenleriBul } from "@/lib/mesaj/degisken-dogrula";
 
 type SonucDurumu = { success: boolean; message: string };
-
-const TEST_SONUC_MESAJI: Record<string, string> = {
-  kural_kapali: "Bu kural şu an kapalı — önce aktif hale getirin.",
-  kanal_kapali: "Bu kanal bu kural için kapalı.",
-  yetersiz_bakiye: "Bu kanalda yeterli kredi yok.",
-  cok_sik_deneme: "Çok sık test gönderdiniz, birkaç saniye bekleyip tekrar deneyin.",
-  hata: "Test gönderilemedi.",
-};
 
 const MESAJ_METNI_MAX_UZUNLUK = 1000;
 
@@ -51,31 +43,42 @@ type KuralGuncellemeAlanlari = {
 
 /**
  * Kural düzenleme dialogundaki TEK "Değişiklikleri Kaydet" butonu — Aktif
- * switch'i, SMS/WhatsApp/Mail kanal seçimi ve mesaj metnini AYNI ANDA,
- * tek update ile kaydeder. Önceden kanal/aktif checkbox'ları tıklanır
- * tıklanmaz ayrı ayrı kaydediyordu, mesaj metni ise sadece kendi başına
- * "değişti" olduğunda buton aktifleşiyordu — kullanıcı sadece checkbox
- * değiştirip metne dokunmadığında buton devre dışı kalıyor, "kaydetmiyor"
- * gibi görünüyordu. Artık tüm alanlar tek taslak/tek kaydetme akışını
- * paylaşıyor.
+ * switch'i, SMS/WhatsApp/Mail kanal seçimi ve mesaj metnini AYNI ANDA, tek
+ * satırda kaydeder. Tetikleyici kataloğu artık kodda sabit (bkz. lib/mesaj/
+ * tetikleyiciler.ts) — DB'de (mesaj_kurallari) bu tetikleyici için hiç satır
+ * olmayabilir ("kayıt yoksa pasif" kuralı), bu yüzden düz `.update()` değil
+ * `.upsert()` kullanılıyor: ilk kez kaydedilen bir kural burada satırını
+ * oluşturur.
  */
-export async function kuralGuncelle(kuralId: string, alanlar: KuralGuncellemeAlanlari): Promise<SonucDurumu> {
+export async function kuralGuncelle(tetikleyiciKodu: string, alanlar: KuralGuncellemeAlanlari): Promise<SonucDurumu> {
   const yetki = await klinikAdminDogrula();
   if (!yetki) {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
-  const { error } = await yetki.supabase
-    .from("mesaj_kural")
-    .update({
+  const tanim = tetikleyiciGetir(tetikleyiciKodu);
+  if (!tanim) {
+    return { success: false, message: "Geçersiz tetikleyici." };
+  }
+
+  const metin = alanlar.mesaj_metni.trim().slice(0, MESAJ_METNI_MAX_UZUNLUK);
+  const bilinmeyenler = bilinmeyenDegiskenleriBul(metin, tanim.gecerliDegiskenler);
+  if (bilinmeyenler.length > 0) {
+    return { success: false, message: `Bilinmeyen değişken(ler): ${bilinmeyenler.map((d) => `{{${d}}}`).join(", ")}` };
+  }
+
+  const { error } = await yetki.supabase.from("mesaj_kurallari").upsert(
+    {
+      klinik_id: yetki.klinikId,
+      tetikleyici_kodu: tetikleyiciKodu,
       aktif: alanlar.aktif,
       sms_aktif: alanlar.sms_aktif,
       whatsapp_aktif: alanlar.whatsapp_aktif,
       mail_aktif: alanlar.mail_aktif,
-      mesaj_metni: alanlar.mesaj_metni.trim().slice(0, MESAJ_METNI_MAX_UZUNLUK),
-    })
-    .eq("id", kuralId)
-    .eq("klinik_id", yetki.klinikId);
+      mesaj_metni: metin,
+    },
+    { onConflict: "klinik_id,tetikleyici_kodu" }
+  );
 
   if (error) {
     console.error("Mesaj kuralı güncellenemedi:", error.message);
@@ -84,26 +87,4 @@ export async function kuralGuncelle(kuralId: string, alanlar: KuralGuncellemeAla
 
   revalidatePath("/panel/ayarlar/mesajlasma");
   return { success: true, message: "Değişiklikler kaydedildi." };
-}
-
-/** Kural kutucuğundaki "Test Gönder" — gerçek gönderim yolunu (kredi düşümü + log dahil) test eder. */
-export async function testGonderAction(
-  bolum: MesajBolum,
-  tetikleyiciKod: string,
-  kanal: MesajKanal
-): Promise<SonucDurumu> {
-  const yetki = await klinikAdminDogrula();
-  if (!yetki) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-
-  const sonuc = await testMesajGonder({ klinikId: yetki.klinikId, bolum, kanal, tetikleyiciKod });
-
-  if (!sonuc.gonderildi) {
-    return { success: false, message: TEST_SONUC_MESAJI[sonuc.sebep] ?? "Test gönderilemedi." };
-  }
-
-  revalidatePath("/panel/ayarlar/mesajlasma");
-  revalidatePath(`/panel/ayarlar/mesajlasma/kredi/${kanal}`);
-  return { success: true, message: "Test mesajı simüle edildi ve kredi düşüldü." };
 }

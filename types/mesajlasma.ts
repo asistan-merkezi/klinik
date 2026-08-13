@@ -1,6 +1,8 @@
 export type MesajBolum = "hasta" | "randevu" | "personel" | "muhasebe";
 export type MesajKanal = "sms" | "whatsapp" | "mail";
-export type MesajKrediIslemTipi = "yukleme" | "kullanim" | "iade";
+export type MesajKrediHareketTipi = "yukleme" | "dusum" | "iade";
+export type MesajKuyrukDurum = "beklemede" | "gonderiliyor" | "gonderildi" | "hata" | "iptal";
+export type MesajAliciTipi = "hasta" | "personel";
 
 export const BOLUM_ETIKET: Record<MesajBolum, string> = {
   hasta: "Hasta",
@@ -19,16 +21,24 @@ export const KANAL_ETIKET: Record<MesajKanal, string> = {
 
 export const KANAL_SIRASI: MesajKanal[] = ["sms", "whatsapp", "mail"];
 
-export const KREDI_ISLEM_ETIKET: Record<MesajKrediIslemTipi, string> = {
+export const KREDI_HAREKET_ETIKET: Record<MesajKrediHareketTipi, string> = {
   yukleme: "Yükleme",
-  kullanim: "Kullanım",
+  dusum: "Düşüm",
   iade: "İade",
 };
 
-export type MesajKuralSatir = {
-  id: string;
+/**
+ * mesaj_kurallari'de bu tetikleyici için DB satırı OLMAYABİLİR (yeni klinik
+ * veya hiç dokunulmamış tetikleyici — "kayıt yoksa pasif" kuralı). Bu tip
+ * `lib/mesaj/kural-cozumle.ts`'in kod kataloğu + (varsa) DB satırını
+ * birleştirdiği EKRANDA GÖSTERİLECEK sonucu temsil eder — DB'nin ham
+ * satır şekli değil.
+ */
+export type EtkinMesajKurali = {
+  /** DB'de gerçek bir satır varsa mesaj_kurallari.id, yoksa null (henüz hiç kaydedilmedi). */
+  id: string | null;
   bolum: MesajBolum;
-  tetikleyici_kod: string;
+  tetikleyici_kodu: string;
   tetikleyici_adi: string;
   mesaj_metni: string;
   sms_aktif: boolean;
@@ -37,23 +47,23 @@ export type MesajKuralSatir = {
   aktif: boolean;
 };
 
-export type MesajKrediBakiyeSatir = {
+export type MesajKredi = {
   kanal: MesajKanal;
   bakiye: number;
   updated_at: string;
 };
 
-export type MesajKrediIslemSatir = {
+export type MesajKrediHareketi = {
   id: string;
   kanal: MesajKanal;
-  islem_tipi: MesajKrediIslemTipi;
+  tip: MesajKrediHareketTipi;
   miktar: number;
   tutar: number | null;
   aciklama: string | null;
   created_at: string;
 };
 
-/** mesaj_log'un tarih+bölüm bazında GROUP BY ile toplanmış ekran görünümü. */
+/** mesaj_kuyrugu'nun tarih+bölüm bazında GROUP BY ile toplanmış ekran görünümü (durum='gonderildi', test_mi=false). */
 export type MesajKullanimOzetSatir = {
   tarih: string;
   bolum: MesajBolum;

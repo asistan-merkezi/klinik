@@ -1,25 +1,20 @@
 "use client";
 
-import { useActionState, useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
-import type { KrediPaket } from "@/lib/mesajlasma/kredi-fiyat";
 import {
   BOLUM_ETIKET,
   KANAL_ETIKET,
-  KREDI_ISLEM_ETIKET,
+  KREDI_HAREKET_ETIKET,
   type MesajKanal,
-  type MesajKrediIslemSatir,
+  type MesajKrediHareketi,
   type MesajKullanimOzetSatir,
 } from "@/types/mesajlasma";
-
-type SonucDurumu = { success: boolean; message: string } | null;
-type KrediYuklemeAction = (onceki: SonucDurumu, formData: FormData) => Promise<SonucDurumu>;
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 const tarihFormat = (tarih: string) => new Date(tarih).toLocaleDateString("tr-TR");
@@ -28,28 +23,14 @@ const tarihSaatFormat = (tarih: string) => new Date(tarih).toLocaleString("tr-TR
 export function KrediDetay({
   kanal,
   bakiye,
-  paketler,
-  islemler,
+  hareketler,
   kullanimOzet,
-  action,
 }: {
   kanal: MesajKanal;
   bakiye: number;
-  paketler: KrediPaket[];
-  islemler: MesajKrediIslemSatir[];
+  hareketler: MesajKrediHareketi[];
   kullanimOzet: MesajKullanimOzetSatir[];
-  action: KrediYuklemeAction;
 }) {
-  const idOnEki = useId();
-  const [durum, formAction, isPending] = useActionState(action, null);
-  const [miktar, setMiktar] = useState("");
-  const [tutar, setTutar] = useState("");
-
-  function paketSec(paket: KrediPaket) {
-    setMiktar(String(paket.miktar));
-    setTutar(String(paket.tutar));
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -59,80 +40,22 @@ export function KrediDetay({
         </CardContent>
       </Card>
 
-      <div>
-        <h2 className="mb-3 text-sm font-semibold">Kredi Paketleri</h2>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Fiyatlar örnek/geçicidir, gerçek fiyatlandırma netleşince güncellenecek. Bir pakete tıklayarak
-          formu otomatik doldurabilir, ya da elle serbest bir miktar girebilirsiniz.
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {paketler.map((p) => (
-            <button
-              key={p.miktar}
-              type="button"
-              onClick={() => paketSec(p)}
-              className={cn(
-                "flex flex-col items-start gap-1 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md dark:border-white/10 dark:bg-card/70",
-                miktar === String(p.miktar) && "border-primary/60"
-              )}
-            >
-              <span className="text-lg font-semibold tabular-nums">{p.miktar} kredi</span>
-              <span className="text-sm text-muted-foreground">{paraFormat(p.tutar)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-sm font-semibold">Kredi Yükle</h2>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Ödeme entegrasyonu henüz yok — bu form kredi miktarını doğrudan bakiyeye ekler, gerçek bir
-          tahsilat yapmaz.
-        </p>
-        <form action={formAction} className="flex max-w-sm flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`${idOnEki}-miktar`}>Kredi Miktarı</Label>
-            <Input
-              id={`${idOnEki}-miktar`}
-              name="miktar"
-              type="number"
-              min={1}
-              step={1}
-              required
-              disabled={isPending}
-              value={miktar}
-              onChange={(e) => setMiktar(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`${idOnEki}-tutar`}>Tutar (₺, opsiyonel)</Label>
-            <Input
-              id={`${idOnEki}-tutar`}
-              name="tutar"
-              type="number"
-              min={0}
-              step="0.01"
-              disabled={isPending}
-              value={tutar}
-              onChange={(e) => setTutar(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`${idOnEki}-aciklama`}>Açıklama (opsiyonel)</Label>
-            <Input id={`${idOnEki}-aciklama`} name="aciklama" disabled={isPending} placeholder="Örn. banka havalesi ile ödendi" />
-          </div>
-
-          {durum && (
-            <p role="alert" className={cn("text-sm", durum.success ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
-              {durum.message}
-            </p>
-          )}
-
-          <Button type="submit" disabled={isPending || !miktar} className="w-fit">
-            {isPending ? "Yükleniyor..." : "Kredi Yükle"}
-          </Button>
-        </form>
-      </div>
+      <Card>
+        <CardContent className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold">Kredi Talebi</h2>
+          <p className="text-sm text-muted-foreground">
+            Kredi yükleme yetkisi platform yöneticisine ait — kendi kendinize kredi yükleyemezsiniz. İhtiyacınız
+            olan kredi miktarını Destek üzerinden talep edebilirsiniz.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            className="w-fit"
+            nativeButton={false}
+            render={<Link href="/panel/destek/talep-sikayetler">Kredi Talebi Oluştur</Link>}
+          />
+        </CardContent>
+      </Card>
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Kullanım Raporu</h2>
@@ -141,26 +64,26 @@ export function KrediDetay({
 
       <div>
         <h2 className="mb-3 text-sm font-semibold">Kredi Hareketleri</h2>
-        {islemler.length === 0 ? (
+        {hareketler.length === 0 ? (
           <p className="text-sm text-muted-foreground">Henüz kredi hareketi yok.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {islemler.map((islem) => (
-              <li key={islem.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+            {hareketler.map((hareket) => (
+              <li key={hareket.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
                 <div className="flex flex-col">
                   <span className="flex items-center gap-2">
-                    <StatusBadge tone={islem.islem_tipi === "kullanim" ? "sky" : "emerald"}>
-                      {KREDI_ISLEM_ETIKET[islem.islem_tipi]}
+                    <StatusBadge tone={hareket.tip === "dusum" ? "sky" : "emerald"}>
+                      {KREDI_HAREKET_ETIKET[hareket.tip]}
                     </StatusBadge>
-                    {islem.aciklama && <span className="text-muted-foreground">{islem.aciklama}</span>}
+                    {hareket.aciklama && <span className="text-muted-foreground">{hareket.aciklama}</span>}
                   </span>
-                  <span className="text-xs text-muted-foreground">{tarihSaatFormat(islem.created_at)}</span>
+                  <span className="text-xs text-muted-foreground">{tarihSaatFormat(hareket.created_at)}</span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className={cn("tabular-nums font-medium", islem.miktar < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400")}>
-                    {islem.miktar > 0 ? `+${islem.miktar}` : islem.miktar}
+                  <span className={cn("tabular-nums font-medium", hareket.miktar < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400")}>
+                    {hareket.miktar > 0 ? `+${hareket.miktar}` : hareket.miktar}
                   </span>
-                  {islem.tutar != null && <span className="text-xs text-muted-foreground">{paraFormat(islem.tutar)}</span>}
+                  {hareket.tutar != null && <span className="text-xs text-muted-foreground">{paraFormat(hareket.tutar)}</span>}
                 </div>
               </li>
             ))}
