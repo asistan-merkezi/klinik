@@ -64,7 +64,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ogeler: [
       { href: "/panel/ayarlar/sirket-bilgileri", label: "Şirket Bilgileri", icon: Building2 },
       { href: "/panel/ayarlar/muhasebe-sync", label: "Muhasebe Sync", icon: RefreshCw },
-      { href: "/panel/ayarlar/whatsapp", label: "WhatsApp, Mail ve Mesaj Ayarları", icon: MessageCircle },
+      { href: "/panel/ayarlar/mesajlasma", label: "Mesajlaşma", icon: MessageCircle },
       { href: "/panel/tablet", label: "Kapı Tablet Ayarları", icon: Tablet },
       { href: "/panel/ayarlar/yetkilendirme", label: "Yetkilendirme", icon: ShieldCheck },
       {
