@@ -7,21 +7,13 @@ import { krediYukle } from "./actions";
 
 const GECERLI_KANALLAR: MesajKanal[] = ["sms", "whatsapp", "mail"];
 
-export default async function KrediDetaySayfasi({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ kanal: string }>;
-  searchParams: Promise<{ gun?: string }>;
-}) {
+export default async function KrediDetaySayfasi({ params }: { params: Promise<{ kanal: string }> }) {
   const { kanal: kanalParam } = await params;
-  const { gun: gunParam } = await searchParams;
 
   if (!GECERLI_KANALLAR.includes(kanalParam as MesajKanal)) {
     notFound();
   }
   const kanal = kanalParam as MesajKanal;
-  const gunAraligi = [7, 30, 90].includes(Number(gunParam)) ? Number(gunParam) : 30;
 
   const supabase = await createClient();
 
@@ -48,9 +40,12 @@ export default async function KrediDetaySayfasi({
     );
   }
 
-  const baslangicTarihi = new Date();
-  baslangicTarihi.setDate(baslangicTarihi.getDate() - gunAraligi);
-  const baslangicIso = baslangicTarihi.toISOString().slice(0, 10);
+  // Kullanım Raporu "her ay ayrı günlük liste" istediği için sabit bir gün
+  // aralığı filtresi yok — yine de tabloyu sınırsız büyütmemek için son 12 ay
+  // ile sınırlı (her ay kendi katlanır bölümünde, bkz. KullanimRaporu).
+  const oniki_ay_once = new Date();
+  oniki_ay_once.setMonth(oniki_ay_once.getMonth() - 12);
+  const baslangicIso = oniki_ay_once.toISOString().slice(0, 10);
 
   const [bakiyeSonuc, islemlerSonuc, logSonuc] = await Promise.all([
     supabase.from("mesaj_kredi_bakiye").select("bakiye").eq("klinik_id", klinikId).eq("kanal", kanal).maybeSingle(),
@@ -97,7 +92,6 @@ export default async function KrediDetaySayfasi({
           paketler={KREDI_PAKETLERI}
           islemler={islemlerSonuc.data ?? []}
           kullanimOzet={kullanimOzet}
-          gunAraligi={gunAraligi}
           action={krediYukle.bind(null, kanal)}
         />
       </div>

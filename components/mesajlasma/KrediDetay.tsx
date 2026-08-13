@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
-import Link from "next/link";
+import { useActionState, useId, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,15 +25,12 @@ const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "cu
 const tarihFormat = (tarih: string) => new Date(tarih).toLocaleDateString("tr-TR");
 const tarihSaatFormat = (tarih: string) => new Date(tarih).toLocaleString("tr-TR");
 
-const GUN_SECENEKLERI = [7, 30, 90] as const;
-
 export function KrediDetay({
   kanal,
   bakiye,
   paketler,
   islemler,
   kullanimOzet,
-  gunAraligi,
   action,
 }: {
   kanal: MesajKanal;
@@ -41,7 +38,6 @@ export function KrediDetay({
   paketler: KrediPaket[];
   islemler: MesajKrediIslemSatir[];
   kullanimOzet: MesajKullanimOzetSatir[];
-  gunAraligi: number;
   action: KrediYuklemeAction;
 }) {
   const idOnEki = useId();
@@ -53,8 +49,6 @@ export function KrediDetay({
     setMiktar(String(paket.miktar));
     setTutar(String(paket.tutar));
   }
-
-  const kullanimToplam = kullanimOzet.reduce((acc, s) => acc + s.toplam_adet, 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,46 +135,8 @@ export function KrediDetay({
       </div>
 
       <div>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">Kullanım (son {gunAraligi} gün — toplam {kullanimToplam} gönderim)</h2>
-          <div className="flex gap-1">
-            {GUN_SECENEKLERI.map((gun) => (
-              <Button
-                key={gun}
-                type="button"
-                size="sm"
-                variant={gun === gunAraligi ? "default" : "outline"}
-                nativeButton={false}
-                render={<Link href={`/panel/ayarlar/mesajlasma/kredi/${kanal}?gun=${gun}`}>{gun} gün</Link>}
-              />
-            ))}
-          </div>
-        </div>
-
-        {kullanimOzet.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Bu aralıkta gönderim kaydı yok.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[420px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                  <th className="px-3 py-2 text-left font-medium">Tarih</th>
-                  <th className="px-3 py-2 text-left font-medium">Bölüm</th>
-                  <th className="px-3 py-2 text-right font-medium">Adet</th>
-                </tr>
-              </thead>
-              <tbody>
-                {kullanimOzet.map((s) => (
-                  <tr key={`${s.tarih}-${s.bolum}`} className="border-b border-border last:border-b-0">
-                    <td className="px-3 py-2 text-muted-foreground">{tarihFormat(s.tarih)}</td>
-                    <td className="px-3 py-2">{BOLUM_ETIKET[s.bolum]}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{s.toplam_adet}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <h2 className="mb-3 text-sm font-semibold">Kullanım Raporu</h2>
+        <KullanimRaporu kullanimOzet={kullanimOzet} />
       </div>
 
       <div>
@@ -211,6 +167,96 @@ export function KrediDetay({
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Her ay ayrı, katlanır bir bölümde kendi günlük listesini gösterir — İş
+ * Başvurusu arşivindeki (BasvuruArsivi/ArsivGrubu) ay/yıl gruplama deseniyle
+ * birebir aynı yaklaşım, sabit bir gün aralığı filtresi yerine.
+ */
+function KullanimRaporu({ kullanimOzet }: { kullanimOzet: MesajKullanimOzetSatir[] }) {
+  const aylar = useMemo(() => {
+    const map = new Map<string, { etiket: string; satirlar: MesajKullanimOzetSatir[]; toplam: number }>();
+    for (const satir of kullanimOzet) {
+      const tarih = new Date(satir.tarih);
+      const anahtar = `${tarih.getFullYear()}-${String(tarih.getMonth() + 1).padStart(2, "0")}`;
+      const etiket = tarih.toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
+      if (!map.has(anahtar)) map.set(anahtar, { etiket, satirlar: [], toplam: 0 });
+      const grup = map.get(anahtar)!;
+      grup.satirlar.push(satir);
+      grup.toplam += satir.toplam_adet;
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([anahtar, grup]) => ({
+        anahtar,
+        ...grup,
+        satirlar: grup.satirlar.sort((a, b) => b.tarih.localeCompare(a.tarih)),
+      }));
+  }, [kullanimOzet]);
+
+  if (aylar.length === 0) {
+    return <p className="text-sm text-muted-foreground">Henüz gönderim kaydı yok.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {aylar.map((ay) => (
+        <AyGrubu key={ay.anahtar} etiket={ay.etiket} satirlar={ay.satirlar} toplam={ay.toplam} />
+      ))}
+    </div>
+  );
+}
+
+function AyGrubu({
+  etiket,
+  satirlar,
+  toplam,
+}: {
+  etiket: string;
+  satirlar: MesajKullanimOzetSatir[];
+  toplam: number;
+}) {
+  const [acik, setAcik] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-border">
+      <button
+        type="button"
+        onClick={() => setAcik((a) => !a)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm font-medium"
+        aria-expanded={acik}
+      >
+        <span className="capitalize">{etiket}</span>
+        <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
+          {toplam} gönderim
+          <ChevronDown className={cn("size-4 transition-transform", acik && "rotate-180")} aria-hidden />
+        </span>
+      </button>
+      {acik && (
+        <div className="overflow-x-auto border-t border-border">
+          <table className="w-full min-w-[420px] text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+                <th className="px-3 py-2 text-left font-medium">Tarih</th>
+                <th className="px-3 py-2 text-left font-medium">Bölüm</th>
+                <th className="px-3 py-2 text-right font-medium">Adet</th>
+              </tr>
+            </thead>
+            <tbody>
+              {satirlar.map((s) => (
+                <tr key={`${s.tarih}-${s.bolum}`} className="border-b border-border last:border-b-0">
+                  <td className="px-3 py-2 text-muted-foreground">{tarihFormat(s.tarih)}</td>
+                  <td className="px-3 py-2">{BOLUM_ETIKET[s.bolum]}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{s.toplam_adet}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
