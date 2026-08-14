@@ -1,17 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { Users2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { telefonGoster } from "@/lib/utils";
 import type { HastaDetay } from "@/types/hasta";
-import { ILISKI_TURU_ETIKETLERI } from "@/types/hasta-detay";
 import { DetayliBilgilerKarti } from "../detayli-bilgiler-karti";
 import { PortalErisimKarti } from "../portal-erisim-karti";
 import { PlaceholderSekmesi } from "./placeholder-sekmesi";
-import { useHastaHassas, useHastaIliskiler, useHastaSigortalar } from "../queries";
+import { useHastaHassas, useHastaSigortalar } from "../queries";
 
 function OnayRozeti({ etiket, tarih }: { etiket: string; tarih: string | null }) {
   return (
@@ -38,7 +36,6 @@ export function KisiselBilgilerSekmesi({
   portalDurumu: { var: boolean; aktif: boolean };
 }) {
   const { data: hassas, isLoading: hassasYukleniyor } = useHastaHassas(hasta.id, aktif);
-  const { data: iliskiler, isLoading: iliskilerYukleniyor } = useHastaIliskiler(hasta.id, aktif);
   const { data: sigortalar, isLoading: sigortalarYukleniyor } = useHastaSigortalar(hasta.id, aktif);
 
   return (
@@ -136,65 +133,7 @@ export function KisiselBilgilerSekmesi({
 
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle>Aile / Yakın Bağlantıları</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {hassasYukleniyor ? (
-            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
-          ) : hassas?.anne_adi ||
-            hassas?.anne_telefon ||
-            hassas?.baba_adi ||
-            hassas?.baba_telefon ||
-            hassas?.diger_yakini_ad_soyad ||
-            hassas?.diger_yakini_telefon ? (
-            <div className="grid grid-cols-2 gap-y-1.5 border-b border-border pb-3 text-sm">
-              <span className="text-muted-foreground">Anne</span>
-              <span>{[hassas?.anne_adi, telefonGoster(hassas?.anne_telefon)].filter(Boolean).join(" · ") || "—"}</span>
-              <span className="text-muted-foreground">Baba</span>
-              <span>{[hassas?.baba_adi, telefonGoster(hassas?.baba_telefon)].filter(Boolean).join(" · ") || "—"}</span>
-              {(hassas?.diger_yakini_ad_soyad || hassas?.diger_yakini_telefon) && (
-                <>
-                  <span className="text-muted-foreground">
-                    Diğer Yakını{hassas?.diger_yakini_yakinlik ? ` (${hassas.diger_yakini_yakinlik})` : ""}
-                  </span>
-                  <span>
-                    {[hassas?.diger_yakini_ad_soyad, telefonGoster(hassas?.diger_yakini_telefon)]
-                      .filter(Boolean)
-                      .join(" · ") || "—"}
-                  </span>
-                </>
-              )}
-            </div>
-          ) : null}
-
-          {iliskilerYukleniyor ? (
-            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
-          ) : !iliskiler || iliskiler.length === 0 ? (
-            <EmptyState icon={Users2} title="Bağlı kişi yok." />
-          ) : (
-            <ul className="flex flex-col divide-y divide-border">
-              {iliskiler.map((i) => (
-                <li key={i.id}>
-                  <Link
-                    href={`/panel/hastalar/${i.iliskili_hasta_id}`}
-                    className="flex items-center justify-between py-2.5 text-sm transition-colors hover:text-primary"
-                  >
-                    <span className="font-medium">{i.iliskili_hasta?.ad_soyad ?? "—"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {ILISKI_TURU_ETIKETLERI[i.iliski_turu]}
-                      {i.ortak_odeme && " · Ortak ödeme"}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Kişisel Bilgi Giriş Formu</CardTitle>
+          <CardTitle>Kişisel Bilgi Formu</CardTitle>
         </CardHeader>
         <CardContent>
           {hassasYukleniyor ? (
