@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { randevuSeansiTamamla } from "../../randevular/actions";
+import { sikayetKaydiEkle, sikayetDurumGuncelle } from "./actions";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import type {
   HastaHedef,
@@ -15,6 +16,8 @@ import type {
   HastaKarsilastirma,
   HastaDetayOzet,
   HastaSeansSatir,
+  HastaAnamnezKaydi,
+  SikayetDurumu,
 } from "@/types/hasta-detay";
 
 export function useHastaDetayOzet(hastaId: string) {
@@ -102,6 +105,64 @@ export function useHastaHedefler(hastaId: string, aktif: boolean) {
         .returns<HastaHedef[]>();
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+export function useHastaAnamnezKayitlari(hastaId: string, aktif: boolean) {
+  return useQuery({
+    queryKey: ["hasta_anamnez", hastaId],
+    enabled: aktif,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("hasta_anamnez")
+        .select(
+          "id, hasta_id, basvuru_sikayeti, sikayet_baslangici, agri_oykusu, ilk_degerlendirme_notu, durum, " +
+            "son_guncelleyen_tip, son_guncelleyen_kullanici:kullanici!hasta_anamnez_son_guncelleyen_kullanici_id_fkey(ad_soyad), " +
+            "created_at, updated_at"
+        )
+        .eq("hasta_id", hastaId)
+        .order("created_at", { ascending: false })
+        .returns<HastaAnamnezKaydi[]>();
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+type SikayetKaydiGirdi = {
+  basvuru_sikayeti: string;
+  sikayet_baslangici: string;
+  agri_oykusu: string;
+  ilk_degerlendirme_notu: string;
+  durum: SikayetDurumu;
+};
+
+export function useSikayetKaydiEkle(hastaId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (girdi: SikayetKaydiGirdi) => {
+      const sonuc = await sikayetKaydiEkle(hastaId, girdi);
+      if (!sonuc?.success) throw new Error(sonuc?.message ?? "Kaydedilemedi.");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hasta_anamnez", hastaId] });
+    },
+  });
+}
+
+export function useSikayetDurumGuncelle(hastaId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ kayitId, durum }: { kayitId: string; durum: SikayetDurumu }) => {
+      const sonuc = await sikayetDurumGuncelle(kayitId, durum);
+      if (!sonuc?.success) throw new Error(sonuc?.message ?? "Güncellenemedi.");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hasta_anamnez", hastaId] });
     },
   });
 }

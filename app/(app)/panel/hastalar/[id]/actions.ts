@@ -683,6 +683,97 @@ export async function anamnezGuncelle(
   return { success: true, message: "Tıbbi geçmiş kaydedildi." };
 }
 
+const sikayetKaydiSemasi = z.object({
+  basvuru_sikayeti: z.string().trim().min(1, "Başvuru şikayeti gerekli."),
+  sikayet_baslangici: z.string().trim().nullable(),
+  agri_oykusu: z.string().trim().nullable(),
+  ilk_degerlendirme_notu: z.string().trim().nullable(),
+  durum: z.enum(["aktif", "cozuldu"]),
+});
+
+// Şikayet & Anamnez — Tedavi & Anamnez sekmesindeki AYRI, tekrarlı kayıt
+// listesi (hasta_hassas'taki tek satırlık anamnez formundan farklı, bkz.
+// hasta_anamnez migration'ı). Aynı 3 rolün (terapist + klinik_admin/
+// resepsiyon) yetki modeli anamnezGuncelle ile tutarlı olsun diye
+// terapistDahilYetkiliHastaGetir yeniden kullanıldı.
+export async function sikayetKaydiEkle(
+  hastaId: string,
+  girdi: {
+    basvuru_sikayeti: string;
+    sikayet_baslangici: string;
+    agri_oykusu: string;
+    ilk_degerlendirme_notu: string;
+    durum: "aktif" | "cozuldu";
+  }
+): Promise<PortalSonucu> {
+  const { supabase, hasta, yetkisiz } = await terapistDahilYetkiliHastaGetir(hastaId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!hasta) {
+    return { success: false, message: "Hasta bulunamadı." };
+  }
+
+  const ayristirma = sikayetKaydiSemasi.safeParse({
+    basvuru_sikayeti: girdi.basvuru_sikayeti,
+    sikayet_baslangici: bosIseNull2(girdi.sikayet_baslangici),
+    agri_oykusu: bosIseNull2(girdi.agri_oykusu),
+    ilk_degerlendirme_notu: bosIseNull2(girdi.ilk_degerlendirme_notu),
+    durum: girdi.durum,
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { error } = await supabase.from("hasta_anamnez").insert({ hasta_id: hastaId, ...ayristirma.data });
+
+  if (error) {
+    console.error("Şikayet kaydı eklenemedi:", error);
+    return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidateHastaDetay(hastaId);
+  return { success: true, message: "Şikayet kaydı eklendi." };
+}
+
+export async function sikayetDurumGuncelle(kayitId: string, durum: "aktif" | "cozuldu"): Promise<PortalSonucu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol")
+    .eq("id", user.id)
+    .single();
+
+  if (!kullanici || !["klinik_admin", "resepsiyon", "terapist"].includes(kullanici.rol)) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  // RLS klinik_id = current_klinik_id() ile sınırlar; satır dönerse kendi kliniğindendir.
+  const { data: kayit } = await supabase.from("hasta_anamnez").select("id, hasta_id").eq("id", kayitId).single();
+  if (!kayit) {
+    return { success: false, message: "Kayıt bulunamadı." };
+  }
+
+  const { error } = await supabase.from("hasta_anamnez").update({ durum }).eq("id", kayitId);
+
+  if (error) {
+    console.error("Şikayet durumu güncellenemedi:", error);
+    return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidateHastaDetay(kayit.hasta_id);
+  return { success: true, message: "Durum güncellendi." };
+}
+
 export async function ozelNitelikliOnayVer(hastaId: string): Promise<PortalSonucu> {
   const { supabase, userId, hasta, yetkisiz } = await yetkiliHastaGetir(hastaId);
   if (yetkisiz) {

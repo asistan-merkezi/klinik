@@ -8,6 +8,7 @@ import { TrendGrafik } from "@/components/hasta/trend-grafik";
 import type { HastaDetay } from "@/types/hasta";
 import { ProtokolKarti } from "../protokol-karti";
 import { HedefListesi } from "../hedef-listesi";
+import { SikayetAnamnezKarti } from "../sikayet-anamnez-karti";
 import { SeansGecmisiZamanCizelgesi } from "../seans-gecmisi-zaman-cizelgesi";
 import { useHastaOlcumler } from "../queries";
 import { GelisimOlcumlerSekmesi } from "./gelisim-olcumler-sekmesi";
@@ -59,6 +60,12 @@ export function TedaviAnamnezSekmesi({
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="flex flex-col gap-4 lg:order-1">
+        <Card>
+          <CardContent>
+            <SikayetAnamnezKarti hastaId={hasta.id} aktif={aktif} duzenlenebilir={duzenlenebilir} />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Seans / Tedavi Geçmişi</CardTitle>

@@ -86,6 +86,27 @@ export const HEDEF_DURUM_ETIKETLERI: Record<HedefDurumu, string> = {
   iptal: "İptal",
 };
 
+export type SikayetDurumu = "aktif" | "cozuldu";
+
+export type HastaAnamnezKaydi = {
+  id: string;
+  hasta_id: string;
+  basvuru_sikayeti: string;
+  sikayet_baslangici: string | null;
+  agri_oykusu: string | null;
+  ilk_degerlendirme_notu: string | null;
+  durum: SikayetDurumu;
+  son_guncelleyen_tip: "hasta" | "personel" | null;
+  son_guncelleyen_kullanici: { ad_soyad: string } | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export const SIKAYET_DURUM_ETIKETLERI: Record<SikayetDurumu, string> = {
+  aktif: "Aktif",
+  cozuldu: "Çözüldü",
+};
+
 export type YorumYonu = "yuksek_iyi" | "dusuk_iyi";
 
 export type OlcekTanimi = {
