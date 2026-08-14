@@ -1,6 +1,9 @@
 export type MesajBolum = "hasta" | "randevu" | "personel" | "muhasebe";
 export type MesajKanal = "sms" | "whatsapp" | "mail";
-export type MesajKrediHareketTipi = "yukleme" | "dusum" | "iade";
+// Merkez kredi modeline geçişten (2026-08-17) sonra mesaj_kredi_hareketleri
+// SADECE 'yukleme' kabul ediyor (DB CHECK kısıtı) — düşüm/iade artık
+// tamamen merkezin kendi defterinde, yerelde hiç yazılmıyor.
+export type MesajKrediHareketTipi = "yukleme";
 export type MesajKuyrukDurum = "beklemede" | "gonderiliyor" | "gonderildi" | "hata" | "iptal";
 export type MesajAliciTipi = "hasta" | "personel";
 
@@ -20,12 +23,6 @@ export const KANAL_ETIKET: Record<MesajKanal, string> = {
 };
 
 export const KANAL_SIRASI: MesajKanal[] = ["sms", "whatsapp", "mail"];
-
-export const KREDI_HAREKET_ETIKET: Record<MesajKrediHareketTipi, string> = {
-  yukleme: "Yükleme",
-  dusum: "Düşüm",
-  iade: "İade",
-};
 
 /**
  * mesaj_kurallari'de bu tetikleyici için DB satırı OLMAYABİLİR (yeni klinik
@@ -51,6 +48,8 @@ export type MesajKredi = {
   kanal: MesajKanal;
   bakiye: number;
   updated_at: string;
+  son_senkron_zamani: string | null;
+  merkez_bakiye_versiyonu: number;
 };
 
 export type MesajKrediHareketi = {

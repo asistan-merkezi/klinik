@@ -46,7 +46,11 @@ export default async function MesajlasmaSayfasi() {
       .select("id, tetikleyici_kodu, aktif, sms_aktif, whatsapp_aktif, mail_aktif, mesaj_metni")
       .eq("klinik_id", klinikId)
       .returns<MesajKuraliDbSatiri[]>(),
-    supabase.from("mesaj_kredileri").select("kanal, bakiye, updated_at").eq("klinik_id", klinikId).returns<MesajKredi[]>(),
+    supabase
+      .from("mesaj_kredileri")
+      .select("kanal, bakiye, updated_at, son_senkron_zamani, merkez_bakiye_versiyonu")
+      .eq("klinik_id", klinikId)
+      .returns<MesajKredi[]>(),
   ]);
 
   const etkinKurallar = etkinKurallariOlustur(kurallarSonuc.data ?? []);

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { KrediDetay } from "@/components/mesajlasma/KrediDetay";
 import { KANAL_ETIKET, type MesajKanal, type MesajKrediHareketi, type MesajKullanimOzetSatir } from "@/types/mesajlasma";
 import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
+import { krediYukle } from "./actions";
 
 const GECERLI_KANALLAR: MesajKanal[] = ["sms", "whatsapp", "mail"];
 
@@ -47,7 +48,7 @@ export default async function KrediDetaySayfasi({ params }: { params: Promise<{ 
   const baslangicIso = oniki_ay_once.toISOString();
 
   const [bakiyeSonuc, hareketlerSonuc, kuyrukSonuc] = await Promise.all([
-    supabase.from("mesaj_kredileri").select("bakiye").eq("klinik_id", klinikId).eq("kanal", kanal).maybeSingle(),
+    supabase.from("mesaj_kredileri").select("bakiye, son_senkron_zamani").eq("klinik_id", klinikId).eq("kanal", kanal).maybeSingle(),
     supabase
       .from("mesaj_kredi_hareketleri")
       .select("id, kanal, tip, miktar, tutar, aciklama, created_at")
@@ -96,8 +97,11 @@ export default async function KrediDetaySayfasi({ params }: { params: Promise<{ 
         <KrediDetay
           kanal={kanal}
           bakiye={bakiyeSonuc.data?.bakiye ?? 0}
+          sonSenkronZamani={bakiyeSonuc.data?.son_senkron_zamani ?? null}
+          superAdminMi={kullanici.rol === "super_admin"}
           hareketler={hareketlerSonuc.data ?? []}
           kullanimOzet={kullanimOzet}
+          action={krediYukle.bind(null, kanal)}
         />
       </div>
     </div>

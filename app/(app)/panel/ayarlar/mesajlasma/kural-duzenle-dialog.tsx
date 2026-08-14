@@ -220,8 +220,8 @@ export function KuralDuzenleDialog({
           <div className="flex flex-col gap-1.5 border-t border-border pt-3">
             <Label>Test Gönder</Label>
             <span className="text-xs text-muted-foreground">
-              Kendi telefonunuza/e-postanıza gönderilir, gerçekten 1 kredi düşer (şu an simülasyon modunda — sunucu
-              loguna yazılır, gerçek bir sağlayıcıya gitmez).
+              Kendi telefonunuza/e-postanıza gönderilir, kredi kontrolü ve düşümü merkez (Asistan Merkezi) tarafından
+              yapılır — merkez bağlantısı henüz kurulmadıysa test &ldquo;geçici hata&rdquo; ile sonuçlanır.
             </span>
             {degisiklikVar && (
               <span className="text-xs text-amber-600 dark:text-amber-400">
