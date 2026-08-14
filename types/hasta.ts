@@ -41,4 +41,5 @@ export type HastaDetay = HastaSatir & {
   /** Sadece bu iki alanı seçen sorgularda dolu gelir (bkz. Portal Bilgilerim). */
   updated_at?: string;
   son_guncelleyen_tip?: OnaylayanTip | null;
+  created_at: string;
 };

@@ -68,7 +68,7 @@ export function SikayetAnamnezKarti({
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Yükleniyor...</p>
       ) : !kayitlar || kayitlar.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="Henüz şikayet/anamnez kaydı yok." />
+        <EmptyState icon={ClipboardList} title="Henüz şikayet/anamnez kaydı yok." compact />
       ) : (
         <ol className="relative flex flex-col gap-3 border-l border-border pl-6">
           {kayitlar.map((kayit) => {

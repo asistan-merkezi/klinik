@@ -1,24 +1,32 @@
 "use client";
 
-import { LineChart, Target } from "lucide-react";
+import { LineChart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrendGrafik } from "@/components/hasta/trend-grafik";
-import { HEDEF_DURUM_ETIKETLERI, HEDEF_TIPI_ETIKETLERI } from "@/types/hasta-detay";
-import { useHastaHedefler, useHastaKarsilastirma, useHastaOlcumler } from "../queries";
+import { VucutHaritasi } from "@/components/hasta/vucut-haritasi";
+import type { Cinsiyet } from "@/types/hasta";
+import { useHastaKarsilastirma, useHastaOlcumler } from "../queries";
 import { KarsilastirmaGalerisi } from "../karsilastirma-galerisi";
+import { HedefListesi } from "../hedef-listesi";
 
 export function GelisimOlcumlerSekmesi({
   hastaId,
+  cinsiyet,
   sonVasSkoru,
   aktif,
+  duzenlenebilir,
+  seciliSeansId,
 }: {
   hastaId: string;
+  cinsiyet: Cinsiyet | null;
   sonVasSkoru: number | null;
   aktif: boolean;
+  duzenlenebilir: boolean;
+  /** Seans Geçmişi'nden "Vücut Haritasında Gör" ile gelindiyse, o seansın işaretlerine filtreler. */
+  seciliSeansId: string | null;
 }) {
   const { data: olcumler, isLoading: olcumlerYukleniyor } = useHastaOlcumler(hastaId, aktif);
-  const { data: hedefler, isLoading: hedeflerYukleniyor } = useHastaHedefler(hastaId, aktif);
   const { data: karsilastirmalar, isLoading: karsilastirmaYukleniyor } = useHastaKarsilastirma(hastaId, aktif);
 
   const gruplar = new Map<string, { baslik: string; noktalar: { tarih: string; deger: number }[]; min: number | null; maks: number | null; yon: string }>();
@@ -47,6 +55,27 @@ export function GelisimOlcumlerSekmesi({
   return (
     <div className="flex flex-col gap-4">
       <Card>
+        <CardContent>
+          <HedefListesi hastaId={hastaId} sonVasSkoru={sonVasSkoru} aktif={aktif} duzenlenebilir={duzenlenebilir} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>2D Vücut Haritası</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <VucutHaritasi
+            hastaId={hastaId}
+            seansId={seciliSeansId}
+            duzenlenebilir={duzenlenebilir}
+            cinsiyet={cinsiyet}
+            aktif={aktif}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle>VAS / ROM & Ölçek Trendleri</CardTitle>
         </CardHeader>
@@ -54,7 +83,7 @@ export function GelisimOlcumlerSekmesi({
           {olcumlerYukleniyor ? (
             <p className="text-sm text-muted-foreground">Yükleniyor...</p>
           ) : gruplar.size === 0 ? (
-            <EmptyState icon={LineChart} title="Henüz ölçüm kaydedilmedi." />
+            <EmptyState icon={LineChart} title="Henüz ölçüm kaydedilmedi." compact />
           ) : (
             Array.from(gruplar.entries()).map(([anahtar, grup]) => (
               <div key={anahtar} className="flex flex-col gap-2">
@@ -67,46 +96,6 @@ export function GelisimOlcumlerSekmesi({
             <p className="text-xs text-muted-foreground">
               ROM (eklem hareket açıklığı) ölçüm kaydı henüz girilmedi.
             </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Hedeflerle Karşılaştırma</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {hedeflerYukleniyor ? (
-            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
-          ) : !hedefler || hedefler.length === 0 ? (
-            <EmptyState icon={Target} title="Henüz hedef yok." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    <th className="pb-2 pr-3 font-medium">Hedef</th>
-                    <th className="pb-2 pr-3 font-medium">Tip</th>
-                    <th className="pb-2 pr-3 font-medium">Başlangıç</th>
-                    <th className="pb-2 pr-3 font-medium">Hedef</th>
-                    <th className="pb-2 pr-3 font-medium">Güncel</th>
-                    <th className="pb-2 font-medium">Durum</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {hedefler.map((h) => (
-                    <tr key={h.id}>
-                      <td className="py-2 pr-3">{h.hedef_metrik}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{HEDEF_TIPI_ETIKETLERI[h.hedef_tipi]}</td>
-                      <td className="py-2 pr-3">{h.baslangic_deger ?? "—"}</td>
-                      <td className="py-2 pr-3">{h.hedef_deger ?? "—"}</td>
-                      <td className="py-2 pr-3">{h.hedef_tipi === "vas" ? (sonVasSkoru ?? "—") : "—"}</td>
-                      <td className="py-2">{HEDEF_DURUM_ETIKETLERI[h.durum]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           )}
         </CardContent>
       </Card>

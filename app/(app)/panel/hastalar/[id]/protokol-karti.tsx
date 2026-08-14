@@ -54,7 +54,7 @@ export function ProtokolKarti({ hastaId, riskBayraklari, aktif }: { hastaId: str
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Yükleniyor...</p>
       ) : !protokoller || protokoller.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="Henüz protokol atanmadı." />
+        <EmptyState icon={ClipboardList} title="Henüz protokol atanmadı." compact />
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
           {protokoller.map((p) => (

@@ -41,11 +41,14 @@ export function VucutHaritasi({
   seansId = null,
   duzenlenebilir = false,
   cinsiyet = null,
+  aktif = true,
 }: {
   hastaId: string;
   seansId?: string | null;
   duzenlenebilir?: boolean;
   cinsiyet?: Cinsiyet | null;
+  /** false ise veri hiç çekilmez — sekme henüz açılmamışken kullanılır. */
+  aktif?: boolean;
 }) {
   const [aktifYuz, setAktifYuz] = useState<VucutYuzu>("on");
   const [gorselYuklendi, setGorselYuklendi] = useState(false);
@@ -54,7 +57,7 @@ export function VucutHaritasi({
   const etkinCins = etkinCinsiyet(cinsiyet);
   const cinsiyetBelirtilmemis = !cinsiyet || cinsiyet === "belirtilmemis";
 
-  const { data: isaretler, isLoading, isError, refetch } = useVucutHaritasi(hastaId, seansId, true);
+  const { data: isaretler, isLoading, isError, refetch } = useVucutHaritasi(hastaId, seansId, aktif);
   const kaydetMutasyonu = useVucutIsaretKaydet(hastaId, seansId);
   const kaldirMutasyonu = useVucutIsaretKaldir(hastaId, seansId);
 

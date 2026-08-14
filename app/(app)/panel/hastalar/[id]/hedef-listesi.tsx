@@ -73,7 +73,7 @@ export function HedefListesi({
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Yükleniyor...</p>
       ) : !hedefler || hedefler.length === 0 ? (
-        <EmptyState icon={Target} title="Henüz hedef tanımlanmadı." />
+        <EmptyState icon={Target} title="Henüz hedef tanımlanmadı." compact />
       ) : (
         <ul className="flex flex-col gap-3">
           {hedefler.map((h) => {

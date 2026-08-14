@@ -18,6 +18,7 @@ import type {
   HastaSeansSatir,
   HastaAnamnezKaydi,
   SikayetDurumu,
+  RandevuDurumu,
 } from "@/types/hasta-detay";
 
 export function useHastaDetayOzet(hastaId: string) {
@@ -105,6 +106,25 @@ export function useHastaHedefler(hastaId: string, aktif: boolean) {
         .returns<HastaHedef[]>();
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+/** Genel Bakış sekmesindeki hızlı istatistik kartı için — tam hedef listesini
+ * çekmeden sadece aktif hedef sayısı. */
+export function useHastaAktifHedefSayisi(hastaId: string, aktif: boolean) {
+  return useQuery({
+    queryKey: ["hasta_hedef_aktif_sayisi", hastaId],
+    enabled: aktif,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from("hasta_hedef")
+        .select("id", { count: "exact", head: true })
+        .eq("hasta_id", hastaId)
+        .eq("durum", "aktif");
+      if (error) throw error;
+      return count ?? 0;
     },
   });
 }
@@ -367,6 +387,34 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
       }
 
       return seanslar;
+    },
+  });
+}
+
+/** Genel Bakış sekmesindeki "Son Seans" özeti için — useHastaSeansGecmisi'nin
+ * ağır (30 satır + değerlendirme eşleme) sorgusunu tekrarlamadan sadece 1 satır. */
+export function useHastaSonSeans(hastaId: string, aktif: boolean) {
+  return useQuery({
+    queryKey: ["hasta_son_seans", hastaId],
+    enabled: aktif,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("randevu")
+        .select("id, baslangic, durum, terapist(personel(ad_soyad)), islem_tanimi(ad)")
+        .eq("hasta_id", hastaId)
+        .lt("baslangic", new Date().toISOString())
+        .order("baslangic", { ascending: false })
+        .limit(1)
+        .maybeSingle<{
+          id: string;
+          baslangic: string;
+          durum: RandevuDurumu;
+          terapist: { personel: { ad_soyad: string } | null } | null;
+          islem_tanimi: { ad: string } | null;
+        }>();
+      if (error) throw error;
+      return data;
     },
   });
 }

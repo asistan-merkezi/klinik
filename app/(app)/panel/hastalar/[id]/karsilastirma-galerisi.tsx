@@ -28,7 +28,7 @@ export function KarsilastirmaGalerisi({ kayitlar }: { kayitlar: HastaKarsilastir
   });
 
   if (kayitlar.length === 0) {
-    return <EmptyState icon={Images} title="Henüz önce/sonra fotoğrafı yok." />;
+    return <EmptyState icon={Images} title="Henüz önce/sonra fotoğrafı yok." compact />;
   }
 
   const gruplar = new Map<string, HastaKarsilastirma[]>();
