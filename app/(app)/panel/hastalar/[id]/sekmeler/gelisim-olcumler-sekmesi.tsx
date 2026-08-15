@@ -7,17 +7,20 @@ import { TrendGrafik } from "@/components/hasta/trend-grafik";
 import { useHastaKarsilastirma, useHastaOlcumler } from "../queries";
 import { KarsilastirmaGalerisi } from "../karsilastirma-galerisi";
 import { HedefListesi } from "../hedef-listesi";
+import { BelgelerMedyaSekmesi } from "./belgeler-medya-sekmesi";
 
 export function GelisimOlcumlerSekmesi({
   hastaId,
   sonVasSkoru,
   aktif,
   duzenlenebilir,
+  rol,
 }: {
   hastaId: string;
   sonVasSkoru: number | null;
   aktif: boolean;
   duzenlenebilir: boolean;
+  rol: string | null;
 }) {
   const { data: olcumler, isLoading: olcumlerYukleniyor } = useHastaOlcumler(hastaId, aktif);
   const { data: karsilastirmalar, isLoading: karsilastirmaYukleniyor } = useHastaKarsilastirma(hastaId, aktif);
@@ -90,6 +93,8 @@ export function GelisimOlcumlerSekmesi({
           )}
         </CardContent>
       </Card>
+
+      <BelgelerMedyaSekmesi hastaId={hastaId} rol={rol} aktif={aktif} />
     </div>
   );
 }

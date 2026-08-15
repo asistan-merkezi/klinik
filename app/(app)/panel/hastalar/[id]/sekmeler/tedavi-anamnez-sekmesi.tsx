@@ -9,14 +9,12 @@ import { ProtokolKarti } from "../protokol-karti";
 import { SeansGecmisiZamanCizelgesi } from "../seans-gecmisi-zaman-cizelgesi";
 import { SikayetAnamnezKarti } from "../sikayet-anamnez-karti";
 import { GelisimOlcumlerSekmesi } from "./gelisim-olcumler-sekmesi";
-import { BelgelerMedyaSekmesi } from "./belgeler-medya-sekmesi";
 
-type IcSekme = "tedavi" | "gelisim" | "belgeler";
+type IcSekme = "tedavi" | "gelisim";
 
 const IC_SEKMELER: { deger: IcSekme; etiket: string }[] = [
   { deger: "tedavi", etiket: "Tedavi & Anamnez" },
   { deger: "gelisim", etiket: "Gelişim & Ölçümler" },
-  { deger: "belgeler", etiket: "Belgeler & Medya" },
 ];
 
 export function TedaviAnamnezSekmesi({
@@ -110,10 +108,9 @@ export function TedaviAnamnezSekmesi({
           sonVasSkoru={sonVasSkoru}
           aktif={aktif}
           duzenlenebilir={duzenlenebilir}
+          rol={rol}
         />
       )}
-
-      {icSekme === "belgeler" && <BelgelerMedyaSekmesi hastaId={hasta.id} rol={rol} aktif={aktif} />}
     </div>
   );
 }
