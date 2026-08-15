@@ -4,27 +4,20 @@ import { LineChart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrendGrafik } from "@/components/hasta/trend-grafik";
-import { VucutHaritasi } from "@/components/hasta/vucut-haritasi";
-import type { Cinsiyet } from "@/types/hasta";
 import { useHastaKarsilastirma, useHastaOlcumler } from "../queries";
 import { KarsilastirmaGalerisi } from "../karsilastirma-galerisi";
 import { HedefListesi } from "../hedef-listesi";
 
 export function GelisimOlcumlerSekmesi({
   hastaId,
-  cinsiyet,
   sonVasSkoru,
   aktif,
   duzenlenebilir,
-  seciliSeansId,
 }: {
   hastaId: string;
-  cinsiyet: Cinsiyet | null;
   sonVasSkoru: number | null;
   aktif: boolean;
   duzenlenebilir: boolean;
-  /** Seans Geçmişi'nden "Vücut Haritasında Gör" ile gelindiyse, o seansın işaretlerine filtreler. */
-  seciliSeansId: string | null;
 }) {
   const { data: olcumler, isLoading: olcumlerYukleniyor } = useHastaOlcumler(hastaId, aktif);
   const { data: karsilastirmalar, isLoading: karsilastirmaYukleniyor } = useHastaKarsilastirma(hastaId, aktif);
@@ -57,21 +50,6 @@ export function GelisimOlcumlerSekmesi({
       <Card>
         <CardContent>
           <HedefListesi hastaId={hastaId} sonVasSkoru={sonVasSkoru} aktif={aktif} duzenlenebilir={duzenlenebilir} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>2D Vücut Haritası</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <VucutHaritasi
-            hastaId={hastaId}
-            seansId={seciliSeansId}
-            duzenlenebilir={duzenlenebilir}
-            cinsiyet={cinsiyet}
-            aktif={aktif}
-          />
         </CardContent>
       </Card>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, Star, PersonStanding } from "lucide-react";
+import { CalendarClock, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,7 +35,6 @@ export function SeansGecmisiZamanCizelgesi({
   seciliSeansId,
   onSeansSec,
   duzenlenebilir,
-  onVucutHaritasindaGor,
 }: {
   hastaId: string;
   aktif: boolean;
@@ -43,8 +42,6 @@ export function SeansGecmisiZamanCizelgesi({
   onSeansSec: (id: string | null) => void;
   /** true ise (klinik_admin/resepsiyon veya kendi randevusundaki terapist) "Seansı Tamamla" gösterilir. */
   duzenlenebilir: boolean;
-  /** Verilirse, seçili seansın detay kartına "Vücut Haritasında Gör" kısayolu eklenir (Gelişim & Ölçümler sekmesine geçip o seansa filtreler). */
-  onVucutHaritasindaGor?: (seansId: string) => void;
 }) {
   const { data: seanslar, isLoading } = useHastaSeansGecmisi(hastaId, aktif);
   const { data: tumIsaretler } = useVucutHaritasi(hastaId, null, aktif);
@@ -126,12 +123,7 @@ export function SeansGecmisiZamanCizelgesi({
             </button>
 
             {secili && (
-              <TedaviBilgisiKarti
-                hastaId={hastaId}
-                seans={seans}
-                duzenlenebilir={duzenlenebilir}
-                onVucutHaritasindaGor={onVucutHaritasindaGor}
-              />
+              <TedaviBilgisiKarti hastaId={hastaId} seans={seans} duzenlenebilir={duzenlenebilir} />
             )}
           </li>
         );
@@ -153,33 +145,19 @@ function TedaviBilgisiKarti({
   hastaId,
   seans,
   duzenlenebilir,
-  onVucutHaritasindaGor,
 }: {
   hastaId: string;
   seans: HastaSeansSatir;
   duzenlenebilir: boolean;
-  onVucutHaritasindaGor?: (seansId: string) => void;
 }) {
   const [tamamlaAcik, setTamamlaAcik] = useState(false);
   const tamamlanabilir = TAMAMLANABILIR_DURUMLAR.includes(seans.durum);
 
   return (
     <div className="mt-2 flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold">Tedavi ({TARIH_SAAT_FORMAT.format(new Date(seans.baslangic))})</h4>
-        {onVucutHaritasindaGor && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
-            onClick={() => onVucutHaritasindaGor(seans.id)}
-          >
-            <PersonStanding className="size-3.5" aria-hidden />
-            Vücut Haritasında Gör
-          </Button>
-        )}
-      </div>
+      <h4 className="mb-1 text-sm font-semibold">
+        Tedavi ({TARIH_SAAT_FORMAT.format(new Date(seans.baslangic))})
+      </h4>
       <TedaviBilgisiSatiri etiket="Fizyoterapist" deger={seans.terapist?.personel?.ad_soyad ?? ""} />
       <TedaviBilgisiSatiri etiket="Antrenör" deger={seans.antrenor?.ad_soyad ?? ""} />
       <TedaviBilgisiSatiri etiket="Tanı" deger={seans.tani ?? ""} />

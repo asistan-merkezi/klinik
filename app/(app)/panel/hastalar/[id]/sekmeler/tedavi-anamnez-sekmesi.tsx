@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { HastaDetay } from "@/types/hasta";
+import { VucutHaritasi } from "@/components/hasta/vucut-haritasi";
 import { ProtokolKarti } from "../protokol-karti";
 import { SeansGecmisiZamanCizelgesi } from "../seans-gecmisi-zaman-cizelgesi";
 import { SikayetAnamnezKarti } from "../sikayet-anamnez-karti";
@@ -35,11 +36,6 @@ export function TedaviAnamnezSekmesi({
 }) {
   const [icSekme, setIcSekme] = useState<IcSekme>("genel");
   const [seciliSeansId, setSeciliSeansId] = useState<string | null>(null);
-
-  function vucutHaritasindaGor(seansId: string) {
-    setSeciliSeansId(seansId);
-    setIcSekme("gelisim");
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,7 +80,21 @@ export function TedaviAnamnezSekmesi({
                 seciliSeansId={seciliSeansId}
                 onSeansSec={setSeciliSeansId}
                 duzenlenebilir={duzenlenebilir}
-                onVucutHaritasindaGor={vucutHaritasindaGor}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>2D Vücut Haritası</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VucutHaritasi
+                hastaId={hasta.id}
+                seansId={seciliSeansId}
+                duzenlenebilir={duzenlenebilir}
+                cinsiyet={hasta.cinsiyet}
+                aktif={aktif}
               />
             </CardContent>
           </Card>
@@ -103,11 +113,9 @@ export function TedaviAnamnezSekmesi({
       {icSekme === "gelisim" && (
         <GelisimOlcumlerSekmesi
           hastaId={hasta.id}
-          cinsiyet={hasta.cinsiyet}
           sonVasSkoru={sonVasSkoru}
           aktif={aktif}
           duzenlenebilir={duzenlenebilir}
-          seciliSeansId={seciliSeansId}
         />
       )}
 
