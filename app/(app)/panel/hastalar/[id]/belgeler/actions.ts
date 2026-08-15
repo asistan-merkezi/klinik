@@ -1,9 +1,6 @@
 "use server";
 
-import { randomUUID } from "crypto";
-import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
-import type { BelgeAsama, BelgeKategori, BelgeTuru } from "@/types/hasta-belge";
 
 async function yetkiliBaglamGetir(hastaId: string) {
   const supabase = await createClient();
@@ -27,104 +24,6 @@ async function yetkiliBaglamGetir(hastaId: string) {
   }
 
   return { supabase, userId: user.id, rol: kullanici.rol as string, hasta, yetkisiz: false as const };
-}
-
-export async function belgeYuklemeBaslat(
-  hastaId: string,
-  kategori: BelgeKategori,
-  uzanti: string
-): Promise<{ belgeId: string; path: string; token: string } | { error: string }> {
-  const ctx = await yetkiliBaglamGetir(hastaId);
-  if (ctx.yetkisiz) return { error: "Bu işlem için yetkiniz yok." };
-
-  const belgeId = randomUUID();
-  const path = `${ctx.hasta.klinik_id}/${hastaId}/${kategori}/${belgeId}.${uzanti}`;
-
-  const { data, error } = await ctx.supabase.storage.from("hasta-belge").createSignedUploadUrl(path);
-  if (error || !data) {
-    console.error("Signed upload URL üretilemedi:", error);
-    return { error: "Yükleme başlatılamadı, lütfen tekrar deneyin." };
-  }
-
-  return { belgeId, path, token: data.token };
-}
-
-export async function belgeKaydet(input: {
-  belgeId: string;
-  hastaId: string;
-  storagePath: string;
-  kategori: BelgeKategori;
-  belgeTuru: BelgeTuru;
-  bolge: string | null;
-  cekimTarihi: string;
-  karsilastirmaGrubuId: string | null;
-  asama: BelgeAsama | null;
-  onamId: string | null;
-  not: string | null;
-  cekenKurum: string | null;
-  dosyaMime: string;
-  dosyaBoyutByte: number;
-}): Promise<{ id: string } | { error: string }> {
-  const ctx = await yetkiliBaglamGetir(input.hastaId);
-  if (ctx.yetkisiz) return { error: "Bu işlem için yetkiniz yok." };
-
-  const metadata: Record<string, unknown> = {};
-  if (input.not) metadata.not = input.not;
-  if (input.cekenKurum) metadata.ceken_kurum = input.cekenKurum;
-
-  const { data: belge, error } = await ctx.supabase
-    .from("hasta_belge")
-    .insert({
-      id: input.belgeId,
-      hasta_id: input.hastaId,
-      kategori: input.kategori,
-      belge_turu: input.belgeTuru,
-      bolge: input.bolge,
-      cekim_tarihi: input.cekimTarihi,
-      karsilastirma_grubu_id: input.karsilastirmaGrubuId,
-      asama: input.asama,
-      onam_id: input.onamId,
-      storage_path: input.storagePath,
-      dosya_mime: input.dosyaMime,
-      dosya_boyut_byte: input.dosyaBoyutByte,
-      yukleyen_kullanici_id: ctx.userId,
-      metadata,
-    })
-    .select("id")
-    .single();
-
-  if (error || !belge) {
-    console.error("Belge kaydedilemedi:", error);
-    return { error: "Belge kaydedilemedi, lütfen tekrar deneyin." };
-  }
-
-  // Thumbnail sadece görseller için üretilir. PDF rasterize etmek sharp'ın
-  // kapsamı dışında (yeni native-binary bağımlılık riski nedeniyle bu turda
-  // eklenmedi) — PDF'ler görüntülemede generic ikonla gösterilir.
-  if (input.dosyaMime !== "application/pdf") {
-    try {
-      const { data: orijinal } = await ctx.supabase.storage.from("hasta-belge").download(input.storagePath);
-      if (orijinal) {
-        const buffer = Buffer.from(await orijinal.arrayBuffer());
-        const kucukResim = await sharp(buffer)
-          .rotate()
-          .resize(300, 300, { fit: "inside" })
-          .jpeg({ quality: 80 })
-          .toBuffer();
-        const thumbPath = input.storagePath.replace(/(\.[^./]+)$/, "_thumb.jpg");
-        const { error: yuklemeHatasi } = await ctx.supabase.storage
-          .from("hasta-belge")
-          .upload(thumbPath, kucukResim, { contentType: "image/jpeg", upsert: true });
-        if (!yuklemeHatasi) {
-          await ctx.supabase.from("hasta_belge").update({ thumbnail_path: thumbPath }).eq("id", belge.id);
-        }
-      }
-    } catch (e) {
-      console.error("Thumbnail üretilemedi (belge yine de kaydedildi):", e);
-    }
-  }
-
-  return { id: belge.id };
 }
 
 export async function klinikFotoOnamKaydet(hastaId: string): Promise<{ success: true } | { error: string }> {

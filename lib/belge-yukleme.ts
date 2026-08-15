@@ -1,9 +1,10 @@
 "use client";
 
-import imageCompression from "browser-image-compression";
 import { MAX_DOSYA_BOYUTU_BYTE } from "@/types/hasta-belge";
 
 const HEIC_UZANTI_REGEX = /\.(heic|heif)$/i;
+const MAX_KENAR_PX = 1280;
+const WEBP_KALITE = 0.85;
 
 function heicMi(dosya: File): boolean {
   return dosya.type === "image/heic" || dosya.type === "image/heif" || HEIC_UZANTI_REGEX.test(dosya.name);
@@ -14,14 +15,15 @@ export function dosyaBoyutuGecerliMi(dosya: File): boolean {
 }
 
 /**
- * Yükleme öncesi client-side hazırlık: HEIC -> JPEG dönüşümü, ardından
- * (PDF hariç) max 2000px kenar + ~1.5MB hedefiyle sıkıştırma. Canvas
- * üzerinden yeniden kodlama EXIF'i (konum verisi dahil) doğal olarak siler.
+ * Yükleme öncesi client-side hazırlık: HEIC -> JPEG dönüşümü (canvas HEIC'i
+ * doğrudan çözemediği için), ardından (PDF hariç) tüm formatlar doğrudan
+ * Canvas API üzerinden max 1280px kenar + WebP (%85 kalite) olarak yeniden
+ * kodlanır. Daha önce kullanılan browser-image-compression (web worker +
+ * ek kopyalar) yerine createImageBitmap/canvas ile daha az bellek tüketen
+ * bir yol izleniyor. Canvas üzerinden yeniden kodlama EXIF'i (konum verisi
+ * dahil) doğal olarak siler.
  */
-export async function gorseliHazirla(
-  dosya: File,
-  onIlerleme?: (yuzde: number) => void
-): Promise<File> {
+export async function gorseliHazirla(dosya: File): Promise<File> {
   let calisilanDosya: File = dosya;
 
   if (heicMi(dosya)) {
@@ -37,23 +39,27 @@ export async function gorseliHazirla(
     return calisilanDosya;
   }
 
-  const sikistirilmis = await imageCompression(calisilanDosya, {
-    maxSizeMB: 1.5,
-    maxWidthOrHeight: 2000,
-    useWebWorker: true,
-    onProgress: onIlerleme,
-  });
+  const bitmap = await createImageBitmap(calisilanDosya);
+  const olcek = Math.min(1, MAX_KENAR_PX / Math.max(bitmap.width, bitmap.height));
+  const genislik = Math.round(bitmap.width * olcek);
+  const yukseklik = Math.round(bitmap.height * olcek);
 
-  return new File([sikistirilmis], calisilanDosya.name, {
-    type: sikistirilmis.type || calisilanDosya.type,
-  });
-}
+  const canvas = document.createElement("canvas");
+  canvas.width = genislik;
+  canvas.height = yukseklik;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return calisilanDosya;
+  }
+  ctx.drawImage(bitmap, 0, 0, genislik, yukseklik);
+  bitmap.close();
 
-export function dosyaUzantisiCikar(dosya: File): string {
-  const isimden = dosya.name.split(".").pop()?.toLowerCase();
-  if (isimden && isimden.length <= 5) return isimden;
-  if (dosya.type === "application/pdf") return "pdf";
-  if (dosya.type === "image/png") return "png";
-  if (dosya.type === "image/webp") return "webp";
-  return "jpg";
+  const webpBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", WEBP_KALITE));
+  if (!webpBlob) {
+    return calisilanDosya;
+  }
+
+  const yeniAd = calisilanDosya.name.replace(/\.[^./]+$/, ".webp");
+  return new File([webpBlob], yeniAd, { type: "image/webp" });
 }

@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,14 +31,14 @@ import {
   type BelgeKategori,
   type BelgeTuru,
 } from "@/types/hasta-belge";
-import { dosyaBoyutuGecerliMi, dosyaUzantisiCikar, gorseliHazirla } from "@/lib/belge-yukleme";
-import { belgeKaydet, belgeYuklemeBaslat, klinikFotoOnamKaydet } from "./actions";
+import { dosyaBoyutuGecerliMi, gorseliHazirla } from "@/lib/belge-yukleme";
+import { klinikFotoOnamKaydet } from "./actions";
 import { useKarsilastirmaGruplari, useKlinikFotoOnam } from "./queries";
 
 const KATEGORI_SECENEKLERI: BelgeKategori[] = ["radyoloji", "klinik_foto", "dokuman"];
 const BOLGE_SECENEKLERI = Object.entries(VUCUT_BOLGE_ETIKETLERI).map(([value, label]) => ({ value, label }));
 
-type DosyaDurumu = "bekliyor" | "hazirlaniyor" | "yukleniyor" | "kaydediliyor" | "tamam" | "hata";
+type DosyaDurumu = "bekliyor" | "hazirlaniyor" | "yukleniyor" | "tamam" | "hata";
 
 type DosyaGirisi = {
   dosya: File;
@@ -112,7 +111,6 @@ export function YuklemeDialogu({
     }
 
     setGonderiliyor(true);
-    const supabase = createClient();
 
     const grupId =
       kategori === "klinik_foto"
@@ -129,33 +127,22 @@ export function YuklemeDialogu({
         const hazirDosya = await gorseliHazirla(dosyalar[i].dosya);
 
         dosyaDurumGuncelle(i, { durum: "yukleniyor" });
-        const uzanti = dosyaUzantisiCikar(hazirDosya);
-        const baslatSonucu = await belgeYuklemeBaslat(hastaId, kategori, uzanti);
-        if ("error" in baslatSonucu) throw new Error(baslatSonucu.error);
+        const formData = new FormData();
+        formData.append("file", hazirDosya);
+        formData.append("hastaId", hastaId);
+        formData.append("kategori", kategori);
+        formData.append("belgeTuru", belgeTuru);
+        formData.append("cekimTarihi", cekimTarihi);
+        if (bolge) formData.append("bolge", bolge);
+        if (grupId) formData.append("karsilastirmaGrubuId", grupId);
+        if (kategori === "klinik_foto") formData.append("asama", asama);
+        if (kategori === "klinik_foto" && onam?.id) formData.append("onamId", onam.id);
+        if (not) formData.append("not", not);
+        if (kategori === "radyoloji" && cekenKurum) formData.append("cekenKurum", cekenKurum);
 
-        const { error: yuklemeHatasi } = await supabase.storage
-          .from("hasta-belge")
-          .uploadToSignedUrl(baslatSonucu.path, baslatSonucu.token, hazirDosya);
-        if (yuklemeHatasi) throw new Error(yuklemeHatasi.message);
-
-        dosyaDurumGuncelle(i, { durum: "kaydediliyor" });
-        const kayitSonucu = await belgeKaydet({
-          belgeId: baslatSonucu.belgeId,
-          hastaId,
-          storagePath: baslatSonucu.path,
-          kategori,
-          belgeTuru,
-          bolge: bolge || null,
-          cekimTarihi,
-          karsilastirmaGrubuId: grupId,
-          asama: kategori === "klinik_foto" ? asama : null,
-          onamId: kategori === "klinik_foto" ? (onam?.id ?? null) : null,
-          not: not || null,
-          cekenKurum: kategori === "radyoloji" ? cekenKurum || null : null,
-          dosyaMime: hazirDosya.type,
-          dosyaBoyutByte: hazirDosya.size,
-        });
-        if ("error" in kayitSonucu) throw new Error(kayitSonucu.error);
+        const yanit = await fetch("/api/hasta-belge/foto-yukle", { method: "POST", body: formData });
+        const sonuc = await yanit.json();
+        if (!yanit.ok) throw new Error(sonuc.error ?? "Yüklenemedi.");
 
         dosyaDurumGuncelle(i, { durum: "tamam" });
         herhangiBasarili = true;
@@ -402,7 +389,6 @@ export function YuklemeDialogu({
                       {d.durum === "bekliyor" && "Bekliyor"}
                       {d.durum === "hazirlaniyor" && "Hazırlanıyor..."}
                       {d.durum === "yukleniyor" && "Yükleniyor..."}
-                      {d.durum === "kaydediliyor" && "Kaydediliyor..."}
                       {d.durum === "tamam" && "Tamamlandı"}
                       {d.durum === "hata" && (d.hataMesaji ?? "Hata")}
                     </span>

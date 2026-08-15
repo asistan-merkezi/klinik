@@ -58,8 +58,8 @@ export const KABUL_EDILEN_MIME_TIPLERI = [
 // Hangi boyutta gelirse gelsin fotoğraf sıkıştırılıp kaydedilsin istendiği
 // için bu sadece tarayıcının donmaması için bir üst güvenlik sınırı —
 // normal telefon/tarayıcı fotoğrafları (hatta yüksek çözünürlüklü taramalar)
-// bu sınırın çok altında kalır ve gorseliHazirla() zaten her boyutu 2000px/
-// ~1.5MB'a indiriyor.
+// bu sınırın çok altında kalır ve gorseliHazirla() zaten her görseli 1280px
+// kenar + WebP %85 kaliteye indiriyor.
 export const MAX_DOSYA_BOYUTU_BYTE = 50 * 1024 * 1024;
 
 export type HastaBelge = {
