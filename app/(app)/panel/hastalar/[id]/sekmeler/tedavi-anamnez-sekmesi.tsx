@@ -8,14 +8,12 @@ import { VucutHaritasi } from "@/components/hasta/vucut-haritasi";
 import { ProtokolKarti } from "../protokol-karti";
 import { SeansGecmisiZamanCizelgesi } from "../seans-gecmisi-zaman-cizelgesi";
 import { SikayetAnamnezKarti } from "../sikayet-anamnez-karti";
-import { GenelBakisSekmesi } from "./genel-bakis-sekmesi";
 import { GelisimOlcumlerSekmesi } from "./gelisim-olcumler-sekmesi";
 import { BelgelerMedyaSekmesi } from "./belgeler-medya-sekmesi";
 
-type IcSekme = "genel" | "tedavi" | "gelisim" | "belgeler";
+type IcSekme = "tedavi" | "gelisim" | "belgeler";
 
 const IC_SEKMELER: { deger: IcSekme; etiket: string }[] = [
-  { deger: "genel", etiket: "Genel Bakış" },
   { deger: "tedavi", etiket: "Tedavi & Anamnez" },
   { deger: "gelisim", etiket: "Gelişim & Ölçümler" },
   { deger: "belgeler", etiket: "Belgeler & Medya" },
@@ -34,7 +32,7 @@ export function TedaviAnamnezSekmesi({
   sonVasSkoru: number | null;
   rol: string | null;
 }) {
-  const [icSekme, setIcSekme] = useState<IcSekme>("genel");
+  const [icSekme, setIcSekme] = useState<IcSekme>("tedavi");
   const [seciliSeansId, setSeciliSeansId] = useState<string | null>(null);
 
   return (
@@ -56,10 +54,6 @@ export function TedaviAnamnezSekmesi({
           </button>
         ))}
       </div>
-
-      {icSekme === "genel" && (
-        <GenelBakisSekmesi hastaId={hasta.id} kayitTarihi={hasta.created_at} aktif={aktif} />
-      )}
 
       {icSekme === "tedavi" && (
         <div className="flex flex-col gap-4">
