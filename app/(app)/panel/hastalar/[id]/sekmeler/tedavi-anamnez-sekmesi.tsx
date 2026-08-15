@@ -53,41 +53,45 @@ export function TedaviAnamnezSekmesi({
 
       {icSekme === "tedavi" && (
         <div className="flex flex-col gap-4">
-          <Card>
-            <CardContent>
-              <SikayetAnamnezKarti hastaId={hasta.id} aktif={aktif} duzenlenebilir={duzenlenebilir} />
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 gap-6 lg:h-[656px] lg:grid-cols-2">
+            <div className="flex flex-col gap-4 lg:h-full">
+              <Card className="flex flex-col lg:h-[320px]">
+                <CardContent className="min-h-0 flex-1 lg:overflow-y-auto">
+                  <SikayetAnamnezKarti hastaId={hasta.id} aktif={aktif} duzenlenebilir={duzenlenebilir} />
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Seans / Tedavi Geçmişi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SeansGecmisiZamanCizelgesi
-                hastaId={hasta.id}
-                aktif={aktif}
-                seciliSeansId={seciliSeansId}
-                onSeansSec={setSeciliSeansId}
-                duzenlenebilir={duzenlenebilir}
-              />
-            </CardContent>
-          </Card>
+              <Card className="flex flex-col lg:h-[320px]">
+                <CardHeader className="shrink-0">
+                  <CardTitle>Seans / Tedavi Geçmişi</CardTitle>
+                </CardHeader>
+                <CardContent className="min-h-0 flex-1 lg:overflow-y-auto">
+                  <SeansGecmisiZamanCizelgesi
+                    hastaId={hasta.id}
+                    aktif={aktif}
+                    seciliSeansId={seciliSeansId}
+                    onSeansSec={setSeciliSeansId}
+                    duzenlenebilir={duzenlenebilir}
+                  />
+                </CardContent>
+              </Card>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>2D Vücut Haritası</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <VucutHaritasi
-                hastaId={hasta.id}
-                seansId={seciliSeansId}
-                duzenlenebilir={duzenlenebilir}
-                cinsiyet={hasta.cinsiyet}
-                aktif={aktif}
-              />
-            </CardContent>
-          </Card>
+            <Card className="flex flex-col lg:h-full">
+              <CardHeader className="shrink-0">
+                <CardTitle>2D Vücut Haritası</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-1 items-center justify-center lg:overflow-y-auto">
+                <VucutHaritasi
+                  hastaId={hasta.id}
+                  seansId={seciliSeansId}
+                  duzenlenebilir={duzenlenebilir}
+                  cinsiyet={hasta.cinsiyet}
+                  aktif={aktif}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
