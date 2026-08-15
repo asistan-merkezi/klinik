@@ -6,20 +6,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TrendGrafik } from "@/components/hasta/trend-grafik";
 import { useHastaKarsilastirma, useHastaOlcumler } from "../queries";
 import { KarsilastirmaGalerisi } from "../karsilastirma-galerisi";
-import { HedefListesi } from "../hedef-listesi";
 import { BelgelerMedyaSekmesi } from "./belgeler-medya-sekmesi";
 
 export function GelisimOlcumlerSekmesi({
   hastaId,
-  sonVasSkoru,
   aktif,
-  duzenlenebilir,
   rol,
 }: {
   hastaId: string;
-  sonVasSkoru: number | null;
   aktif: boolean;
-  duzenlenebilir: boolean;
   rol: string | null;
 }) {
   const { data: olcumler, isLoading: olcumlerYukleniyor } = useHastaOlcumler(hastaId, aktif);
@@ -50,12 +45,6 @@ export function GelisimOlcumlerSekmesi({
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent>
-          <HedefListesi hastaId={hastaId} sonVasSkoru={sonVasSkoru} aktif={aktif} duzenlenebilir={duzenlenebilir} />
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>VAS / ROM & Ölçek Trendleri</CardTitle>

@@ -917,62 +917,6 @@ export async function riskBayragiEkle(
   return { success: true, message: "Risk bayrağı eklendi." };
 }
 
-const hedefSemasi = z.object({
-  hedef_tipi: z.enum(["vas", "rom", "fonksiyonel", "serbest"]),
-  hedef_metrik: z.string().trim().min(1, "Hedef metriği gerekli."),
-  baslangic_deger: z.coerce.number().nullable(),
-  hedef_deger: z.coerce.number().nullable(),
-  hedef_tarihi: z.string().trim().nullable(),
-  notlar: z.string().trim().nullable(),
-});
-
-export async function hastaHedefEkle(
-  hastaId: string,
-  _onceki: PortalSonucu,
-  formData: FormData
-): Promise<PortalSonucu> {
-  const { supabase, userId, hasta, yetkisiz } = await terapistDahilYetkiliHastaGetir(hastaId);
-  if (yetkisiz) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-  if (!hasta) {
-    return { success: false, message: "Hasta bulunamadı." };
-  }
-
-  const bosIseNull = (deger: FormDataEntryValue | null) => {
-    if (deger == null) return null;
-    const s = String(deger).trim();
-    return s === "" ? null : s;
-  };
-
-  const ayristirma = hedefSemasi.safeParse({
-    hedef_tipi: formData.get("hedef_tipi"),
-    hedef_metrik: formData.get("hedef_metrik"),
-    baslangic_deger: bosIseNull(formData.get("baslangic_deger")),
-    hedef_deger: bosIseNull(formData.get("hedef_deger")),
-    hedef_tarihi: bosIseNull(formData.get("hedef_tarihi")),
-    notlar: bosIseNull(formData.get("notlar")),
-  });
-
-  if (!ayristirma.success) {
-    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
-  }
-
-  const { error } = await supabase.from("hasta_hedef").insert({
-    hasta_id: hastaId,
-    olusturan_id: userId,
-    ...ayristirma.data,
-  });
-
-  if (error) {
-    console.error("Hedef eklenemedi:", error);
-    return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
-  }
-
-  revalidateHastaDetay(hastaId);
-  return { success: true, message: "Hedef eklendi." };
-}
-
 export async function belgeSignedUrlAl(belgeId: string): Promise<{ url: string } | { error: string }> {
   const supabase = await createClient();
   const {

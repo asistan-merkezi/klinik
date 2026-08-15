@@ -21,13 +21,11 @@ export function TedaviAnamnezSekmesi({
   hasta,
   aktif,
   duzenlenebilir,
-  sonVasSkoru,
   rol,
 }: {
   hasta: HastaDetay;
   aktif: boolean;
   duzenlenebilir: boolean;
-  sonVasSkoru: number | null;
   rol: string | null;
 }) {
   const [icSekme, setIcSekme] = useState<IcSekme>("tedavi");
@@ -103,13 +101,7 @@ export function TedaviAnamnezSekmesi({
       )}
 
       {icSekme === "gelisim" && (
-        <GelisimOlcumlerSekmesi
-          hastaId={hasta.id}
-          sonVasSkoru={sonVasSkoru}
-          aktif={aktif}
-          duzenlenebilir={duzenlenebilir}
-          rol={rol}
-        />
+        <GelisimOlcumlerSekmesi hastaId={hasta.id} aktif={aktif} rol={rol} />
       )}
     </div>
   );

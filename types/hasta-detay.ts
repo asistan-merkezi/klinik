@@ -55,37 +55,6 @@ export type HastaDetayOzet = HastaOzet & {
   son_iletisim_tarihi: string | null;
 };
 
-export type HedefTipi = "vas" | "rom" | "fonksiyonel" | "serbest";
-export type HedefDurumu = "aktif" | "ulasildi" | "basarisiz" | "iptal";
-
-export type HastaHedef = {
-  id: string;
-  hasta_id: string;
-  hedef_tipi: HedefTipi;
-  hedef_metrik: string;
-  baslangic_deger: number | null;
-  hedef_deger: number | null;
-  hedef_tarihi: string | null;
-  durum: HedefDurumu;
-  olusturan_id: string | null;
-  notlar: string | null;
-  created_at: string;
-};
-
-export const HEDEF_TIPI_ETIKETLERI: Record<HedefTipi, string> = {
-  vas: "VAS (Ağrı)",
-  rom: "ROM (Eklem Hareket Açıklığı)",
-  fonksiyonel: "Fonksiyonel",
-  serbest: "Serbest",
-};
-
-export const HEDEF_DURUM_ETIKETLERI: Record<HedefDurumu, string> = {
-  aktif: "Aktif",
-  ulasildi: "Ulaşıldı",
-  basarisiz: "Başarısız",
-  iptal: "İptal",
-};
-
 export type SikayetDurumu = "aktif" | "cozuldu";
 
 export type HastaAnamnezKaydi = {

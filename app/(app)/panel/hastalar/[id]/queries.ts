@@ -6,7 +6,6 @@ import { randevuSeansiTamamla } from "../../randevular/actions";
 import { sikayetKaydiEkle, sikayetDurumGuncelle } from "./actions";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import type {
-  HastaHedef,
   HastaOlcum,
   HastaIliski,
   HastaSigorta,
@@ -85,24 +84,6 @@ export function useHastaSigortalar(hastaId: string, aktif: boolean) {
         .eq("hasta_id", hastaId)
         .order("gecerlilik_baslangic", { ascending: false })
         .returns<HastaSigorta[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-}
-
-export function useHastaHedefler(hastaId: string, aktif: boolean) {
-  return useQuery({
-    queryKey: ["hasta_hedef", hastaId],
-    enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hasta_hedef")
-        .select("id, hasta_id, hedef_tipi, hedef_metrik, baslangic_deger, hedef_deger, hedef_tarihi, durum, olusturan_id, notlar, created_at")
-        .eq("hasta_id", hastaId)
-        .order("created_at", { ascending: false })
-        .returns<HastaHedef[]>();
       if (error) throw error;
       return data ?? [];
     },
