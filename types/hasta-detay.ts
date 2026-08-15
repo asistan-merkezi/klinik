@@ -250,13 +250,3 @@ export type HastaBakiyeHareket = {
   odeme: HastaBakiyeHareketOdeme | null;
   iskonto_uygulayan: { ad_soyad: string } | null;
 };
-
-export type HastaKarsilastirma = {
-  karsilastirma_grubu_id: string;
-  belge_id: string;
-  bolge: string | null;
-  asama: "tedavi_oncesi" | "ara_kontrol" | "tedavi_sonrasi" | null;
-  cekim_tarihi: string;
-  storage_path: string;
-  thumbnail_path: string | null;
-};

@@ -4,8 +4,7 @@ import { LineChart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrendGrafik } from "@/components/hasta/trend-grafik";
-import { useHastaKarsilastirma, useHastaOlcumler } from "../queries";
-import { KarsilastirmaGalerisi } from "../karsilastirma-galerisi";
+import { useHastaOlcumler } from "../queries";
 import { BelgelerMedyaSekmesi } from "./belgeler-medya-sekmesi";
 
 export function GelisimOlcumlerSekmesi({
@@ -18,7 +17,6 @@ export function GelisimOlcumlerSekmesi({
   rol: string | null;
 }) {
   const { data: olcumler, isLoading: olcumlerYukleniyor } = useHastaOlcumler(hastaId, aktif);
-  const { data: karsilastirmalar, isLoading: karsilastirmaYukleniyor } = useHastaKarsilastirma(hastaId, aktif);
 
   const gruplar = new Map<string, { baslik: string; noktalar: { tarih: string; deger: number }[]; min: number | null; maks: number | null; yon: string }>();
 
@@ -66,19 +64,6 @@ export function GelisimOlcumlerSekmesi({
             <p className="text-xs text-muted-foreground">
               ROM (eklem hareket açıklığı) ölçüm kaydı henüz girilmedi.
             </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Önce / Sonra Fotoğraflar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {karsilastirmaYukleniyor ? (
-            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
-          ) : (
-            <KarsilastirmaGalerisi kayitlar={karsilastirmalar ?? []} />
           )}
         </CardContent>
       </Card>

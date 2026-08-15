@@ -12,7 +12,6 @@ import type {
   HastaProtokol,
   VucutHaritasiIsareti,
   IslemKontrendikasyon,
-  HastaKarsilastirma,
   HastaDetayOzet,
   HastaSeansSatir,
   HastaAnamnezKaydi,
@@ -411,23 +410,6 @@ export function useHastaOlcumler(hastaId: string, aktif: boolean) {
         .eq("hasta_id", hastaId)
         .order("olcum_tarihi", { ascending: true })
         .returns<HastaOlcum[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-}
-
-export function useHastaKarsilastirma(hastaId: string, aktif: boolean) {
-  return useQuery({
-    queryKey: ["hasta_karsilastirma", hastaId],
-    enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("v_hasta_karsilastirma")
-        .select("karsilastirma_grubu_id, belge_id, bolge, asama, cekim_tarihi, storage_path, thumbnail_path")
-        .eq("hasta_id", hastaId)
-        .returns<HastaKarsilastirma[]>();
       if (error) throw error;
       return data ?? [];
     },

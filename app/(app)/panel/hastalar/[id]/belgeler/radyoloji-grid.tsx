@@ -90,7 +90,7 @@ function RadyolojiKarti({
       <button
         type="button"
         onClick={onAc}
-        className="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-muted"
+        className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-muted"
       >
         {belge.dosya_mime === "application/pdf" ? (
           <FileText className="size-8 text-muted-foreground" />
@@ -100,18 +100,14 @@ function RadyolojiKarti({
         ) : (
           <div className="size-6 animate-pulse rounded-full bg-muted-foreground/20" />
         )}
-        <span className="absolute right-1 bottom-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
-          {new Date(belge.cekim_tarihi).toLocaleDateString("tr-TR")}
-        </span>
       </button>
 
       <div className="flex flex-col gap-0.5 px-0.5 text-xs">
         <span className="font-medium">{BELGE_TURU_ETIKETLERI[belge.belge_turu]}</span>
-        {belge.bolge && (
-          <span className="text-muted-foreground">
-            {VUCUT_BOLGE_ETIKETLERI[belge.bolge] ?? belge.bolge}
-          </span>
-        )}
+        <span className="text-muted-foreground">
+          {belge.bolge && `${VUCUT_BOLGE_ETIKETLERI[belge.bolge] ?? belge.bolge} · `}
+          {new Date(belge.cekim_tarihi).toLocaleDateString("tr-TR")}
+        </span>
       </div>
 
       {silinebilirMi && (
