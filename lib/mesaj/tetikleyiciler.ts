@@ -200,7 +200,7 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     baglanmaNotu: "randevuSeansiTamamla action'ı sonrası tetiklenebilir (aynı olay hasta_seans_sonrasi_anket ile de paylaşılıyor).",
   },
 
-  // ---- Personel (6) ----
+  // ---- Personel (7) ----
   {
     kod: "personel_hosgeldin",
     bolum: "personel",
@@ -242,14 +242,27 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     varsayilanMesajMetni: "Merhaba {{personel_adi}}, bu ayki performans ve prim özetiniz hazır.",
   },
   {
+    kod: "personel_izin_talebi_yeni",
+    bolum: "personel",
+    ad: "Yeni izin talebi geldiğinde yöneticiye bildirim",
+    icerikTipi: "hizmet",
+    tetiklemeTipi: "anlik",
+    gecerliDegiskenler: ["personel_adi", "izin_tip", "tarih_araligi", "klinik_adi"],
+    varsayilanMesajMetni:
+      "Merhaba, {{personel_adi}} {{tarih_araligi}} tarihleri için {{izin_tip}} talebinde bulundu. Onay bekliyor.",
+    baglanmaNotu:
+      "personel_izin_talep_olustur RPC'si başarılı dönünce, klinikteki tüm klinik_admin personellerine (kullanici_id + telefon/eposta doluysa) enqueue edilir — lib/mesaj/anlik-tetikle.ts.",
+  },
+  {
     kod: "personel_izin_sonuc",
     bolum: "personel",
     ad: "İzin talebi onay/red bildirimi",
     icerikTipi: "hizmet",
     tetiklemeTipi: "anlik",
-    gecerliDegiskenler: ["personel_adi", "klinik_adi"],
-    varsayilanMesajMetni: "Merhaba {{personel_adi}}, izin talebinizle ilgili sonuç belirlendi.",
-    baglanmaNotu: "terapist_izin.onay_durumu güncellenince tetiklenebilir.",
+    gecerliDegiskenler: ["personel_adi", "izin_durumu", "klinik_adi"],
+    varsayilanMesajMetni: "Merhaba {{personel_adi}}, izin talebiniz {{izin_durumu}}.",
+    baglanmaNotu:
+      "personel_izin_talebi_onayla/_reddet RPC'leri başarılı dönünce talebi açan personele enqueue edilir — lib/mesaj/anlik-tetikle.ts. (Not: bu satır Faz 1'den beri kataloglaydı, o zaman kaldırılmış terapist_izin tablosuna işaret ediyordu — artık personel_izin_talebi'ne bağlı.)",
   },
   {
     kod: "personel_egitim_hatirlatma",

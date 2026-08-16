@@ -1,7 +1,6 @@
 import type { Cinsiyet } from "./hasta";
 
 export type MaasHesaplamaModeli = "sabit" | "islem_basi_prim" | "barajli_prim";
-export type HakedisTuru = "yol" | "yemek" | "mesai" | "avans" | "diger";
 export type CalismaTipi = "tam_zamanli" | "yari_zamanli" | "vardiyali" | "prim_usulu";
 
 export const CALISMA_TIPI_SECENEKLERI: { value: CalismaTipi; label: string }[] = [
@@ -75,7 +74,6 @@ export type PersonelDetay = {
   maas: number | null;
   aktif: boolean;
   kullanici_id: string | null;
-  tc_kimlik_no: string | null;
   uzmanlik_tescil_no: string | null;
   il: string | null;
   ilce: string | null;
@@ -142,21 +140,7 @@ export type TerapistAyarlari = {
   baraj_bonus_tutari: number | null;
 };
 
-export type HakedisSatir = {
-  id: string;
-  tur: HakedisTuru;
-  tutar: number;
-  tarih: string;
-  aciklama: string | null;
-};
-
-export type PersonelOdemeSatir = {
-  id: string;
-  tutar: number;
-  tarih: string;
-  aciklama: string | null;
-};
-
+/** personel_ucret (eski adı personel_maas_gecmisi) — append-only ücret geçmişi. */
 export type MaasGecmisiSatir = {
   id: string;
   maas: number;

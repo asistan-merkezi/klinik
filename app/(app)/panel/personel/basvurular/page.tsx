@@ -23,7 +23,7 @@ export default async function BasvurularSayfasi() {
   const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
 
   if (kullanici?.rol !== "klinik_admin") {
-    redirect("/panel/personel/liste");
+    redirect("/panel/personel");
   }
 
   const klinikId = kullanici.klinik_id;
@@ -45,7 +45,7 @@ export default async function BasvurularSayfasi() {
     <div className="flex-1 bg-background">
       <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 pb-24 sm:p-8">
         <div>
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel/liste"><ArrowLeft /> Personel Listesi</Link>} />
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel"><ArrowLeft /> Personel Listesi</Link>} />
         </div>
 
         <header>

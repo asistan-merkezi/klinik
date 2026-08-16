@@ -1,0 +1,11 @@
+-- personel.tc_kimlik_no düz metin kolonu kaldırılıyor — TC/pasaport artık
+-- SADECE şifreli personel_hassas'ta tutuluyor (bkz. personel_hassas_kaydet
+-- RPC'si, migration 20260730151000). Bu kolon eski bir turdan kalma legacy
+-- alandı, personel-formu.tsx zaten hiç yazmıyordu (formdaki "T.C. Kimlik No"
+-- alanı personel_hassas'a gidiyor). Canlıda 0 satırda dolu olduğu doğrulandı
+-- (SELECT count(*) FROM personel WHERE tc_kimlik_no IS NOT NULL = 0), bu
+-- yüzden veri taşımaya gerek yok, doğrudan DROP güvenli.
+--
+-- Not: is_basvurusu.tc_kimlik_no AYRI bir tablo/kavram (iş başvurusu aday
+-- verisi) — buna KESİNLİKLE dokunulmuyor.
+alter table personel drop column if exists tc_kimlik_no;

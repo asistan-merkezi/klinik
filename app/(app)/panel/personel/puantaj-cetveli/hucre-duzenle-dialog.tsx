@@ -1,28 +1,17 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTime } from "@/lib/datetime";
-import { gunEtiket, saatKisalt } from "@/lib/puantaj";
+import { dakikaEtiket, gunEtiket, saatKisalt } from "@/lib/puantaj";
 import { PUANTAJ_DURUM_SECENEKLERI } from "@/types/puantaj";
 import type { PersonelPuantajSatir } from "@/types/puantaj";
 import { gunKaydet } from "./actions";
+import { FmOnayButonlari } from "./fm-onay-butonlari";
 
 const OTOMATIK_DEGER = "otomatik";
 const DURUM_SECENEKLERI_OTOMATIK = [
@@ -30,54 +19,69 @@ const DURUM_SECENEKLERI_OTOMATIK = [
   ...PUANTAJ_DURUM_SECENEKLERI,
 ];
 
-export function GunDuzenleDialog({
+/** Puantaj Cetveli'ndeki bir hücreye tıklanınca açılan, üst bileşenden kontrol edilen gün düzenleme dialogu — tek bir örnek, 150+ ayrı Dialog örneği açmamak için tüm hücreler tarafından paylaşılıyor. */
+export function HucreDuzenleDialog({
+  acik,
+  onOpenChange,
   personelId,
+  personelAdi,
   tarih,
   kayit,
   planlanan,
+  yonetici,
 }: {
+  acik: boolean;
+  onOpenChange: (acik: boolean) => void;
   personelId: string;
+  personelAdi: string;
   tarih: string;
   kayit: PersonelPuantajSatir | null;
   planlanan: { baslangic: string; bitis: string } | null;
+  yonetici: boolean;
 }) {
-  const [acik, setAcik] = useState(false);
   const kaydetAction = gunKaydet.bind(null, personelId, tarih);
   const [durum, formAction, isPending] = useActionState(kaydetAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
-    if (durum?.success) setAcik(false);
+    if (durum?.success) onOpenChange(false);
   }
 
+  const izinKaynakli = kayit?.kaynak === "izin_talebi";
+  const beklemedeFm = kayit != null && (kayit.fazla_mesai_dakika ?? 0) > 0 && kayit.fm_onay_durumu === "bekliyor";
+
   return (
-    <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setAcik(true)}>
-        {kayit ? (
-          <>
-            <Pencil /> Düzenle
-          </>
-        ) : (
-          <>
-            <Plus /> Ekle
-          </>
-        )}
-      </Button>
+    <Dialog open={acik} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {personelAdi} — {gunEtiket(tarih)}
+          </DialogTitle>
+        </DialogHeader>
 
-      <Dialog open={acik} onOpenChange={setAcik}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{gunEtiket(tarih)}</DialogTitle>
-          </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Planlanan:{" "}
+          {planlanan ? `${saatKisalt(planlanan.baslangic)}–${saatKisalt(planlanan.bitis)}` : "vardiya ataması yok"}
+        </p>
 
-          <p className="text-sm text-muted-foreground">
-            Planlanan:{" "}
-            {planlanan
-              ? `${saatKisalt(planlanan.baslangic)}–${saatKisalt(planlanan.bitis)}`
-              : "vardiya ataması yok"}
+        {izinKaynakli && (
+          <p className="rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-700 dark:text-sky-400">
+            Bu gün onaylı bir izin talebinden otomatik işlendi — burada düzenlenemez. Değişiklik gerekiyorsa
+            ilgili izin talebi üzerinden yapılmalı.
           </p>
+        )}
 
+        {!izinKaynakli && beklemedeFm && yonetici && (
+          <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
+            <span className="text-amber-700 dark:text-amber-400">
+              Onay bekleyen fazla mesai: {dakikaEtiket(kayit!.fazla_mesai_dakika)}
+            </span>
+            <FmOnayButonlari personelId={personelId} puantajId={kayit!.id} />
+          </div>
+        )}
+
+        {!izinKaynakli && yonetici && (
           <form action={formAction} className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
@@ -158,8 +162,23 @@ export function GunDuzenleDialog({
               {isPending ? "Kaydediliyor..." : "Kaydet"}
             </Button>
           </form>
-        </DialogContent>
-      </Dialog>
-    </>
+        )}
+
+        {!yonetici && !izinKaynakli && (
+          <dl className="flex flex-col gap-1 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Giriş–Çıkış</dt>
+              <dd>
+                {kayit?.giris_saat ? formatTime(kayit.giris_saat) : "—"} – {kayit?.cikis_saat ? formatTime(kayit.cikis_saat) : "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Net Çalışma</dt>
+              <dd>{dakikaEtiket(kayit?.net_calisma_dakika)}</dd>
+            </div>
+          </dl>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

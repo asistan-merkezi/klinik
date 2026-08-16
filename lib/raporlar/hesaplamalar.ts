@@ -15,8 +15,9 @@ type SupabaseSunucuClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Sabit personel maliyeti: tüm aktif personelin maaşı + o dönemdeki ekstra
- * hakedişleri (yol/yemek/mesai/diğer), terapistler için lib/maas.ts'teki
- * aynı prim/baraj mantığıyla hesaplanan hakediş dahil. SGK işveren payı
+ * hakedişleri (personel_hesap_hareket: prim/yol/yemek/mesai — hakedis/avans/
+ * kesinti/odeme hariç), terapistler için lib/maas.ts'teki aynı prim/baraj
+ * mantığıyla hesaplanan hakediş dahil. SGK işveren payı
  * bilinçli olarak burada YOK — personel şemasında SGK kolonu yok, kullanıcı
  * kararıyla vergi/SGK maliyeti Muhasebe raporuna (klinik_harcama kategori
  * 'vergi_sgk') taşındı, bkz. hesaplaMuhasebeGideri.
@@ -56,10 +57,15 @@ export async function hesaplaSabitPersonelMaliyeti(
           baraj_bonus_tutari: number | null;
         }[]
       >(),
+    // hakedis (taban maaş) hariç — o zaten personel.maas üzerinden sabitToplam'a
+    // dahil ediliyor, burada tekrar sayılırsa çift sayım olur. avans/kesinti/odeme
+    // de dahil edilmiyor — onlar bir maliyet ARTIŞI değil, tahakkuk etmiş
+    // hakedişin ödenmesi/kapatılması (bkz. personel_hesap_hareket şeması).
     supabase
-      .from("personel_ekstra_hakedis")
+      .from("personel_hesap_hareket")
       .select("personel_id, tutar")
       .eq("klinik_id", klinikId)
+      .in("tur", ["prim", "yol", "yemek", "mesai"])
       .gte("tarih", donem.baslangicTarih)
       .lt("tarih", donem.bitisTarih)
       .returns<{ personel_id: string; tutar: number }[]>(),

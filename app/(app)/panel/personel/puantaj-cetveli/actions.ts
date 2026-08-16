@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { toUTC } from "@/lib/datetime";
 import { sonrakiGun } from "@/lib/puantaj";
+import { hakedisHesapla } from "@/lib/personel/hakedis";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -108,7 +109,7 @@ export async function gunKaydet(
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/personel/${personelId}/calisma-cizelgesi`);
+  revalidatePath("/panel/personel/puantaj-cetveli");
   revalidatePath(`/panel/personel/${personelId}`);
   return { success: true, message: "Gün kaydedildi." };
 }
@@ -136,7 +137,7 @@ export async function fmOnayGuncelle(
     return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/personel/${personelId}/calisma-cizelgesi`);
+  revalidatePath("/panel/personel/puantaj-cetveli");
   revalidatePath(`/panel/personel/${personelId}`);
   return { success: true, message: "FM onay durumu güncellendi." };
 }
@@ -150,7 +151,7 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
-  const { error } = await supabase.rpc("personel_puantaj_donem_kapat", {
+  const { data: donemSonucu, error } = await supabase.rpc("personel_puantaj_donem_kapat", {
     p_personel_id: personelId,
     p_yil: yil,
     p_ay: ay,
@@ -162,8 +163,78 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
     return { success: false, message: mesaj };
   }
 
-  revalidatePath(`/panel/personel/${personelId}/calisma-cizelgesi`);
-  revalidatePath(`/panel/personel/${personelId}`);
+  // Taban hakediş (+varsa prim) — formül lib/maas.ts'te TEK yerde, SQL'de
+  // tekrarlanmıyor; bu yüzden RPC değil, burada hesaplanıp ikinci (dar
+  // kapsamlı, sadece kayıt+idempotency sorumluluğu taşıyan) bir RPC'ye
+  // parametre olarak geçiriliyor.
+  const donemId = (donemSonucu as { donem_id: string } | null)?.donem_id;
+  if (donemId) {
+    const ayBaslangic = new Date(Date.UTC(yil, ay - 1, 1)).toISOString();
+    const ayBitis = new Date(Date.UTC(yil, ay, 1)).toISOString();
+
+    const [{ data: personel }, { data: terapist }] = await Promise.all([
+      supabase.from("personel").select("maas").eq("id", personelId).single(),
+      supabase
+        .from("terapist")
+        .select("id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
+        .eq("personel_id", personelId)
+        .maybeSingle(),
+    ]);
+
+    let seansSayisi = 0;
+    if (terapist) {
+      const { count } = await supabase
+        .from("randevu")
+        .select("id", { count: "exact", head: true })
+        .eq("terapist_id", terapist.id)
+        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
+        .gte("baslangic", ayBaslangic)
+        .lt("baslangic", ayBitis);
+      seansSayisi = count ?? 0;
+    }
+
+    const hesap = hakedisHesapla({
+      personelMaasi: personel?.maas ?? null,
+      fmSaatlikUcret: null, // mesai tutarı RPC'nin kendisinde ayrıca (fm_saatlik_ucret ile) hesaplanıyor, burada 0 sayılıyor.
+      terapistAyarlari: terapist
+        ? {
+            maas_hesaplama_modeli: terapist.maas_hesaplama_modeli,
+            prim_sabit_tutar: terapist.prim_sabit_tutar,
+            baraj_seans_sayisi: terapist.baraj_seans_sayisi,
+            baraj_bonus_tutari: terapist.baraj_bonus_tutari,
+          }
+        : null,
+      tamamlananSeansSayisi: seansSayisi,
+      onayliFmSaat: 0,
+    });
+
+    const { error: hesapHatasi } = await supabase.rpc("personel_hesap_hareket_donem_ekle", {
+      p_donem_id: donemId,
+      p_hakedis_tutar: hesap.taban,
+      p_prim_tutar: hesap.prim,
+    });
+
+    revalidatePath("/panel/personel/puantaj-cetveli");
+    revalidatePath(`/panel/personel/${personelId}`);
+
+    // 'zaten_islendi' beklenen bir durum (dönem yeniden kapatılırsa) — sessizce
+    // yok sayılır. GERÇEK bir hata ise (örn. geçici ağ sorunu) dönem yine de
+    // kapandı (snapshot ayrı bir çağrıydı, zaten başarıyla yazıldı) ama hakediş
+    // hiç yazılmamış olabilir — bu durumu kullanıcıya SESSİZCE yutmak yerine
+    // açıkça bildiriyoruz, aksi halde admin "kapatıldı" görüp hakedişin hiç
+    // oluşmadığını fark etmeyebilirdi.
+    if (hesapHatasi && hesapHatasi.message !== "zaten_islendi") {
+      console.error("Dönem hakedişi işlenemedi:", hesapHatasi);
+      return {
+        success: true,
+        message: "Dönem kapatıldı ama hakediş satırı işlenemedi — Cari Hesap'tan manuel eklemeniz gerekebilir.",
+      };
+    }
+  } else {
+    revalidatePath("/panel/personel/puantaj-cetveli");
+    revalidatePath(`/panel/personel/${personelId}`);
+  }
+
   return { success: true, message: "Dönem kapatıldı." };
 }
 
@@ -187,7 +258,7 @@ export async function donemYenidenAc(personelId: string, yil: number, ay: number
     return { success: false, message: "Dönem yeniden açılamadı, lütfen tekrar deneyin." };
   }
 
-  revalidatePath(`/panel/personel/${personelId}/calisma-cizelgesi`);
+  revalidatePath("/panel/personel/puantaj-cetveli");
   revalidatePath(`/panel/personel/${personelId}`);
   return { success: true, message: "Dönem yeniden açıldı." };
 }

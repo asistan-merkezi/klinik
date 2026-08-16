@@ -11,19 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { HakedisTuru } from "@/types/personel";
-import { hakedisEkle } from "./actions";
+import { MANUEL_HESAP_HAREKET_SECENEKLERI } from "@/types/hesap-hareket";
+import { hesapHareketiEkle } from "./actions";
 
-const TUR_SECENEKLERI: { value: HakedisTuru; label: string }[] = [
-  { value: "yol", label: "Yol" },
-  { value: "yemek", label: "Yemek" },
-  { value: "mesai", label: "Fazla Mesai" },
-  { value: "avans", label: "Avans" },
-  { value: "diger", label: "Diğer" },
-];
-
-export function HakedisFormu({ personelId }: { personelId: string }) {
-  const eklemeAction = hakedisEkle.bind(null, personelId);
+export function HesapHareketFormu({ personelId }: { personelId: string }) {
+  const eklemeAction = hesapHareketiEkle.bind(null, personelId);
   const [durum, formAction, isPending] = useActionState(eklemeAction, null);
 
   return (
@@ -31,12 +23,12 @@ export function HakedisFormu({ personelId }: { personelId: string }) {
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1">
           <Label htmlFor="tur">Tür</Label>
-          <Select name="tur" required disabled={isPending} defaultValue="yol" items={TUR_SECENEKLERI}>
+          <Select name="tur" required disabled={isPending} defaultValue="prim" items={MANUEL_HESAP_HAREKET_SECENEKLERI}>
             <SelectTrigger id="tur" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {TUR_SECENEKLERI.map((s) => (
+              {MANUEL_HESAP_HAREKET_SECENEKLERI.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
                   {s.label}
                 </SelectItem>
@@ -75,7 +67,7 @@ export function HakedisFormu({ personelId }: { personelId: string }) {
       )}
 
       <Button type="submit" size="sm" disabled={isPending} className="w-fit">
-        {isPending ? "Ekleniyor..." : "Ödeme ekle"}
+        {isPending ? "Ekleniyor..." : "Hareket ekle"}
       </Button>
     </form>
   );

@@ -8,7 +8,6 @@ import { ModuleCard } from "@/components/panel/module-card";
 import {
   CALISMA_TIPI_SECENEKLERI,
   ROL_SECENEKLERI,
-  type HakedisSatir,
   type MaasGecmisiSatir,
   type PersonelAcilKisi,
   type PersonelDetay,
@@ -16,11 +15,12 @@ import {
   type PersonelMeslekiBelge,
   type TerapistAyarlari,
 } from "@/types/personel";
+import { HESAP_HAREKET_TUR_ETIKETLERI, HESAP_HAREKET_YONU, type HesapBakiye, type HesapHareket } from "@/types/hesap-hareket";
 import { ayAraligi, gunAraligi, haftaAraligi, telefonGoster } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
 import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
 import { MaasFormu } from "./maas-formu";
-import { HakedisFormu } from "./hakedis-formu";
+import { HesapHareketFormu } from "./hesap-hareket-formu";
 import { DuzenlePersonelDialog } from "./duzenle-personel-dialog";
 import { PuantajPinFormu } from "./puantaj-pin-formu";
 
@@ -60,7 +60,8 @@ export default async function PersonelDetaySayfasi({
     kullaniciSonucu,
     personelSonucu,
     terapistSonucu,
-    hakedisSonucu,
+    hareketSonucu,
+    bakiyeSonucu,
     donemSonucu,
     puantajAySonucu,
     bugunSonucu,
@@ -69,7 +70,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, maas, aktif, kullanici_id, tc_kimlik_no, uzmanlik_tescil_no, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, ise_baslama_notu, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
+        "id, ad_soyad, gorev, maas, aktif, kullanici_id, uzmanlik_tescil_no, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, ise_baslama_notu, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),
@@ -79,13 +80,14 @@ export default async function PersonelDetaySayfasi({
       .eq("personel_id", id)
       .maybeSingle<TerapistAyarlari>(),
     supabase
-      .from("personel_ekstra_hakedis")
-      .select("id, tur, tutar, tarih, aciklama")
+      .from("personel_hesap_hareket")
+      .select("id, personel_id, tur, tutar, tarih, aciklama, kaynak_id, created_at")
       .eq("personel_id", id)
       .gte("tarih", ay.baslangicTarih)
       .lt("tarih", ay.bitisTarih)
       .order("tarih", { ascending: false })
-      .returns<HakedisSatir[]>(),
+      .returns<HesapHareket[]>(),
+    supabase.from("v_personel_hesap_bakiye").select("*").eq("personel_id", id).maybeSingle<HesapBakiye>(),
     supabase
       .from("personel_puantaj_donem")
       .select("durum, snapshot_net_saat, snapshot_onayli_fm_saat")
@@ -116,8 +118,13 @@ export default async function PersonelDetaySayfasi({
 
   const yonetici = kullanici?.rol === "klinik_admin";
   const kendisi = personel.kullanici_id === user.id;
+  // muhasebe: kişisel bilgi/düzenleme yetkisi YOK (aşağıdaki tüm {yonetici && ...}
+  // blokları hâlâ klinik_admin'e özel) — sadece sayfaya erişip Cari Hesap'ı
+  // görebilmeli, çünkü personel_hesap_hareket RLS'i ve Hesap sekmesi hub'daki
+  // per-personel linkler zaten muhasebe'ye açık; bu gate onları engellemesin.
+  const muhasebeErisimi = kullanici?.rol === "muhasebe";
 
-  if (!yonetici && !kendisi) {
+  if (!yonetici && !kendisi && !muhasebeErisimi) {
     notFound();
   }
 
@@ -190,8 +197,14 @@ export default async function PersonelDetaySayfasi({
   const haftaSayisi = haftaSonucu.count ?? 0;
   const aySayisi = aySonucu.count ?? 0;
 
-  const hakedisler = hakedisSonucu.data ?? [];
-  const hakedisToplami = hakedisler.reduce((acc, h) => acc + h.tutar, 0);
+  const hareketler = hareketSonucu.data ?? [];
+  const bakiye = bakiyeSonucu.data ?? null;
+  // Bu ayki "ekstra" (taban dışı) pozitif hareketler — hakedis (taban, ayrı
+  // satırda gösteriliyor) ve avans/kesinti/odeme (bakiyeyi AZALTAN, "maliyet"
+  // değil) hariç.
+  const ekstraToplami = hareketler
+    .filter((h) => HESAP_HAREKET_YONU[h.tur] === 1 && h.tur !== "hakedis")
+    .reduce((acc, h) => acc + h.tutar, 0);
 
   const hesap: ReturnType<typeof maasHesapla> | null = terapist
     ? maasHesapla(
@@ -203,17 +216,9 @@ export default async function PersonelDetaySayfasi({
           baraj_bonus_tutari: terapist.baraj_bonus_tutari,
         },
         aySayisi,
-        hakedisToplami
+        ekstraToplami
       )
     : null;
-
-  const TUR_ETIKET: Record<HakedisSatir["tur"], string> = {
-    yol: "Yol",
-    yemek: "Yemek",
-    mesai: "Fazla Mesai",
-    avans: "Avans",
-    diger: "Diğer",
-  };
 
   const rolEtiketi = personel.kullanici?.rol
     ? ROL_SECENEKLERI.find((r) => r.value === personel.kullanici?.rol)?.label ?? personel.kullanici.rol
@@ -250,24 +255,60 @@ export default async function PersonelDetaySayfasi({
   const odemelerKarti = (
     <Card>
       <CardHeader>
-        <CardTitle>Ödemeler — {ay.etiket}</CardTitle>
+        <CardTitle>Cari Hesap</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {yonetici && <HakedisFormu personelId={id} />}
-        {hakedisler.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Bu ay için ödeme kaydı yok.</p>
+        {bakiye && (
+          <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-muted/30 p-3">
+            <span className="text-xs text-muted-foreground">Bakiye (alacak)</span>
+            <span className={`text-xl font-semibold ${bakiye.bakiye < 0 ? "text-rose-600 dark:text-rose-400" : ""}`}>
+              {bakiye.bakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Toplam hakediş: {bakiye.toplam_hakedis.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+              {" · "}
+              Ödenen/kesinti: {bakiye.toplam_odenen.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+            </span>
+          </div>
+        )}
+
+        {yonetici && <HesapHareketFormu personelId={id} />}
+
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-muted-foreground">Hareketler — {ay.etiket}</h3>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/panel/personel/${id}?tab=odemeler&ay=${ay.oncekiParam}`}>‹</Link>}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/panel/personel/${id}?tab=odemeler&ay=${ay.sonrakiParam}`}>›</Link>}
+            />
+          </div>
+        </div>
+
+        {hareketler.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Bu ay için hareket yok.</p>
         ) : (
           <ul className="flex flex-col divide-y divide-border">
-            {hakedisler.map((h) => (
+            {hareketler.map((h) => (
               <li key={h.id} className="flex items-center justify-between py-2 text-sm">
                 <div className="flex flex-col">
-                  <span className="font-medium">{TUR_ETIKET[h.tur]}</span>
+                  <span className="font-medium">{HESAP_HAREKET_TUR_ETIKETLERI[h.tur]}</span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(h.tarih).toLocaleDateString("tr-TR")}
                     {h.aciklama && ` · ${h.aciklama}`}
                   </span>
                 </div>
-                <span>{h.tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</span>
+                <span className={HESAP_HAREKET_YONU[h.tur] === -1 ? "text-rose-600 dark:text-rose-400" : ""}>
+                  {HESAP_HAREKET_YONU[h.tur] === -1 ? "−" : "+"}
+                  {h.tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
+                </span>
               </li>
             ))}
           </ul>
@@ -280,7 +321,7 @@ export default async function PersonelDetaySayfasi({
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <div className="flex items-start justify-between gap-4">
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel/liste">‹ Personele dön</Link>} />
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel">‹ Personele dön</Link>} />
         </div>
 
         <Card>
@@ -329,7 +370,7 @@ export default async function PersonelDetaySayfasi({
             label="Çalışma Çizelgesi"
             subtitle={cizelgeSubtitle}
             dot={cizelgeDot}
-            href={`/panel/personel/${id}/calisma-cizelgesi`}
+            href="/panel/personel/puantaj-cetveli"
           />
         </div>
 
@@ -362,10 +403,6 @@ export default async function PersonelDetaySayfasi({
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">Telefon</dt>
                   <dd>{telefonGoster(personel.kullanici?.telefon) || "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">T.C. Kimlik No</dt>
-                  <dd>{personel.tc_kimlik_no ?? "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">Uzmanlık / Tescil No</dt>

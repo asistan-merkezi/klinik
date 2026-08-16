@@ -22,8 +22,8 @@ const maasAyarSemasi = z.object({
   baraj_bonus_tutari: z.coerce.number().min(0, "Bonus tutarı 0'dan küçük olamaz.").nullable(),
 });
 
-const hakedisSemasi = z.object({
-  tur: z.enum(["yol", "yemek", "mesai", "avans", "diger"]),
+const hesapHareketSemasi = z.object({
+  tur: z.enum(["prim", "yol", "yemek", "mesai", "avans", "kesinti", "odeme"]),
   tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
@@ -116,7 +116,7 @@ export async function maasAyarlariGuncelle(
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { error: gecmisHata } = await supabase.from("personel_maas_gecmisi").insert({
+    const { error: gecmisHata } = await supabase.from("personel_ucret").insert({
       klinik_id: klinikId,
       personel_id: personelId,
       maas,
@@ -133,7 +133,12 @@ export async function maasAyarlariGuncelle(
   return { success: true, message: "Maaş ayarları güncellendi." };
 }
 
-export async function hakedisEkle(
+/**
+ * Cari hesap defterine manuel hareket — 'hakedis' HARİÇ (o sadece dönem
+ * kapanışında otomatik yazılır, bkz. personel_hesap_hareket_ekle RPC'sinin
+ * kendi reddi — burada da aynı kural zod enum'unda tekrarlanıyor, çift katman).
+ */
+export async function hesapHareketiEkle(
   personelId: string,
   _onceki: SonucDurumu,
   formData: FormData
@@ -146,7 +151,7 @@ export async function hakedisEkle(
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
-  const ayristirma = hakedisSemasi.safeParse({
+  const ayristirma = hesapHareketSemasi.safeParse({
     tur: formData.get("tur"),
     tutar: formData.get("tutar"),
     tarih: formData.get("tarih"),
@@ -159,27 +164,21 @@ export async function hakedisEkle(
 
   const { tur, tutar, tarih, aciklama } = ayristirma.data;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { error } = await supabase.from("personel_ekstra_hakedis").insert({
-    klinik_id: klinikId,
-    personel_id: personelId,
-    tur,
-    tutar,
-    tarih,
-    aciklama: aciklama ? aciklama : null,
-    ekleyen_kullanici_id: user?.id ?? null,
+  const { error } = await supabase.rpc("personel_hesap_hareket_ekle", {
+    p_personel_id: personelId,
+    p_tur: tur,
+    p_tutar: tutar,
+    p_tarih: tarih,
+    p_aciklama: aciklama ? aciklama : null,
   });
 
   if (error) {
-    console.error("Ödeme eklenemedi:", error);
-    return { success: false, message: "Ödeme eklenemedi, lütfen tekrar deneyin." };
+    console.error("Hesap hareketi eklenemedi:", error);
+    return { success: false, message: "Hareket eklenemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath(`/panel/personel/${personelId}`);
-  return { success: true, message: "Ödeme eklendi." };
+  return { success: true, message: "Hareket eklendi." };
 }
 
 /**

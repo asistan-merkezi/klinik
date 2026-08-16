@@ -1,6 +1,6 @@
 export type PuantajDurum = "calisti" | "izinli" | "raporlu" | "gelmedi" | "resmi_tatil";
 export type FmOnayDurumu = "bekliyor" | "onaylandi" | "reddedildi";
-export type PuantajKaynak = "manuel" | "tablet";
+export type PuantajKaynak = "manuel" | "tablet" | "self_qr" | "izin_talebi";
 export type DonemDurum = "acik" | "kapali";
 
 export const PUANTAJ_DURUM_SECENEKLERI: { value: PuantajDurum; label: string }[] = [
