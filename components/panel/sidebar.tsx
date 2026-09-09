@@ -33,6 +33,21 @@ const ANA_OGELER = [
   { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
 ];
 
+// Bazı MENU_GRUPLARI grupları için NEREDEYSE TÜM alt sayfalar terapist'e
+// sunucu tarafında redirect atıyor (bkz. app/(app)/panel/muhasebe/**/page.tsx:
+// kamusal-giderler/raporlar/satin-alma-faturalari klinik_admin|muhasebe|
+// super_admin'e, gelirler-takibi/cari-alacaklar|faturalar bunlara+resepsiyon'a
+// kilitli — sadece giderler [placeholder] ve kategori-iskonto-oranlari
+// [salt-okunur mesaj, veri göstermiyor] terapist'e açık) — linki göstermek
+// sadece "tıkla, /panel'e geri at" deneyimi üretiyor, veri sızdırmıyor.
+// MERKEZİ bir yetki kaynağı YOK (her sayfa kendi rol kontrolünü kendi içinde
+// tekrar ediyor) — bu liste elle tarandı, sayfa taraflı kontroller değişirse
+// senkron kalmayabilir. Tedaviler/Ayarlar/Destek grupları TARANDI ve terapist
+// için gerçek bir kilit bulunamadı (Ayarlar'ın 3 alt sayfası — arsiv-ice-aktarma/
+// mesajlasma/qr-kodlar — non-admin'i /panel/ayarlar'a geri atıyor ama bu hub'ın
+// KENDİSİNİ değil, hub-içi bir kartı etkiliyor; kapsam dışı, buraya dahil edilmedi).
+const TERAPISTE_GORUNMEYEN_GRUPLAR = new Set(["muhasebe"]);
+
 const BOTTOM_NAV_OGELERI = [
   { href: "/panel", label: "Panel", icon: Home, tamEslesme: true },
   { href: "/panel/randevular", label: "Randevu", icon: CalendarDays },
@@ -166,7 +181,9 @@ function SidebarGovde({
           />
         ))}
 
-        {MENU_GRUPLARI.map((grup) => {
+        {MENU_GRUPLARI.filter(
+          (grup) => !(kullaniciRolu === "terapist" && TERAPISTE_GORUNMEYEN_GRUPLAR.has(grup.key))
+        ).map((grup) => {
           const grupHref = `/panel/${grup.key}`;
           const grupAktif =
             girdiAktifMi(pathname, grupHref) || grup.ogeler.some((o) => girdiAktifMi(pathname, o.href));
