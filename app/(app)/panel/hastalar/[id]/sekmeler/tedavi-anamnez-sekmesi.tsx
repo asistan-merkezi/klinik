@@ -81,7 +81,7 @@ export function TedaviAnamnezSekmesi({
               <CardHeader className="shrink-0">
                 <CardTitle>2D Vücut Haritası</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-1 items-center justify-center lg:overflow-y-auto">
+              <CardContent className="flex flex-1 items-start justify-center lg:overflow-y-auto">
                 <VucutHaritasi
                   hastaId={hasta.id}
                   seansId={seciliSeansId}
