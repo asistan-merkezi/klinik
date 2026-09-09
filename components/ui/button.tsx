@@ -18,12 +18,14 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground hover:bg-primary-hover hover:shadow-[0_2px_8px_rgba(30,64,175,0.25)] dark:hover:shadow-[0_2px_8px_rgba(37,99,235,0.35)]",
         // docs/DESIGN.md §1 Secondary/Ghost: hover zemin --background (#F8FAFC),
-        // hover border --input (#CBD5E1), etiket metni slate-700 (DESIGN'ın
-        // literal #334155'i — mevcut semantic token'lardan hiçbiri bu tonu
-        // karşılamıyor, yeni bir token açmak yerine stok Tailwind rengi
-        // kullanıldı, status-badge.tsx'teki emerald/amber/rose/sky ile aynı emsal).
+        // hover border --input (#CBD5E1), etiket metni DESIGN'ın literal
+        // #334155'i. WCAG/hardcoded-renk düzeltmesi (Faz 4): stok text-slate-700
+        // yerine text-secondary-foreground kullanılıyor — açık temada
+        // --secondary-foreground BİREBİR #334155 (rastlantı değil, aynı "ikincil
+        // metin" rolü), koyu temada #f8fafc (eski slate-300'den daha parlak ama
+        // kontrastı daha da iyileştiriyor, hiçbir yerde WCAG'ı bozmuyor).
         outline:
-          "border-border bg-surface-2 text-slate-700 hover:border-input hover:bg-background hover:text-foreground aria-expanded:border-input aria-expanded:bg-background aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:text-slate-300 dark:hover:bg-input/50 dark:hover:text-foreground",
+          "border-border bg-surface-2 text-secondary-foreground hover:border-input hover:bg-background hover:text-foreground aria-expanded:border-input aria-expanded:bg-background aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 dark:hover:text-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         // docs/DESIGN.md "Procedural / Clinical (Seansı Başlat)" — pozitif/prosedürel

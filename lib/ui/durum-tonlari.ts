@@ -40,12 +40,27 @@ export const DURUM_TONU_SINIFLARI: Record<StatusTone, string> = {
    * kullanıyor, tutarlılık tercih edildi).
    */
   indigo:
-    "bg-indigo-50 text-indigo-800 border border-indigo-200 dark:border-transparent dark:bg-indigo-500/10 dark:text-indigo-400",
+    "bg-indigo-50 text-indigo-800 border border-indigo-200 dark:border-transparent dark:bg-indigo-500/10 dark:text-indigo-300",
   /** DESIGN'da karşılığı yok — mevcut kullanım (örn. "ertelendi") aynı aile desenine taşındı. */
   sky: "bg-sky-50 text-sky-800 border border-sky-200 dark:border-transparent dark:bg-sky-500/10 dark:text-sky-400",
-  /** Nötr — zaten tema-duyarlı semantic token'lar. */
-  slate: "bg-muted text-muted-foreground",
-  primary: "bg-primary/10 text-primary",
+  /**
+   * Nötr. WCAG düzeltmesi (Faz 4): açık temada --muted-foreground (#64748B)
+   * bg-muted (#F1F5F9) üzerinde 4.34:1 — 4.5:1'i geçmiyordu. --muted-foreground
+   * PROJE GENELİNDE paylaşılan bir token olduğu için değiştirilmedi (kapsam
+   * dışına taşardı); sadece bu rozete özel, bir ton koyu bir Tailwind rengi
+   * (slate-600, 6.92:1) kullanıldı. Koyu tema zaten geçiyordu (6.96:1),
+   * dark: override'ı mevcut --muted-foreground'u aynen koruyor.
+   */
+  slate: "bg-muted text-slate-600 dark:text-muted-foreground",
+  /**
+   * WCAG düzeltmesi (Faz 4): koyu temada --primary (#2563EB) bg-primary/10
+   * üzerinde 2.58:1 — açık uçurumla geçmiyordu. Kullanıcı kararı: zemin değil
+   * metin tonu açıldı (--primary token'ına dokunulmadı, o dolu buton/aktif-nav
+   * zemini için ayrıca kalibre edilmişti). blue-400 (#60A5FA) her iki olası
+   * arka plana (card/background) karşı da rahatça geçiyor (5.25/7.09).
+   * Açık temada text-primary (7.40:1) zaten geçiyordu, değişmedi.
+   */
+  primary: "bg-primary/10 text-primary dark:text-blue-400",
 };
 
 /** pulse=true iken "Seans Başladı" nabız noktası — DESIGN'ın literal teal-500 (#14B8A6). */

@@ -246,7 +246,12 @@
   --muted-foreground: #94a3b8;
   --accent: #24344a;
   --accent-foreground: #f8fafc;
-  --destructive: #f43f5e;
+  /* WCAG düzeltmesi (Faz 4): rose-500 (#f43f5e) + beyaz metin solid destructive
+     butonlarda (durum-butonlari.tsx "Gelmedi"/"İptal", bildirim rozetleri) sadece
+     3.67:1 veriyordu — primary'nin 500→600 düzeltmesiyle AYNI yöntem: hue
+     korunarak bir Tailwind tier koyulaştırıldı (rose-600, 4.70:1). Işık temanın
+     --destructive'i zaten #E11D48 (rose-600) idi, artık ikisi eşit. */
+  --destructive: #E11D48;
   --destructive-foreground: #FFFFFF;
   --destructive-soft: rgba(244, 63, 94, 0.12);
   --destructive-border: rgba(244, 63, 94, 0.4);
