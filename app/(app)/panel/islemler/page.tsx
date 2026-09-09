@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { Stethoscope } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemTanimiSatir } from "@/types/islem-tanimi";
 import { YeniTedaviDialog } from "./yeni-tedavi-dialog";
@@ -42,19 +45,12 @@ export default async function IslemlerSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Tedavi Tanımları</h1>
-            <p className="text-sm text-muted-foreground">
-              Fiyat kataloğunu görüntüle ve yönet.
-            </p>
-          </div>
-          {duzenlenebilir && (
-            <div className="shrink-0">
-              <YeniTedaviDialog cihazlar={cihazlar} />
-            </div>
-          )}
-        </header>
+        <PageHeader
+          title="Tedavi Tanımları"
+          description="Fiyat kataloğunu görüntüle ve yönet."
+          icon={Stethoscope}
+          actions={duzenlenebilir && <YeniTedaviDialog cihazlar={cihazlar} />}
+        />
 
         <Card className="bg-surface-2">
           <CardHeader>
@@ -65,7 +61,7 @@ export default async function IslemlerSayfasi() {
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             )}
             {!islemSonucu.error && islemler.length === 0 && (
-              <p className="text-sm text-muted-foreground">Henüz tedavi tanımı yok.</p>
+              <EmptyState icon={Stethoscope} title="Henüz tedavi tanımı yok." compact />
             )}
             {!islemSonucu.error && islemler.length > 0 && (
               <TedaviListesi islemler={islemler} cihazlar={cihazlar} duzenlenebilir={duzenlenebilir} />

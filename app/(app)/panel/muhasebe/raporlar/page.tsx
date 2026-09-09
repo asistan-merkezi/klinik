@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { raporAyDonemi, raporYilDonemi } from "@/lib/raporlar/donem";
 import {
@@ -81,15 +83,16 @@ export default async function RaporlarSayfasi({
       <style>{`@media print { aside { display: none !important; } @page { margin: 12mm; } }`}</style>
       <div className="mx-auto flex max-w-4xl flex-col gap-6 print:max-w-none">
         <header className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold">Raporlar</h1>
-              <p className="text-sm text-muted-foreground">Gelir &amp; gider analizi.</p>
-            </div>
-            <div className="print:hidden">
-              <YazdirButonu />
-            </div>
-          </div>
+          <PageHeader
+            title="Raporlar"
+            description="Gelir & gider analizi."
+            icon={BarChart3}
+            actions={
+              <div className="print:hidden">
+                <YazdirButonu />
+              </div>
+            }
+          />
 
           <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
             <div className="inline-flex rounded-xl bg-muted/60 p-1 text-sm">

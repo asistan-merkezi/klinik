@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { Percent } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import type { IskontoOranlari } from "@/types/iskonto-oranlari";
 import { IskontoOranlariFormu } from "./iskonto-oranlari-formu";
 
@@ -32,14 +34,11 @@ export default async function IskontoOranlariSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Kategori / İskonto Oranları</h1>
-          <p className="text-sm text-muted-foreground">
-            Hasta kategorisine (Vita/Plus/Elit/Prime) göre tedavi fiyatına otomatik uygulanacak
-            iskonto yüzdeleri — bir tedavide o kademe için özel fiyat girilmemişse burada
-            tanımlanan oran Vita fiyatına uygulanır.
-          </p>
-        </header>
+        <PageHeader
+          title="Kategori / İskonto Oranları"
+          description="Hasta kategorisine (Vita/Plus/Elit/Prime) göre tedavi fiyatına otomatik uygulanacak iskonto yüzdeleri — bir tedavide o kademe için özel fiyat girilmemişse burada tanımlanan oran Vita fiyatına uygulanır."
+          icon={Percent}
+        />
 
         <Card className="bg-surface-2">
           <CardHeader>

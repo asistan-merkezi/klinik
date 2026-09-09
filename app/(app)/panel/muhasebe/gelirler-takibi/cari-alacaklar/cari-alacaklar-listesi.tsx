@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 
 type CariOzetSatiri = {
   hasta_id: string;
@@ -40,55 +41,53 @@ export function CariAlacaklarListesi({ satirlar }: { satirlar: CariOzetSatiri[] 
       {filtrelenmis.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aramayla eşleşen hasta bulunamadı.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                <th className="px-3 py-2 text-left font-medium">Hasta</th>
-                <th className="px-3 py-2 text-right font-medium">Toplam Bakiye</th>
-                <th className="px-3 py-2 text-right font-medium">Tahsil Edilen</th>
-                <th className="px-3 py-2 text-right font-medium">Kalan Bakiye</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrelenmis.map((s) => {
-                const href = `/panel/hastalar/${s.hasta_id}/cari`;
-                return (
-                  <tr key={s.hasta_id} className="border-b border-border last:border-b-0 hover:bg-muted/30">
-                    <td className="p-0">
-                      <Link href={href} className="block px-3 py-2 font-medium">
-                        {s.ad_soyad}
-                      </Link>
-                    </td>
-                    <td className="p-0">
-                      <Link href={href} className="block px-3 py-2 text-right tabular-nums">
-                        {paraFormat(s.toplam_bakiye)}
-                      </Link>
-                    </td>
-                    <td className="p-0">
-                      <Link
-                        href={href}
-                        className="block px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400"
-                      >
-                        {paraFormat(s.tahsil_edilen)}
-                      </Link>
-                    </td>
-                    <td className="p-0">
-                      <Link
-                        href={href}
-                        className={`block px-3 py-2 text-right tabular-nums font-semibold ${
-                          s.kalan_bakiye > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
-                        }`}
-                      >
-                        {paraFormat(s.kalan_bakiye)}
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Table className="min-w-[640px]">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Hasta</TableHead>
+              <TableHead className="text-right">Toplam Bakiye</TableHead>
+              <TableHead className="text-right">Tahsil Edilen</TableHead>
+              <TableHead className="text-right">Kalan Bakiye</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtrelenmis.map((s) => {
+              const href = `/panel/hastalar/${s.hasta_id}/cari`;
+              return (
+                <TableRow key={s.hasta_id}>
+                  <TableCell className="p-0">
+                    <Link href={href} className="block px-4 py-3.5 font-medium">
+                      {s.ad_soyad}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <Link href={href} className="block px-4 py-3.5 text-right tabular-nums">
+                      {paraFormat(s.toplam_bakiye)}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <Link
+                      href={href}
+                      className="block px-4 py-3.5 text-right tabular-nums text-emerald-600 dark:text-emerald-400"
+                    >
+                      {paraFormat(s.tahsil_edilen)}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <Link
+                      href={href}
+                      className={`block px-4 py-3.5 text-right tabular-nums font-semibold ${
+                        s.kalan_bakiye > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
+                      }`}
+                    >
+                      {paraFormat(s.kalan_bakiye)}
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

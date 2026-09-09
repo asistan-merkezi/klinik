@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { HandCoins } from "lucide-react";
 import { CariAlacaklarListesi } from "./cari-alacaklar-listesi";
 
@@ -47,13 +48,11 @@ export default async function CariAlacaklarTakibiSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Cari Alacaklar Takibi</h1>
-          <p className="text-sm text-muted-foreground">
-            Paketsiz check-in ile borçlandırılan hastaların toplam bakiye, tahsil edilen ve kalan bakiye
-            durumu. Bir satıra tıklayınca hastanın Cari & Ödeme sayfası açılır.
-          </p>
-        </header>
+        <PageHeader
+          title="Cari Alacaklar Takibi"
+          description="Paketsiz check-in ile borçlandırılan hastaların toplam bakiye, tahsil edilen ve kalan bakiye durumu. Bir satıra tıklayınca hastanın Cari & Ödeme sayfası açılır."
+          icon={HandCoins}
+        />
 
         {satirlar.length === 0 ? (
           <EmptyState icon={HandCoins} title="Henüz cari borç kaydı yok." />

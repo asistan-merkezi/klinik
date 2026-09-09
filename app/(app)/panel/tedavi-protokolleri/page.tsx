@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { ListOrdered } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { SecenekSatir } from "@/types/randevu";
 import type { TedaviProtokoluSatir } from "@/types/tedavi-protokolu";
 import { YeniProtokolDialog } from "./yeni-protokol-dialog";
@@ -43,19 +46,12 @@ export default async function TedaviProtokolleriSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Tedavi Protokolleri</h1>
-            <p className="text-sm text-muted-foreground">
-              Sıralı tedavi adımlarından oluşan protokol şablonlarını görüntüle ve yönet.
-            </p>
-          </div>
-          {duzenlenebilir && (
-            <div className="shrink-0">
-              <YeniProtokolDialog tedaviler={tedaviler} />
-            </div>
-          )}
-        </header>
+        <PageHeader
+          title="Tedavi Protokolleri"
+          description="Sıralı tedavi adımlarından oluşan protokol şablonlarını görüntüle ve yönet."
+          icon={ListOrdered}
+          actions={duzenlenebilir && <YeniProtokolDialog tedaviler={tedaviler} />}
+        />
 
         <Card className="bg-surface-2">
           <CardHeader>
@@ -66,7 +62,7 @@ export default async function TedaviProtokolleriSayfasi() {
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             )}
             {!protokolSonucu.error && protokoller.length === 0 && (
-              <p className="text-sm text-muted-foreground">Henüz tedavi protokolü yok.</p>
+              <EmptyState icon={ListOrdered} title="Henüz tedavi protokolü yok." compact />
             )}
             {!protokolSonucu.error && protokoller.length > 0 && (
               <ul className="flex flex-col divide-y divide-border">

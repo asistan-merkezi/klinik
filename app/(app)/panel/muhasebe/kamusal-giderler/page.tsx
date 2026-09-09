@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Landmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ayAraligi } from "@/lib/utils";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { kamusalOdemeDurumHesapla, type KamusalOdemeSatir } from "@/types/kamusal-odeme";
@@ -121,17 +124,16 @@ export default async function KamusalGiderlerSayfasi({
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold">Kamusal Giderler</h1>
-            <p className="text-sm text-muted-foreground">
-              Vergi, SGK ve diğer resmi kesinti/ödeme takibi.
-            </p>
-          </div>
-          {yonetici && (
-            <YeniOdemeButonu varsayilanDonemAy={donemAy} varsayilanDonemYil={donemYil} araclar={araclar} />
-          )}
-        </header>
+        <PageHeader
+          title="Kamusal Giderler"
+          description="Vergi, SGK ve diğer resmi kesinti/ödeme takibi."
+          icon={Landmark}
+          actions={
+            yonetici && (
+              <YeniOdemeButonu varsayilanDonemAy={donemAy} varsayilanDonemYil={donemYil} araclar={araclar} />
+            )
+          }
+        />
 
         <OzetKarti baslik={`${donemYil} Yılı`} odenen={yilOdenen} bekleyen={yilBekleyen} />
 
@@ -156,7 +158,7 @@ export default async function KamusalGiderlerSayfasi({
         <OzetKarti baslik={ay.etiket} odenen={ayOdenen} bekleyen={ayBekleyen} />
 
         {ayKayitlari.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Bu ay için kayıtlı kamusal ödeme yok.</p>
+          <EmptyState icon={Landmark} title="Bu ay için kayıtlı kamusal ödeme yok." compact />
         ) : (
           <OdemeTablosu satirlar={ayKayitlari} yonetici={yonetici} araclar={araclar} />
         )}

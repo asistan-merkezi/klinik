@@ -5,6 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import type { KlinikArac } from "@/types/klinik";
 import {
   ODEME_TIPI_ETIKET,
@@ -49,36 +50,36 @@ export function OdemeTablosu({
   const aracMap = new Map(araclar.map((a) => [a.id, a]));
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full min-w-[800px] text-sm">
-        <thead>
-          <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-            <th className="px-3 py-2 text-left font-medium">Ödeme Tipi</th>
-            <th className="px-3 py-2 text-left font-medium">Araç</th>
-            <th className="px-3 py-2 text-left font-medium">Dönem</th>
-            <th className="px-3 py-2 text-right font-medium">Tutar</th>
-            <th className="px-3 py-2 text-left font-medium">Vade</th>
-            <th className="px-3 py-2 text-left font-medium">Ödeme Tarihi</th>
-            <th className="px-3 py-2 text-left font-medium">Durum</th>
-            {yonetici && <th className="px-3 py-2" />}
-          </tr>
-        </thead>
-        <tbody>
+    <>
+      <Table className="min-w-[800px]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Ödeme Tipi</TableHead>
+            <TableHead>Araç</TableHead>
+            <TableHead>Dönem</TableHead>
+            <TableHead className="text-right">Tutar</TableHead>
+            <TableHead>Vade</TableHead>
+            <TableHead>Ödeme Tarihi</TableHead>
+            <TableHead>Durum</TableHead>
+            {yonetici && <TableHead />}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {satirlar.map((satir) => (
-            <tr key={satir.id} className="border-b border-border last:border-b-0">
-              <td className="px-3 py-2 font-medium">{ODEME_TIPI_ETIKET[satir.odeme_tipi]}</td>
-              <td className="px-3 py-2 text-muted-foreground">
+            <TableRow key={satir.id}>
+              <TableCell className="font-medium">{ODEME_TIPI_ETIKET[satir.odeme_tipi]}</TableCell>
+              <TableCell className="text-muted-foreground">
                 {satir.arac_id ? aracMap.get(satir.arac_id)?.plaka ?? "—" : "—"}
-              </td>
-              <td className="px-3 py-2 text-muted-foreground">{donemFormat(satir.donem_ay, satir.donem_yil)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{paraFormat(satir.tutar)}</td>
-              <td className="px-3 py-2 text-muted-foreground">{tarihFormat(satir.vade_tarihi)}</td>
-              <td className="px-3 py-2 text-muted-foreground">{tarihFormat(satir.odeme_tarihi)}</td>
-              <td className="px-3 py-2">
+              </TableCell>
+              <TableCell className="text-muted-foreground">{donemFormat(satir.donem_ay, satir.donem_yil)}</TableCell>
+              <TableCell className="text-right tabular-nums">{paraFormat(satir.tutar)}</TableCell>
+              <TableCell className="text-muted-foreground">{tarihFormat(satir.vade_tarihi)}</TableCell>
+              <TableCell className="text-muted-foreground">{tarihFormat(satir.odeme_tarihi)}</TableCell>
+              <TableCell>
                 <StatusBadge tone={DURUM_TON[satir.durum]}>{DURUM_ETIKET[satir.durum]}</StatusBadge>
-              </td>
+              </TableCell>
               {yonetici && (
-                <td className="px-3 py-2">
+                <TableCell>
                   {silinecekId === satir.id ? (
                     <div className="flex items-center justify-end gap-1.5 text-xs">
                       <span className="text-muted-foreground">Silinsin mi?</span>
@@ -128,12 +129,12 @@ export function OdemeTablosu({
                       </Button>
                     </div>
                   )}
-                </td>
+                </TableCell>
               )}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
       <Dialog open={duzenlenenSatir != null} onOpenChange={(acik) => !acik && setDuzenlenenId(null)}>
         <DialogContent>
@@ -152,6 +153,6 @@ export function OdemeTablosu({
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

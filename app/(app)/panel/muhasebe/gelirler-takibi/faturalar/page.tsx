@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Receipt } from "lucide-react";
 import type { FaturaDurumu } from "@/types/odeme";
 import { FaturaDurumHucresi } from "./fatura-satiri";
@@ -58,52 +60,49 @@ export default async function FaturalarSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Kesilen Faturalar</h1>
-          <p className="text-sm text-muted-foreground">
-            Faturalı işaretlenen ödemelerin ve borç kapatmaların toplu görünümü.
-          </p>
-        </header>
+        <PageHeader
+          title="Kesilen Faturalar"
+          description="Faturalı işaretlenen ödemelerin ve borç kapatmaların toplu görünümü."
+          icon={Receipt}
+        />
 
         {faturalar.length === 0 ? (
           <EmptyState icon={Receipt} title="Henüz fatura kaydı yok." />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[800px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                  <th className="px-3 py-2 text-left font-medium">Tarih</th>
-                  <th className="px-3 py-2 text-left font-medium">Hasta</th>
-                  <th className="px-3 py-2 text-left font-medium">Açıklama</th>
-                  <th className="px-3 py-2 text-right font-medium">Tutar</th>
-                  <th className="px-3 py-2 text-left font-medium">Durum</th>
-                </tr>
-              </thead>
-              <tbody>
-                {faturalar.map((f) => {
-                  const toplam = (f.odeme?.odeme_satiri ?? []).reduce((acc, s) => acc + s.tutar, 0);
-                  return (
-                    <tr key={f.id} className="border-b border-border last:border-b-0 align-top">
-                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                        {formatDateTime(f.created_at)}
-                      </td>
-                      <td className="px-3 py-2 font-medium">{f.odeme?.hasta?.ad_soyad ?? "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{f.odeme?.aciklama || "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium">{paraFormat(toplam)}</td>
-                      <td className="px-3 py-2">
-                        <FaturaDurumHucresi
-                          faturaId={f.id}
-                          durum={f.durum}
-                          hataMesaji={f.hata_mesaji}
-                          eArsivPdfUrl={f.e_arsiv_pdf_url}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Table className="min-w-[800px]">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Tarih</TableHead>
+                <TableHead>Hasta</TableHead>
+                <TableHead>Açıklama</TableHead>
+                <TableHead className="text-right">Tutar</TableHead>
+                <TableHead>Durum</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {faturalar.map((f) => {
+                const toplam = (f.odeme?.odeme_satiri ?? []).reduce((acc, s) => acc + s.tutar, 0);
+                return (
+                  <TableRow key={f.id} className="align-top">
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {formatDateTime(f.created_at)}
+                    </TableCell>
+                    <TableCell className="font-medium">{f.odeme?.hasta?.ad_soyad ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{f.odeme?.aciklama || "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{paraFormat(toplam)}</TableCell>
+                    <TableCell>
+                      <FaturaDurumHucresi
+                        faturaId={f.id}
+                        durum={f.durum}
+                        hataMesaji={f.hata_mesaji}
+                        eArsivPdfUrl={f.e_arsiv_pdf_url}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

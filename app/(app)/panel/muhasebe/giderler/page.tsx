@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function GiderlerSayfasi() {
   const supabase = await createClient();
@@ -16,12 +18,11 @@ export default async function GiderlerSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Giderler</h1>
-          <p className="text-sm text-muted-foreground">
-            Kira, sarf malzeme, fatura gibi genel işletme giderleri.
-          </p>
-        </header>
+        <PageHeader
+          title="Giderler"
+          description="Kira, sarf malzeme, fatura gibi genel işletme giderleri."
+          icon={Wallet}
+        />
 
         <Card>
           <CardHeader>
