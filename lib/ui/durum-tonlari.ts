@@ -44,14 +44,14 @@ export const DURUM_TONU_SINIFLARI: Record<StatusTone, string> = {
   /** DESIGN'da karşılığı yok — mevcut kullanım (örn. "ertelendi") aynı aile desenine taşındı. */
   sky: "bg-sky-50 text-sky-800 border border-sky-200 dark:border-transparent dark:bg-sky-500/10 dark:text-sky-400",
   /**
-   * Nötr. WCAG düzeltmesi (Faz 4): açık temada --muted-foreground (#64748B)
-   * bg-muted (#F1F5F9) üzerinde 4.34:1 — 4.5:1'i geçmiyordu. --muted-foreground
-   * PROJE GENELİNDE paylaşılan bir token olduğu için değiştirilmedi (kapsam
-   * dışına taşardı); sadece bu rozete özel, bir ton koyu bir Tailwind rengi
-   * (slate-600, 6.92:1) kullanıldı. Koyu tema zaten geçiyordu (6.96:1),
-   * dark: override'ı mevcut --muted-foreground'u aynen koruyor.
+   * Nötr. Önceki WCAG düzeltmesi (Faz 4) burada bu rozete özel text-slate-600
+   * kullanmıştı çünkü açık temada --muted-foreground (#64748B) bg-muted
+   * üzerinde 4.34:1'de kalıyordu. Kök sebep sonradan token seviyesinde
+   * çözüldü (globals.css: açık --muted-foreground artık #475569/slate-600,
+   * card/background'da 7.2-7.6:1, tüm StatusBadge soft yüzeylerinde 6.4:1+)
+   * — rozete özel override artık gereksiz, kaldırıldı.
    */
-  slate: "bg-muted text-slate-600 dark:text-muted-foreground",
+  slate: "bg-muted text-muted-foreground",
   /**
    * WCAG düzeltmesi (Faz 4): koyu temada --primary (#2563EB) bg-primary/10
    * üzerinde 2.58:1 — açık uçurumla geçmiyordu. Kullanıcı kararı: zemin değil

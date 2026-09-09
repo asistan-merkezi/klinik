@@ -146,7 +146,18 @@
   --clinical-soft: #F0FDFA;
   --clinical-border: #99F6E4;
   --muted: #F1F5F9;
-  --muted-foreground: #64748B;
+  /* WCAG düzeltmesi (Faz 4, açık tema geneli): #64748B (slate-500), --card
+     üzerinde 4.76:1 ile zaten sınırdaydı — panelin renkli yüzeyleri (randevu
+     kutusu dolguları, StatusBadge soft arka planları) üzerinde 4.04-4.59:1'e
+     düşüp AA'yı kaçırıyordu. Bir Tailwind kademesi koyultuldu (slate-600,
+     #475569) — card/background'da 7.24-7.58:1, TÜM 8 randevu kutusu dolgusu
+     ve TÜM 8 StatusBadge soft yüzeyinde 6.43:1+ (node ile sRGB relative
+     luminance formülüyle hesaplandı, en düşük değer primary/10 dolgusunda
+     6.43:1). Bu token proje genelinde paylaşıldığı için (durum-tonlari.ts'teki
+     "slate" StatusBadge'e özel text-slate-600 fix'i artık gereksiz hale geldi
+     ama geri alınmadı — ikisi aynı değeri taşıyor, çakışma yok) geniş bir etki
+     alanı var; #334155 (slate-700, --secondary-foreground) sınırı aşılmadı. */
+  --muted-foreground: #475569;
   --accent: #EFF6FF;
   --accent-foreground: #1E40AF;
   --destructive: #E11D48;
@@ -329,7 +340,8 @@
   --clinical-soft: #F0FDFA;
   --clinical-border: #99F6E4;
   --muted: #F1F5F9;
-  --muted-foreground: #64748B;
+  /* :root'taki muted-foreground WCAG düzeltmesiyle senkron (bkz. yukarıdaki not). */
+  --muted-foreground: #475569;
   --accent: #EFF6FF;
   --accent-foreground: #1E40AF;
   --destructive: #E11D48;
