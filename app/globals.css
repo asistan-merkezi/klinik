@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-jakarta);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -27,12 +27,33 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-border: var(--destructive-border);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-info-border: var(--info-border);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
+  --color-clinical: var(--clinical);
+  --color-clinical-foreground: var(--clinical-foreground);
+  --color-clinical-hover: var(--clinical-hover);
+  --color-clinical-accent: var(--clinical-accent);
+  --color-clinical-soft: var(--clinical-soft);
+  --color-clinical-border: var(--clinical-border);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
@@ -45,64 +66,131 @@
   --color-surface: var(--card);
   --color-border-subtle: var(--border);
   --color-tablet-zemin: var(--tablet-zemin);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Radius ölçeği — docs/DESIGN.md "Shapes" bölümüyle birebir: sm 0.25rem,
+     DEFAULT/md 0.5rem (form kontrolleri), lg 0.75rem (ara katman), xl/2xl
+     1rem (kart/konteyner — mevcut Card bileşeni zaten rounded-2xl kullanıyor,
+     böylece hiçbir component dokunulmadan doğru radiusa oturuyor), 3xl/4xl
+     1.5rem (hero/modal tavanı, DESIGN'ın en büyük tanımlı değeri — hiçbir
+     yerde bundan daha yuvarlak olunmaz). */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 1.5rem;
+
+  /* Elevation — docs/DESIGN.md "Elevation & Depth" (Z1/Z2/Z3), açık/koyu
+     karşılıkları :root/.dark'ta --elevation-* olarak tanımlı. */
+  --shadow-z1: var(--elevation-z1);
+  --shadow-z2: var(--elevation-z2);
+  --shadow-z3: var(--elevation-z3);
+
+  /* Shell ölçüleri — docs/DESIGN.md "Layout & Spacing". */
+  --spacing-sidebar: 17.5rem;
+  --spacing-topbar: 4.25rem;
+  --spacing-rail: 5rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-gutter-sm: 1rem;
+}
+
+/* docs/DESIGN.md "tabular-data" tipografi token'ı — ROM/VAS skoru, seans
+   süresi/ücreti gibi ölçüm sütunlarında dikey hizalama için. Sade
+   `tabular-nums` yeterli olmayan yerlerde (DESIGN'ın kendi boyut/ağırlık
+   spesifikasyonuyla) kullanılır; Faz 2/3'te tablo/kart bileşenlerine
+   uygulanacak. */
+@utility text-tabular {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+  letter-spacing: 0.01em;
 }
 
 :root {
-  /* Açık tema paleti (kullanıcı kararı, 2026-08-04) — landing sayfasıyla aynı
-     marka dili: cyan/electric blue primary + nötr slate zemin. Önceki
-     bej/mint palet (2026-07-28 kararı) kaldırıldı. .dark ayrı, bu bloktan
-     bağımsız (zaten hedef paletle örtüşüyordu, sadece küçük alfa
-     düzeltmeleri aldı). */
+  /* Açık tema paleti — docs/DESIGN.md (Klinik Asistanı Design System) ile
+     birebir: "Modern Clinical Minimalism + Soft Layered Elevation". Primary
+     derin klinik ultramarine (#1E40AF), secondary restoratif teal (#0D9488).
+     Önceki cyan/electric-blue açık tema paleti (2026-08-04 kararı) bu turda
+     DESIGN.md'ye geçirildi (2026-09-08 kararı) — .dark KALDIRILMADI, ayrı
+     bloktan bağımsız kalmaya devam ediyor (sadece neon primary/ring/sidebar
+     vurguları DESIGN'ın lacivert/teal diline çekildi, bkz. .dark notu). */
   color-scheme: light;
-  /* 2026-08-09 kararı: kart/kutucuklar zeminden ayrışmıyordu (background ve
-     card neredeyse aynı tondaydı, border da çok açıktı) — background artık
-     belirgin gri, card saf beyaz, border net görünür (bkz. brand-ui talebi). */
-  --background: #F1F5F9;
+  --background: #F8FAFC;
   --foreground: #0F172A;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --popover: #FFFFFF;
   --popover-foreground: #0F172A;
-  /* Marka rengi #00F2FE/#4FACFE beyaz zeminde metin/ring için fazla açık
-     (kontrast yetersiz) — marketing paletinin primary-700'ü kullanıldı.
-     Bright cyan/electric blue gradyanı dolgu/glow kullanımlarında
-     (IconTile, ilerleme çubuğu) doğrudan hex olarak korunuyor. */
-  --primary: #2B7FD4;
+  --primary: #1E40AF;
   --primary-foreground: #FFFFFF;
-  --primary-hover: #1E5A99;
-  --secondary: #E2E8F0;
-  --secondary-foreground: #0F172A;
-  --muted: #E2E8F0;
+  --primary-hover: #1D4ED8;
+  /* shadcn'in nötr "secondary" semantiği (2026-09-08 düzeltmesi) — DESIGN.md'nin
+     klinik teal'i bunun yerine geçmiyor, ayrı --clinical token setinde. */
+  --secondary: #F1F5F9;
+  --secondary-foreground: #334155;
+  /* --clinical: docs/DESIGN.md "Secondary Palette (Rehabilitasyon & Klinik
+     İlerleme)" — "Seansı Başlat" gibi prosedürel/olumlu aksiyonlar ve aktif
+     tedavi/protokol göstergeleri bu tonu kullanır.
+     Kontrast düzeltmesi (2026-09-08, Faz 1 kullanıcı kararı "b"): DESIGN'ın
+     literal "Teal 600 #0D9488 + beyaz metin" buton spesifikasyonu AA'yı
+     geçmiyordu (3.74:1) — dolu zemin/beyaz metin artık Teal 700 #0F766E
+     (5.47:1). Teal 600 SİLİNMEDİ, --clinical-accent olarak metin taşımayan
+     kullanımlara (ilerleme çubuğu, aktif seans ring'i, ikon tonu, chart
+     plot — DESIGN'ın "accent base" rolü) taşındı. */
+  --clinical: #0F766E;
+  --clinical-foreground: #FFFFFF;
+  --clinical-hover: #115E59;
+  --clinical-accent: #0D9488;
+  --clinical-soft: #F0FDFA;
+  --clinical-border: #99F6E4;
+  --muted: #F1F5F9;
   --muted-foreground: #64748B;
-  --accent: #E0F2FE;
-  --accent-foreground: #0F172A;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #CBD5E1;
+  --accent: #EFF6FF;
+  --accent-foreground: #1E40AF;
+  --destructive: #E11D48;
+  --destructive-foreground: #FFFFFF;
+  --destructive-soft: #FFF1F2;
+  --destructive-border: #FECDD3;
+  --success: #059669;
+  --success-foreground: #FFFFFF;
+  --success-soft: #ECFDF5;
+  --success-border: #A7F3D0;
+  --warning: #D97706;
+  --warning-foreground: #FFFFFF;
+  --warning-soft: #FFFBEB;
+  --warning-border: #FDE68A;
+  --info: #4F46E5;
+  --info-foreground: #FFFFFF;
+  --info-soft: #EEF2FF;
+  --info-border: #C7D2FE;
+  --border: #E2E8F0;
   --input: #CBD5E1;
   --input-bg: #FFFFFF;
-  --ring: #2B7FD4;
+  --ring: #3B82F6;
   --surface-2: #FFFFFF;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #0F172A;
-  --sidebar-primary: #2B7FD4;
+  --sidebar-primary: #1E40AF;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F1F5F9;
-  --sidebar-accent-foreground: #0F172A;
+  --sidebar-accent: #EFF6FF;
+  --sidebar-accent-foreground: #1E40AF;
   --sidebar-border: #E2E8F0;
-  --sidebar-ring: #2B7FD4;
+  --sidebar-ring: #3B82F6;
+
+  /* Elevation — docs/DESIGN.md "Elevation & Depth" Z1/Z2/Z3 (açık tema). */
+  --elevation-z1: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+  --elevation-z2: 0 10px 25px -5px rgba(30, 64, 175, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --elevation-z3: 0 20px 35px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --elevation-backdrop: rgba(15, 23, 42, 0.35);
+  --elevation-active-ring: 0 0 0 3px rgba(20, 184, 166, 0.2);
 
   /* Kapı tableti: panelin kendi --background'ından bilinçli olarak ayrı —
      tam ekran, doku katmanı üstünde okunacak, saf siyah/beyaz olmayan bir
@@ -113,8 +201,21 @@
 }
 
 .dark {
-  /* Landing page ile aynı konsept: canvas/ink + cyan primary + emerald "canlı" vurgusu.
-     Bkz. tailwind.config.ts (app/(marketing) için) — buradaki hex'ler o paletten. */
+  /* Koyu (glassmorphism) tema KALDIRILMADI — zemin/kart/border/muted vb.
+     aynen korunuyor. Tek değişiklik (2026-09-08, docs/DESIGN.md turu):
+     neon cyan primary/ring/sidebar vurguları DESIGN.md'nin lacivert/teal
+     diline çekildi — aynı token isimleri, sadece bu isimlerin koyu
+     karşılığı artık marka rengiyle tutarlı. Bkz. tailwind.config.ts
+     (app/(marketing) için, ayrı skope).
+     Kontrast düzeltmesi (Faz 1 doğrulaması): ilk turda Primary 500
+     (#3B82F6) kullanılmıştı ama beyaz metinle 3.68:1 — WCAG AA 4.5:1'i
+     GEÇEMİYOR (gerçek hesapla bulundu). DESIGN.md'nin kendisi #3B82F6'yı
+     zaten "secondary interactive triggers, links" için ayırıyor, dolu
+     buton/aktif-nav zemini için değil (o rol DESIGN'da Primary 800
+     #1E40AF/"Brand Base"). Bu yüzden koyu temada dolu zeminler için
+     Primary 600 (#2563EB, beyaz metinle 5.17:1) kullanılıyor — bu benim
+     kendi ara-değerimdi (DESIGN'ın literal bir hex talimatı değildi),
+     düzeltme bu yüzden serbestçe yapıldı. */
   color-scheme: dark;
   --background: #090d16;
   --foreground: #f8fafc;
@@ -122,20 +223,49 @@
   --card-foreground: #f8fafc;
   --popover: #1e293b;
   --popover-foreground: #f8fafc;
-  --primary: #00f2fe;
-  --primary-foreground: #090d16;
-  --primary-hover: #22d3ee;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #3B82F6;
+  /* Değiştirilmeden önce (Faz 0 turu) burada nötr bir slate-900 zemindi —
+     2026-09-08 düzeltmesiyle aynı nötr role geri döndü (teal ayrı --clinical
+     token setine taşındı). */
   --secondary: #0f172a;
   --secondary-foreground: #f8fafc;
+  /* Kontrast düzeltmesi (2026-09-08, Faz 1 kullanıcı kararı "b"): koyu
+     zeminde HİÇBİR teal tonunda beyaz metin AA'yı geçmiyor — bunun yerine
+     koyu metin (#0F172A) kullanılıyor (7.17:1). --clinical-accent (metin
+     taşımayan roller) burada --clinical ile aynı değeri paylaşıyor, ayrı
+     bir koyulaştırma gerekmedi (zaten AA'yı geçiyordu). */
+  --clinical: #14B8A6;
+  --clinical-foreground: #0F172A;
+  --clinical-hover: #2DD4BF;
+  --clinical-accent: #14B8A6;
+  --clinical-soft: rgba(20, 184, 166, 0.12);
+  --clinical-border: rgba(20, 184, 166, 0.4);
   --muted: #0f172a;
   --muted-foreground: #94a3b8;
   --accent: #24344a;
   --accent-foreground: #f8fafc;
   --destructive: #f43f5e;
+  --destructive-foreground: #FFFFFF;
+  --destructive-soft: rgba(244, 63, 94, 0.12);
+  --destructive-border: rgba(244, 63, 94, 0.4);
+  --success: #10B981;
+  --success-foreground: #052e21;
+  --success-soft: rgba(16, 185, 129, 0.12);
+  --success-border: rgba(16, 185, 129, 0.4);
+  --warning: #F59E0B;
+  --warning-foreground: #2c1a02;
+  --warning-soft: rgba(245, 158, 11, 0.12);
+  --warning-border: rgba(245, 158, 11, 0.4);
+  --info: #818CF8;
+  --info-foreground: #1a1a3d;
+  --info-soft: rgba(129, 140, 248, 0.12);
+  --info-border: rgba(129, 140, 248, 0.4);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 15%);
   --input-bg: transparent;
-  --ring: #00f2fe;
+  --ring: #3B82F6;
   --surface-2: #1e293b;
   --chart-1: #22d3ee;
   --chart-2: #10b981;
@@ -144,15 +274,25 @@
   --chart-5: #94a3b8;
   --sidebar: #1e293b;
   --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #00f2fe;
-  --sidebar-primary-foreground: #090d16;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
   /* Eskiden bu sidebar hover'ı bg-muted kullanıyordu; aynı görünümü korumak
      için --muted ile aynı değer (stok #24344a'dan farklıydı, değiştirmeyip
      korumak amacıyla eşitlendi). */
   --sidebar-accent: #0f172a;
   --sidebar-accent-foreground: #f8fafc;
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: #00f2fe;
+  --sidebar-ring: #3B82F6;
+
+  /* Elevation — koyu temada beyaz Z1/Z2/Z3 gölgeleri anlamsız, siyah bazlı
+     ambient gölgeye çevrildi (DESIGN.md açık tema için tarif ediyor, koyu
+     karşılığı doğrudan belirtilmiyor — burada aynı kademelendirme mantığı
+     korunarak uyarlandı). */
+  --elevation-z1: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px -2px rgba(0, 0, 0, 0.2);
+  --elevation-z2: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  --elevation-z3: 0 20px 35px -8px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --elevation-backdrop: rgba(2, 6, 23, 0.6);
+  --elevation-active-ring: 0 0 0 3px rgba(20, 184, 166, 0.28);
 
   --tablet-zemin: #0B1220;
   --tablet-doku-nokta: #7DD3FC;
@@ -166,26 +306,47 @@
    elemandan miras kalmaya devam eder — burada değerler yeniden tanımlanmalı. */
 .light {
   color-scheme: light;
-  --background: #F1F5F9;
+  --background: #F8FAFC;
   --foreground: #0F172A;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --popover: #FFFFFF;
   --popover-foreground: #0F172A;
-  --primary: #2B7FD4;
+  --primary: #1E40AF;
   --primary-foreground: #FFFFFF;
-  --primary-hover: #1E5A99;
-  --secondary: #E2E8F0;
-  --secondary-foreground: #0F172A;
-  --muted: #E2E8F0;
+  --primary-hover: #1D4ED8;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #334155;
+  --clinical: #0F766E;
+  --clinical-foreground: #FFFFFF;
+  --clinical-hover: #115E59;
+  --clinical-accent: #0D9488;
+  --clinical-soft: #F0FDFA;
+  --clinical-border: #99F6E4;
+  --muted: #F1F5F9;
   --muted-foreground: #64748B;
-  --accent: #E0F2FE;
-  --accent-foreground: #0F172A;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #CBD5E1;
+  --accent: #EFF6FF;
+  --accent-foreground: #1E40AF;
+  --destructive: #E11D48;
+  --destructive-foreground: #FFFFFF;
+  --destructive-soft: #FFF1F2;
+  --destructive-border: #FECDD3;
+  --success: #059669;
+  --success-foreground: #FFFFFF;
+  --success-soft: #ECFDF5;
+  --success-border: #A7F3D0;
+  --warning: #D97706;
+  --warning-foreground: #FFFFFF;
+  --warning-soft: #FFFBEB;
+  --warning-border: #FDE68A;
+  --info: #4F46E5;
+  --info-foreground: #FFFFFF;
+  --info-soft: #EEF2FF;
+  --info-border: #C7D2FE;
+  --border: #E2E8F0;
   --input: #CBD5E1;
   --input-bg: #FFFFFF;
-  --ring: #2B7FD4;
+  --ring: #3B82F6;
   --surface-2: #FFFFFF;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -194,12 +355,18 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: #FFFFFF;
   --sidebar-foreground: #0F172A;
-  --sidebar-primary: #2B7FD4;
+  --sidebar-primary: #1E40AF;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F1F5F9;
-  --sidebar-accent-foreground: #0F172A;
+  --sidebar-accent: #EFF6FF;
+  --sidebar-accent-foreground: #1E40AF;
   --sidebar-border: #E2E8F0;
-  --sidebar-ring: #2B7FD4;
+  --sidebar-ring: #3B82F6;
+
+  --elevation-z1: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+  --elevation-z2: 0 10px 25px -5px rgba(30, 64, 175, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --elevation-z3: 0 20px 35px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --elevation-backdrop: rgba(15, 23, 42, 0.35);
+  --elevation-active-ring: 0 0 0 3px rgba(20, 184, 166, 0.2);
 
   --tablet-zemin: #F8FAFC;
   --tablet-doku-nokta: #0F172A;
