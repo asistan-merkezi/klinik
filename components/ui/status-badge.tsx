@@ -1,33 +1,36 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { DURUM_TONU_SINIFLARI, DURUM_NABIZ_RENGI, type StatusTone } from "@/lib/ui/durum-tonlari";
 
-export type StatusTone = "emerald" | "amber" | "rose" | "sky" | "slate" | "primary";
-
-const TONE_SINIFLARI: Record<StatusTone, string> = {
-  emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  rose: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  sky: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  slate: "bg-muted text-muted-foreground",
-  primary: "bg-primary/10 text-primary",
-};
+export type { StatusTone };
 
 export function StatusBadge({
   tone,
+  pulse = false,
   className,
   children,
   ...props
-}: React.ComponentProps<"span"> & { tone: StatusTone }) {
+}: React.ComponentProps<"span"> & {
+  tone: StatusTone;
+  /** docs/DESIGN.md "Seans Başladı" — 6px nabız atan nokta (canlı/aktif durum). */
+  pulse?: boolean;
+}) {
   return (
     <span
       data-slot="status-badge"
       className={cn(
-        "inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
-        TONE_SINIFLARI[tone],
+        "inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap",
+        DURUM_TONU_SINIFLARI[tone],
         className
       )}
       {...props}
     >
+      {pulse && (
+        <span className="relative flex size-1.5 shrink-0" aria-hidden>
+          <span className={cn("absolute inline-flex size-full animate-ping rounded-full opacity-75", DURUM_NABIZ_RENGI)} />
+          <span className={cn("relative inline-flex size-1.5 rounded-full", DURUM_NABIZ_RENGI)} />
+        </span>
+      )}
       {children}
     </span>
   );

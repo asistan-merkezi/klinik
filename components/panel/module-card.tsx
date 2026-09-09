@@ -22,7 +22,7 @@ type ModuleCardProps = {
 };
 
 const KART_SINIFI =
-  "group flex h-full min-h-28 flex-col items-start gap-2 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 dark:border-white/10 dark:bg-card/70 dark:backdrop-blur-md";
+  "group flex h-full min-h-28 flex-col items-start gap-2 rounded-2xl border border-border bg-card p-4 text-left shadow-z1 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-z2 active:scale-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/15 dark:border-white/10 dark:bg-card/70 dark:backdrop-blur-md";
 
 export function ModuleCard({
   icon: Icon,
@@ -40,7 +40,11 @@ export function ModuleCard({
 }: ModuleCardProps) {
   const sinif = cn(
     KART_SINIFI,
-    active && "border-primary/60 shadow-[0_0_0_1px_rgba(0,242,254,0.35),0_4px_20px_-4px_rgba(0,242,254,0.45)] dark:bg-card",
+    // Eski neon-cyan glow (rgba(0,242,254,...), marketing paletinden kalma —
+    // Faz 0'ın hex-string grep'i literal "#00f2fe" arıyordu, bu decimal-rgba
+    // biçim kaçmıştı) primary'nin gerçek light/dark hex'ine göre değiştirildi.
+    active &&
+      "border-primary/60 shadow-[0_0_0_1px_rgba(30,64,175,0.35),0_4px_20px_-4px_rgba(30,64,175,0.45)] dark:shadow-[0_0_0_1px_rgba(37,99,235,0.4),0_4px_20px_-4px_rgba(37,99,235,0.5)] dark:bg-card",
     className
   );
 

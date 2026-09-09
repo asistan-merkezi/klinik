@@ -16,8 +16,9 @@ function DialogBackdrop({ className, ...props }: DialogPrimitive.Backdrop.Props)
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-backdrop"
+      // docs/DESIGN.md Z3: "frosted slate overlay (rgba(15,23,42,0.35)) + backdrop-filter blur(4px)".
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 z-50 bg-[var(--elevation-backdrop)] backdrop-blur-[4px] data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -36,8 +37,11 @@ function DialogContent({
       <DialogBackdrop />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        // rounded-3xl = docs/DESIGN.md'nin kendi "xl" (1.5rem) radius token'ı,
+        // bkz. globals.css/card.tsx radius yorumu (Tailwind'in --radius-xl
+        // CSS değişkeni burada değil, control-tier 0.5rem'e ayrı tutuluyor).
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-popover p-6 text-popover-foreground shadow-lg duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-3xl border border-border bg-popover p-6 text-popover-foreground shadow-z3 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
