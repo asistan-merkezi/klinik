@@ -1,9 +1,30 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
-import { gunAraligi } from "@/lib/utils";
+import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
+import { gunAraligi, ayAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
-import { bildirimSayisiGetir } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-sayisi";
+import { BekleyenIptalTalepleri } from "@/app/(app)/panel/randevular/bekleyen-iptal-talepleri";
+import { BekleyenRandevuTalepleri } from "@/app/(app)/panel/randevular/bekleyen-randevu-talepleri";
+import { gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
+import { PageHeader } from "@/components/ui/page-header";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Users, CalendarClock, Inbox } from "lucide-react";
+
+const KARSILAMA_TARIH_FORMAT = new Intl.DateTimeFormat("tr-TR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+const PARA_FORMAT = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
 
 export default async function PanelSayfasi() {
   const supabase = await createClient();
@@ -16,10 +37,19 @@ export default async function PanelSayfasi() {
     redirect("/giris");
   }
 
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  const { data: kullanici } = await supabase
+    .from("kullanici")
+    .select("rol, ad_soyad, klinik_id")
+    .eq("id", user.id)
+    .single();
   const rol = kullanici?.rol ?? null;
-  const bildirimGorulebilir = rol === "klinik_admin" || rol === "resepsiyon";
-  const bildirimSayisi = bildirimGorulebilir ? await bildirimSayisiGetir(supabase) : 0;
+  const finansalGorunur = rol === "klinik_admin" || rol === "resepsiyon" || rol === "super_admin";
+
+  const { data: klinik } = await supabase
+    .from("klinik")
+    .select("ad")
+    .eq("id", kullanici?.klinik_id ?? "")
+    .maybeSingle();
 
   let kendiTerapistId: string | null = null;
   if (rol === "terapist") {
@@ -39,27 +69,84 @@ export default async function PanelSayfasi() {
   }
 
   const { baslangic, bitis } = gunAraligi();
-  const [randevularSonucu, odaSonucu, terapistSonucu, cihazSonucu, tedaviSonucu, personelSonucu, protokolSonucu] =
-    await Promise.all([
-      supabase
-        .from("randevu")
-        .select(
-          "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad)"
-        )
-        .gte("baslangic", baslangic)
-        .lt("baslangic", bitis)
-        .order("baslangic")
-        .returns<RandevuSatir[]>(),
-      supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
-      supabase
-        .from("terapist")
-        .select("id, personel(ad_soyad)")
-        .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
-      supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-      supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
-      supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
-      supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
-    ]);
+  const { baslangic: ayBaslangic, bitis: ayBitis } = ayAraligi();
+  const ayBaslangiTarihi = ayBaslangic.slice(0, 10);
+
+  const [
+    randevularSonucu,
+    odaSonucu,
+    terapistSonucu,
+    cihazSonucu,
+    tedaviSonucu,
+    personelSonucu,
+    protokolSonucu,
+    hastaSonucu,
+    hastaSayisiSonucu,
+    yeniHastaSayisiSonucu,
+    iptalTalepleriSonucu,
+    randevuTalepleriSonucu,
+    aktifTakipSonucu,
+  ] = await Promise.all([
+    supabase
+      .from("randevu")
+      .select(
+        "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad)"
+      )
+      .gte("baslangic", baslangic)
+      .lt("baslangic", bitis)
+      .order("baslangic")
+      .returns<RandevuSatir[]>(),
+    supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
+    supabase
+      .from("terapist")
+      .select("id, personel(ad_soyad)")
+      .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
+    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
+    supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
+    supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
+    supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
+    supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
+    supabase.from("hasta").select("id", { count: "exact", head: true }),
+    supabase.from("hasta").select("id", { count: "exact", head: true }).gte("created_at", ayBaslangic).lt("created_at", ayBitis),
+    finansalGorunur
+      ? supabase
+          .from("randevu_iptal_talebi")
+          .select("id, durum, created_at, randevu(id, baslangic, durum, hasta(ad_soyad))")
+          .eq("durum", "bekliyor")
+          .order("created_at")
+          .returns<BekleyenIptalTalebiSatir[]>()
+      : Promise.resolve({ data: [] as BekleyenIptalTalebiSatir[] }),
+    finansalGorunur
+      ? supabase
+          .from("randevu_talebi")
+          .select(
+            "id, hasta_id, islem_tanimi_id, tercih_tarih, tercih_saat, not_metni, created_at, hasta(ad_soyad), islem_tanimi(ad)"
+          )
+          .eq("durum", "bekliyor")
+          .order("created_at")
+          .returns<BekleyenRandevuTalebiSatir[]>()
+      : Promise.resolve({ data: [] as BekleyenRandevuTalebiSatir[] }),
+    supabase
+      .from("v_hasta_detay_ozet")
+      // NOT: v_hasta_detay_ozet bir view olduğu için PostgREST'in FK-tabanlı
+      // otomatik embed'i (hasta(ad_soyad)) çalışmıyor ("no relationship
+      // found" hatası, gerçek Playwright doğrulamasında bulundu) — isim
+      // aşağıda ayrı çekilen `hastaSonucu` listesinden Map ile eşleniyor.
+      .select("hasta_id, kalan_paket_hakki, bakiye, son_seans_tarihi, sonraki_randevu_tarihi, aktif_protokol_ad")
+      .or("kalan_paket_hakki.gt.0,sonraki_randevu_tarihi.not.is.null")
+      .order("son_seans_tarihi", { ascending: false, nullsFirst: false })
+      .limit(8)
+      .returns<
+        {
+          hasta_id: string;
+          kalan_paket_hakki: number | null;
+          bakiye: number | null;
+          son_seans_tarihi: string | null;
+          sonraki_randevu_tarihi: string | null;
+          aktif_protokol_ad: string | null;
+        }[]
+      >(),
+  ]);
 
   const { data: randevular, error } = randevularSonucu;
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
@@ -70,30 +157,210 @@ export default async function PanelSayfasi() {
   const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
   const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
   const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
+  const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({ id: m.id, ad: m.ad_soyad }));
+  const hastaAdHaritasi = new Map(hastalar.map((h) => [h.id, h.ad]));
+  const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
+  const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
+  const aktifTakip = aktifTakipSonucu.data ?? [];
 
   if (error) {
     console.error("Bugünkü randevular çekilemedi:", error);
   }
+  if (aktifTakipSonucu.error) {
+    console.error("Aktif takipteki hastalar çekilemedi:", aktifTakipSonucu.error);
+  }
+
+  // Aylık ciro — sadece finansalGorunur rolde ayrı bir sorgu (izinsiz roller için hiç çekilmiyor).
+  let aylikCiro: number | null = null;
+  if (finansalGorunur) {
+    const { data: odemeSatirlari } = await supabase
+      .from("hasta_bakiye_hareket")
+      .select("tutar")
+      .eq("tur", "odeme")
+      .gte("created_at", ayBaslangic)
+      .lt("created_at", ayBitis);
+    aylikCiro = (odemeSatirlari ?? []).reduce((toplam, satir) => toplam + Number(satir.tutar ?? 0), 0);
+  }
+
+  const toplamHasta = hastaSayisiSonucu.count ?? 0;
+  const buAyYeniHasta = yeniHastaSayisiSonucu.count ?? 0;
+  const bugunkuRandevuSayisi = randevular?.length ?? 0;
+  const bugunkuTamamlanan = (randevular ?? []).filter((r) =>
+    ["geldi", "gecikmeli_geldi", "tamamlandi"].includes(r.durum)
+  ).length;
+  const bekleyenTalepSayisi = bekleyenIptalTalepleri.length + bekleyenRandevuTalepleri.length;
+
+  // Terapist Durumları — bugünkü randevulardan (zaten sunucuda çekildi, ayrı
+  // sorgu gerekmedi) o an "seansta" olan terapistler türetiliyor. CanliCizelge
+  // gibi saniye saniye canlı DEĞİL, sayfa yüklendiği/gezinildiği andaki durumu
+  // yansıtır — ayrı bir realtime abonelik açmamak için bilinçli bir basitleştirme.
+  const simdi = new Date();
+  const terapistDurumu = terapistler.map((t) => {
+    const aktifRandevu = (randevular ?? []).find(
+      (r) => r.terapist_id === t.id && gorunumDurumuHesapla(r, simdi) === "seansta"
+    );
+    return { terapist: t, mesgul: Boolean(aktifRandevu), oda: aktifRandevu?.oda?.ad ?? null };
+  });
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        {error ? (
-          <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
-        ) : (
-          <CanliCizelge
-            baslangicRandevular={randevular ?? []}
-            odalar={odalar}
-            terapistler={terapistler}
-            cihazlar={cihazlar}
-            tedaviler={tedaviler}
-            antrenorler={antrenorler}
-            protokoller={protokoller}
-            rol={rol}
-            kendiTerapistId={kendiTerapistId}
-            bildirimSayisi={bildirimGorulebilir ? bildirimSayisi : undefined}
+        <PageHeader
+          title={`İyi çalışmalar, ${kullanici?.ad_soyad ?? ""}`}
+          description={`${KARSILAMA_TARIH_FORMAT.format(simdi)}${klinik?.ad ? ` · ${klinik.ad}` : ""} · Bugün ${bugunkuRandevuSayisi} randevu planlandı.`}
+        />
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard label="Toplam Hasta" value={toplamHasta} icon={Users} iconTone="blue" trend={`+${buAyYeniHasta} bu ay`} />
+          <KpiCard
+            label="Bugünkü Seanslar"
+            value={`${bugunkuTamamlanan} / ${bugunkuRandevuSayisi}`}
+            icon={CalendarClock}
+            iconTone="emerald"
           />
-        )}
+          {finansalGorunur && (
+            <>
+              <KpiCard label="Bekleyen Talepler" value={bekleyenTalepSayisi} icon={Inbox} iconTone="amber" />
+              <KpiCard
+                label="Aylık Ciro"
+                value={aylikCiro !== null ? PARA_FORMAT.format(aylikCiro) : null}
+                trend={`${ayBaslangiTarihi.slice(0, 7)} dönemi, tahsil edilen ödemeler`}
+              />
+            </>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            {error ? (
+              <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
+            ) : (
+              <CanliCizelge
+                baslangicRandevular={randevular ?? []}
+                odalar={odalar}
+                terapistler={terapistler}
+                cihazlar={cihazlar}
+                tedaviler={tedaviler}
+                antrenorler={antrenorler}
+                protokoller={protokoller}
+                rol={rol}
+                kendiTerapistId={kendiTerapistId}
+              />
+            )}
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Terapist Durumları</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                {terapistDurumu.length === 0 ? (
+                  <EmptyState compact title="Kayıtlı terapist yok" />
+                ) : (
+                  terapistDurumu.map(({ terapist, mesgul, oda }) => (
+                    <div key={terapist.id} className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Avatar name={terapist.ad} size="sm" />
+                        <span className="truncate text-sm font-medium">{terapist.ad}</span>
+                      </div>
+                      {mesgul ? (
+                        <StatusBadge tone="teal" pulse>
+                          Meşgul{oda ? ` (${oda})` : ""}
+                        </StatusBadge>
+                      ) : (
+                        <StatusBadge tone="emerald">Müsait</StatusBadge>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            {finansalGorunur && bekleyenRandevuTalepleri.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bekleyen Randevu Talepleri</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BekleyenRandevuTalepleri
+                    talepler={bekleyenRandevuTalepleri}
+                    hastalar={hastalar}
+                    terapistler={terapistler}
+                    odalar={odalar}
+                    cihazlar={cihazlar}
+                    tedaviler={tedaviler}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {finansalGorunur && bekleyenIptalTalepleri.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bekleyen İptal Talepleri</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BekleyenIptalTalepleri talepler={bekleyenIptalTalepleri} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Aktif Takipteki Hastalar</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {aktifTakip.length === 0 ? (
+              <EmptyState title="Aktif takipte hasta yok" description="Kalan paket hakkı veya planlı randevusu olan hastalar burada listelenir." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hasta</TableHead>
+                    <TableHead className="hidden md:table-cell">Aktif Protokol</TableHead>
+                    <TableHead className="hidden sm:table-cell">Son Seans</TableHead>
+                    <TableHead className="hidden md:table-cell">Sonraki Randevu</TableHead>
+                    <TableHead className="text-right">Kalan Hak</TableHead>
+                    {finansalGorunur && <TableHead className="text-right">Bakiye</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {aktifTakip.map((satir) => {
+                    const hastaAdi = hastaAdHaritasi.get(satir.hasta_id) ?? "—";
+                    return (
+                    <TableRow key={satir.hasta_id}>
+                      <TableCell>
+                        <Link href={`/panel/hastalar/${satir.hasta_id}/tedavi`} className="flex items-center gap-2 hover:underline">
+                          <Avatar name={hastaAdi} size="sm" />
+                          <span className="font-medium">{hastaAdi}</span>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">{satir.aktif_protokol_ad ?? "—"}</TableCell>
+                      <TableCell className="hidden text-muted-foreground tabular-nums sm:table-cell">
+                        {satir.son_seans_tarihi ? new Date(satir.son_seans_tarihi).toLocaleDateString("tr-TR") : "—"}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground tabular-nums md:table-cell">
+                        {satir.sonraki_randevu_tarihi ? new Date(satir.sonraki_randevu_tarihi).toLocaleDateString("tr-TR") : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{satir.kalan_paket_hakki ?? "—"}</TableCell>
+                      {finansalGorunur && (
+                        <TableCell
+                          className={`text-right tabular-nums ${(satir.bakiye ?? 0) < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}
+                        >
+                          {satir.bakiye !== null ? PARA_FORMAT.format(satir.bakiye) : "—"}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

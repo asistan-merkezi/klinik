@@ -13,6 +13,7 @@ import { CanliSaat } from "@/components/panel/canli-saat";
 import { SuAnCizgisi } from "@/components/panel/su-an-cizgisi";
 import { RandevuKutusu, gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
 import { RandevuDetayPaneli } from "@/components/panel/randevu-detay-paneli";
+import { Card } from "@/components/ui/card";
 
 const GUN_BASLANGIC_SAAT = 8;
 const GUN_BITIS_SAAT = 20;
@@ -261,7 +262,12 @@ export function CanliCizelge({
   const gridYukseklik = TOPLAM_DAKIKA * PX_PER_DAKIKA;
 
   return (
-    <div className="flex flex-col rounded-2xl border border-border bg-card text-card-foreground">
+    // Card'ın kendi py/gap'i (--card-spacing) bu bileşenin kendi header/satır
+    // padding'iyle çakışmasın diye CSS değişkeni üzerinden sıfırlanıyor —
+    // Tailwind utility cascade sırasına bağımlı bir override değil (bkz.
+    // CLAUDE.md'nin "!" desenleri notu, burada aynı riski taşımayan bir
+    // yöntem tercih edildi).
+    <Card className="flex flex-col" style={{ "--card-spacing": "0px" } as React.CSSProperties}>
       <header className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
         <div className="flex flex-1 items-center justify-between gap-2 sm:flex-none sm:justify-start">
           <div className="flex items-center gap-2">
@@ -518,6 +524,6 @@ export function CanliCizelge({
         antrenorler={antrenorler}
         protokoller={protokoller}
       />
-    </div>
+    </Card>
   );
 }
