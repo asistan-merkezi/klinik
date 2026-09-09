@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { Users, CalendarDays, Package, Activity, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -42,14 +41,10 @@ function Bolum({ baslik, children }: { baslik: string; children: React.ReactNode
 }
 
 export default function TasarimGalerisiSayfasi() {
-  // Sadece geliştirme ortamında görünür — super_admin klinik_id=NULL olduğu
-  // için panel/layout.tsx'in klinik-scoped sorguları onun için zaten
-  // anlamlı bir kabuk üretmiyor (bkz. rapor); dev-only gating pratikte
-  // çalışan tek seçenekti.
-  if (process.env.NODE_ENV === "production") {
-    notFound();
-  }
-
+  // Faz 4 kararı: dev-only kısıtı kaldırıldı — panelde girişli (authenticated)
+  // herkes erişebilir (panel/layout.tsx'in oturum kontrolü zaten kapsıyor),
+  // sidebar'a bilinçli olarak link eklenmedi — sadece URL bilenler için canlı
+  // bileşen referansı. Yeni ekran açarken bu sayfa referans alınmalı.
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-10">
