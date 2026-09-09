@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { Smartphone } from "lucide-react";
+import { Smartphone, QrCode } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { QrKart } from "@/components/panel/qr-kart";
 import { QrKartYonetilebilir } from "@/components/panel/qr-kart-yonetilebilir";
+import { PageHeader } from "@/components/ui/page-header";
 import { QR_KOD_TANIMLARI, type QrKodTipi } from "@/lib/qr/qr-kod-tanimlari";
 
 export default async function QrKodlariSayfasi() {
@@ -48,20 +49,16 @@ export default async function QrKodlariSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">QR Kodları</h1>
-          <p className="text-sm text-muted-foreground">
-            Aşağıdaki kare kodları yazdırıp klinikte (resepsiyon, bekleme salonu, ilan panosu vb.) asın.
-            Okutan kişi giriş yapmadan ilgili formu doldurur; kayıtlar klinik panelinize düşer. Bu
-            bağlantılar herkese açıktır — kare kodun görünür olduğu her yerden erişilebilir olduğunu
-            unutmayın. Bir QR kodunu &quot;Aktif&quot; işaretinden kaldırırsanız, o kodu okutan kişiye
-            &quot;kullanım dışı&quot; mesajı gösterilir; formu tekrar doldurulabilir hâle getirmek için
-            yeniden işaretleyin.
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            İş Başvurusu kare kodu artık burada değil — Personel &gt; İş Başvurusu Ekle sayfasında.
-          </p>
-        </header>
+        <PageHeader
+          icon={QrCode}
+          title="QR Kodları"
+          description={
+            'Aşağıdaki kare kodları yazdırıp klinikte (resepsiyon, bekleme salonu, ilan panosu vb.) asın. Okutan kişi giriş yapmadan ilgili formu doldurur; kayıtlar klinik panelinize düşer. Bu bağlantılar herkese açıktır — kare kodun görünür olduğu her yerden erişilebilir olduğunu unutmayın. Bir QR kodunu "Aktif" işaretinden kaldırırsanız, o kodu okutan kişiye "kullanım dışı" mesajı gösterilir; formu tekrar doldurulabilir hâle getirmek için yeniden işaretleyin.'
+          }
+        />
+        <p className="-mt-4 text-sm text-muted-foreground">
+          İş Başvurusu kare kodu artık burada değil — Personel &gt; İş Başvurusu Ekle sayfasında.
+        </p>
 
         <div className="flex flex-col gap-4">
           {QR_KOD_TANIMLARI.map((tanim) => {

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function YetkilendirmeSayfasi() {
   const supabase = await createClient();
@@ -16,12 +18,11 @@ export default async function YetkilendirmeSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Yetkilendirme</h1>
-          <p className="text-sm text-muted-foreground">
-            Rollerin (klinik_admin, resepsiyon, terapist) hangi ekrana/işleme erişebildiğini yönet.
-          </p>
-        </header>
+        <PageHeader
+          icon={ShieldCheck}
+          title="Yetkilendirme"
+          description="Rollerin (klinik_admin, resepsiyon, terapist) hangi ekrana/işleme erişebildiğini yönet."
+        />
 
         <Card>
           <CardHeader>

@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
-import { Star } from "lucide-react";
+import { Star, MessageSquareHeart } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/datetime";
 import { cn, telefonGoster } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function AnketYanitlariSayfasi() {
   const supabase = await createClient();
@@ -33,16 +35,14 @@ export default async function AnketYanitlariSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Anket ve Öneriler</h1>
-          <p className="text-sm text-muted-foreground">
-            QR kod üzerinden gelen hasta geri bildirimleri.
-            {ortalama && ` Ortalama puan: ${ortalama} / 5 (${puanlar.length} oy)`}
-          </p>
-        </header>
+        <PageHeader
+          icon={MessageSquareHeart}
+          title="Anket ve Öneriler"
+          description={`QR kod üzerinden gelen hasta geri bildirimleri.${ortalama ? ` Ortalama puan: ${ortalama} / 5 (${puanlar.length} oy)` : ""}`}
+        />
 
         {(!yanitlar || yanitlar.length === 0) && (
-          <p className="text-sm text-muted-foreground">Henüz yanıt yok.</p>
+          <EmptyState icon={MessageSquareHeart} title="Henüz yanıt yok." />
         )}
 
         <ul className="flex flex-col divide-y divide-border">

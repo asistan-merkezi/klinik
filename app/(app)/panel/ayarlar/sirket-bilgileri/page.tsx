@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import type { KlinikArac, SirketBilgileri } from "@/types/klinik";
 import { SirketBilgileriFormu } from "./sirket-bilgileri-formu";
 import { AraclarKarti } from "./araclar-karti";
@@ -44,12 +46,7 @@ export default async function SirketBilgileriSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Şirket Bilgileri</h1>
-          <p className="text-sm text-muted-foreground">
-            Fatura ve kurumsal iletişimde kullanılan şirket profili.
-          </p>
-        </header>
+        <PageHeader icon={Building2} title="Şirket Bilgileri" description="Fatura ve kurumsal iletişimde kullanılan şirket profili." />
 
         <Card>
           <CardHeader>

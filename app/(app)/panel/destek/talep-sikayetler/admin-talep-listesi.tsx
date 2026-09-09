@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/datetime";
 import type { DestekDurum, DestekTalebi } from "@/types/destek";
 import { DURUM_ETIKET, DURUM_TON, TUR_ETIKET, TUR_TON } from "./durum-etiketleri";
@@ -12,7 +13,7 @@ const DURUM_SIRASI: DestekDurum[] = ["yeni", "inceleniyor", "cozuldu"];
 
 export function AdminTalepListesi({ talepler }: { talepler: DestekTalebi[] }) {
   if (talepler.length === 0) {
-    return <p className="text-sm text-muted-foreground">Klinikte henüz talep/şikayet yok.</p>;
+    return <EmptyState compact title="Klinikte henüz talep/şikayet yok." />;
   }
 
   return (

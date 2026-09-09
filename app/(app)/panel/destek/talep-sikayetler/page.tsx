@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { MessageSquareWarning } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-header";
 import type { DestekTalebi } from "@/types/destek";
 import { TalepFormu } from "./talep-formu";
 import { TalepListesi } from "./talep-listesi";
@@ -40,12 +42,11 @@ export default async function TalepSikayetlerSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Talep ve Şikayetler</h1>
-          <p className="text-sm text-muted-foreground">
-            Panel/yazılımla ilgili bir talep veya şikayetinizi buradan iletebilirsiniz.
-          </p>
-        </header>
+        <PageHeader
+          icon={MessageSquareWarning}
+          title="Talep ve Şikayetler"
+          description="Panel/yazılımla ilgili bir talep veya şikayetinizi buradan iletebilirsiniz."
+        />
 
         <TalepFormu />
 

@@ -1,11 +1,12 @@
 import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/datetime";
 import type { DestekTalebi } from "@/types/destek";
 import { DURUM_ETIKET, DURUM_TON, TUR_ETIKET, TUR_TON } from "./durum-etiketleri";
 
 export function TalepListesi({ talepler }: { talepler: DestekTalebi[] }) {
   if (talepler.length === 0) {
-    return <p className="text-sm text-muted-foreground">Henüz gönderdiğiniz bir talep/şikayet yok.</p>;
+    return <EmptyState compact title="Henüz gönderdiğiniz bir talep/şikayet yok." />;
   }
 
   return (

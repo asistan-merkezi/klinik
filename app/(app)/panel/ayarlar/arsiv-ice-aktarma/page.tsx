@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { Users, CalendarClock, Wallet, DatabaseBackup } from "lucide-react";
+import { Users, CalendarClock, Wallet, DatabaseBackup, UploadCloud } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ModuleCard } from "@/components/panel/module-card";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function ArsivIceAktarmaSayfasi() {
   const supabase = await createClient();
@@ -23,13 +24,11 @@ export default async function ArsivIceAktarmaSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Arşiv İçe Aktarma, Arşiv Yükleme ve Yedekleme</h1>
-          <p className="text-sm text-muted-foreground">
-            Önceden kullandığınız programdaki verileri Excel/CSV dosyasından toplu olarak aktarın. Aşağıdaki
-            sırayla ilerleyin — her bölüm bir önceki bölümün tamamlanmasına dayanır.
-          </p>
-        </header>
+        <PageHeader
+          icon={UploadCloud}
+          title="Arşiv İçe Aktarma, Arşiv Yükleme ve Yedekleme"
+          description="Önceden kullandığınız programdaki verileri Excel/CSV dosyasından toplu olarak aktarın. Aşağıdaki sırayla ilerleyin — her bölüm bir önceki bölümün tamamlanmasına dayanır."
+        />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <ModuleCard

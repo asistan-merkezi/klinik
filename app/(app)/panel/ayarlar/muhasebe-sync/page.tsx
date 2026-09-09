@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { MuhasebeEntegrasyonDurum } from "@/types/muhasebe-entegrasyon";
 import { MuhasebeSyncFormu } from "./muhasebe-sync-formu";
 import { formatDateTime } from "@/lib/datetime";
@@ -33,23 +36,20 @@ export default async function MuhasebeSyncSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Muhasebe Sync</h1>
-          <p className="text-sm text-muted-foreground">
-            Muhasebe bölümünü (fatura kesimi) senkronize edecek Paraşüt API bağlantısı.
-          </p>
-        </header>
+        <PageHeader
+          icon={RefreshCw}
+          title="Muhasebe Sync"
+          description="Muhasebe bölümünü (fatura kesimi) senkronize edecek Paraşüt API bağlantısı."
+        />
 
         <Card>
           <CardHeader>
-            <CardTitle>
-              Bağlantı durumu:{" "}
-              {durum?.baglanti_durumu === "baglandi" ? (
-                <span className="text-emerald-600 dark:text-emerald-400">Bağlandı</span>
-              ) : (
-                <span className="text-muted-foreground">Bekliyor</span>
-              )}
-            </CardTitle>
+            <CardTitle>Bağlantı Durumu</CardTitle>
+            <CardAction>
+              <StatusBadge tone={durum?.baglanti_durumu === "baglandi" ? "emerald" : "slate"}>
+                {durum?.baglanti_durumu === "baglandi" ? "Bağlandı" : "Bekliyor"}
+              </StatusBadge>
+            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {durum?.updated_at && (

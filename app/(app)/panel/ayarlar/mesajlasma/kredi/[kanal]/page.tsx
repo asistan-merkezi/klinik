@@ -1,5 +1,8 @@
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
+import { Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-header";
 import { KrediDetay } from "@/components/mesajlasma/KrediDetay";
 import { KANAL_ETIKET, type MesajKanal, type MesajKrediHareketi, type MesajKullanimOzetSatir } from "@/types/mesajlasma";
 import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
@@ -89,10 +92,16 @@ export default async function KrediDetaySayfasi({ params }: { params: Promise<{ 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">{KANAL_ETIKET[kanal]} Kredisi</h1>
-          <p className="text-sm text-muted-foreground">Bakiyenizi ve kullanım geçmişinizi görüntüleyin.</p>
-        </header>
+        <PageHeader
+          icon={Wallet}
+          title={`${KANAL_ETIKET[kanal]} Kredisi`}
+          breadcrumb={
+            <Link href="/panel/ayarlar/mesajlasma" className="hover:underline">
+              ‹ SMS/Whatsapp/Mail Ayarları
+            </Link>
+          }
+          description="Bakiyenizi ve kullanım geçmişinizi görüntüleyin."
+        />
 
         <KrediDetay
           kanal={kanal}

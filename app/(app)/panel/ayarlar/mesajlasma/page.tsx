@@ -4,6 +4,7 @@ import { MessageSquareText, MessageCircle, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { BOLUM_SIRASI, KANAL_SIRASI, KANAL_ETIKET, type MesajBolum, type EtkinMesajKurali, type MesajKredi } from "@/types/mesajlasma";
 import { etkinKurallariOlustur, type MesajKuraliDbSatiri } from "@/lib/mesaj/kural-cozumle";
 import { BolumKartGrubu } from "./bolum-kart-grubu";
@@ -63,14 +64,11 @@ export default async function MesajlasmaSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">SMS/Whatsapp/Mail Ayarları</h1>
-          <p className="text-sm text-muted-foreground">
-            Klinikte tetiklenen olaylarda (hasta, randevu, personel, muhasebe) hangi kanaldan bildirim
-            gönderileceğini buradan yapılandırın. Gönderim kredi bazlı çalışır — kredi biterse ilgili
-            kanaldan gönderim yapılmaz.
-          </p>
-        </header>
+        <PageHeader
+          icon={MessageCircle}
+          title="SMS/Whatsapp/Mail Ayarları"
+          description="Klinikte tetiklenen olaylarda (hasta, randevu, personel, muhasebe) hangi kanaldan bildirim gönderileceğini buradan yapılandırın. Gönderim kredi bazlı çalışır — kredi biterse ilgili kanaldan gönderim yapılmaz."
+        />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {KANAL_SIRASI.map((kanal) => {

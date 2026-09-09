@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { BookOpen } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function KullanimKilavuzuSayfasi() {
   const supabase = await createClient();
@@ -16,12 +18,11 @@ export default async function KullanimKilavuzuSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header>
-          <h1 className="text-xl font-semibold">Kullanım Kılavuzu</h1>
-          <p className="text-sm text-muted-foreground">
-            Panelin modüllerini adım adım anlatan yazılı rehber.
-          </p>
-        </header>
+        <PageHeader
+          icon={BookOpen}
+          title="Kullanım Kılavuzu"
+          description="Panelin modüllerini adım adım anlatan yazılı rehber."
+        />
 
         <Card>
           <CardHeader>
