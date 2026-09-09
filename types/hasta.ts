@@ -20,6 +20,10 @@ export type HastaListeSatiri = HastaSatir & {
   eposta: string | null;
   hasta_hassas: { adres: string | null } | null;
   bakiye: number;
+  /** v_hasta_detay_ozet'ten — aynı embed kısıtına tabi, sayfada Map ile eşleniyor. */
+  aktif_protokol_ad: string | null;
+  /** paket_satis(durum='aktif') + paket(seans_sayisi) toplamından — hastanın hiç aktif paketi yoksa null. */
+  paketIlerleme: { kullanilan: number; toplam: number } | null;
 };
 
 export type OnaylayanTip = "hasta" | "personel";

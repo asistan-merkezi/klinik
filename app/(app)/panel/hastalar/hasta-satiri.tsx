@@ -49,9 +49,7 @@ export function HastaSatiri({ hasta, gecikme }: { hasta: HastaListeSatiri; gecik
         <div className="flex shrink-0 items-center gap-2">
           {hasta.kvkk_onay_tarihi ? (
             eksikAlanlar.length > 0 && (
-              <StatusBadge tone="amber" className="border border-amber-500/30">
-                {eksikAlanlar.join(", ")} eksik
-              </StatusBadge>
+              <StatusBadge tone="amber">{eksikAlanlar.join(", ")} eksik</StatusBadge>
             )
           ) : (
             <Button

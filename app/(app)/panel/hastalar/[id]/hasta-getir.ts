@@ -11,6 +11,7 @@ export type HastaTemel = Pick<
   | "dogum_tarihi"
   | "cinsiyet"
   | "kategori"
+  | "eposta"
   | "risk_bayraklari"
   | "kvkk_onay_tarihi"
   | "ozel_nitelikli_veri_onay_tarihi"
@@ -35,7 +36,7 @@ export const hastaTemelGetir = cache(async (id: string): Promise<HastaTemel | nu
   const { data } = await supabase
     .from("hasta")
     .select(
-      "id, ad_soyad, telefon, dogum_tarihi, cinsiyet, kategori, risk_bayraklari, kvkk_onay_tarihi, ozel_nitelikli_veri_onay_tarihi"
+      "id, ad_soyad, telefon, dogum_tarihi, cinsiyet, kategori, eposta, risk_bayraklari, kvkk_onay_tarihi, ozel_nitelikli_veri_onay_tarihi"
     )
     .eq("id", id)
     .single<HastaTemel>();

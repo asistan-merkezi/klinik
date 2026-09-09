@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   SIDDET_RENKLERI,
-  SIDDET_ETIKETLERI,
   VAS_ETIKETLERI,
   siddetBandi,
   bolgeBul,
@@ -122,7 +121,8 @@ export function VucutHaritasi({
       </div>
 
       {cinsiyetBelirtilmemis && (
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
+          <Info className="size-3.5 shrink-0" aria-hidden />
           Cinsiyet bilgisi girilmediği için varsayılan figür gösteriliyor.
         </p>
       )}
@@ -216,17 +216,23 @@ export function VucutHaritasi({
         </p>
       )}
 
-      <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-        {([1, 2, 3] as const).map((bant) => (
-          <span key={bant} className="flex items-center gap-1.5">
-            <span
-              className="size-2.5 rounded-full"
-              style={{ backgroundColor: SIDDET_RENKLERI[bant] }}
-              aria-hidden="true"
-            />
-            {SIDDET_ETIKETLERI[bant]}
-          </span>
-        ))}
+      {/* VAS 0-10 gradient göstergesi — SIDDET_RENKLERI'nin (bilinçli, sabit)
+          3 rengi üzerinden sürekli bir bant. Eskiden burada AYRICA 3-nokta
+          Hafif/Orta/Şiddetli lejantı vardı — ikisi aynı bilgiyi taşıdığı ve
+          lg+ iki-kolonlu layout'ta (CLAUDE.md'de belgelenmiş sabit
+          lg:h-[656px] bütçesi) kartın içeriği taşıp üstten/alttan kırpılmasına
+          yol açtığı için (gerçek Playwright testinde bulundu) 3-nokta lejantı
+          kaldırıldı, bilgi kaybı olmadan tek satırlık gradient bara indirildi. */}
+      <div className="mx-auto flex w-full max-w-[280px] items-center gap-2 text-[10px] tabular-nums text-muted-foreground">
+        <span>0</span>
+        <div
+          className="h-1.5 flex-1 rounded-full"
+          style={{
+            background: `linear-gradient(to right, ${SIDDET_RENKLERI[1]}, ${SIDDET_RENKLERI[2]}, ${SIDDET_RENKLERI[3]})`,
+          }}
+          aria-hidden="true"
+        />
+        <span>10</span>
       </div>
 
       {aktifYuzIsaretleri.length > 0 && (
