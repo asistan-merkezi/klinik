@@ -1,11 +1,13 @@
 "use client";
 
+import { Briefcase } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { IsBasvurusu } from "@/types/personel";
 import { BasvuruSatiri } from "./basvuru-satiri";
 
 export function BasvuruListesi({ basvurular }: { basvurular: IsBasvurusu[] }) {
   if (basvurular.length === 0) {
-    return <p className="text-sm text-muted-foreground">Kayıt yok.</p>;
+    return <EmptyState icon={Briefcase} title="Kayıt yok." compact />;
   }
 
   return (

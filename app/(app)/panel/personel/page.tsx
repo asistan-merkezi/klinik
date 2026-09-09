@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Users, Briefcase, CalendarClock, CalendarCheck2, Table2 } from "lucide-react";
+import { Users, Briefcase, CalendarClock, CalendarCheck2, Table2, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import type { PersonelSatir } from "@/types/personel";
 import { HESAP_HAREKET_YONU, type HesapHareketTuru } from "@/types/hesap-hareket";
 import { ayAraligi } from "@/lib/utils";
@@ -77,25 +78,24 @@ export default async function PersonelSayfasi({
 
     listeIcerigi = (
       <div className="flex flex-col gap-4">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Personel Listesi</h1>
-            <p className="text-sm text-muted-foreground">
-              Çalışanlar; terapistler için performans ve maaş hesaplama.
-            </p>
-          </div>
-          {yonetici && (
-            <Button
-              nativeButton={false}
-              className="bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
-              render={
-                <Link href="/panel/personel/basvurular">
-                  <Briefcase /> İş Başvurusu Ekle
-                </Link>
-              }
-            />
-          )}
-        </header>
+        <PageHeader
+          title="Personel Listesi"
+          description="Çalışanlar; terapistler için performans ve maaş hesaplama."
+          icon={Users}
+          actions={
+            yonetici && (
+              <Button
+                nativeButton={false}
+                className="bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
+                render={
+                  <Link href="/panel/personel/basvurular">
+                    <Briefcase /> İş Başvurusu Ekle
+                  </Link>
+                }
+              />
+            )
+          }
+        />
 
         {error && <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>}
         {!error && personelListesi.length === 0 && (
@@ -157,15 +157,12 @@ export default async function PersonelSayfasi({
 
     pozisyonlarIcerigi = (
       <div className="flex flex-col gap-4">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Pozisyonlar</h1>
-            <p className="text-sm text-muted-foreground">
-              Personele atanacak pozisyonların sistem erişimi, rol, ücret tipi ve puantaj ayarlarını yönet.
-            </p>
-          </div>
-          <OzelPozisyonDialog />
-        </header>
+        <PageHeader
+          title="Pozisyonlar"
+          description="Personele atanacak pozisyonların sistem erişimi, rol, ücret tipi ve puantaj ayarlarını yönet."
+          icon={Briefcase}
+          actions={<OzelPozisyonDialog />}
+        />
 
         {(pozisyonSonucu ?? []).length === 0 ? (
           <EmptyState icon={Briefcase} title="Henüz pozisyon tanımlı değil." />
@@ -189,10 +186,11 @@ export default async function PersonelSayfasi({
           {aktifSekme === "hesap" && hesapIcerigi}
           {aktifSekme === "puantaj" && (
             <div className="flex flex-col gap-4">
-              <header>
-                <h1 className="text-2xl font-semibold tracking-tight">Puantaj</h1>
-                <p className="text-sm text-muted-foreground">Devam/izin takibi ve çalışma çizelgesi buradan yönetilir.</p>
-              </header>
+              <PageHeader
+                title="Puantaj"
+                description="Devam/izin takibi ve çalışma çizelgesi buradan yönetilir."
+                icon={Clock}
+              />
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Card>

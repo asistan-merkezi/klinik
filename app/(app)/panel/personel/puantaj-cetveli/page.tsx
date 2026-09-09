@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { ayAraligi } from "@/lib/utils";
 import { ayinGunleri } from "@/lib/puantaj";
@@ -161,10 +163,7 @@ export default async function PuantajCetveliSayfasi({
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel?tab=puantaj">‹ Puantaj</Link>} />
         </div>
 
-        <header>
-          <h1 className="text-xl font-semibold">Puantaj Cetveli</h1>
-          <p className="text-sm text-muted-foreground">{ay.etiket} — tüm personelin aylık devam/izin durumu.</p>
-        </header>
+        <PageHeader title="Puantaj Cetveli" description={`${ay.etiket} — tüm personelin aylık devam/izin durumu.`} icon={Table2} />
 
         <PuantajCetveliIstemci
           ay={ay}

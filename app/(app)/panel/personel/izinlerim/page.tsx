@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { CalendarOff } from "lucide-react";
+import { CalendarOff, CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import type { IzinBakiye, IzinTalebi } from "@/types/izin";
 import { BakiyeKarti } from "./bakiye-karti";
 import { TalepFormu } from "./talep-formu";
@@ -45,10 +46,7 @@ export default async function IzinlerimSayfasi() {
   return (
     <div className="flex-1 bg-background">
       <div className="mx-auto flex max-w-2xl flex-col gap-5 p-4 pb-24 sm:p-8">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">İznim</h1>
-          <p className="text-sm text-muted-foreground">İzin bakiyeniz, yeni talep ve geçmiş talepleriniz.</p>
-        </header>
+        <PageHeader title="İznim" description="İzin bakiyeniz, yeni talep ve geçmiş talepleriniz." icon={CalendarClock} />
 
         {bakiye && <BakiyeKarti bakiye={bakiye} />}
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Briefcase } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { QrKart } from "@/components/panel/qr-kart";
 import { IsBasvuruFormuPdfButonu } from "@/components/panel/is-basvuru-formu-pdf-butonu";
 import type { IsBasvurusu } from "@/types/personel";
@@ -48,14 +49,11 @@ export default async function BasvurularSayfasi() {
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel"><ArrowLeft /> Personel Listesi</Link>} />
         </div>
 
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">İş Başvurusu</h1>
-          <p className="text-sm text-muted-foreground">
-            Gelen başvuruları değerlendirin — Olumlu bulduğunuz bir başvuru, bilgileriyle önceden
-            doldurulmuş Personel oluşturma formunu açar. Olumsuz/Beklemede kalanlar aşağıdaki arşivde
-            ay/yıl bazlı saklanır, hiçbir bilgi silinmez.
-          </p>
-        </header>
+        <PageHeader
+          title="İş Başvurusu"
+          icon={Briefcase}
+          description="Gelen başvuruları değerlendirin — Olumlu bulduğunuz bir başvuru, bilgileriyle önceden doldurulmuş Personel oluşturma formunu açar. Olumsuz/Beklemede kalanlar aşağıdaki arşivde ay/yıl bazlı saklanır, hiçbir bilgi silinmez."
+        />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col justify-center gap-3 rounded-xl border border-border p-4">

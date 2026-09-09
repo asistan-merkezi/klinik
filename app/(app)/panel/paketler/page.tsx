@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { PackageOpen, Archive } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import type { SecenekSatir } from "@/types/randevu";
 import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
 import { paketArsivdeMi } from "@/lib/paket/satis-suresi";
@@ -55,19 +58,12 @@ export default async function PaketlerSayfasi() {
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Paketler</h1>
-            <p className="text-sm text-muted-foreground">
-              Hastalara satılabilecek seans paketlerini yönet.
-            </p>
-          </div>
-          {duzenlenebilir && (
-            <div className="shrink-0">
-              <YeniPaketDialog islemTanimlari={islemTanimlari} />
-            </div>
-          )}
-        </header>
+        <PageHeader
+          title="Paketler"
+          description="Hastalara satılabilecek seans paketlerini yönet."
+          icon={PackageOpen}
+          actions={duzenlenebilir && <YeniPaketDialog islemTanimlari={islemTanimlari} />}
+        />
 
         <Card>
           <CardHeader>
@@ -78,7 +74,7 @@ export default async function PaketlerSayfasi() {
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             )}
             {!paketSonucu.error && guncelPaketler.length === 0 && (
-              <p className="text-sm text-muted-foreground">Henüz paket yok.</p>
+              <EmptyState icon={PackageOpen} title="Henüz paket yok." compact />
             )}
             {!paketSonucu.error && guncelPaketler.length > 0 && (
               <ul className="flex flex-col gap-3">
@@ -104,7 +100,7 @@ export default async function PaketlerSayfasi() {
           </CardHeader>
           <CardContent>
             {!paketSonucu.error && arsivPaketler.length === 0 && (
-              <p className="text-sm text-muted-foreground">Arşivde paket yok.</p>
+              <EmptyState icon={Archive} title="Arşivde paket yok." compact />
             )}
             {!paketSonucu.error && arsivPaketler.length > 0 && (
               <ul className="flex flex-col gap-3">

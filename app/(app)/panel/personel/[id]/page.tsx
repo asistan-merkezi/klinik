@@ -4,6 +4,7 @@ import { User, CreditCard, CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ModuleCard } from "@/components/panel/module-card";
 import {
   CALISMA_TIPI_SECENEKLERI,
@@ -328,11 +329,7 @@ export default async function PersonelDetaySayfasi({
           <CardContent>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold">{personel.ad_soyad}</h1>
-              {!personel.aktif && (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  Pasif
-                </span>
-              )}
+              {!personel.aktif && <StatusBadge tone="slate">Pasif</StatusBadge>}
             </div>
             <p className="text-sm text-muted-foreground">
               {personel.kullanici?.telefon ? (

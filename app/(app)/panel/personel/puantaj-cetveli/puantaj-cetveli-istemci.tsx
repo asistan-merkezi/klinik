@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, ListFilter } from "lucide-react";
+import { Download, ListFilter, Users, CalendarCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { gunEtiket, haftaninGunu } from "@/lib/puantaj";
 import type { HakedisSonucu } from "@/lib/personel/hakedis";
@@ -143,7 +144,7 @@ export function PuantajCetveliIstemci({
       </div>
 
       {satirlar.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Puantaj takibine dahil personel yok.</p>
+        <EmptyState icon={Users} title="Puantaj takibine dahil personel yok." compact />
       ) : (
         <div className="overflow-auto rounded-xl border border-border" style={{ maxHeight: "70vh" }}>
           <table className="text-sm">
@@ -263,7 +264,7 @@ export function PuantajCetveliIstemci({
             <DialogTitle>Eksik Gün Listesi — {ay.etiket}</DialogTitle>
           </DialogHeader>
           {eksikGunler.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Bu ay devamsızlık/rapor kaydı yok.</p>
+            <EmptyState icon={CalendarCheck2} title="Bu ay devamsızlık/rapor kaydı yok." compact />
           ) : (
             <ul className="flex max-h-96 flex-col divide-y divide-border overflow-y-auto text-sm">
               {eksikGunler.map((g, i) => (

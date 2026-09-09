@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarCheck2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import type { IzinTalebiAdminSatir } from "@/types/izin";
 import { TalepSatiri } from "./talep-satiri";
 
@@ -43,10 +44,7 @@ export default async function IzinlerSayfasi() {
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel"><ArrowLeft /> Personel</Link>} />
         </div>
 
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">İzin Talepleri</h1>
-          <p className="text-sm text-muted-foreground">Onay bekleyen talepler + geçmiş.</p>
-        </header>
+        <PageHeader title="İzin Talepleri" description="Onay bekleyen talepler + geçmiş." icon={CalendarCheck2} />
 
         {error && <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>}
 

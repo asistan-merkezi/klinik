@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { IsBasvurusu } from "@/types/personel";
 import { BasvuruListesi } from "./basvuru-listesi";
 
@@ -30,7 +31,7 @@ export function BasvuruArsivi({ basvurular }: { basvurular: IsBasvurusu[] }) {
   }, [basvurular]);
 
   if (gruplar.length === 0) {
-    return <p className="text-sm text-muted-foreground">Arşivde henüz başvuru yok.</p>;
+    return <EmptyState icon={Archive} title="Arşivde henüz başvuru yok." compact />;
   }
 
   return (

@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export type HesapOzetSatir = {
   personelId: string;
@@ -23,29 +26,30 @@ export function HesapOzeti({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Hesap</h1>
-          <p className="text-sm text-muted-foreground">Tüm personelin cari bakiyesi.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/panel/personel?tab=hesap&ay=${oncekiParam}`}>‹ Önceki</Link>}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/panel/personel?tab=hesap&ay=${sonrakiParam}`}>Sonraki ›</Link>}
-          />
-        </div>
-      </header>
+      <PageHeader
+        title="Hesap"
+        description="Tüm personelin cari bakiyesi."
+        icon={Wallet}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/panel/personel?tab=hesap&ay=${oncekiParam}`}>‹ Önceki</Link>}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/panel/personel?tab=hesap&ay=${sonrakiParam}`}>Sonraki ›</Link>}
+            />
+          </>
+        }
+      />
 
       {satirlar.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Henüz personel kaydı yok.</p>
+        <EmptyState icon={Wallet} title="Henüz personel kaydı yok." compact />
       ) : (
         <ul className="flex flex-col gap-2">
           {satirlar.map((s) => (
