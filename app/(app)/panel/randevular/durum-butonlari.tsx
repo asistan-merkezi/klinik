@@ -14,13 +14,19 @@ type AcikForm = "gecikmeli" | "ertelendi" | "tamamla" | null;
 
 // Çizelgedeki kutucuk renkleriyle aynı (bkz. randevu-kutusu.tsx): geldi/gecikmeli
 // yeşil, gelmedi/iptal kırmızı, ertelendi açık mavi.
+// "!" (important) önekleri bilinçli — ODEME_TIPI_SECILI_SINIFI'yla aynı kanıtlanmış
+// desen (bkz. odeme-tipi-secici.tsx): Button'ın variant="outline" sınıfları (Faz 2'de
+// eklenen text-slate-700/hover:bg-background dahil) derlenmiş CSS'te bu renkli
+// sınıflardan SONRA tanımlanıyor, "!" olmadan seçili buton renklenmiyordu (Faz 2
+// doğrulamasında derlenmiş CSS byte-offset karşılaştırmasıyla gerçek bir risk olarak
+// bulundu — CLAUDE.md'nin Ödeme Tipi'nde yaşanan aynı sınıf hatası).
 const AKTIF_SINIFI: Partial<Record<RandevuDurum, string>> = {
-  geldi: "border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-500/90",
-  gecikmeli_geldi: "border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-500/90",
-  gelmedi: "border-destructive bg-destructive text-white hover:bg-destructive/90",
-  iptal: "border-destructive bg-destructive text-white hover:bg-destructive/90",
-  ertelendi: "border-sky-500 bg-sky-500 text-white hover:bg-sky-600 dark:hover:bg-sky-500/90",
-  tamamlandi: "border-violet-500 bg-violet-500 text-white hover:bg-violet-600 dark:hover:bg-violet-500/90",
+  geldi: "!border-emerald-500 !bg-emerald-500 !text-white hover:!bg-emerald-600 dark:hover:!bg-emerald-500/90",
+  gecikmeli_geldi: "!border-emerald-500 !bg-emerald-500 !text-white hover:!bg-emerald-600 dark:hover:!bg-emerald-500/90",
+  gelmedi: "!border-destructive !bg-destructive !text-white hover:!bg-destructive/90",
+  iptal: "!border-destructive !bg-destructive !text-white hover:!bg-destructive/90",
+  ertelendi: "!border-sky-500 !bg-sky-500 !text-white hover:!bg-sky-600 dark:hover:!bg-sky-500/90",
+  tamamlandi: "!border-violet-500 !bg-violet-500 !text-white hover:!bg-violet-600 dark:hover:!bg-violet-500/90",
 };
 
 /**

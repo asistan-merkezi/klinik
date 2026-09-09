@@ -3,6 +3,13 @@ import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 import type { RandevuSatir } from "@/types/randevu";
+import {
+  DURUM_TONU_SINIFLARI,
+  DURUM_KUTU_RENKLERI,
+  DURUM_NABIZ_RENGI,
+  type StatusTone,
+  type DurumKutuRengi,
+} from "@/lib/ui/durum-tonlari";
 
 export type GorunumDurumu =
   | "planlandi"
@@ -30,86 +37,41 @@ export function gorunumDurumuHesapla(randevu: RandevuSatir, simdi: Date): Gorunu
   return randevu.durum;
 }
 
+// docs/DESIGN.md'nin "Klinik Durumları" spektrumuna göre — lib/ui/durum-tonlari.ts
+// TEK renk kaynağı, badge rozeti oradan (DURUM_TONU_SINIFLARI), kutucuğun
+// sol şerit/dolgu/kenar üçlüsü oradan (DURUM_KUTU_RENKLERI). 8 durumun HEPSİ
+// (planlandi/geldi/gecikmeli_geldi/seansta/iptal/gelmedi/ertelendi/tamamlandi)
+// tek tek doğrulandı — CLAUDE.md'de "iptal"in bir zamanlar hiç renk
+// tanımlamadığı belgeleniyordu, burada 8'i de gerçek bir tone'a bağlı.
+// "seansta" DESIGN'ın "Seans Başladı / Aktif (Active Pulse)" tanımına göre
+// artık teal+pulse — kutu rengi (kutuRenkOverride) yine "geldi" ile aynı
+// yeşil kalıyor (durum aslında hâlâ "geldi", sadece canlı bir vurgu ekleniyor).
 const DURUM_STIL: Record<
   GorunumDurumu,
   {
     etiket: string;
-    rozet: string;
+    tone: StatusTone;
     adSinif?: string;
     soluk?: boolean;
     vurgu?: string;
-    kutuRenk?: { serit: string; dolgu: string; kenar: string };
+    pulse?: boolean;
+    kutuRenkOverride?: DurumKutuRengi;
   }
 > = {
-  planlandi: { etiket: "Planlandı", rozet: "bg-muted text-muted-foreground" },
-  geldi: {
-    etiket: "Geldi",
-    rozet: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    kutuRenk: {
-      serit: "bg-emerald-500",
-      dolgu: "bg-emerald-500/10",
-      kenar: "border-emerald-300 dark:border-emerald-500/40",
-    },
-  },
+  planlandi: { etiket: "Planlandı", tone: "slate" },
+  geldi: { etiket: "Geldi", tone: "emerald" },
   seansta: {
     etiket: "Seansta",
-    rozet: "bg-primary/10 text-primary",
+    tone: "teal",
+    pulse: true,
     vurgu: "ring-2 ring-primary ring-offset-1 ring-offset-background",
-    kutuRenk: {
-      serit: "bg-emerald-500",
-      dolgu: "bg-emerald-500/10",
-      kenar: "border-emerald-300 dark:border-emerald-500/40",
-    },
+    kutuRenkOverride: DURUM_KUTU_RENKLERI.emerald,
   },
-  gecikmeli_geldi: {
-    etiket: "Gecikmeli Geldi",
-    rozet: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    kutuRenk: {
-      serit: "bg-emerald-500",
-      dolgu: "bg-emerald-500/10",
-      kenar: "border-emerald-300 dark:border-emerald-500/40",
-    },
-  },
-  iptal: {
-    etiket: "İptal",
-    rozet: "bg-destructive/10 text-destructive",
-    adSinif: "line-through",
-    soluk: true,
-    kutuRenk: {
-      serit: "bg-destructive",
-      dolgu: "bg-destructive/10",
-      kenar: "border-destructive/40",
-    },
-  },
-  gelmedi: {
-    etiket: "Gelmedi",
-    rozet: "bg-destructive/10 text-destructive",
-    adSinif: "line-through",
-    kutuRenk: {
-      serit: "bg-destructive",
-      dolgu: "bg-destructive/10",
-      kenar: "border-destructive/40",
-    },
-  },
-  ertelendi: {
-    etiket: "Ertelendi",
-    rozet: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-    kutuRenk: {
-      serit: "bg-sky-500",
-      dolgu: "bg-sky-500/10",
-      kenar: "border-sky-300 dark:border-sky-500/40",
-    },
-  },
-  tamamlandi: {
-    etiket: "Tamamlandı",
-    rozet: "bg-muted text-muted-foreground",
-    soluk: true,
-    kutuRenk: {
-      serit: "bg-muted-foreground/40",
-      dolgu: "bg-muted/40",
-      kenar: "border-border",
-    },
-  },
+  gecikmeli_geldi: { etiket: "Gecikmeli Geldi", tone: "emerald" },
+  iptal: { etiket: "İptal", tone: "rose", adSinif: "line-through", soluk: true },
+  gelmedi: { etiket: "Gelmedi", tone: "rose", adSinif: "line-through" },
+  ertelendi: { etiket: "Ertelendi", tone: "sky" },
+  tamamlandi: { etiket: "Tamamlandı", tone: "slate", soluk: true },
 };
 
 // Tedavi (islem_tanimi) başına sabit, tutarlı bir renk — id'den türetilir,
@@ -153,7 +115,13 @@ export const RandevuKutusu = memo(function RandevuKutusu({
   hastaLinki = false,
 }: RandevuKutusuProps) {
   const stil = DURUM_STIL[gorunumDurumu];
-  const renk = stil.kutuRenk ?? tedaviRengi(randevu.islem_tanimi?.id);
+  // "Planlandı" (henüz gerçekleşmemiş) kutuları DURUM'a göre değil TEDAVİYE
+  // göre renklenir (görsel tarama kolaylığı) — bu tek istisna, diğer 7 durumun
+  // hepsi kendi tone'una göre renklenir (bkz. DURUM_STIL yorumu).
+  const renk =
+    gorunumDurumu === "planlandi"
+      ? tedaviRengi(randevu.islem_tanimi?.id)
+      : (stil.kutuRenkOverride ?? DURUM_KUTU_RENKLERI[stil.tone]);
   const etiket =
     gorunumDurumu === "gecikmeli_geldi" && randevu.gecikme_dakika
       ? `${stil.etiket} (${randevu.gecikme_dakika} dk)`
@@ -190,11 +158,11 @@ export const RandevuKutusu = memo(function RandevuKutusu({
         <span
           className={cn(
             "flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight",
-            stil.rozet
+            DURUM_TONU_SINIFLARI[stil.tone]
           )}
         >
-          {gorunumDurumu === "seansta" && (
-            <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
+          {stil.pulse && (
+            <span className={cn("size-1.5 animate-pulse rounded-full", DURUM_NABIZ_RENGI)} aria-hidden />
           )}
           {etiket}
           {hastaLinki && <ArrowUpRight className="size-2.5" aria-hidden />}

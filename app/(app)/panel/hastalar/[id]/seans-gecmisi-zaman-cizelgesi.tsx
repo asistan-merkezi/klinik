@@ -109,7 +109,7 @@ export function SeansGecmisiZamanCizelgesi({
               {(aktifProtokolEtiketleri.length > 0 || bolgeEtiketleri.length > 0) && (
                 <div className="flex flex-wrap gap-1">
                   {aktifProtokolEtiketleri.map((ad) => (
-                    <span key={ad} className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                    <span key={ad} className="rounded-full bg-clinical-soft px-2 py-0.5 text-xs text-clinical">
                       {ad}
                     </span>
                   ))}
