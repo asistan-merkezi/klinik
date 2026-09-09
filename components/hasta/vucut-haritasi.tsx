@@ -187,25 +187,34 @@ export function VucutHaritasi({
             role="group"
             aria-label={`Vücut haritası bölgeleri (${YUZ_ETIKET[aktifYuz].toLowerCase()} görünüm)`}
           >
-            {bolgelerBuYuz.map((bolge) => (
-              <path
-                key={bolge.kod}
-                d={bolge.d}
-                fill="transparent"
-                className={cn(duzenlenebilir && "cursor-pointer hover:fill-white/10")}
-                role={duzenlenebilir ? "button" : undefined}
-                tabIndex={duzenlenebilir ? 0 : undefined}
-                aria-label={bolge.ad}
-                aria-pressed={duzenlenebilir ? isaretByBolge.has(bolge.kod) : undefined}
-                onClick={() => bolgeyeTikla(bolge.kod)}
-                onKeyDown={(e) => klavyeIleTikla(e, bolge.kod)}
-              >
-                <title>
-                  {bolge.ad}
-                  {isaretByBolge.has(bolge.kod) ? ` · ${isaretByBolge.get(bolge.kod)!.severity ?? "—"}/10` : ""}
-                </title>
-              </path>
-            ))}
+            {bolgelerBuYuz.map((bolge) => {
+              // aria-label (bir attribute) kullanılıyor, <title> (bir child metin
+              // node'u) DEĞİL — SVG içinde dinamik <path>'lere gömülü <title>
+              // elementleri gerçek bir hydration mismatch'e yol açıyordu (server
+              // HTML'de <title> boş render ediliyor, client hydration'da metin
+              // ekleniyor — Next.js'in hydration diff'i bunu `+ Baş` şeklinde
+              // gösterdi, statik bölge adında bile). aria-label bir attribute
+              // olduğu için bu foreign-content ayrıştırma tuzağına girmiyor.
+              // Bilgi kaybı yok: ekran okuyucu aria-label'ı okumaya devam ediyor;
+              // kaybedilen tek şey mouse hover'daki native tarayıcı tooltip'i
+              // (bilinçli tradeoff, görev tarifinde onaylandı).
+              const isaret = isaretByBolge.get(bolge.kod);
+              const etiket = isaret ? `${bolge.ad} · ${isaret.severity ?? "—"}/10` : bolge.ad;
+              return (
+                <path
+                  key={bolge.kod}
+                  d={bolge.d}
+                  fill="transparent"
+                  className={cn(duzenlenebilir && "cursor-pointer hover:fill-white/10")}
+                  role={duzenlenebilir ? "button" : undefined}
+                  tabIndex={duzenlenebilir ? 0 : undefined}
+                  aria-label={etiket}
+                  aria-pressed={duzenlenebilir ? isaretByBolge.has(bolge.kod) : undefined}
+                  onClick={() => bolgeyeTikla(bolge.kod)}
+                  onKeyDown={(e) => klavyeIleTikla(e, bolge.kod)}
+                />
+              );
+            })}
           </svg>
         </div>
       )}
