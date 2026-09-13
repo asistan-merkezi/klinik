@@ -14,7 +14,7 @@ export default async function MuhasebeSayfasi() {
     redirect("/giris");
   }
 
-  const grup = MENU_GRUPLARI.find((g) => g.key === "muhasebe")!;
+  const grup = MENU_GRUPLARI.find((g) => g.key === "finans")!;
 
   return <MenuGrubuSayfasi grup={grup} />;
 }

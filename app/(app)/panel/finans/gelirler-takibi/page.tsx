@@ -9,9 +9,9 @@ const GRUP: MenuGrubu = {
   label: "Gelirler Takibi ve Faturalandırma",
   icon: HandCoins,
   ogeler: [
-    { href: "/panel/muhasebe/gelirler-takibi/faturalar", label: "Kesilen Faturalar", icon: Receipt },
+    { href: "/panel/finans/gelirler-takibi/faturalar", label: "Kesilen Faturalar", icon: Receipt },
     {
-      href: "/panel/muhasebe/gelirler-takibi/cari-alacaklar",
+      href: "/panel/finans/gelirler-takibi/cari-alacaklar",
       label: "Cari Alacaklar Takibi",
       icon: HandCoins,
     },

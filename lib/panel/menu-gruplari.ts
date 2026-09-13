@@ -20,6 +20,9 @@ import {
   BookOpen,
   Bot,
   MessageSquareWarning,
+  UserCog,
+  Package,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,21 +40,25 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ],
   },
   {
-    key: "muhasebe",
+    key: "finans",
     label: "Finans",
     icon: Wallet,
     ogeler: [
-      { href: "/panel/muhasebe/gelirler-takibi", label: "Gelirler Takibi ve Faturalandırma", icon: HandCoins },
+      { href: "/panel/personel?tab=hesap", label: "Personel", icon: UserCog },
+      { href: "/panel/paketler", label: "Paket & Ödeme Yönetimi", icon: Package },
       {
-        href: "/panel/muhasebe/satin-alma-faturalari",
+        href: "/panel/finans/satin-alma-faturalari",
         label: "Satın Alma Faturaları",
         icon: ShoppingCart,
       },
-      { href: "/panel/muhasebe/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
-      { href: "/panel/muhasebe/giderler", label: "Giderler", icon: TrendingDown },
-      { href: "/panel/muhasebe/raporlar", label: "Raporlar", icon: BarChart3 },
+      { href: "/panel/finans/kasa", label: "Kasa", icon: Banknote },
+      { href: "/panel/finans/banka", label: "Banka", icon: Building2 },
+      { href: "/panel/finans/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
+      { href: "/panel/finans/raporlar", label: "Raporlar", icon: BarChart3 },
+      { href: "/panel/finans/gelirler-takibi", label: "Gelirler Takibi ve Faturalandırma", icon: HandCoins },
+      { href: "/panel/finans/giderler", label: "Giderler", icon: TrendingDown },
       {
-        href: "/panel/muhasebe/kategori-iskonto-oranlari",
+        href: "/panel/finans/kategori-iskonto-oranlari",
         label: "Kategori / İskonto Oranları",
         icon: Percent,
       },

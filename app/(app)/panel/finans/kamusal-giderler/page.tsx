@@ -144,13 +144,13 @@ export default async function KamusalGiderlerSayfasi({
               variant="outline"
               size="sm"
               nativeButton={false}
-              render={<Link href={`/panel/muhasebe/kamusal-giderler?ay=${ay.oncekiParam}`}>‹ Önceki</Link>}
+              render={<Link href={`/panel/finans/kamusal-giderler?ay=${ay.oncekiParam}`}>‹ Önceki</Link>}
             />
             <Button
               variant="outline"
               size="sm"
               nativeButton={false}
-              render={<Link href={`/panel/muhasebe/kamusal-giderler?ay=${ay.sonrakiParam}`}>Sonraki ›</Link>}
+              render={<Link href={`/panel/finans/kamusal-giderler?ay=${ay.sonrakiParam}`}>Sonraki ›</Link>}
             />
           </div>
         </div>

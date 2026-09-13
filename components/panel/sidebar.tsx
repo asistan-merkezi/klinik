@@ -34,19 +34,21 @@ const ANA_OGELER = [
 ];
 
 // Bazı MENU_GRUPLARI grupları için NEREDEYSE TÜM alt sayfalar terapist'e
-// sunucu tarafında redirect atıyor (bkz. app/(app)/panel/muhasebe/**/page.tsx:
-// kamusal-giderler/raporlar/satin-alma-faturalari klinik_admin|muhasebe|
-// super_admin'e, gelirler-takibi/cari-alacaklar|faturalar bunlara+resepsiyon'a
-// kilitli — sadece giderler [placeholder] ve kategori-iskonto-oranlari
-// [salt-okunur mesaj, veri göstermiyor] terapist'e açık) — linki göstermek
-// sadece "tıkla, /panel'e geri at" deneyimi üretiyor, veri sızdırmıyor.
-// MERKEZİ bir yetki kaynağı YOK (her sayfa kendi rol kontrolünü kendi içinde
-// tekrar ediyor) — bu liste elle tarandı, sayfa taraflı kontroller değişirse
-// senkron kalmayabilir. Tedaviler/Ayarlar/Destek grupları TARANDI ve terapist
-// için gerçek bir kilit bulunamadı (Ayarlar'ın 3 alt sayfası — arsiv-ice-aktarma/
-// mesajlasma/qr-kodlar — non-admin'i /panel/ayarlar'a geri atıyor ama bu hub'ın
-// KENDİSİNİ değil, hub-içi bir kartı etkiliyor; kapsam dışı, buraya dahil edilmedi).
-const TERAPISTE_GORUNMEYEN_GRUPLAR = new Set(["muhasebe"]);
+// sunucu tarafında redirect atıyor (bkz. app/(app)/panel/finans/**/page.tsx:
+// kamusal-giderler/raporlar/satin-alma-faturalari/kasa/banka klinik_admin|
+// muhasebe|super_admin'e, gelirler-takibi/cari-alacaklar|faturalar bunlara+
+// resepsiyon'a kilitli — sadece giderler [placeholder] ve kategori-iskonto-
+// oranlari [salt-okunur mesaj, veri göstermiyor] terapist'e açık; Personel/
+// Paket & Ödeme kartları bu klasörün dışına, kendi hub'larının rol kontrolüne
+// linklenir) — linki göstermek sadece "tıkla, /panel'e geri at" deneyimi
+// üretiyor, veri sızdırmıyor. MERKEZİ bir yetki kaynağı YOK (her sayfa kendi
+// rol kontrolünü kendi içinde tekrar ediyor) — bu liste elle tarandı, sayfa
+// taraflı kontroller değişirse senkron kalmayabilir. Tedaviler/Ayarlar/Destek
+// grupları TARANDI ve terapist için gerçek bir kilit bulunamadı (Ayarlar'ın 3
+// alt sayfası — arsiv-ice-aktarma/mesajlasma/qr-kodlar — non-admin'i
+// /panel/ayarlar'a geri atıyor ama bu hub'ın KENDİSİNİ değil, hub-içi bir
+// kartı etkiliyor; kapsam dışı, buraya dahil edilmedi).
+const TERAPISTE_GORUNMEYEN_GRUPLAR = new Set(["finans"]);
 
 const BOTTOM_NAV_OGELERI = [
   { href: "/panel", label: "Panel", icon: Home, tamEslesme: true },
