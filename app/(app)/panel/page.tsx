@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
-import { gunAraligi, ayAraligi } from "@/lib/utils";
+import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { BekleyenIptalTalepleri } from "@/app/(app)/panel/randevular/bekleyen-iptal-talepleri";
 import { BekleyenRandevuTalepleri } from "@/app/(app)/panel/randevular/bekleyen-randevu-talepleri";
@@ -15,7 +15,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Users, CalendarClock, Inbox } from "lucide-react";
+import { CalendarClock, Inbox } from "lucide-react";
 
 const KARSILAMA_TARIH_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   weekday: "long",
@@ -23,8 +23,6 @@ const KARSILAMA_TARIH_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   month: "long",
   year: "numeric",
 });
-
-const PARA_FORMAT = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
 
 export default async function PanelSayfasi() {
   const supabase = await createClient();
@@ -69,7 +67,6 @@ export default async function PanelSayfasi() {
   }
 
   const { baslangic, bitis } = gunAraligi();
-  const { baslangic: ayBaslangic, bitis: ayBitis } = ayAraligi();
 
   const [
     randevularSonucu,
@@ -80,8 +77,6 @@ export default async function PanelSayfasi() {
     personelSonucu,
     protokolSonucu,
     hastaSonucu,
-    hastaSayisiSonucu,
-    yeniHastaSayisiSonucu,
     iptalTalepleriSonucu,
     randevuTalepleriSonucu,
     aktifTakipSonucu,
@@ -105,8 +100,6 @@ export default async function PanelSayfasi() {
     supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
     supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
-    supabase.from("hasta").select("id", { count: "exact", head: true }),
-    supabase.from("hasta").select("id", { count: "exact", head: true }).gte("created_at", ayBaslangic).lt("created_at", ayBitis),
     finansalGorunur
       ? supabase
           .from("randevu_iptal_talebi")
@@ -131,7 +124,7 @@ export default async function PanelSayfasi() {
       // otomatik embed'i (hasta(ad_soyad)) çalışmıyor ("no relationship
       // found" hatası, gerçek Playwright doğrulamasında bulundu) — isim
       // aşağıda ayrı çekilen `hastaSonucu` listesinden Map ile eşleniyor.
-      .select("hasta_id, kalan_paket_hakki, bakiye, son_seans_tarihi, sonraki_randevu_tarihi, aktif_protokol_ad")
+      .select("hasta_id, kalan_paket_hakki, son_seans_tarihi, sonraki_randevu_tarihi, aktif_protokol_ad")
       .or("kalan_paket_hakki.gt.0,sonraki_randevu_tarihi.not.is.null")
       .order("son_seans_tarihi", { ascending: false, nullsFirst: false })
       .limit(8)
@@ -139,7 +132,6 @@ export default async function PanelSayfasi() {
         {
           hasta_id: string;
           kalan_paket_hakki: number | null;
-          bakiye: number | null;
           son_seans_tarihi: string | null;
           sonraki_randevu_tarihi: string | null;
           aktif_protokol_ad: string | null;
@@ -169,8 +161,6 @@ export default async function PanelSayfasi() {
     console.error("Aktif takipteki hastalar çekilemedi:", aktifTakipSonucu.error);
   }
 
-  const toplamHasta = hastaSayisiSonucu.count ?? 0;
-  const buAyYeniHasta = yeniHastaSayisiSonucu.count ?? 0;
   const bugunkuRandevuSayisi = randevular?.length ?? 0;
   const bugunkuTamamlanan = (randevular ?? []).filter((r) =>
     ["geldi", "gecikmeli_geldi", "tamamlandi"].includes(r.durum)
@@ -198,7 +188,6 @@ export default async function PanelSayfasi() {
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard label="Toplam Hasta" value={toplamHasta} icon={Users} iconTone="blue" trend={`+${buAyYeniHasta} bu ay`} />
           <KpiCard
             label="Bugünkü Seanslar"
             value={`${bugunkuTamamlanan} / ${bugunkuRandevuSayisi}`}
@@ -304,7 +293,6 @@ export default async function PanelSayfasi() {
                     <TableHead className="hidden sm:table-cell">Son Seans</TableHead>
                     <TableHead className="hidden md:table-cell">Sonraki Randevu</TableHead>
                     <TableHead className="text-right">Kalan Hak</TableHead>
-                    {finansalGorunur && <TableHead className="text-right">Bakiye</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -326,13 +314,6 @@ export default async function PanelSayfasi() {
                         {satir.sonraki_randevu_tarihi ? new Date(satir.sonraki_randevu_tarihi).toLocaleDateString("tr-TR") : "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{satir.kalan_paket_hakki ?? "—"}</TableCell>
-                      {finansalGorunur && (
-                        <TableCell
-                          className={`text-right tabular-nums ${(satir.bakiye ?? 0) < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}
-                        >
-                          {satir.bakiye !== null ? PARA_FORMAT.format(satir.bakiye) : "—"}
-                        </TableCell>
-                      )}
                     </TableRow>
                     );
                   })}
