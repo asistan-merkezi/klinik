@@ -70,7 +70,6 @@ export default async function PanelSayfasi() {
 
   const { baslangic, bitis } = gunAraligi();
   const { baslangic: ayBaslangic, bitis: ayBitis } = ayAraligi();
-  const ayBaslangiTarihi = ayBaslangic.slice(0, 10);
 
   const [
     randevularSonucu,
@@ -170,18 +169,6 @@ export default async function PanelSayfasi() {
     console.error("Aktif takipteki hastalar çekilemedi:", aktifTakipSonucu.error);
   }
 
-  // Aylık ciro — sadece finansalGorunur rolde ayrı bir sorgu (izinsiz roller için hiç çekilmiyor).
-  let aylikCiro: number | null = null;
-  if (finansalGorunur) {
-    const { data: odemeSatirlari } = await supabase
-      .from("hasta_bakiye_hareket")
-      .select("tutar")
-      .eq("tur", "odeme")
-      .gte("created_at", ayBaslangic)
-      .lt("created_at", ayBitis);
-    aylikCiro = (odemeSatirlari ?? []).reduce((toplam, satir) => toplam + Number(satir.tutar ?? 0), 0);
-  }
-
   const toplamHasta = hastaSayisiSonucu.count ?? 0;
   const buAyYeniHasta = yeniHastaSayisiSonucu.count ?? 0;
   const bugunkuRandevuSayisi = randevular?.length ?? 0;
@@ -219,14 +206,7 @@ export default async function PanelSayfasi() {
             iconTone="emerald"
           />
           {finansalGorunur && (
-            <>
-              <KpiCard label="Bekleyen Talepler" value={bekleyenTalepSayisi} icon={Inbox} iconTone="amber" />
-              <KpiCard
-                label="Aylık Ciro"
-                value={aylikCiro !== null ? PARA_FORMAT.format(aylikCiro) : null}
-                trend={`${ayBaslangiTarihi.slice(0, 7)} dönemi, tahsil edilen ödemeler`}
-              />
-            </>
+            <KpiCard label="Bekleyen Talepler" value={bekleyenTalepSayisi} icon={Inbox} iconTone="amber" />
           )}
         </div>
 
