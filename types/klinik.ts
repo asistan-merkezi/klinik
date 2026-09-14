@@ -37,3 +37,9 @@ export type KlinikArac = {
   model: string;
   plaka: string;
 };
+
+export type KlinikBankaHesabi = {
+  id: string;
+  banka_adi: string;
+  sube: string | null;
+};
