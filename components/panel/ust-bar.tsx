@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Bell, CalendarDays, LogOut, ChevronDown } from "lucide-react";
+import { Search, Plus, Bell, CalendarDays, LogOut, ChevronDown, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -28,10 +28,12 @@ export function UstBar({
   kullaniciAdi,
   kullaniciRolu,
   bildirimSayisi,
+  onMenuAc,
 }: {
   kullaniciAdi: string;
   kullaniciRolu: string;
   bildirimSayisi?: number;
+  onMenuAc: () => void;
 }) {
   const router = useRouter();
   const [aramaDegeri, setAramaDegeri] = useState("");
@@ -118,6 +120,15 @@ export function UstBar({
 
   return (
     <header className="sticky top-0 z-30 flex h-topbar shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:gap-3 sm:px-4 print:hidden">
+      <button
+        type="button"
+        onClick={onMenuAc}
+        aria-label="Menüyü aç"
+        className="hidden size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground md:flex"
+      >
+        <Menu className="size-4.5" aria-hidden />
+      </button>
+
       {mobilAramaAcik ? (
         <div ref={aramaKapsayiciRef} className="relative flex flex-1 items-center gap-2 md:hidden">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />

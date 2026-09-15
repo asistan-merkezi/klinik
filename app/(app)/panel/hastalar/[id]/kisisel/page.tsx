@@ -10,26 +10,24 @@ export default async function KisiselBilgilerSayfasi({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getAuthUser();
+  const supabase = await createClient();
+
+  const [user, hasta, hastaKullaniciSonucu] = await Promise.all([
+    getAuthUser(),
+    hastaDetayFullGetir(id),
+    supabase.from("hasta_kullanici").select("aktif").eq("hasta_id", id).maybeSingle(),
+  ]);
 
   if (!user) {
     redirect("/giris");
   }
-
-  const hasta = await hastaDetayFullGetir(id);
   if (!hasta) {
     notFound();
   }
 
   const rol = await kullaniciRolGetir(user.id);
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
-
-  const supabase = await createClient();
-  const { data: hastaKullanici } = await supabase
-    .from("hasta_kullanici")
-    .select("aktif")
-    .eq("hasta_id", id)
-    .maybeSingle();
+  const hastaKullanici = hastaKullaniciSonucu.data;
 
   return (
     <div className="flex flex-col gap-3">

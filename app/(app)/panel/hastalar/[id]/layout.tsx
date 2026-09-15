@@ -14,13 +14,21 @@ export default async function HastaDetayLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getAuthUser();
+  const supabase = await createClient();
+
+  // Üç sorgu birbirinden bağımsız (hiçbiri diğerinin sonucuna ihtiyaç
+  // duymuyor) — Promise.all ile paralel. `rol` auth sonucuna bağlı olduğu
+  // için ayrı kalıyor, ama kullaniciRolGetir zaten gecerliKullanici()'ye
+  // delege ettiğinden (bkz. hasta-getir.ts) burada yeni bir round-trip AÇMAZ.
+  const [user, hasta, ozetSonucu] = await Promise.all([
+    getAuthUser(),
+    hastaTemelGetir(id),
+    supabase.from("v_hasta_ozet").select("kalan_paket_hakki").eq("hasta_id", id).maybeSingle(),
+  ]);
 
   if (!user) {
     redirect("/giris");
   }
-
-  const hasta = await hastaTemelGetir(id);
   if (!hasta) {
     notFound();
   }
@@ -30,18 +38,7 @@ export default async function HastaDetayLayout({
   const terapistMi = rol === "terapist";
 
   const riskEklenebilir = duzenlenebilir || terapistMi;
-
-  // Dosya başlığındaki "Aktif Paket" rozeti için — hub sayfası (page.tsx)
-  // zaten aynı view'ı kendi ihtiyacı için ayrıca çekiyor; layout tüm alt
-  // rotalarda (kişisel/randevu/tedavi/cari) render edildiği için burada da
-  // ayrıca (tek satır, ucuz) çekiliyor — v_hasta_ozet view olduğundan embed
-  // edilemiyor, zaten hasta-getir.ts'in kendi cache() düzeninin dışında.
-  const supabase = await createClient();
-  const { data: ozet } = await supabase
-    .from("v_hasta_ozet")
-    .select("kalan_paket_hakki")
-    .eq("hasta_id", id)
-    .maybeSingle();
+  const ozet = ozetSonucu.data;
 
   return (
     <div className="flex-1 bg-background">

@@ -8,19 +8,16 @@ import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { YeniRandevuDialog } from "./yeni-randevu-dialog";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
 import { BekleyenRandevuTalepleri } from "./bekleyen-randevu-talepleri";
+import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 
 export default async function RandevularSayfasi() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const oturum = await gecerliKullanici();
+  if (!oturum) {
     redirect("/giris");
   }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  const { authUser: user, kullanici } = oturum;
   const rol = kullanici?.rol ?? null;
 
   let kendiTerapistId: string | null = null;

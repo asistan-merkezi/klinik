@@ -12,6 +12,7 @@ import { HastaSatiri } from "./hasta-satiri";
 import { HastaTablosu } from "./hasta-tablosu";
 import { HastaAramaKutusu } from "./hasta-arama-kutusu";
 import { bildirimSayisiGetir } from "./bildirimler/bildirim-sayisi";
+import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 
 export default async function HastalarSayfasi({
   searchParams,
@@ -20,15 +21,11 @@ export default async function HastalarSayfasi({
 }) {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const oturum = await gecerliKullanici();
+  if (!oturum) {
     redirect("/giris");
   }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  const { kullanici } = oturum;
   const bildirimGorulebilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
   const bildirimSayisi = bildirimGorulebilir ? await bildirimSayisiGetir(supabase) : 0;
 

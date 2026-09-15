@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { revalidateHastaDetay } from "./[id]/revalidate";
 
@@ -30,22 +31,17 @@ const kimlikOlusturSemasi = z.object({
 });
 
 async function klinikIdGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const oturum = await gecerliKullanici();
+  if (!oturum) {
     redirect("/giris");
   }
 
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  return { supabase, klinikId: kullanici?.klinik_id ?? null, userId: user.id };
+  const supabase = await createClient();
+  return {
+    supabase,
+    klinikId: oturum.kullanici?.klinik_id ?? null,
+    userId: oturum.authUser.id,
+  };
 }
 
 export async function hastaOlustur(

@@ -69,25 +69,18 @@ function girdiAktifMi(pathname: string, href: string, tamEslesme?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/**
- * Tek satırlık nav linki — hem gerçek `<aside>` (md–xl arası ikon-rail,
- * xl+ tam genişlik, tamamen CSS ile) hem de mobil çekmece (`tamGenislikZorla`,
- * gerçek viewport dar olsa bile her zaman tam görünüm) tarafından paylaşılır.
- * Rail modunda (md..xl) etiket hover/focus'ta yüzen bir tooltip'e dönüşür.
- */
+/** Tek satırlık nav linki — çekmece (her zaman tam genişlik) tarafından kullanılır. */
 function SidebarLink({
   href,
   label,
   icon: Icon,
   aktif,
-  tamGenislikZorla,
   onClick,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   aktif: boolean;
-  tamGenislikZorla?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -95,23 +88,14 @@ function SidebarLink({
       href={href}
       onClick={onClick}
       className={cn(
-        "group/navlink relative flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-        tamGenislikZorla ? "justify-start" : "justify-center xl:justify-start",
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         aktif
           ? "bg-sidebar-primary text-sidebar-primary-foreground"
           : "text-sidebar-foreground hover:bg-sidebar-accent"
       )}
     >
       <Icon className="size-4.5 shrink-0" aria-hidden />
-      <span className={cn(tamGenislikZorla ? "inline" : "hidden xl:inline")}>{label}</span>
-      {!tamGenislikZorla && (
-        <span
-          role="tooltip"
-          className="pointer-events-none absolute left-full z-50 ml-2 rounded-md bg-popover px-2 py-1 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-z2 transition-opacity group-hover/navlink:opacity-100 group-focus-visible/navlink:opacity-100 xl:hidden"
-        >
-          {label}
-        </span>
-      )}
+      <span>{label}</span>
     </Link>
   );
 }
@@ -122,7 +106,6 @@ function SidebarGovde({
   kullaniciAdi,
   kullaniciRolu,
   pathname,
-  tamGenislikZorla,
   linkTiklandi,
 }: {
   klinik: Klinik;
@@ -130,7 +113,6 @@ function SidebarGovde({
   kullaniciAdi: string;
   kullaniciRolu: string;
   pathname: string;
-  tamGenislikZorla?: boolean;
   linkTiklandi?: () => void;
 }) {
   return (
@@ -139,13 +121,10 @@ function SidebarGovde({
       <Link
         href="/panel"
         onClick={linkTiklandi}
-        className={cn(
-          "flex items-center gap-2 border-b border-sidebar-border px-4 py-4",
-          !tamGenislikZorla && "justify-center xl:justify-start"
-        )}
+        className="flex items-center gap-2 border-b border-sidebar-border px-4 py-4"
       >
         <PanelLogo klinik={klinik} />
-        <div className={cn("min-w-0", tamGenislikZorla ? "block" : "hidden xl:block")}>
+        <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-sidebar-foreground">Klinik Asistanı</p>
           <p className="truncate text-xs text-muted-foreground">{klinik.ad}</p>
         </div>
@@ -154,7 +133,7 @@ function SidebarGovde({
       {/* Klinik/şube değiştirici kartı — şube kavramı veri modelinde yok
           (bkz. CLAUDE.md: çoklu şube ertelendi), bu yüzden dropdown/chevron
           YOK, sadece bilgi kartı. */}
-      <div className={cn("px-3 pt-3", tamGenislikZorla ? "block" : "hidden xl:block")}>
+      <div className="px-3 pt-3">
         <div className="rounded-md border border-sidebar-border bg-card p-3">
           <p className="truncate text-sm font-medium text-card-foreground">{klinik.ad}</p>
           {klinikPlani && (
@@ -165,12 +144,7 @@ function SidebarGovde({
         </div>
       </div>
 
-      <nav
-        className={cn(
-          "flex flex-1 flex-col gap-1 overflow-y-auto p-3",
-          !tamGenislikZorla && "items-center xl:items-stretch"
-        )}
-      >
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
         {ANA_OGELER.map((oge) => (
           <SidebarLink
             key={oge.href}
@@ -178,7 +152,6 @@ function SidebarGovde({
             label={oge.label}
             icon={oge.icon}
             aktif={girdiAktifMi(pathname, oge.href, oge.tamEslesme)}
-            tamGenislikZorla={tamGenislikZorla}
             onClick={linkTiklandi}
           />
         ))}
@@ -197,7 +170,6 @@ function SidebarGovde({
               label={grup.label}
               icon={grup.icon}
               aktif={grupAktif}
-              tamGenislikZorla={tamGenislikZorla}
               onClick={linkTiklandi}
             />
           );
@@ -205,43 +177,25 @@ function SidebarGovde({
       </nav>
 
       {/* Klinik Destek Hattı */}
-      <div className={cn("border-t border-sidebar-border p-3", !tamGenislikZorla && "flex justify-center xl:block")}>
+      <div className="border-t border-sidebar-border p-3">
         <Link
           href="/panel/destek"
           onClick={linkTiklandi}
           title="Klinik Destek Hattı"
-          className={cn(
-            "group/destek relative flex items-center gap-2 rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            tamGenislikZorla
-              ? "bg-muted p-3 text-foreground hover:text-foreground"
-              : "size-10 justify-center xl:size-auto xl:w-full xl:justify-start xl:bg-muted xl:p-3 xl:text-foreground xl:hover:text-foreground"
-          )}
+          className="flex items-center gap-2 rounded-md bg-muted p-3 text-foreground transition-colors hover:bg-sidebar-accent"
         >
           <LifeBuoy className="size-4.5 shrink-0" aria-hidden />
-          <div className={cn(tamGenislikZorla ? "block" : "hidden xl:block")}>
+          <div>
             <p className="text-sm font-semibold">Klinik Destek Hattı</p>
             <p className="text-xs text-muted-foreground">Sorularınız için buradayız.</p>
           </div>
-          {!tamGenislikZorla && (
-            <span
-              role="tooltip"
-              className="pointer-events-none absolute left-full z-50 ml-2 rounded-md bg-popover px-2 py-1 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-z2 transition-opacity group-hover/destek:opacity-100 group-focus-visible/destek:opacity-100 xl:hidden"
-            >
-              Klinik Destek Hattı
-            </span>
-          )}
         </Link>
       </div>
 
       {/* Kullanıcı satırı + çıkış */}
-      <div
-        className={cn(
-          "flex items-center gap-2 border-t border-sidebar-border p-3",
-          !tamGenislikZorla && "flex-col xl:flex-row"
-        )}
-      >
+      <div className="flex items-center gap-2 border-t border-sidebar-border p-3">
         <Avatar name={kullaniciAdi} size="sm" />
-        <div className={cn("min-w-0 flex-1", tamGenislikZorla ? "block" : "hidden xl:block")}>
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-sidebar-foreground">{kullaniciAdi}</p>
           <p className="truncate text-xs text-muted-foreground">{kullaniciRolu}</p>
         </div>
@@ -309,29 +263,19 @@ export function PanelSidebar({
 
   return (
     <div
-      className="flex min-h-svh w-full bg-background"
+      className="flex h-svh w-full overflow-hidden bg-background"
       onTouchStart={dokunmaBasladi}
       onTouchMove={dokunmaHareketEtti}
       onTouchEnd={dokunmaBitti}
     >
-      {/* ≥768px: kalıcı sidebar — 768-1279 ikon-rail, ≥1280 tam genişlik (docs/DESIGN.md Layout & Spacing) */}
-      <aside className="hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:w-rail xl:w-sidebar print:hidden">
-        <SidebarGovde
-          klinik={klinik}
-          klinikPlani={klinikPlani}
-          kullaniciAdi={kullaniciAdi}
-          kullaniciRolu={kullaniciRolu}
-          pathname={pathname}
-        />
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col print:contents">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col print:contents">
         <UstBar
           kullaniciAdi={kullaniciAdi}
           kullaniciRolu={kullaniciRolu}
           bildirimSayisi={bildirimSayisi}
+          onMenuAc={() => setMenuAcik(true)}
         />
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
       </div>
 
       {/* <768px: alt navigasyon */}
@@ -365,9 +309,9 @@ export function PanelSidebar({
         </button>
       </nav>
 
-      {/* Mobil çekmece ("Menü") — masaüstü sidebar ile aynı içerik, tam genişlik zorlanır */}
+      {/* Çekmece ("Menü") — artık tüm genişliklerde tek gezinme yolu, hep tam genişlik zorlanır */}
       {menuAcik && (
-        <div className="fixed inset-0 z-50 md:hidden print:hidden">
+        <div className="fixed inset-0 z-50 print:hidden">
           <div
             className="absolute inset-0 bg-[var(--elevation-backdrop)] backdrop-blur-sm"
             onClick={() => setMenuAcik(false)}
@@ -391,7 +335,6 @@ export function PanelSidebar({
               kullaniciAdi={kullaniciAdi}
               kullaniciRolu={kullaniciRolu}
               pathname={pathname}
-              tamGenislikZorla
               linkTiklandi={() => setMenuAcik(false)}
             />
           </aside>

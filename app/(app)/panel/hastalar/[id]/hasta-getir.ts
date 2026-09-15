@@ -1,6 +1,6 @@
 import { cache } from "react";
-import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import type { HastaDetay } from "@/types/hasta";
 
 export type HastaTemel = Pick<
@@ -20,15 +20,21 @@ export type HastaTemel = Pick<
 // Hasta Detay layout'u ve altındaki her sekme sayfası (hub, kişisel, tedavi,
 // cari, randevu) aynı auth/hasta/rol sorgularını ayrı ayrı çalıştırıyordu —
 // bir tıklamada layout + page ikisi de aynı veriyi tekrar çekiyordu (4-6
-// gereksiz round-trip). React'in cache()'i ile bu 3 fonksiyon tek bir
+// gereksiz round-trip). React'in cache()'i ile bu fonksiyonlar tek bir
 // istek/render ömrü boyunca aynı argümanla ikinci kez çağrıldığında gerçek
 // bir sorgu çalıştırmaz, önceki sonucu döner.
-export const getAuthUser = cache(async (): Promise<User | null> => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+//
+// getAuthUser/kullaniciRolGetir ARTIK kendi supabase.auth.getUser() / kullanici
+// SELECT'ini çalıştırmıyor — ikisi de lib/auth/gecerli-kullanici.ts'teki
+// (zaten cache()'li) gecerliKullanici()'ye delege ediyor. Önceden bu dosya
+// panel/layout.tsx'in kullandığı gecerliKullanici()'den TAMAMEN habersiz,
+// kendi ayrı cache()'li auth çağrısını yapıyordu — aynı istekte hem panel
+// layout'u hem hasta detay layout'u auth.getUser()'ı AYRI AYRI çalıştırıyordu
+// (Performans turu 3, ADIM 2'de ölçümle bulundu: hub→/kisisel geçişi en yavaş
+// geçişti, bu çift auth nedeniyle).
+export const getAuthUser = cache(async (): Promise<{ id: string } | null> => {
+  const oturum = await gecerliKullanici();
+  return oturum ? { id: oturum.authUser.id } : null;
 });
 
 export const hastaTemelGetir = cache(async (id: string): Promise<HastaTemel | null> => {
@@ -58,8 +64,12 @@ export const hastaDetayFullGetir = cache(async (id: string): Promise<HastaDetay 
   return data ?? null;
 });
 
+// Tüm çağıranlar zaten getAuthUser()'ın döndürdüğü kendi id'sini geçiyor,
+// bu yüzden doğrudan gecerliKullanici()'nin (aynı istekte zaten hesaplanmış)
+// sonucundan okumak güvenli ve ekstra sorgu gerektirmiyor. userId eşleşmezse
+// (beklenmeyen bir çağrı şekli) sessizce yanlış kullanıcının rolünü döndürmek
+// yerine null döner.
 export const kullaniciRolGetir = cache(async (userId: string): Promise<string | null> => {
-  const supabase = await createClient();
-  const { data } = await supabase.from("kullanici").select("rol").eq("id", userId).single();
-  return data?.rol ?? null;
+  const oturum = await gecerliKullanici();
+  return oturum?.authUser.id === userId ? (oturum.kullanici?.rol ?? null) : null;
 });

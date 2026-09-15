@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
 import { gunAraligi } from "@/lib/utils";
@@ -27,19 +28,11 @@ const KARSILAMA_TARIH_FORMAT = new Intl.DateTimeFormat("tr-TR", {
 export default async function PanelSayfasi() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const oturum = await gecerliKullanici();
+  if (!oturum) {
     redirect("/giris");
   }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol, ad_soyad, klinik_id")
-    .eq("id", user.id)
-    .single();
+  const { authUser: user, kullanici } = oturum;
   const rol = kullanici?.rol ?? null;
   const finansalGorunur = rol === "klinik_admin" || rol === "resepsiyon" || rol === "super_admin";
 

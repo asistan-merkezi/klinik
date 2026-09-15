@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { createClient } from "@/lib/supabase/server";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -8,8 +9,13 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
  * sinyali) + henüz görülmemiş (goruldu_tarihi IS NULL) anket/seans
  * değerlendirmesi. Hem Hastalar liste sayfasındaki buton hem Bildirimler
  * sayfasının kendisi aynı sayıyı paylaşsın diye tek yerde.
+ *
+ * React cache() ile sarılı: panel/layout.tsx VE panel/hastalar/page.tsx aynı
+ * istek içinde ikisi de çağırıyordu, ölçümde bu tek başına ~100-200ms'lik
+ * tekrar eden bir round-trip olarak görüldü (createClient() de cache()'li
+ * olduğu için `supabase` argümanı aynı referans, dedup güvenli çalışıyor).
  */
-export async function bildirimSayisiGetir(supabase: Supabase): Promise<number> {
+export const bildirimSayisiGetir = cache(async (supabase: Supabase): Promise<number> => {
   const [iptal, randevuTalep, anket, seansDegerlendirme] = await Promise.all([
     supabase.from("randevu_iptal_talebi").select("id", { count: "exact", head: true }).eq("durum", "bekliyor"),
     supabase.from("randevu_talebi").select("id", { count: "exact", head: true }).eq("durum", "bekliyor"),
@@ -20,4 +26,4 @@ export async function bildirimSayisiGetir(supabase: Supabase): Promise<number> {
   return (
     (iptal.count ?? 0) + (randevuTalep.count ?? 0) + (anket.count ?? 0) + (seansDegerlendirme.count ?? 0)
   );
-}
+});
