@@ -36,16 +36,6 @@ export const PERSONEL_ODEME_TIPI_ETIKET: Record<PersonelOdemeTipi, string> = {
   havale: "Havale",
 };
 
-export const MANUEL_HESAP_HAREKET_SECENEKLERI: { value: ManuelHesapHareketTuru; label: string }[] = [
-  { value: "prim", label: HESAP_HAREKET_TUR_ETIKETLERI.prim },
-  { value: "yol", label: HESAP_HAREKET_TUR_ETIKETLERI.yol },
-  { value: "yemek", label: HESAP_HAREKET_TUR_ETIKETLERI.yemek },
-  { value: "mesai", label: HESAP_HAREKET_TUR_ETIKETLERI.mesai },
-  { value: "avans", label: HESAP_HAREKET_TUR_ETIKETLERI.avans },
-  { value: "kesinti", label: HESAP_HAREKET_TUR_ETIKETLERI.kesinti },
-  { value: "odeme", label: HESAP_HAREKET_TUR_ETIKETLERI.odeme },
-];
-
 export type HesapHareket = {
   id: string;
   personel_id: string;

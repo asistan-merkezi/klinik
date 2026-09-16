@@ -22,7 +22,6 @@ import { ayAraligi, gunAraligi, haftaAraligi, telefonGoster } from "@/lib/utils"
 import { maasHesapla } from "@/lib/maas";
 import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
 import { MaasFormu } from "./maas-formu";
-import { HesapHareketFormu } from "./hesap-hareket-formu";
 import { OdemeEkleButonu } from "./odeme-ekle-butonu";
 import { DuzenlePersonelDialog } from "./duzenle-personel-dialog";
 import { PuantajPinFormu } from "./puantaj-pin-formu";
@@ -287,10 +286,6 @@ export default async function PersonelDetaySayfasi({
               Ödenen/kesinti: {bakiye.toplam_odenen.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
             </span>
           </div>
-        )}
-
-        {yonetici && (
-          <HesapHareketFormu personelId={id} bankaHesaplari={bankaHesabiSonucu.data ?? []} />
         )}
 
         <div className="flex items-center justify-between">

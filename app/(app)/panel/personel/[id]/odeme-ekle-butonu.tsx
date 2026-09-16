@@ -15,26 +15,43 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { KlinikBankaHesabi } from "@/types/klinik";
-import { PERSONEL_ODEME_TIPI_ETIKET, type PersonelOdemeTipi } from "@/types/hesap-hareket";
+import {
+  ODEME_TIPI_GOSTERILEN_TURLER,
+  PERSONEL_ODEME_TIPI_ETIKET,
+  type ManuelHesapHareketTuru,
+  type PersonelOdemeTipi,
+} from "@/types/hesap-hareket";
 import { hesapHareketiEkle } from "./actions";
 
 // "Maaş" DB'de ayrı bir tür DEĞİL — hakediş(maaş) elle eklenemez kuralı
 // (personel_hesap_hareket_ekle RPC + DB CHECK, bkz. personel/CLAUDE.md)
 // hiç ihlal edilmiyor: "Maaş" da altta tur='odeme' olarak yazılıyor, sadece
 // tutar önerisi ve açıklama etiketi farklı — maaş ödeme TARİHLERİNİ takip
-// edebilmek için "Ödeme"den ayrı bir hızlı-giriş kısayolu.
-type OdemeKategori = "maas" | "odeme" | "avans";
+// edebilmek için "Diğer Ödeme"den ayrı bir hızlı-giriş kısayolu. Cari hesaba
+// manuel eklenebilen TÜM türler burada toplandı (eskiden ayrı bir "Hareket
+// Ekle" formu vardı — iki paralel giriş noktası bırakılmadı).
+type OdemeKategori = "maas" | "odeme" | "avans" | "prim" | "yol" | "yemek" | "mesai" | "kesinti";
 
 const KATEGORI_ETIKET: Record<OdemeKategori, string> = {
   maas: "Maaş",
   odeme: "Diğer Ödeme",
   avans: "Avans",
+  prim: "Prim",
+  yol: "Yol",
+  yemek: "Yemek",
+  mesai: "Fazla Mesai",
+  kesinti: "Kesinti",
 };
 
-const KATEGORI_TUR: Record<OdemeKategori, "odeme" | "avans"> = {
+const KATEGORI_TUR: Record<OdemeKategori, ManuelHesapHareketTuru> = {
   maas: "odeme",
   odeme: "odeme",
   avans: "avans",
+  prim: "prim",
+  yol: "yol",
+  yemek: "yemek",
+  mesai: "mesai",
+  kesinti: "kesinti",
 };
 
 const ODEME_TIPI_SECILI_SINIFI =
@@ -60,6 +77,7 @@ export function OdemeEkleButonu({
   const [tutar, setTutar] = useState(String(Math.max(0, sabitMaas ?? 0)));
   const [aciklama, setAciklama] = useState("Maaş");
   const [odemeTipi, setOdemeTipi] = useState<PersonelOdemeTipi | null>(null);
+  const odemeTipiGosterilir = ODEME_TIPI_GOSTERILEN_TURLER.includes(KATEGORI_TUR[kategori]);
 
   function sifirla() {
     setKategori("maas");
@@ -78,8 +96,12 @@ export function OdemeEkleButonu({
 
   function kategoriSec(deger: OdemeKategori) {
     setKategori(deger);
-    // Tutar önerisi: Maaş → sabit maaş, Ödeme → güncel bakiye (o ana kadar
-    // birikmiş, henüz ödenmemiş her şey), Avans → keyfi olduğu için öneri yok.
+    if (!ODEME_TIPI_GOSTERILEN_TURLER.includes(KATEGORI_TUR[deger])) {
+      setOdemeTipi(null);
+    }
+    // Tutar önerisi: Maaş → sabit maaş, Diğer Ödeme → güncel bakiye (o ana
+    // kadar birikmiş, henüz ödenmemiş her şey), geri kalanı keyfi olduğu
+    // için öneri yok.
     if (deger === "maas") {
       setTutar(String(Math.max(0, sabitMaas ?? 0)));
       setAciklama("Maaş");
@@ -105,11 +127,11 @@ export function OdemeEkleButonu({
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
             <input type="hidden" name="tur" value={KATEGORI_TUR[kategori]} />
-            <input type="hidden" name="odeme_tipi" value={odemeTipi ?? ""} />
+            <input type="hidden" name="odeme_tipi" value={odemeTipiGosterilir ? (odemeTipi ?? "") : ""} />
 
             <div className="flex flex-col gap-1">
               <Label>Kategori</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {(Object.keys(KATEGORI_ETIKET) as OdemeKategori[]).map((k) => (
                   <Button
                     key={k}
@@ -161,26 +183,28 @@ export function OdemeEkleButonu({
               />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <Label>Ödeme Tipi (opsiyonel — Kasa/Banka mutabakatı için)</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {(Object.keys(PERSONEL_ODEME_TIPI_ETIKET) as PersonelOdemeTipi[]).map((tip) => (
-                  <Button
-                    key={tip}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isPending}
-                    className={cn(odemeTipi === tip && ODEME_TIPI_SECILI_SINIFI)}
-                    onClick={() => setOdemeTipi((onceki) => (onceki === tip ? null : tip))}
-                  >
-                    {PERSONEL_ODEME_TIPI_ETIKET[tip]}
-                  </Button>
-                ))}
+            {odemeTipiGosterilir && (
+              <div className="flex flex-col gap-1">
+                <Label>Ödeme Tipi (opsiyonel — Kasa/Banka mutabakatı için)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(PERSONEL_ODEME_TIPI_ETIKET) as PersonelOdemeTipi[]).map((tip) => (
+                    <Button
+                      key={tip}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isPending}
+                      className={cn(odemeTipi === tip && ODEME_TIPI_SECILI_SINIFI)}
+                      onClick={() => setOdemeTipi((onceki) => (onceki === tip ? null : tip))}
+                    >
+                      {PERSONEL_ODEME_TIPI_ETIKET[tip]}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {odemeTipi === "havale" && (
+            {odemeTipiGosterilir && odemeTipi === "havale" && (
               <div className="flex flex-col gap-1">
                 <Label htmlFor={`${idOnEki}-banka_hesap_id`}>Banka Hesabı</Label>
                 {bankaHesaplari.length === 0 ? (
