@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Users,
-  UserCog,
   CalendarDays,
   LogOut,
   Menu,
@@ -24,7 +23,6 @@ import type { Klinik } from "@/types/klinik";
 const ANA_OGELER = [
   { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
   { href: "/panel/hastalar", label: "Hastalar", icon: Users },
-  { href: "/panel/personel", label: "Personel", icon: UserCog },
   { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
 ];
 

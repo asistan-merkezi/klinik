@@ -23,6 +23,7 @@ import { maasHesapla } from "@/lib/maas";
 import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
 import { MaasFormu } from "./maas-formu";
 import { HesapHareketFormu } from "./hesap-hareket-formu";
+import { OdemeEkleButonu } from "./odeme-ekle-butonu";
 import { DuzenlePersonelDialog } from "./duzenle-personel-dialog";
 import { PuantajPinFormu } from "./puantaj-pin-formu";
 
@@ -262,8 +263,15 @@ export default async function PersonelDetaySayfasi({
 
   const odemelerKarti = (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle>Cari Hesap</CardTitle>
+        {yonetici && (
+          <OdemeEkleButonu
+            personelId={id}
+            guncelBakiye={bakiye?.bakiye ?? 0}
+            bankaHesaplari={bankaHesabiSonucu.data ?? []}
+          />
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {bakiye && (
