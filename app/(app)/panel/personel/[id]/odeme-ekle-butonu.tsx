@@ -18,11 +18,23 @@ import type { KlinikBankaHesabi } from "@/types/klinik";
 import { PERSONEL_ODEME_TIPI_ETIKET, type PersonelOdemeTipi } from "@/types/hesap-hareket";
 import { hesapHareketiEkle } from "./actions";
 
-type OdemeKategori = "odeme" | "avans";
+// "Maaş" DB'de ayrı bir tür DEĞİL — hakediş(maaş) elle eklenemez kuralı
+// (personel_hesap_hareket_ekle RPC + DB CHECK, bkz. personel/CLAUDE.md)
+// hiç ihlal edilmiyor: "Maaş" da altta tur='odeme' olarak yazılıyor, sadece
+// tutar önerisi ve açıklama etiketi farklı — maaş ödeme TARİHLERİNİ takip
+// edebilmek için "Ödeme"den ayrı bir hızlı-giriş kısayolu.
+type OdemeKategori = "maas" | "odeme" | "avans";
 
 const KATEGORI_ETIKET: Record<OdemeKategori, string> = {
-  odeme: "Ödeme",
+  maas: "Maaş",
+  odeme: "Diğer Ödeme",
   avans: "Avans",
+};
+
+const KATEGORI_TUR: Record<OdemeKategori, "odeme" | "avans"> = {
+  maas: "odeme",
+  odeme: "odeme",
+  avans: "avans",
 };
 
 const ODEME_TIPI_SECILI_SINIFI =
@@ -31,10 +43,12 @@ const ODEME_TIPI_SECILI_SINIFI =
 export function OdemeEkleButonu({
   personelId,
   guncelBakiye,
+  sabitMaas,
   bankaHesaplari,
 }: {
   personelId: string;
   guncelBakiye: number;
+  sabitMaas: number | null;
   bankaHesaplari: KlinikBankaHesabi[];
 }) {
   const idOnEki = "odeme-ekle";
@@ -42,26 +56,40 @@ export function OdemeEkleButonu({
   const eklemeAction = hesapHareketiEkle.bind(null, personelId);
   const [durum, formAction, isPending] = useActionState(eklemeAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
-  const [kategori, setKategori] = useState<OdemeKategori>("odeme");
-  const [tutar, setTutar] = useState(String(Math.max(0, guncelBakiye)));
+  const [kategori, setKategori] = useState<OdemeKategori>("maas");
+  const [tutar, setTutar] = useState(String(Math.max(0, sabitMaas ?? 0)));
+  const [aciklama, setAciklama] = useState("Maaş");
   const [odemeTipi, setOdemeTipi] = useState<PersonelOdemeTipi | null>(null);
+
+  function sifirla() {
+    setKategori("maas");
+    setTutar(String(Math.max(0, sabitMaas ?? 0)));
+    setAciklama("Maaş");
+    setOdemeTipi(null);
+  }
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
     if (durum?.success) {
       setAcik(false);
-      setKategori("odeme");
-      setTutar(String(Math.max(0, guncelBakiye)));
-      setOdemeTipi(null);
+      sifirla();
     }
   }
 
   function kategoriSec(deger: OdemeKategori) {
     setKategori(deger);
-    // Sadece "Ödeme" seçilince güncel bakiye öneri olarak dolduruluyor —
-    // avans miktarı keyfi olduğu için orada öneri yok. Kullanıcı istediği
-    // zaman elle değiştirebilir, bu sadece başlangıç değeri.
-    setTutar(deger === "odeme" ? String(Math.max(0, guncelBakiye)) : "");
+    // Tutar önerisi: Maaş → sabit maaş, Ödeme → güncel bakiye (o ana kadar
+    // birikmiş, henüz ödenmemiş her şey), Avans → keyfi olduğu için öneri yok.
+    if (deger === "maas") {
+      setTutar(String(Math.max(0, sabitMaas ?? 0)));
+      setAciklama("Maaş");
+    } else if (deger === "odeme") {
+      setTutar(String(Math.max(0, guncelBakiye)));
+      setAciklama("");
+    } else {
+      setTutar("");
+      setAciklama("");
+    }
   }
 
   return (
@@ -76,12 +104,12 @@ export function OdemeEkleButonu({
             <DialogTitle>Ödeme Ekle</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
-            <input type="hidden" name="tur" value={kategori} />
+            <input type="hidden" name="tur" value={KATEGORI_TUR[kategori]} />
             <input type="hidden" name="odeme_tipi" value={odemeTipi ?? ""} />
 
             <div className="flex flex-col gap-1">
               <Label>Kategori</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {(Object.keys(KATEGORI_ETIKET) as OdemeKategori[]).map((k) => (
                   <Button
                     key={k}
@@ -111,6 +139,11 @@ export function OdemeEkleButonu({
                 value={tutar}
                 onChange={(e) => setTutar(e.target.value)}
               />
+              {kategori === "maas" && (
+                <p className="text-xs text-muted-foreground">
+                  {sabitMaas ? "Sabit maaş önerisi" : "Bu personelin sabit maaşı tanımlı değil"} — istersen değiştir.
+                </p>
+              )}
               {kategori === "odeme" && (
                 <p className="text-xs text-muted-foreground">Güncel bakiye önerisi — istersen değiştir.</p>
               )}
@@ -180,7 +213,13 @@ export function OdemeEkleButonu({
 
             <div className="flex flex-col gap-1">
               <Label htmlFor={`${idOnEki}-aciklama`}>Açıklama (opsiyonel)</Label>
-              <Input id={`${idOnEki}-aciklama`} name="aciklama" disabled={isPending} />
+              <Input
+                id={`${idOnEki}-aciklama`}
+                name="aciklama"
+                disabled={isPending}
+                value={aciklama}
+                onChange={(e) => setAciklama(e.target.value)}
+              />
             </div>
 
             {durum && !durum.success && (

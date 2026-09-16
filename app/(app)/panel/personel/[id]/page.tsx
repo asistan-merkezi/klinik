@@ -269,6 +269,7 @@ export default async function PersonelDetaySayfasi({
           <OdemeEkleButonu
             personelId={id}
             guncelBakiye={bakiye?.bakiye ?? 0}
+            sabitMaas={personel.maas}
             bankaHesaplari={bankaHesabiSonucu.data ?? []}
           />
         )}
