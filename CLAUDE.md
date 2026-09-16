@@ -116,7 +116,7 @@ Vitest + RTL (unit), Supabase (integration), Playwright (e2e — randevu → che
 
 **Açık maddeler**
 - PDF route'larının gerçek Vercel/Lambda'da çalıştığı **canlıda teyit edilmedi** (sandbox Windows). `.nft.json` kanıtı dosyaların bundle'a girdiğini gösteriyor, fonksiyonun çalıştığını değil.
-- `CRON_SECRET` Vercel env'ine 2026-09-16'da girildi (teyit edildi); `mesaj-kuyruk-isle`'ın 5 dk sıklığının Hobby plan limitine takılıp takılmadığı hâlâ teyit edilmedi. `20260916100000_personel_donem_kapat_otomasyon.sql` migration'ı henüz Supabase'e uygulanmadı — kullanıcı tarafından uygulanacak.
+- `CRON_SECRET` Vercel env'ine 2026-09-16'da girildi (teyit edildi); `mesaj-kuyruk-isle`'ın 5 dk sıklığının Hobby plan limitine takılıp takılmadığı hâlâ teyit edilmedi. `20260916100000_personel_donem_kapat_otomasyon.sql` migration'ı 2026-09-16'da Supabase'e uygulandı (canlıda service_role ile `personel_puantaj_donem_kapat` çağrılıp `yetkisiz` yerine `donem_zaten_kapali` döndüğü doğrulandı — auth yolu çalışıyor) — otomatik dönem kapanışı artık uçtan uca hazır, ilk otomatik çalışma 2026-10-01.
 - Şemada/kodda duran ama hiçbir UI'dan erişilmeyen kalıntılar (bilinçli, geri alınabilir): `islem_kategori` · `hasta_hedef` · `v_hasta_karsilastirma` · `paket_satis.gecerlilik_bitis_tarihi` · `personel.ozel_yetki_override` · `/panel/personel/maas`+`/takip`.
 - Telifli ölçek metinleri (QuickDASH/Oswestry/Berg/SF-36) resmi kaynaktan girilmeli. 27 tetikleyicinin KVKK hizmet/ticari sınıflandırması hukuk onayı bekliyor.
 - Cihaz kayıtları (G8, Emscult, Footbalance, 3D Skolyoz) açılmadı — marka/model netleşmedi.
