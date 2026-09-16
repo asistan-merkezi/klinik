@@ -23,6 +23,8 @@ import {
   UserCog,
   Package,
   Banknote,
+  DoorOpen,
+  Boxes,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,15 +32,6 @@ export type MenuOgesi = { href: string; label: string; icon: LucideIcon };
 export type MenuGrubu = { key: string; label: string; icon: LucideIcon; ogeler: MenuOgesi[] };
 
 export const MENU_GRUPLARI: MenuGrubu[] = [
-  {
-    key: "tedaviler",
-    label: "Tedaviler",
-    icon: ClipboardList,
-    ogeler: [
-      { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
-      { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
-    ],
-  },
   {
     key: "finans",
     label: "Finans",
@@ -62,6 +55,17 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
         label: "Kategori / İskonto Oranları",
         icon: Percent,
       },
+    ],
+  },
+  {
+    key: "yonetim",
+    label: "Yönetim",
+    icon: Boxes,
+    ogeler: [
+      { href: "/panel/paketler", label: "Paketler", icon: Package },
+      { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
+      { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
+      { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
     ],
   },
   {

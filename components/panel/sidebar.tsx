@@ -8,8 +8,6 @@ import {
   Users,
   UserCog,
   CalendarDays,
-  Package,
-  DoorOpen,
   LogOut,
   Menu,
   X,
@@ -28,8 +26,6 @@ const ANA_OGELER = [
   { href: "/panel/hastalar", label: "Hastalar", icon: Users },
   { href: "/panel/personel", label: "Personel", icon: UserCog },
   { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
-  { href: "/panel/paketler", label: "Paketler", icon: Package },
-  { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
 ];
 
 // Bazı MENU_GRUPLARI grupları için NEREDEYSE TÜM alt sayfalar terapist'e
@@ -42,7 +38,7 @@ const ANA_OGELER = [
 // linklenir) — linki göstermek sadece "tıkla, /panel'e geri at" deneyimi
 // üretiyor, veri sızdırmıyor. MERKEZİ bir yetki kaynağı YOK (her sayfa kendi
 // rol kontrolünü kendi içinde tekrar ediyor) — bu liste elle tarandı, sayfa
-// taraflı kontroller değişirse senkron kalmayabilir. Tedaviler/Ayarlar/Destek
+// taraflı kontroller değişirse senkron kalmayabilir. Yönetim/Ayarlar/Destek
 // grupları TARANDI ve terapist için gerçek bir kilit bulunamadı (Ayarlar'ın 3
 // alt sayfası — arsiv-ice-aktarma/mesajlasma/qr-kodlar — non-admin'i
 // /panel/ayarlar'a geri atıyor ama bu hub'ın KENDİSİNİ değil, hub-içi bir

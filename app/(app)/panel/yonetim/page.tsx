@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MenuGrubuSayfasi } from "@/components/panel/menu-grubu-sayfasi";
 import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
 
-export default async function TedavilerSayfasi() {
+export default async function YonetimSayfasi() {
   const supabase = await createClient();
 
   const {
@@ -14,7 +14,7 @@ export default async function TedavilerSayfasi() {
     redirect("/giris");
   }
 
-  const grup = MENU_GRUPLARI.find((g) => g.key === "tedaviler")!;
+  const grup = MENU_GRUPLARI.find((g) => g.key === "yonetim")!;
 
   return <MenuGrubuSayfasi grup={grup} />;
 }
