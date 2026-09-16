@@ -61,27 +61,30 @@ export function OdemeEkleButonu({
   personelId,
   guncelBakiye,
   sabitMaas,
+  buAykiAvansToplami,
   bankaHesaplari,
 }: {
   personelId: string;
   guncelBakiye: number;
   sabitMaas: number | null;
+  buAykiAvansToplami: number;
   bankaHesaplari: KlinikBankaHesabi[];
 }) {
   const idOnEki = "odeme-ekle";
+  const netMaasOnerisi = Math.max(0, (sabitMaas ?? 0) - buAykiAvansToplami);
   const [acik, setAcik] = useState(false);
   const eklemeAction = hesapHareketiEkle.bind(null, personelId);
   const [durum, formAction, isPending] = useActionState(eklemeAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [kategori, setKategori] = useState<OdemeKategori>("maas");
-  const [tutar, setTutar] = useState(String(Math.max(0, sabitMaas ?? 0)));
+  const [tutar, setTutar] = useState(String(netMaasOnerisi));
   const [aciklama, setAciklama] = useState("Maaş");
   const [odemeTipi, setOdemeTipi] = useState<PersonelOdemeTipi | null>(null);
   const odemeTipiGosterilir = ODEME_TIPI_GOSTERILEN_TURLER.includes(KATEGORI_TUR[kategori]);
 
   function sifirla() {
     setKategori("maas");
-    setTutar(String(Math.max(0, sabitMaas ?? 0)));
+    setTutar(String(netMaasOnerisi));
     setAciklama("Maaş");
     setOdemeTipi(null);
   }
@@ -99,11 +102,12 @@ export function OdemeEkleButonu({
     if (!ODEME_TIPI_GOSTERILEN_TURLER.includes(KATEGORI_TUR[deger])) {
       setOdemeTipi(null);
     }
-    // Tutar önerisi: Maaş → sabit maaş, Diğer Ödeme → güncel bakiye (o ana
-    // kadar birikmiş, henüz ödenmemiş her şey), geri kalanı keyfi olduğu
-    // için öneri yok.
+    // Tutar önerisi: Maaş → sabit maaş EKSİ bu ay verilen avans (avans ayrıca
+    // bir daha ödenmesin diye), Diğer Ödeme → güncel bakiye (o ana kadar
+    // birikmiş, henüz ödenmemiş her şey), geri kalanı keyfi olduğu için
+    // öneri yok.
     if (deger === "maas") {
-      setTutar(String(Math.max(0, sabitMaas ?? 0)));
+      setTutar(String(netMaasOnerisi));
       setAciklama("Maaş");
     } else if (deger === "odeme") {
       setTutar(String(Math.max(0, guncelBakiye)));
@@ -163,7 +167,12 @@ export function OdemeEkleButonu({
               />
               {kategori === "maas" && (
                 <p className="text-xs text-muted-foreground">
-                  {sabitMaas ? "Sabit maaş önerisi" : "Bu personelin sabit maaşı tanımlı değil"} — istersen değiştir.
+                  {sabitMaas == null
+                    ? "Bu personelin sabit maaşı tanımlı değil"
+                    : buAykiAvansToplami > 0
+                      ? `Sabit maaş (${sabitMaas.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}) − bu ay verilen avans (${buAykiAvansToplami.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}) önerisi`
+                      : "Sabit maaş önerisi"}{" "}
+                  — istersen değiştir.
                 </p>
               )}
               {kategori === "odeme" && (

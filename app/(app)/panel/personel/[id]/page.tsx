@@ -214,6 +214,13 @@ export default async function PersonelDetaySayfasi({
     .filter((h) => HESAP_HAREKET_YONU[h.tur] === 1 && h.tur !== "hakedis")
     .reduce((acc, h) => acc + h.tutar, 0);
 
+  // Görüntülenen ay içinde verilmiş avans toplamı — "+ Ödeme Ekle"de Maaş
+  // seçilince tutar önerisinden düşülür (maaş ödemesi net gitsin, avans
+  // ayrıca bir daha ödenmesin diye).
+  const buAykiAvansToplami = hareketler
+    .filter((h) => h.tur === "avans")
+    .reduce((acc, h) => acc + h.tutar, 0);
+
   const hesap: ReturnType<typeof maasHesapla> | null = terapist
     ? maasHesapla(
         {
@@ -269,6 +276,7 @@ export default async function PersonelDetaySayfasi({
             personelId={id}
             guncelBakiye={bakiye?.bakiye ?? 0}
             sabitMaas={personel.maas}
+            buAykiAvansToplami={buAykiAvansToplami}
             bankaHesaplari={bankaHesabiSonucu.data ?? []}
           />
         )}
