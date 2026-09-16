@@ -36,11 +36,20 @@ export default async function QrKodlariSayfasi() {
   // Tablet Görünümü ayarlarıyla aynı desen: klinik_ayarlar.ayarlar tek jsonb
   // kolonu, admin zaten RLS'ten geçtiği için doğrudan .select() yeterli
   // (anonim public sayfalardaki gibi RPC'ye gerek yok).
-  const { data: klinikAyarlar } = await supabase
-    .from("klinik_ayarlar")
-    .select("ayarlar")
-    .eq("klinik_id", klinikId)
-    .maybeSingle();
+  const [{ data: klinikAyarlar }, { data: klinik }] = await Promise.all([
+    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId).maybeSingle(),
+    supabase.from("klinik").select("qr_kisa_kod").eq("id", klinikId).single(),
+  ]);
+
+  const kisaKod = klinik?.qr_kisa_kod;
+
+  if (!kisaKod) {
+    return (
+      <div className="flex-1 bg-background p-4 sm:p-8">
+        <p className="text-sm text-muted-foreground">Klinik bilgisi bulunamadı.</p>
+      </div>
+    );
+  }
 
   const qrKodlariAyarlari: Partial<Record<QrKodTipi, { aktif: boolean }>> =
     (klinikAyarlar?.ayarlar as { qr_kodlari?: Partial<Record<QrKodTipi, { aktif: boolean }>> } | null)?.qr_kodlari ??
@@ -70,7 +79,7 @@ export default async function QrKodlariSayfasi() {
                 icon={<Icon className="size-5 text-primary" aria-hidden />}
                 baslik={tanim.baslik}
                 aciklama={tanim.aciklama}
-                yol={tanim.yol(klinikId)}
+                yol={tanim.yol(kisaKod)}
                 dosyaAdi={tanim.dosyaAdi}
                 goruntuleHref={tanim.goruntuleHref}
                 goruntuleEtiket={tanim.goruntuleEtiket}

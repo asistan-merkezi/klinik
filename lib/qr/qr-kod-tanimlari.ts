@@ -8,7 +8,7 @@ export type QrKodTanimi = {
   icon: LucideIcon;
   baslik: string;
   aciklama: string;
-  yol: (klinikId: string) => string;
+  yol: (kisaKod: string) => string;
   dosyaAdi: string;
   goruntuleHref?: string;
   goruntuleEtiket?: string;
@@ -26,7 +26,7 @@ export const QR_KOD_TANIMLARI: QrKodTanimi[] = [
     baslik: "Hasta Ön Kayıt",
     aciklama:
       "Hasta kendi ad-soyad, telefon ve kimlik bilgilerini girerek ön kayıt oluşturur. Kayıtlar doğrudan Hastalar listesinde görünür.",
-    yol: (klinikId) => `/kayit/hasta/${klinikId}`,
+    yol: (kisaKod) => `/kayit/hasta/${kisaKod}`,
     dosyaAdi: "hasta-on-kayit-qr",
     goruntuleHref: "/panel/hastalar",
     goruntuleEtiket: "Hastalar listesini görüntüle",
@@ -36,7 +36,7 @@ export const QR_KOD_TANIMLARI: QrKodTanimi[] = [
     icon: ClipboardEdit,
     baslik: "Anket ve Öneriler",
     aciklama: "Hasta memnuniyet puanı ve öneri bırakır; isim/telefon opsiyoneldir.",
-    yol: (klinikId) => `/anket/${klinikId}`,
+    yol: (kisaKod) => `/anket/${kisaKod}`,
     dosyaAdi: "anket-oneri-qr",
     goruntuleHref: "/panel/ayarlar/qr-kodlar/anket-yanitlari",
   },
@@ -46,7 +46,7 @@ export const QR_KOD_TANIMLARI: QrKodTanimi[] = [
     baslik: "Personel Puantaj — Giriş",
     aciklama:
       "Personel bu kodu kapıdan kendi telefonuyla okutur, açılan ekranda sadece 6 haneli Puantaj PIN'ini girer. PIN'i her personel kendi Personel Detay sayfasından belirler.",
-    yol: (klinikId) => `/puantaj/${klinikId}/giris`,
+    yol: (kisaKod) => `/puantaj/${kisaKod}/giris`,
     dosyaAdi: "personel-puantaj-giris-qr",
   },
   {
@@ -55,7 +55,7 @@ export const QR_KOD_TANIMLARI: QrKodTanimi[] = [
     baslik: "Personel Puantaj — Çıkış",
     aciklama:
       "Personel bu kodu kapıdan kendi telefonuyla okutur, açılan ekranda sadece 6 haneli Puantaj PIN'ini girer. PIN'i her personel kendi Personel Detay sayfasından belirler.",
-    yol: (klinikId) => `/puantaj/${klinikId}/cikis`,
+    yol: (kisaKod) => `/puantaj/${kisaKod}/cikis`,
     dosyaAdi: "personel-puantaj-cikis-qr",
   },
 ];

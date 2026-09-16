@@ -40,7 +40,11 @@ export function QrKart({
     queryKey: ["qr-kart", yol],
     queryFn: async () => {
       const tamUrl = `${window.location.origin}${yol}`;
-      const qrDataUrl = await QRCode.toDataURL(tamUrl, { width: 512, margin: 1 });
+      const qrDataUrl = await QRCode.toDataURL(tamUrl, {
+        width: 512,
+        margin: 2,
+        errorCorrectionLevel: "L",
+      });
       return { url: tamUrl, qrDataUrl };
     },
   });
@@ -60,7 +64,7 @@ export function QrKart({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {icon}
-            <CardTitle>{baslik}</CardTitle>
+            <CardTitle className="text-sm">{baslik}</CardTitle>
           </div>
           {aktifDurumu && (
             <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -78,7 +82,7 @@ export function QrKart({
         <CardDescription>{aciklama}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-3">
-        <div className="flex size-40 items-center justify-center rounded-lg bg-white p-2">
+        <div className="flex size-28 items-center justify-center rounded-lg bg-white p-2">
           {qrDataUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={qrDataUrl} alt={`${baslik} kare kodu`} className="size-full" />

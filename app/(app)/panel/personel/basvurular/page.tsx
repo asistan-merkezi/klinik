@@ -29,6 +29,13 @@ export default async function BasvurularSayfasi() {
 
   const klinikId = kullanici.klinik_id;
 
+  const { data: klinik } = await supabase
+    .from("klinik")
+    .select("qr_kisa_kod")
+    .eq("id", klinikId ?? "")
+    .maybeSingle();
+  const kisaKod = klinik?.qr_kisa_kod;
+
   const { data: basvurular, error } = await supabase
     .from("is_basvurusu")
     .select(
@@ -63,12 +70,12 @@ export default async function BasvurularSayfasi() {
             </p>
             <IsBasvuruFormuPdfButonu />
           </div>
-          {klinikId && (
+          {kisaKod && (
             <QrKart
               icon={<Briefcase className="size-5 text-primary" aria-hidden />}
               baslik="İş Başvurusu (Web)"
               aciklama="Aday kendi telefonundan/bilgisayarından doldurur — kayıt aşağıdaki listeye düşer."
-              yol={`/basvuru/is/${klinikId}`}
+              yol={`/basvuru/is/${kisaKod}`}
               dosyaAdi="is-basvuru-qr"
             />
           )}

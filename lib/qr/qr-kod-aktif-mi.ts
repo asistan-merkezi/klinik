@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { QrKodTipi } from "./qr-kod-tanimlari";
 
 /**
- * klinikAdGetir'in ikizi — anonim public form sayfalarının (auth.uid() NULL)
+ * klinikQrBilgisiGetir'in ikizi — anonim public form sayfalarının (auth.uid() NULL)
  * bir QR'ın klinik_admin tarafından pasife alınıp alınmadığını sorabilmesi
  * için (bkz. migration 20260811090000, qr_kodu_aktif_mi RPC).
  */

@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   X,
-  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -175,22 +174,6 @@ function SidebarGovde({
           );
         })}
       </nav>
-
-      {/* Klinik Destek Hattı */}
-      <div className="border-t border-sidebar-border p-3">
-        <Link
-          href="/panel/destek"
-          onClick={linkTiklandi}
-          title="Klinik Destek Hattı"
-          className="flex items-center gap-2 rounded-md bg-muted p-3 text-foreground transition-colors hover:bg-sidebar-accent"
-        >
-          <LifeBuoy className="size-4.5 shrink-0" aria-hidden />
-          <div>
-            <p className="text-sm font-semibold">Klinik Destek Hattı</p>
-            <p className="text-xs text-muted-foreground">Sorularınız için buradayız.</p>
-          </div>
-        </Link>
-      </div>
 
       {/* Kullanıcı satırı + çıkış */}
       <div className="flex items-center gap-2 border-t border-sidebar-border p-3">
