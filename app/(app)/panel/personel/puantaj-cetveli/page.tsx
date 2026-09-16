@@ -52,7 +52,7 @@ export default async function PuantajCetveliSayfasi({
     supabase.from("klinik").select("cumartesi_baslangic, pazar_baslangic").eq("id", kullanici.klinik_id).single(),
     supabase
       .from("personel")
-      .select("id, ad_soyad, maas, fm_saatlik_ucret, pozisyon:pozisyon_id(ad, puantaj_modu)")
+      .select("id, ad_soyad, maas, fm_saatlik_ucret, ise_giris_tarihi, pozisyon:pozisyon_id(ad, puantaj_modu)")
       .eq("aktif", true)
       .order("ad_soyad"),
     supabase
@@ -72,7 +72,9 @@ export default async function PuantajCetveliSayfasi({
   ]);
 
   const gunlukPersonel = (personelSonucu ?? []).filter(
-    (p) => (p.pozisyon as { puantaj_modu?: string } | null)?.puantaj_modu !== "takipsiz"
+    (p) =>
+      (p.pozisyon as { puantaj_modu?: string } | null)?.puantaj_modu !== "takipsiz" &&
+      (!p.ise_giris_tarihi || p.ise_giris_tarihi < ay.bitisTarih)
   );
 
   const terapistIdleri = gunlukPersonel.map((p) => p.id);
