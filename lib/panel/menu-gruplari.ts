@@ -25,6 +25,7 @@ import {
   Banknote,
   DoorOpen,
   Boxes,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -46,6 +47,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
       },
       { href: "/panel/finans/kasa", label: "Kasa", icon: Banknote },
       { href: "/panel/finans/banka", label: "Banka", icon: Building2 },
+      { href: "/panel/finans/kredi-karti", label: "Kredi Kartı", icon: CreditCard },
       { href: "/panel/finans/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
       { href: "/panel/finans/raporlar", label: "Raporlar", icon: BarChart3 },
       { href: "/panel/finans/gelirler-takibi", label: "Gelirler Takibi ve Faturalandırma", icon: HandCoins },

@@ -18,9 +18,25 @@ import { paketOlustur } from "./actions";
 export function PaketFormu({ islemTanimlari }: { islemTanimlari: SecenekSatir[] }) {
   const [durum, formAction, isPending] = useActionState(paketOlustur, null);
   const [ad, setAd] = useState("");
+  // "Paket ekle" sonrası dialog kapanmıyor (art arda paket girişi için) — ama
+  // "ad" controlled input olduğu ve İşlem Select'i kendi iç state'ini tuttuğu
+  // için native form reset'i bunları temizlemiyordu, sadece uncontrolled sayısal
+  // alanlar temizleniyordu — bir sonraki paket yanlışlıkla aynı ad/işlemle
+  // kaydedilebiliyordu. formKey ile tüm formu remount ederek hepsini aynı anda
+  // sıfırlıyoruz.
+  const [formKey, setFormKey] = useState(0);
+  const [gorulenDurum, setGorulenDurum] = useState(durum);
+
+  if (durum !== gorulenDurum) {
+    setGorulenDurum(durum);
+    if (durum?.success) {
+      setAd("");
+      setFormKey((k) => k + 1);
+    }
+  }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form key={formKey} action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="ad">Paket Adı</Label>
