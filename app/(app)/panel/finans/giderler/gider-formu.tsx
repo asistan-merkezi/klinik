@@ -38,6 +38,8 @@ export function GiderFormu({
   araclar,
   bankaHesaplari,
   basariliOlunca,
+  sabitOdemeTipi,
+  sabitBankaHesapId,
 }: {
   action: GiderAction;
   gonderButonEtiketi: string;
@@ -45,12 +47,18 @@ export function GiderFormu({
   araclar: KlinikArac[];
   bankaHesaplari: KlinikBankaHesabi[];
   basariliOlunca?: () => void;
+  /** Kasa/Banka'nın "Tedarikçi" akışından çağrılırken ödeme tipini sabitler — 3'lü toggle gizlenir. */
+  sabitOdemeTipi?: OdemeTipi;
+  /** sabitOdemeTipi="havale" ile birlikte kullanılır — banka hesabı seçimini de sabitler (Banka sayfasının seçili hesabı). */
+  sabitBankaHesapId?: string;
 }) {
   const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(action, null);
   const [gorulenDurum, setGorulenDurum] = useState<SonucDurumu>(null);
   const [kategori, setKategori] = useState<HarcamaKategori | undefined>(duzenlenecek?.kategori);
-  const [odemeTipi, setOdemeTipi] = useState<OdemeTipi | null>(duzenlenecek?.odeme_tipi ?? null);
+  const [odemeTipi, setOdemeTipi] = useState<OdemeTipi | null>(
+    sabitOdemeTipi ?? duzenlenecek?.odeme_tipi ?? null
+  );
   const [faturali, setFaturali] = useState(duzenlenecek?.is_faturali ?? false);
   const aracGosterilir = kategori != null && ARAC_GOSTERILEN_KATEGORILER.includes(kategori);
 
@@ -156,57 +164,66 @@ export function GiderFormu({
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <Label>Ödeme Tipi (opsiyonel)</Label>
-        <div className="grid grid-cols-3 gap-2">
-          {ODEME_TIPI_SECENEKLERI.map((s) => (
-            <Button
-              key={s.value}
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isPending}
-              className={cn(odemeTipi === s.value && ODEME_TIPI_SECILI_SINIFI)}
-              onClick={() => setOdemeTipi((onceki) => (onceki === s.value ? null : s.value))}
-            >
-              {s.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {odemeTipi === "havale" && (
+      {/* sabitOdemeTipi verildiğinde toggle gizlenir — değer zaten yukarıdaki
+          her zaman render edilen hidden input'tan (satır 76) gönderiliyor,
+          odemeTipi state'i sabitOdemeTipi ile başlatıldığı ve kullanıcı
+          değiştiremediği için ayrı bir hidden input GEREKMEZ. */}
+      {!sabitOdemeTipi && (
         <div className="flex flex-col gap-1">
-          <Label htmlFor={`${idOnEki}-banka_hesap_id`}>Banka Hesabı</Label>
-          {bankaHesaplari.length === 0 ? (
-            <p className="text-sm text-amber-600 dark:text-amber-400">
-              Kayıtlı banka hesabı yok — Finans &gt; Banka&apos;dan hesap ekleyin.
-            </p>
-          ) : (
-            <Select
-              name="banka_hesap_id"
-              required
-              disabled={isPending}
-              defaultValue={duzenlenecek?.banka_hesap_id ?? undefined}
-              items={bankaHesaplari.map((b) => ({
-                value: b.id,
-                label: b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi,
-              }))}
-            >
-              <SelectTrigger id={`${idOnEki}-banka_hesap_id`} className="w-full">
-                <SelectValue placeholder="Seçiniz..." />
-              </SelectTrigger>
-              <SelectContent>
-                {bankaHesaplari.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Label>Ödeme Tipi (opsiyonel)</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {ODEME_TIPI_SECENEKLERI.map((s) => (
+              <Button
+                key={s.value}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                className={cn(odemeTipi === s.value && ODEME_TIPI_SECILI_SINIFI)}
+                onClick={() => setOdemeTipi((onceki) => (onceki === s.value ? null : s.value))}
+              >
+                {s.label}
+              </Button>
+            ))}
+          </div>
         </div>
       )}
+
+      {odemeTipi === "havale" &&
+        (sabitBankaHesapId ? (
+          <input type="hidden" name="banka_hesap_id" value={sabitBankaHesapId} />
+        ) : (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`${idOnEki}-banka_hesap_id`}>Banka Hesabı</Label>
+            {bankaHesaplari.length === 0 ? (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Kayıtlı banka hesabı yok — Finans &gt; Banka&apos;dan hesap ekleyin.
+              </p>
+            ) : (
+              <Select
+                name="banka_hesap_id"
+                required
+                disabled={isPending}
+                defaultValue={duzenlenecek?.banka_hesap_id ?? undefined}
+                items={bankaHesaplari.map((b) => ({
+                  value: b.id,
+                  label: b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi,
+                }))}
+              >
+                <SelectTrigger id={`${idOnEki}-banka_hesap_id`} className="w-full">
+                  <SelectValue placeholder="Seçiniz..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankaHesaplari.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        ))}
 
       <div className="flex flex-col gap-1">
         <Label htmlFor={`${idOnEki}-aciklama`}>Açıklama (opsiyonel)</Label>

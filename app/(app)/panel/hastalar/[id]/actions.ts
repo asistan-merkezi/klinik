@@ -123,6 +123,8 @@ const bakiyeHareketSemasi = z.object({
   tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
+  odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"]).optional().or(z.literal("")),
+  banka_hesap_id: z.string().trim().optional(),
 });
 
 async function yetkiliHastaVeKlinikGetir(hastaId: string) {
@@ -175,17 +177,21 @@ export async function bakiyeHareketiEkle(
     tutar: formData.get("tutar"),
     tarih: formData.get("tarih"),
     aciklama: formData.get("aciklama") ?? "",
+    odeme_yontemi: formData.get("odeme_yontemi") ?? "",
+    banka_hesap_id: formData.get("banka_hesap_id") ?? "",
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { tur, tutar, tarih, aciklama } = ayristirma.data;
+  const { tur, tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id } = ayristirma.data;
   const simdi = new Date();
   const olusturmaZamani = new Date(tarih);
   olusturmaZamani.setHours(simdi.getHours(), simdi.getMinutes(), simdi.getSeconds());
 
+  // odeme_yontemi/banka_hesap_id sadece tur='odeme' iken anlamlı (Kasa/Banka
+  // mutabakatı bunları okuyor) — diğer türlerde (iade/kredi/borc) NULL kalır.
   const { error } = await supabase.from("hasta_bakiye_hareket").insert({
     klinik_id: klinikId,
     hasta_id: hastaId,
@@ -193,6 +199,8 @@ export async function bakiyeHareketiEkle(
     tutar,
     aciklama: aciklama ? aciklama : null,
     created_at: olusturmaZamani.toISOString(),
+    odeme_yontemi: tur === "odeme" && odeme_yontemi ? odeme_yontemi : null,
+    banka_hesap_id: tur === "odeme" && odeme_yontemi === "banka_havalesi" && banka_hesap_id ? banka_hesap_id : null,
   });
 
   if (error) {

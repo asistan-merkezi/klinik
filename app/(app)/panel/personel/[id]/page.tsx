@@ -17,6 +17,7 @@ import {
   type TerapistAyarlari,
 } from "@/types/personel";
 import { HESAP_HAREKET_TUR_ETIKETLERI, HESAP_HAREKET_YONU, type HesapBakiye, type HesapHareket } from "@/types/hesap-hareket";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { ayAraligi, gunAraligi, haftaAraligi, telefonGoster } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
 import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
@@ -66,6 +67,7 @@ export default async function PersonelDetaySayfasi({
     donemSonucu,
     puantajAySonucu,
     bugunSonucu,
+    bankaHesabiSonucu,
   ] = await Promise.all([
     supabase.from("kullanici").select("rol").eq("id", user.id).single(),
     supabase
@@ -82,7 +84,7 @@ export default async function PersonelDetaySayfasi({
       .maybeSingle<TerapistAyarlari>(),
     supabase
       .from("personel_hesap_hareket")
-      .select("id, personel_id, tur, tutar, tarih, aciklama, kaynak_id, created_at")
+      .select("id, personel_id, tur, tutar, tarih, aciklama, kaynak_id, created_at, odeme_tipi, banka_hesap_id")
       .eq("personel_id", id)
       .gte("tarih", ay.baslangicTarih)
       .lt("tarih", ay.bitisTarih)
@@ -108,6 +110,11 @@ export default async function PersonelDetaySayfasi({
       .eq("personel_id", id)
       .eq("tarih", bugunTarih())
       .maybeSingle(),
+    supabase
+      .from("klinik_banka_hesaplari")
+      .select("id, banka_adi, sube")
+      .order("sort_order")
+      .returns<KlinikBankaHesabi[]>(),
   ]);
 
   const kullanici = kullaniciSonucu.data;
@@ -273,7 +280,9 @@ export default async function PersonelDetaySayfasi({
           </div>
         )}
 
-        {yonetici && <HesapHareketFormu personelId={id} />}
+        {yonetici && (
+          <HesapHareketFormu personelId={id} bankaHesaplari={bankaHesabiSonucu.data ?? []} />
+        )}
 
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-muted-foreground">Hareketler — {ay.etiket}</h3>

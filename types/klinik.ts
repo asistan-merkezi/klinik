@@ -43,3 +43,9 @@ export type KlinikBankaHesabi = {
   banka_adi: string;
   sube: string | null;
 };
+
+/** Şirket Bilgileri > Banka Hesapları CRUD'unun kullandığı tam satır — dropdown'larda sadece KlinikBankaHesabi (id+banka_adi+sube) yeterli. */
+export type KlinikBankaHesabiDetay = KlinikBankaHesabi & {
+  hesap_sahibi: string;
+  iban: string;
+};

@@ -106,6 +106,8 @@ export async function giderEkle(_onceki: SonucDurumu, formData: FormData): Promi
 
   revalidatePath("/panel/finans/giderler");
   revalidatePath("/panel/finans/raporlar");
+  revalidatePath("/panel/finans/kasa");
+  revalidatePath("/panel/finans/banka");
   return { success: true, message: "Gider kaydedildi." };
 }
 
@@ -139,6 +141,8 @@ export async function giderGuncelle(
 
   revalidatePath("/panel/finans/giderler");
   revalidatePath("/panel/finans/raporlar");
+  revalidatePath("/panel/finans/kasa");
+  revalidatePath("/panel/finans/banka");
   return { success: true, message: "Gider güncellendi." };
 }
 
@@ -157,5 +161,7 @@ export async function giderSil(id: string): Promise<SonucDurumu> {
 
   revalidatePath("/panel/finans/giderler");
   revalidatePath("/panel/finans/raporlar");
+  revalidatePath("/panel/finans/kasa");
+  revalidatePath("/panel/finans/banka");
   return { success: true, message: "Gider silindi." };
 }

@@ -206,3 +206,75 @@ export async function aracSil(id: string): Promise<SonucDurumu> {
   revalidatePath("/panel/ayarlar/sirket-bilgileri");
   return { success: true, message: "Araç silindi." };
 }
+
+const bankaHesabiSemasi = z.object({
+  banka_adi: z.string().trim().min(1, "Banka adı gerekli."),
+  sube: z.string().trim().optional(),
+  hesap_sahibi: z.string().trim().min(1, "Hesap sahibi gerekli."),
+  iban: z.string().trim().min(1, "IBAN gerekli."),
+});
+
+/** klinik_banka_hesaplari — Kasa/Banka sayfalarının (ve giderler/personel/hasta ödeme formlarının) "hesap seçin" dropdown'larını besleyen tek kaynak. */
+export async function bankaHesabiEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const ayristirma = bankaHesabiSemasi.safeParse({
+    banka_adi: formData.get("banka_adi"),
+    sube: formData.get("sube") ?? "",
+    hesap_sahibi: formData.get("hesap_sahibi"),
+    iban: formData.get("iban"),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { data: mevcutHesaplar } = await supabase
+    .from("klinik_banka_hesaplari")
+    .select("sort_order")
+    .eq("klinik_id", klinikId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const sonraki_sira = (mevcutHesaplar?.[0]?.sort_order ?? -1) + 1;
+
+  const { error } = await supabase.from("klinik_banka_hesaplari").insert({
+    klinik_id: klinikId,
+    banka_adi: ayristirma.data.banka_adi,
+    sube: ayristirma.data.sube ? ayristirma.data.sube : null,
+    hesap_sahibi: ayristirma.data.hesap_sahibi,
+    iban: ayristirma.data.iban,
+    sort_order: sonraki_sira,
+  });
+
+  if (error) {
+    console.error("Banka hesabı eklenemedi:", error);
+    return { success: false, message: "Banka hesabı eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  revalidatePath("/panel/finans/banka");
+  revalidatePath("/panel/finans/giderler");
+  return { success: true, message: "Banka hesabı eklendi." };
+}
+
+export async function bankaHesabiSil(id: string): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { error } = await supabase.from("klinik_banka_hesaplari").delete().eq("id", id).eq("klinik_id", klinikId);
+
+  if (error) {
+    console.error("Banka hesabı silinemedi:", error);
+    return { success: false, message: "Banka hesabı silinemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  revalidatePath("/panel/finans/banka");
+  revalidatePath("/panel/finans/giderler");
+  return { success: true, message: "Banka hesabı silindi." };
+}

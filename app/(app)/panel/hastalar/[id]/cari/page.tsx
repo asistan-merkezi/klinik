@@ -4,6 +4,7 @@ import type { PaketSatisSatir } from "@/types/odeme";
 import type { HastaBakiyeHareket } from "@/types/hasta-detay";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { GeriLink } from "../geri-link";
 import { CariOdemeSekmesi } from "../sekmeler/cari-odeme-sekmesi";
 import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
@@ -32,8 +33,15 @@ export default async function CariOdemeSayfasi({
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
   const supabase = await createClient();
-  const [paketSatisSonucu, bakiyeHareketSonucu, oranlarSonucu, ozetSonucu, epostaSonucu, hassasSonucu] =
-    await Promise.all([
+  const [
+    paketSatisSonucu,
+    bakiyeHareketSonucu,
+    oranlarSonucu,
+    ozetSonucu,
+    epostaSonucu,
+    hassasSonucu,
+    bankaHesabiSonucu,
+  ] = await Promise.all([
     supabase
       .from("paket_satis")
       .select("id, kalan_adet, durum, satis_tarihi, paket(ad, seans_sayisi)")
@@ -64,6 +72,11 @@ export default async function CariOdemeSayfasi({
       .select("kimlik_no, adres")
       .eq("hasta_id", id)
       .maybeSingle<{ kimlik_no: string | null; adres: string | null }>(),
+    supabase
+      .from("klinik_banka_hesaplari")
+      .select("id, banka_adi, sube")
+      .order("sort_order")
+      .returns<KlinikBankaHesabi[]>(),
   ]);
 
   const aktifPaketler = paketSatisSonucu.data ?? [];
@@ -90,6 +103,7 @@ export default async function CariOdemeSayfasi({
         aktifPaketler={aktifPaketler}
         bakiyeHareketleri={bakiyeHareketleri}
         faturaBilgisi={faturaBilgisi}
+        bankaHesaplari={bankaHesabiSonucu.data ?? []}
       />
     </div>
   );

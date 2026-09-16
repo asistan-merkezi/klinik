@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PdfIndirButonu } from "@/components/panel/pdf-indir-butonu";
 import type { HastaBakiyeHareket } from "@/types/hasta-detay";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import type { PaketSatisSatir } from "@/types/odeme";
 import type { HastaKategori } from "@/types/hasta";
 import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
@@ -49,6 +50,7 @@ export function CariOdemeSekmesi({
   aktifPaketler,
   bakiyeHareketleri,
   faturaBilgisi,
+  bankaHesaplari,
 }: {
   hastaId: string;
   hastaAdSoyad: string;
@@ -59,6 +61,7 @@ export function CariOdemeSekmesi({
   aktifPaketler: PaketSatisSatir[];
   bakiyeHareketleri: HastaBakiyeHareket[];
   faturaBilgisi: FaturaBilgisiKontrol;
+  bankaHesaplari: KlinikBankaHesabi[];
 }) {
   const kategoriPct = kategoriYuzdesi(hastaKategori, iskontoOranlari);
   const hareketGorunumleri = hareketleriGorunumeCevir(bakiyeHareketleri, guncelBakiye);
@@ -69,7 +72,9 @@ export function CariOdemeSekmesi({
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>Bakiye Hareketleri</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            {duzenlenebilir && <BakiyeHareketiEkleButonu hastaId={hastaId} />}
+            {duzenlenebilir && (
+              <BakiyeHareketiEkleButonu hastaId={hastaId} bankaHesaplari={bankaHesaplari} />
+            )}
             <PdfIndirButonu
               endpoint={`/api/hasta-cari-hareketler/pdf?hastaId=${hastaId}`}
               dosyaAdi={`cari-hareketler-${dosyaAdiGuvenliYap(hastaAdSoyad)}.pdf`}

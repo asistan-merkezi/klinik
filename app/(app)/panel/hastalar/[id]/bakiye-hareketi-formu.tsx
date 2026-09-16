@@ -6,15 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { OdemeYontemi } from "@/types/odeme";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { OdemeTipiSecici, ODEME_TIPI_ETIKETLERI, ODEME_TIPI_SECILI_SINIFI } from "./odeme-tipi-secici";
 import { bakiyeHareketiEkle } from "./actions";
 
-export function BakiyeHareketiEkleButonu({ hastaId }: { hastaId: string }) {
+export function BakiyeHareketiEkleButonu({
+  hastaId,
+  bankaHesaplari,
+}: {
+  hastaId: string;
+  bankaHesaplari: KlinikBankaHesabi[];
+}) {
   const idOnEki = useId();
   const [acik, setAcik] = useState(false);
   const [odemeTipi, setOdemeTipi] = useState<OdemeYontemi>("nakit");
   const [aciklamaMetni, setAciklamaMetni] = useState("");
+  const [bankaHesapId, setBankaHesapId] = useState<string | undefined>(undefined);
   const eklemeAction = bakiyeHareketiEkle.bind(null, hastaId);
   const [durum, formAction, isPending] = useActionState(eklemeAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
@@ -25,11 +40,13 @@ export function BakiyeHareketiEkleButonu({ hastaId }: { hastaId: string }) {
       setAcik(false);
       setOdemeTipi("nakit");
       setAciklamaMetni("");
+      setBankaHesapId(undefined);
     }
   }
 
-  // Ödeme yöntemi (nakit/kredi kartı/havale) hasta_bakiye_hareket'te ayrı bir
-  // kolon değil — açıklamaya etiket olarak ekleniyor, yeni migration gerekmedi.
+  // Ödeme yöntemi (nakit/kredi kartı/havale) hem yapılandırılmış odeme_yontemi
+  // kolonuna hem (geriye dönük görünürlük için) açıklama metnine etiket
+  // olarak ekleniyor (bkz. supabase/migrations/20260916091000).
   const birlesikAciklama = aciklamaMetni.trim()
     ? `${ODEME_TIPI_ETIKETLERI[odemeTipi]} — ${aciklamaMetni.trim()}`
     : ODEME_TIPI_ETIKETLERI[odemeTipi];
@@ -54,11 +71,56 @@ export function BakiyeHareketiEkleButonu({ hastaId }: { hastaId: string }) {
           <form action={formAction} className="flex flex-col gap-3">
             <input type="hidden" name="tur" value="odeme" />
             <input type="hidden" name="aciklama" value={birlesikAciklama} />
+            <input type="hidden" name="odeme_yontemi" value={odemeTipi} />
+            <input
+              type="hidden"
+              name="banka_hesap_id"
+              value={odemeTipi === "banka_havalesi" ? (bankaHesapId ?? "") : ""}
+            />
 
             <div className="flex flex-col gap-1">
               <Label>Ödeme Tipi</Label>
-              <OdemeTipiSecici value={odemeTipi} onChange={setOdemeTipi} disabled={isPending} />
+              <OdemeTipiSecici
+                value={odemeTipi}
+                onChange={(deger) => {
+                  setOdemeTipi(deger);
+                  if (deger !== "banka_havalesi") setBankaHesapId(undefined);
+                }}
+                disabled={isPending}
+              />
             </div>
+
+            {odemeTipi === "banka_havalesi" && (
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`${idOnEki}-banka_hesap_id`}>Banka Hesabı</Label>
+                {bankaHesaplari.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Kayıtlı banka hesabı yok — Finans &gt; Banka&apos;dan hesap ekleyin.
+                  </p>
+                ) : (
+                  <Select
+                    disabled={isPending}
+                    value={bankaHesapId}
+                    onValueChange={(v) => setBankaHesapId(v ?? undefined)}
+                    items={bankaHesaplari.map((b) => ({
+                      value: b.id,
+                      label: b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi,
+                    }))}
+                  >
+                    <SelectTrigger id={`${idOnEki}-banka_hesap_id`} className="w-full">
+                      <SelectValue placeholder="Seçiniz..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankaHesaplari.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-col gap-1">
               <Label htmlFor={`${idOnEki}-tutar`}>Tutar (₺)</Label>

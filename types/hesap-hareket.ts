@@ -26,6 +26,16 @@ export const HESAP_HAREKET_YONU: Record<HesapHareketTuru, 1 | -1> = {
   odeme: -1,
 };
 
+/** Ödeme tipi seçimi sadece bu türlerde anlamlı — Kasa/Banka'nın "Giden" tarafı buradan besleniyor (bkz. supabase/migrations/20260916090000). */
+export const ODEME_TIPI_GOSTERILEN_TURLER: ManuelHesapHareketTuru[] = ["odeme", "avans"];
+
+export type PersonelOdemeTipi = "nakit" | "havale";
+
+export const PERSONEL_ODEME_TIPI_ETIKET: Record<PersonelOdemeTipi, string> = {
+  nakit: "Nakit",
+  havale: "Havale",
+};
+
 export const MANUEL_HESAP_HAREKET_SECENEKLERI: { value: ManuelHesapHareketTuru; label: string }[] = [
   { value: "prim", label: HESAP_HAREKET_TUR_ETIKETLERI.prim },
   { value: "yol", label: HESAP_HAREKET_TUR_ETIKETLERI.yol },
@@ -45,6 +55,8 @@ export type HesapHareket = {
   aciklama: string | null;
   kaynak_id: string | null;
   created_at: string;
+  odeme_tipi: PersonelOdemeTipi | null;
+  banka_hesap_id: string | null;
 };
 
 export type HesapBakiye = {

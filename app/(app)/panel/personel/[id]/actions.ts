@@ -27,6 +27,8 @@ const hesapHareketSemasi = z.object({
   tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
+  odeme_tipi: z.enum(["nakit", "havale"]).optional().or(z.literal("")),
+  banka_hesap_id: z.string().trim().optional(),
 });
 
 const pinSemasi = z.object({
@@ -156,13 +158,15 @@ export async function hesapHareketiEkle(
     tutar: formData.get("tutar"),
     tarih: formData.get("tarih"),
     aciklama: formData.get("aciklama") ?? "",
+    odeme_tipi: formData.get("odeme_tipi") ?? "",
+    banka_hesap_id: formData.get("banka_hesap_id") ?? "",
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { tur, tutar, tarih, aciklama } = ayristirma.data;
+  const { tur, tutar, tarih, aciklama, odeme_tipi, banka_hesap_id } = ayristirma.data;
 
   const { error } = await supabase.rpc("personel_hesap_hareket_ekle", {
     p_personel_id: personelId,
@@ -170,6 +174,8 @@ export async function hesapHareketiEkle(
     p_tutar: tutar,
     p_tarih: tarih,
     p_aciklama: aciklama ? aciklama : null,
+    p_odeme_tipi: odeme_tipi ? odeme_tipi : null,
+    p_banka_hesap_id: odeme_tipi === "havale" && banka_hesap_id ? banka_hesap_id : null,
   });
 
   if (error) {
