@@ -150,7 +150,7 @@ export function HesapHareketFormu({
       )}
 
       <Button type="submit" size="sm" disabled={isPending} className="w-fit">
-        {isPending ? "Ekleniyor..." : "Hareket ekle"}
+        {isPending ? "Ekleniyor..." : "Ödeme Ekle"}
       </Button>
     </form>
   );
