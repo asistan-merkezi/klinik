@@ -187,7 +187,7 @@ export default async function PersonelDetaySayfasi({
       : Promise.resolve({ count: 0 }),
     terapist
       ? supabase
-          .from("personel_maas_gecmisi")
+          .from("personel_ucret")
           .select("id, maas, gecerlilik_tarihi")
           .eq("personel_id", id)
           .order("gecerlilik_tarihi", { ascending: false })
