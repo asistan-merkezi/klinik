@@ -22,6 +22,7 @@ function bosIseNull(deger: FormDataEntryValue | null) {
 const maasAyarSemasi = z.object({
   maas: z.coerce.number().min(0, "Maaş 0'dan küçük olamaz.").nullable(),
   prim_sabit_tutar: z.coerce.number().min(0, "Prim tutarı 0'dan küçük olamaz.").nullable(),
+  fm_saatlik_ucret: z.coerce.number().min(0, "Fazla mesai ücreti 0'dan küçük olamaz.").nullable(),
 });
 
 function calismaTipindenHesaplamaModeli(calismaTipi: string | null): "sabit" | "islem_basi_prim" {
@@ -77,19 +78,20 @@ export async function maasAyarlariGuncelle(
   const ayristirma = maasAyarSemasi.safeParse({
     maas: bosIseNull(formData.get("maas")),
     prim_sabit_tutar: bosIseNull(formData.get("prim_sabit_tutar")),
+    fm_saatlik_ucret: bosIseNull(formData.get("fm_saatlik_ucret")),
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { maas, prim_sabit_tutar } = ayristirma.data;
+  const { maas, prim_sabit_tutar, fm_saatlik_ucret } = ayristirma.data;
 
   const { data: eskiPersonel } = await supabase.from("personel").select("maas, calisma_tipi").eq("id", personelId).single();
   const maas_hesaplama_modeli = calismaTipindenHesaplamaModeli(eskiPersonel?.calisma_tipi ?? null);
 
   const [personelSonucu, terapistSonucu] = await Promise.all([
-    supabase.from("personel").update({ maas }).eq("id", personelId),
+    supabase.from("personel").update({ maas, fm_saatlik_ucret }).eq("id", personelId),
     supabase
       .from("terapist")
       .update({

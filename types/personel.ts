@@ -72,6 +72,7 @@ export type PersonelDetay = {
   ad_soyad: string;
   gorev: string;
   maas: number | null;
+  fm_saatlik_ucret: number | null;
   aktif: boolean;
   kullanici_id: string | null;
   il: string | null;

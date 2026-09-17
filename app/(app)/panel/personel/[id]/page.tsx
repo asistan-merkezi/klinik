@@ -74,7 +74,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, maas, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
+        "id, ad_soyad, gorev, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),

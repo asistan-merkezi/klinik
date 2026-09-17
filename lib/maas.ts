@@ -90,11 +90,11 @@ export function maasHesapla(
   let prim = 0;
   let aciklama = `Sabit maaş${kismiAciklama}`;
 
-  if (parametreler.maas_hesaplama_modeli === "islem_basi_prim") {
-    const birimPrim = parametreler.prim_sabit_tutar ?? 0;
-    prim = tamamlananSeansSayisi * birimPrim;
-    aciklama = `Sabit maaş${kismiAciklama} + ${tamamlananSeansSayisi} seans × ${paraFormat(birimPrim)} prim`;
-  } else if (parametreler.maas_hesaplama_modeli === "barajli_prim") {
+  // Prim artık çalışma tipinden/hesaplama modelinden BAĞIMSIZ: prim_sabit_tutar
+  // girilmişse (sabit maaş alan biri dahil) her zaman seans sayısına göre uygulanır
+  // (kullanıcı kararı, 2026-09-17). barajli_prim SADECE eski/miras veriler için
+  // korunuyor — UI'dan artık hiç seçilemiyor.
+  if (parametreler.maas_hesaplama_modeli === "barajli_prim") {
     const baraj = parametreler.baraj_seans_sayisi ?? 0;
     const bonus = parametreler.baraj_bonus_tutari ?? 0;
     const barajAsildi = tamamlananSeansSayisi > baraj;
@@ -102,6 +102,12 @@ export function maasHesapla(
     aciklama = barajAsildi
       ? `Sabit maaş${kismiAciklama} + baraj (${baraj} seans) aşıldı, ${paraFormat(bonus)} bonus eklendi`
       : `Sabit maaş${kismiAciklama}, baraj (${baraj} seans) aşılmadı — bonus yok`;
+  } else {
+    const birimPrim = parametreler.prim_sabit_tutar ?? 0;
+    if (birimPrim > 0) {
+      prim = tamamlananSeansSayisi * birimPrim;
+      aciklama = `Sabit maaş${kismiAciklama} + ${tamamlananSeansSayisi} seans × ${paraFormat(birimPrim)} prim`;
+    }
   }
 
   return {
