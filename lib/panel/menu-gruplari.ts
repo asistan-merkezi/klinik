@@ -38,7 +38,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     label: "Finans",
     icon: Wallet,
     ogeler: [
-      { href: "/panel/personel?tab=hesap", label: "Personel", icon: UserCog },
+      { href: "/panel/personel", label: "Personel", icon: UserCog },
       { href: "/panel/paketler", label: "Paket & Ödeme Yönetimi", icon: Package },
       {
         href: "/panel/finans/satin-alma-faturalari",
