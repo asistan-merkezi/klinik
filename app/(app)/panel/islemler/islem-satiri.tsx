@@ -187,6 +187,7 @@ export function IslemSatiri({
   return (
     <Card
       interactive={duzenlenebilir}
+      elevated
       className="gap-2 p-3"
       onClick={
         duzenlenebilir

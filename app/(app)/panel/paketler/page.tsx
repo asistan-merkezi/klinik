@@ -77,7 +77,7 @@ export default async function PaketlerSayfasi() {
               <EmptyState icon={PackageOpen} title="Henüz paket yok." compact />
             )}
             {!paketSonucu.error && guncelPaketler.length > 0 && (
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-3 rounded-xl bg-muted/60 p-3">
                 {guncelPaketler.map((paket, i) => (
                   <PaketSatiri
                     key={paket.id}
@@ -103,7 +103,7 @@ export default async function PaketlerSayfasi() {
               <EmptyState icon={Archive} title="Arşivde paket yok." compact />
             )}
             {!paketSonucu.error && arsivPaketler.length > 0 && (
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-3 rounded-xl bg-muted/60 p-3">
                 {arsivPaketler.map((paket, i) => (
                   <PaketSatiri
                     key={paket.id}

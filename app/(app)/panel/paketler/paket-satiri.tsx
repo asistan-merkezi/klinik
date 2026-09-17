@@ -193,7 +193,7 @@ export function PaketSatiri({
 
   return (
     <li className="animate-kart-giris" style={gecikme != null ? { animationDelay: `${gecikme}ms` } : undefined}>
-      <Card className="flex-col gap-2 p-3">
+      <Card elevated className="flex-col gap-2 p-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex flex-col">
             <span className={cn("font-medium", !paket.aktif && "text-muted-foreground line-through")}>

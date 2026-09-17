@@ -17,7 +17,7 @@ export function TedaviListesi({
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 rounded-xl bg-muted/60 p-3 sm:grid-cols-2 lg:grid-cols-3">
       {islemler.map((islem) => (
         <IslemSatiri
           key={islem.id}
