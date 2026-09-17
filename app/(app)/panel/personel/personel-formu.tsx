@@ -110,8 +110,12 @@ export function PersonelFormu(props: Props) {
   // çağıran taraf (İş Başvurusu listesi) satırı "aktarıldı" olarak işaretleyip
   // aynı başvurudan tekrar personel oluşturulmasını engelleyebilsin — dialog
   // yine kapanmıyor, şifre gösterimini etkilemiyor.
+  // `uyari: true` olduğunda ÇAĞIRMIYORUZ — success olsa da kullanıcının
+  // mutlaka görmesi gereken bir kısmi hata mesajı var (ör. T.C. Kimlik
+  // şifreleme anahtarı kurulu değil); dialog hemen kapanırsa bu mesaj hiç
+  // okunamadan kayboluyordu (gerçek bir kullanıcı raporuyla bulundu).
   useEffect(() => {
-    if (durum?.success && (duzenleMi || basvuru)) {
+    if (durum?.success && !durum.uyari && (duzenleMi || basvuru)) {
       props.onBasarili?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

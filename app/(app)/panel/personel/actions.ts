@@ -9,7 +9,11 @@ import { tcKimlikGecerliMi } from "@/lib/tc-kimlik";
 import { bugunTarih } from "@/lib/puantaj";
 import { formatTime, toUTC } from "@/lib/datetime";
 
-type SonucDurumu = { success: boolean; message: string; geciciSifre?: string } | null;
+// `uyari: true`, success olsa da mesajda kullanıcının GÖRMESİ gereken bir
+// kısmi hata var demektir (ör. T.C. Kimlik şifreleme anahtarı kurulu değil)
+// — çağıran taraf bu durumda dialog'u otomatik KAPATMAMALI, aksi halde
+// uyarı okunmadan ekrandan kaybolur.
+type SonucDurumu = { success: boolean; message: string; geciciSifre?: string; uyari?: boolean } | null;
 
 const KARAKTER_HAVUZU = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 
@@ -446,6 +450,7 @@ export async function personelHesabiOlustur(
         success: true,
         message: "Hesap oluşturuldu ama terapist ayarları kaydedilemedi, lütfen tekrar deneyin.",
         geciciSifre,
+        uyari: true,
       };
     }
   }
@@ -465,6 +470,7 @@ export async function personelHesabiOlustur(
     success: true,
     message: uyari ? `Personel hesabı oluşturuldu. ${uyari}` : "Personel hesabı oluşturuldu.",
     geciciSifre,
+    uyari: Boolean(uyari),
   };
 }
 
@@ -541,7 +547,7 @@ export async function personelBilgileriGuncelle(
 
   revalidatePath(`/panel/personel/${personelId}`);
   revalidatePath("/panel/personel");
-  return { success: true, message: uyari ? `Kaydedildi. ${uyari}` : "Kaydedildi." };
+  return { success: true, message: uyari ? `Kaydedildi. ${uyari}` : "Kaydedildi.", uyari: Boolean(uyari) };
 }
 
 /**
