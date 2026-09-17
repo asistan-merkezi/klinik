@@ -101,10 +101,8 @@ const kisiselIsSemasi = z.object({
   isten_cikis_tarihi: z.string().trim().optional().or(z.literal("")),
   calisma_tipi: z.enum(["tam_zamanli", "yari_zamanli", "vardiyali", "prim_usulu"]).optional().or(z.literal("")),
   sgk_sicil_no: z.string().trim().optional().or(z.literal("")),
-  uzmanlik_tescil_no: z.string().trim().optional().or(z.literal("")),
-  egitim_okul: z.string().trim().optional().or(z.literal("")),
-  egitim_brans: z.string().trim().optional().or(z.literal("")),
-  egitim_mezuniyet_yili: z.string().trim().optional().or(z.literal("")),
+  imza_yetkilisi_mi: z.string().trim().optional().or(z.literal("")),
+  egitim_json: z.string().trim().optional().or(z.literal("")),
   rol: z.enum(["klinik_admin", "resepsiyon", "terapist", "muhasebe"]),
   tc_kimlik_no: z
     .string()
@@ -150,10 +148,8 @@ function formVerisiTopla(formData: FormData) {
     isten_cikis_tarihi: formData.get("isten_cikis_tarihi") ?? "",
     calisma_tipi: formData.get("calisma_tipi") ?? "",
     sgk_sicil_no: formData.get("sgk_sicil_no") ?? "",
-    uzmanlik_tescil_no: formData.get("uzmanlik_tescil_no") ?? "",
-    egitim_okul: formData.get("egitim_okul") ?? "",
-    egitim_brans: formData.get("egitim_brans") ?? "",
-    egitim_mezuniyet_yili: formData.get("egitim_mezuniyet_yili") ?? "",
+    imza_yetkilisi_mi: formData.get("imza_yetkilisi_mi") ?? "",
+    egitim_json: formData.get("egitim_json") ?? "",
     rol: formData.get("rol"),
     tc_kimlik_no: formData.get("tc_kimlik_no") ?? "",
     pasaport_no: formData.get("pasaport_no") ?? "",
@@ -169,6 +165,30 @@ function formVerisiTopla(formData: FormData) {
 }
 
 type FormVerisi = z.infer<typeof kisiselIsSemasi>;
+
+type EgitimSatiri = { derece: string | null; okul: string | null; bolum: string | null; yil: string | null };
+
+// Formdaki dinamik "+ Yeni Eğitim Ekle" satırları tek bir gizli input'ta
+// JSON olarak taşınıyor (adı belirsiz sayıda FormData alanıyla uğraşmamak
+// için) — burada ayrıştırılıp temizleniyor. Tamamen boş satırlar atılır.
+function egitimSatirlariniAyristir(json: string): EgitimSatiri[] {
+  if (!json) return [];
+  let ham: unknown;
+  try {
+    ham = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(ham)) return [];
+  return ham
+    .slice(0, 20)
+    .map((satir): EgitimSatiri => {
+      const s = satir as Record<string, unknown>;
+      const temizle = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+      return { derece: temizle(s?.derece), okul: temizle(s?.okul), bolum: temizle(s?.bolum), yil: temizle(s?.yil) };
+    })
+    .filter((satir) => satir.derece || satir.okul || satir.bolum || satir.yil);
+}
 
 // Acil kişi + hassas (TC/pasaport, şifreli RPC üzerinden) + mesleki belge +
 // kaşe görseli — hem oluşturma hem düzenlemede aynı mantık, tek yerde.
@@ -200,6 +220,20 @@ async function yardimciKayitlariIsle(
         yakinlik: veri.acil_yakinlik,
         telefon: veri.acil_telefon,
       });
+    }
+  }
+
+  // Eğitim Bilgileri (çoklu) — sadece terapist rolünde anlamlı (Mesleki
+  // Belgeler adımının bir parçası). Diff'lemek yerine mevcut satırları silip
+  // formdan geleni yeniden yazıyoruz (tek deftere göre daha basit ve bu
+  // liste küçük olduğu için maliyeti önemsiz).
+  if (veri.rol === "terapist") {
+    const egitimSatirlari = egitimSatirlariniAyristir(veri.egitim_json ?? "");
+    await adminClient.from("personel_egitim").delete().eq("personel_id", personelId);
+    if (egitimSatirlari.length > 0) {
+      await adminClient.from("personel_egitim").insert(
+        egitimSatirlari.map((satir) => ({ personel_id: personelId, ...satir }))
+      );
     }
   }
 
@@ -363,10 +397,7 @@ export async function personelHesabiOlustur(
       sgk_sicil_no: veri.sgk_sicil_no || null,
       ise_giris_tarihi: veri.ise_giris_tarihi || null,
       isten_cikis_tarihi: veri.isten_cikis_tarihi || null,
-      uzmanlik_tescil_no: veri.uzmanlik_tescil_no || null,
-      egitim_okul: veri.egitim_okul || null,
-      egitim_brans: veri.egitim_brans || null,
-      egitim_mezuniyet_yili: veri.egitim_mezuniyet_yili || null,
+      imza_yetkilisi_mi: veri.imza_yetkilisi_mi === "on",
       il: veri.il || null,
       ilce: veri.ilce || null,
       mahalle: veri.mahalle || null,
@@ -479,10 +510,7 @@ export async function personelBilgileriGuncelle(
       sgk_sicil_no: veri.sgk_sicil_no || null,
       ise_giris_tarihi: veri.ise_giris_tarihi || null,
       isten_cikis_tarihi: veri.isten_cikis_tarihi || null,
-      uzmanlik_tescil_no: veri.uzmanlik_tescil_no || null,
-      egitim_okul: veri.egitim_okul || null,
-      egitim_brans: veri.egitim_brans || null,
-      egitim_mezuniyet_yili: veri.egitim_mezuniyet_yili || null,
+      imza_yetkilisi_mi: veri.imza_yetkilisi_mi === "on",
       il: veri.il || null,
       ilce: veri.ilce || null,
       mahalle: veri.mahalle || null,

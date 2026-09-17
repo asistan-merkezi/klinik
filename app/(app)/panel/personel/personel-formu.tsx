@@ -21,6 +21,7 @@ import {
   type KullaniciRol,
   type PersonelAcilKisi,
   type PersonelDetay,
+  type PersonelEgitim,
   type PersonelHassasMaskeli,
   type PersonelMeslekiBelge,
 } from "@/types/personel";
@@ -35,12 +36,15 @@ type Props =
       initialData: PersonelDetay;
       initialAcilKisi: PersonelAcilKisi | null;
       initialMesleki: PersonelMeslekiBelge | null;
+      initialEgitim: PersonelEgitim[];
       maskeliHassas: PersonelHassasMaskeli | null;
       onBasarili?: () => void;
     };
 
 const inputClass =
   "flex h-8 w-full min-w-0 rounded-lg border border-input bg-input-bg px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+type EgitimSatiri = { derece: string; okul: string; bolum: string; yil: string };
 
 function hassasIpucu(maskeli: PersonelHassasMaskeli | null, alan: "tc_kimlik" | "pasaport"): string {
   if (!maskeli) return "Boş bırakılırsa mevcut kayıt değişmez.";
@@ -56,6 +60,7 @@ export function PersonelFormu(props: Props) {
   const initialData = duzenleMi ? props.initialData : null;
   const initialAcilKisi = duzenleMi ? props.initialAcilKisi : null;
   const initialMesleki = duzenleMi ? props.initialMesleki : null;
+  const initialEgitim = duzenleMi ? props.initialEgitim : [];
   const maskeliHassas = duzenleMi ? props.maskeliHassas : null;
   // Olumlu bulunan bir İş Başvurusu'ndan "Personel Ekle"ye geçildiğinde
   // adayın bilgileriyle formu önceden dolduran kaynak — sadece mod=olustur'da.
@@ -77,9 +82,22 @@ export function PersonelFormu(props: Props) {
   const [acilYakinlik, setAcilYakinlik] = useState(initialAcilKisi?.yakinlik ?? "");
   const [unvan, setUnvan] = useState(initialData?.gorev ?? basvuru?.pozisyon ?? "");
   const [departman, setDepartman] = useState(initialData?.departman ?? "");
-  const [uzmanlikTescilNo, setUzmanlikTescilNo] = useState(initialData?.uzmanlik_tescil_no ?? "");
-  const [egitimOkul, setEgitimOkul] = useState(initialData?.egitim_okul ?? "");
-  const [egitimBrans, setEgitimBrans] = useState(initialData?.egitim_brans ?? "");
+  const [imzaYetkilisiMi, setImzaYetkilisiMi] = useState(initialData?.imza_yetkilisi_mi ?? false);
+  const [egitimSatirlari, setEgitimSatirlari] = useState<EgitimSatiri[]>(
+    initialEgitim.map((e) => ({ derece: e.derece ?? "", okul: e.okul ?? "", bolum: e.bolum ?? "", yil: e.yil ?? "" }))
+  );
+
+  function egitimSatiriEkle() {
+    setEgitimSatirlari((satirlar) => [...satirlar, { derece: "", okul: "", bolum: "", yil: "" }]);
+  }
+
+  function egitimSatiriSil(index: number) {
+    setEgitimSatirlari((satirlar) => satirlar.filter((_, i) => i !== index));
+  }
+
+  function egitimSatiriGuncelle(index: number, alan: keyof EgitimSatiri, deger: string) {
+    setEgitimSatirlari((satirlar) => satirlar.map((satir, i) => (i === index ? { ...satir, [alan]: deger } : satir)));
+  }
 
   const adimRefleri = useRef<Record<number, HTMLDivElement | null>>({});
   const formRef = useRef<HTMLFormElement>(null);
@@ -388,90 +406,119 @@ export function PersonelFormu(props: Props) {
         <div ref={(el) => { adimRefleri.current[meslekiAdimNo] = el; }} className={aktifAdim === meslekiAdimNo ? "flex flex-col gap-4" : "hidden"}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="uzmanlik_tescil_no">Uzmanlık / Diploma / Tescil No</Label>
-              <Input
-                id="uzmanlik_tescil_no"
-                name="uzmanlik_tescil_no"
-                disabled={isPending}
-                value={uzmanlikTescilNo}
-                onChange={(e) => setUzmanlikTescilNo(isimBasHarfBuyukYap(e.target.value))}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
               <Label htmlFor="diploma_no">Diploma No</Label>
               <Input id="diploma_no" name="diploma_no" disabled={isPending} defaultValue={initialMesleki?.diploma_no ?? ""} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="uzmanlik_belge_no">Uzmanlık Belge No</Label>
-              <Input id="uzmanlik_belge_no" name="uzmanlik_belge_no" disabled={isPending} defaultValue={initialMesleki?.uzmanlik_belge_no ?? ""} />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="meslek_odasi_sicil_no">Meslek Odası Sicil No</Label>
               <Input id="meslek_odasi_sicil_no" name="meslek_odasi_sicil_no" disabled={isPending} defaultValue={initialMesleki?.meslek_odasi_sicil_no ?? ""} />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="saglik_bakanligi_tescil_no">Sağlık Bakanlığı Tescil No</Label>
-              <Input id="saglik_bakanligi_tescil_no" name="saglik_bakanligi_tescil_no" disabled={isPending} defaultValue={initialMesleki?.saglik_bakanligi_tescil_no ?? ""} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="e_imza_sertifika_seri_no">E-imza Sertifika Seri No</Label>
-              <Input id="e_imza_sertifika_seri_no" name="e_imza_sertifika_seri_no" disabled={isPending} defaultValue={initialMesleki?.e_imza_sertifika_seri_no ?? ""} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="e_imza_gecerlilik_tarihi">E-imza Geçerlilik Tarihi</Label>
-              <Input id="e_imza_gecerlilik_tarihi" name="e_imza_gecerlilik_tarihi" type="date" disabled={isPending} defaultValue={initialMesleki?.e_imza_gecerlilik_tarihi ?? ""} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="sigorta_police_no">Mali Sorumluluk Sigortası Poliçe No</Label>
-              <Input id="sigorta_police_no" name="sigorta_police_no" disabled={isPending} defaultValue={initialMesleki?.mali_sorumluluk_sigorta_police_no ?? ""} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="sigorta_bitis_tarihi">Sigorta Bitiş Tarihi</Label>
-              <Input id="sigorta_bitis_tarihi" name="sigorta_bitis_tarihi" type="date" disabled={isPending} defaultValue={initialMesleki?.mali_sorumluluk_sigorta_bitis_tarihi ?? ""} />
-            </div>
-            <div className="flex flex-col gap-2 sm:col-span-2">
-              <Label htmlFor="kase_dosya">Kaşe Görseli {initialMesleki?.kase_gorsel_url && "(kayıtlı görsel var, seçilirse değişir)"}</Label>
-              <input id="kase_dosya" name="kase_dosya" type="file" accept="image/png,image/jpeg,image/webp" disabled={isPending} className={inputClass} />
-            </div>
           </div>
 
-          <fieldset className="flex flex-col gap-4 border-t border-border pt-4">
-            <legend className="mb-1 text-sm font-medium">Eğitim Bilgileri</legend>
-            <div className="grid gap-4 sm:grid-cols-3">
+          <label className="flex items-center gap-2 border-t border-border pt-4 text-sm">
+            <input
+              type="checkbox"
+              name="imza_yetkilisi_mi"
+              disabled={isPending}
+              checked={imzaYetkilisiMi}
+              onChange={(e) => setImzaYetkilisiMi(e.target.checked)}
+              className="size-4 rounded border-input"
+            />
+            Resmî sağlık lisansı / imza yetkilisi
+          </label>
+
+          {imzaYetkilisiMi && (
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="egitim_okul">Mezun Olduğu Okul</Label>
-                <Input
-                  id="egitim_okul"
-                  name="egitim_okul"
-                  disabled={isPending}
-                  value={egitimOkul}
-                  onChange={(e) => setEgitimOkul(isimBasHarfBuyukYap(e.target.value))}
-                />
+                <Label htmlFor="uzmanlik_belge_no">Uzmanlık Belge No</Label>
+                <Input id="uzmanlik_belge_no" name="uzmanlik_belge_no" disabled={isPending} defaultValue={initialMesleki?.uzmanlik_belge_no ?? ""} />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="egitim_brans">Branş</Label>
-                <Input
-                  id="egitim_brans"
-                  name="egitim_brans"
-                  disabled={isPending}
-                  value={egitimBrans}
-                  onChange={(e) => setEgitimBrans(isimBasHarfBuyukYap(e.target.value))}
-                />
+                <Label htmlFor="saglik_bakanligi_tescil_no">Sağlık Bakanlığı Tescil No</Label>
+                <Input id="saglik_bakanligi_tescil_no" name="saglik_bakanligi_tescil_no" disabled={isPending} defaultValue={initialMesleki?.saglik_bakanligi_tescil_no ?? ""} />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="egitim_mezuniyet_yili">Yıl</Label>
-                <Input
-                  id="egitim_mezuniyet_yili"
-                  name="egitim_mezuniyet_yili"
-                  inputMode="numeric"
-                  pattern="[0-9]{4}"
-                  maxLength={4}
-                  placeholder="2020"
-                  disabled={isPending}
-                  defaultValue={initialData?.egitim_mezuniyet_yili ?? ""}
-                />
+                <Label htmlFor="e_imza_sertifika_seri_no">E-imza Sertifika Seri No</Label>
+                <Input id="e_imza_sertifika_seri_no" name="e_imza_sertifika_seri_no" disabled={isPending} defaultValue={initialMesleki?.e_imza_sertifika_seri_no ?? ""} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="e_imza_gecerlilik_tarihi">E-imza Geçerlilik Tarihi</Label>
+                <Input id="e_imza_gecerlilik_tarihi" name="e_imza_gecerlilik_tarihi" type="date" disabled={isPending} defaultValue={initialMesleki?.e_imza_gecerlilik_tarihi ?? ""} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="sigorta_police_no">Mali Sorumluluk Sigortası Poliçe No</Label>
+                <Input id="sigorta_police_no" name="sigorta_police_no" disabled={isPending} defaultValue={initialMesleki?.mali_sorumluluk_sigorta_police_no ?? ""} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="sigorta_bitis_tarihi">Sigorta Bitiş Tarihi</Label>
+                <Input id="sigorta_bitis_tarihi" name="sigorta_bitis_tarihi" type="date" disabled={isPending} defaultValue={initialMesleki?.mali_sorumluluk_sigorta_bitis_tarihi ?? ""} />
+              </div>
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <Label htmlFor="kase_dosya">Kaşe Görseli {initialMesleki?.kase_gorsel_url && "(kayıtlı görsel var, seçilirse değişir)"}</Label>
+                <input id="kase_dosya" name="kase_dosya" type="file" accept="image/png,image/jpeg,image/webp" disabled={isPending} className={inputClass} />
               </div>
             </div>
+          )}
+
+          <fieldset className="flex flex-col gap-3 border-t border-border pt-4">
+            <div className="flex items-center justify-between">
+              <legend className="text-sm font-medium">Eğitim Bilgileri</legend>
+              <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={egitimSatiriEkle}>
+                + Yeni Eğitim Ekle
+              </Button>
+            </div>
+            {egitimSatirlari.length === 0 && (
+              <p className="text-xs text-muted-foreground">Henüz eğitim kaydı eklenmedi.</p>
+            )}
+            {egitimSatirlari.map((satir, i) => (
+              <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_6rem_auto] sm:items-end">
+                <div className="flex flex-col gap-1">
+                  {i === 0 && <Label htmlFor={`egitim_derece_${i}`}>Derece</Label>}
+                  <Input
+                    id={`egitim_derece_${i}`}
+                    placeholder="Lisans, Yüksek Lisans, Sertifika..."
+                    disabled={isPending}
+                    value={satir.derece}
+                    onChange={(e) => egitimSatiriGuncelle(i, "derece", e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  {i === 0 && <Label htmlFor={`egitim_okul_${i}`}>Okul</Label>}
+                  <Input
+                    id={`egitim_okul_${i}`}
+                    disabled={isPending}
+                    value={satir.okul}
+                    onChange={(e) => egitimSatiriGuncelle(i, "okul", isimBasHarfBuyukYap(e.target.value))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  {i === 0 && <Label htmlFor={`egitim_bolum_${i}`}>Branş / Bölüm</Label>}
+                  <Input
+                    id={`egitim_bolum_${i}`}
+                    disabled={isPending}
+                    value={satir.bolum}
+                    onChange={(e) => egitimSatiriGuncelle(i, "bolum", isimBasHarfBuyukYap(e.target.value))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  {i === 0 && <Label htmlFor={`egitim_yil_${i}`}>Yıl</Label>}
+                  <Input
+                    id={`egitim_yil_${i}`}
+                    inputMode="numeric"
+                    pattern="[0-9]{4}"
+                    maxLength={4}
+                    placeholder="2020"
+                    disabled={isPending}
+                    value={satir.yil}
+                    onChange={(e) => egitimSatiriGuncelle(i, "yil", e.target.value)}
+                  />
+                </div>
+                <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={() => egitimSatiriSil(i)}>
+                  Sil
+                </Button>
+              </div>
+            ))}
+            <input type="hidden" name="egitim_json" value={JSON.stringify(egitimSatirlari)} />
           </fieldset>
         </div>
       )}

@@ -13,6 +13,7 @@ import { PersonelFormu } from "../personel-formu";
 import type {
   PersonelAcilKisi,
   PersonelDetay,
+  PersonelEgitim,
   PersonelHassasMaskeli,
   PersonelMeslekiBelge,
 } from "@/types/personel";
@@ -22,12 +23,14 @@ export function DuzenlePersonelDialog({
   personel,
   acilKisi,
   mesleki,
+  egitim,
   maskeliHassas,
 }: {
   personelId: string;
   personel: PersonelDetay;
   acilKisi: PersonelAcilKisi | null;
   mesleki: PersonelMeslekiBelge | null;
+  egitim: PersonelEgitim[];
   maskeliHassas: PersonelHassasMaskeli | null;
 }) {
   const [acik, setAcik] = useState(false);
@@ -49,6 +52,7 @@ export function DuzenlePersonelDialog({
             initialData={personel}
             initialAcilKisi={acilKisi}
             initialMesleki={mesleki}
+            initialEgitim={egitim}
             maskeliHassas={maskeliHassas}
             onBasarili={() => setAcik(false)}
           />

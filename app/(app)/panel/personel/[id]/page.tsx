@@ -12,6 +12,7 @@ import {
   type MaasGecmisiSatir,
   type PersonelAcilKisi,
   type PersonelDetay,
+  type PersonelEgitim,
   type PersonelHassasMaskeli,
   type PersonelMeslekiBelge,
   type TerapistAyarlari,
@@ -73,7 +74,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, maas, aktif, kullanici_id, uzmanlik_tescil_no, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, egitim_okul, egitim_brans, egitim_mezuniyet_yili, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
+        "id, ad_soyad, gorev, maas, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),
@@ -138,7 +139,7 @@ export default async function PersonelDetaySayfasi({
 
   const terapist = terapistSonucu.data;
 
-  const [acilSonucu, meslekiSonucu, hassasSonucu, gunSonucu, haftaSonucu, aySonucu, maasGecmisiSonucu] = await Promise.all([
+  const [acilSonucu, meslekiSonucu, egitimSonucu, hassasSonucu, gunSonucu, haftaSonucu, aySonucu, maasGecmisiSonucu] = await Promise.all([
     yonetici
       ? supabase
           .from("personel_acil_kisi")
@@ -155,6 +156,14 @@ export default async function PersonelDetaySayfasi({
           .eq("personel_id", id)
           .maybeSingle<PersonelMeslekiBelge>()
       : Promise.resolve({ data: null as PersonelMeslekiBelge | null }),
+    yonetici
+      ? supabase
+          .from("personel_egitim")
+          .select("id, derece, okul, bolum, yil")
+          .eq("personel_id", id)
+          .order("created_at", { ascending: true })
+          .returns<PersonelEgitim[]>()
+      : Promise.resolve({ data: null as PersonelEgitim[] | null }),
     yonetici
       ? supabase.rpc("personel_hassas_maskeli_getir", { p_personel_id: id })
       : Promise.resolve({ data: null as PersonelHassasMaskeli | null }),
@@ -198,6 +207,7 @@ export default async function PersonelDetaySayfasi({
 
   const acilKisi = acilSonucu.data;
   const mesleki = meslekiSonucu.data;
+  const egitim = egitimSonucu.data ?? [];
   const maasGecmisi = maasGecmisiSonucu.data ?? [];
   const maskeliHassas = (hassasSonucu.data as PersonelHassasMaskeli | null) ?? null;
 
@@ -404,6 +414,7 @@ export default async function PersonelDetaySayfasi({
                   personel={personel}
                   acilKisi={acilKisi}
                   mesleki={mesleki}
+                  egitim={egitim}
                   maskeliHassas={maskeliHassas}
                 />
               )}
@@ -489,19 +500,17 @@ export default async function PersonelDetaySayfasi({
                     </div>
                     {terapistMi && (
                       <>
-                        <div className="flex items-center justify-between border-t border-border pt-3">
-                          <dt className="text-muted-foreground">Uzmanlık / Tescil No</dt>
-                          <dd>{personel.uzmanlik_tescil_no ?? "—"}</dd>
-                        </div>
                         <div className="flex flex-col gap-1">
                           <dt className="text-muted-foreground">Eğitim Bilgileri</dt>
                           <dd>
-                            {personel.egitim_okul || personel.egitim_brans || personel.egitim_mezuniyet_yili
-                              ? [personel.egitim_okul, personel.egitim_brans, personel.egitim_mezuniyet_yili]
-                                  .filter(Boolean)
-                                  .join(" / ")
+                            {egitim.length > 0
+                              ? egitim.map((e) => [e.derece, e.okul, e.bolum, e.yil].filter(Boolean).join(" / ")).join("; ")
                               : "—"}
                           </dd>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <dt className="text-muted-foreground">İmza Yetkilisi</dt>
+                          <dd>{personel.imza_yetkilisi_mi ? "Evet" : "Hayır"}</dd>
                         </div>
                         {mesleki && (
                           <div className="flex flex-col gap-1">
@@ -509,8 +518,8 @@ export default async function PersonelDetaySayfasi({
                             <dd className="text-xs text-muted-foreground">
                               {[
                                 mesleki.diploma_no && `Diploma: ${mesleki.diploma_no}`,
-                                mesleki.uzmanlik_belge_no && `Uzmanlık Belge: ${mesleki.uzmanlik_belge_no}`,
                                 mesleki.meslek_odasi_sicil_no && `Meslek Odası: ${mesleki.meslek_odasi_sicil_no}`,
+                                mesleki.uzmanlik_belge_no && `Uzmanlık Belge: ${mesleki.uzmanlik_belge_no}`,
                                 mesleki.saglik_bakanligi_tescil_no && `S.B. Tescil: ${mesleki.saglik_bakanligi_tescil_no}`,
                               ]
                                 .filter(Boolean)

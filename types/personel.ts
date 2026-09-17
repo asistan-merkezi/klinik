@@ -74,7 +74,6 @@ export type PersonelDetay = {
   maas: number | null;
   aktif: boolean;
   kullanici_id: string | null;
-  uzmanlik_tescil_no: string | null;
   il: string | null;
   ilce: string | null;
   mahalle: string | null;
@@ -89,9 +88,7 @@ export type PersonelDetay = {
   ise_giris_tarihi: string | null;
   isten_cikis_tarihi: string | null;
   ise_baslama_notu: string | null;
-  egitim_okul: string | null;
-  egitim_brans: string | null;
-  egitim_mezuniyet_yili: string | null;
+  imza_yetkilisi_mi: boolean;
   puantaj_pin_guncelleme_tarihi: string | null;
   kullanici: { telefon: string | null; rol: KullaniciRol } | null;
 };
@@ -101,6 +98,14 @@ export type PersonelAcilKisi = {
   ad_soyad: string;
   yakinlik: string;
   telefon: string;
+};
+
+export type PersonelEgitim = {
+  id: string;
+  derece: string | null;
+  okul: string | null;
+  bolum: string | null;
+  yil: string | null;
 };
 
 export type PersonelMeslekiBelge = {
