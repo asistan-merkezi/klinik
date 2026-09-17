@@ -35,3 +35,8 @@ export type SecenekSatir = {
   id: string;
   ad: string;
 };
+
+/** Tedavi seçim listesi — Süre alanının otomatik dolması için sure_dakika taşır (bkz. randevu-formu.tsx). */
+export type TedaviSecenekSatir = SecenekSatir & {
+  sure_dakika: number | null;
+};

@@ -112,6 +112,19 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
         </div>
 
         <div className="flex flex-col gap-2">
+          <Label htmlFor="sure_dakika">Uygulama Süresi (dakika, opsiyonel)</Label>
+          <Input
+            id="sure_dakika"
+            name="sure_dakika"
+            type="number"
+            min={1}
+            max={480}
+            placeholder="Randevu formunda otomatik doldurulur"
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
           <Label htmlFor="gerekli_cihaz_id">Gerekli Cihaz (opsiyonel)</Label>
           <Select
             name="gerekli_cihaz_id"

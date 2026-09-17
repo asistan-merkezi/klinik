@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Bell } from "lucide-react";
-import type { SecenekSatir } from "@/types/randevu";
+import type { SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import type {
   AnketYanitiSatir,
   BekleyenIptalTalebiSatir,
@@ -74,7 +74,7 @@ export default async function HastaBildirimleriSayfasi() {
       .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
     supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
+    supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
   ]);
 
   const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
@@ -88,7 +88,11 @@ export default async function HastaBildirimleriSayfasi() {
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
+  const tedaviler: TedaviSecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({
+    id: t.id,
+    ad: t.ad,
+    sure_dakika: t.sure_dakika,
+  }));
 
   const hicBirSeyYok =
     bekleyenIptalTalepleri.length === 0 &&

@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SecenekSatir } from "@/types/randevu";
+import type { SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import { HAFTANIN_GUNLERI } from "@/types/periyodik-randevu";
 import { periyodikRandevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
@@ -22,7 +22,7 @@ type Props = {
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
-  tedaviler: SecenekSatir[];
+  tedaviler: TedaviSecenekSatir[];
   /** Randevu başarıyla oluşturulunca çağrılır (örn. dialog'u kapatmak için) */
   onBasarili?: () => void;
   /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
@@ -49,7 +49,19 @@ export function PeriyodikRandevuFormu({
   const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [hastaId, setHastaId] = useState(sabitHasta?.id ?? "");
   const [islemTanimiId, setIslemTanimiId] = useState("");
+  const [sureDakika, setSureDakika] = useState(30);
   const [gunler, setGunler] = useState<GunSaat[]>([{ gun: "1", saat: "" }]);
+
+  // Tedavi seçilince (Tedavi seçiciden veya Kayıtlı Paketler'den) o tedavinin
+  // Yönetim > Tedavi Tanımları'nda ayarlanmış uygulama süresi varsa Süre alanına
+  // otomatik yansır; süre tanımlı değilse elle girilen/varsayılan değer korunur.
+  function tedaviSec(id: string) {
+    setIslemTanimiId(id);
+    const sure = tedaviler.find((t) => t.id === id)?.sure_dakika;
+    if (sure) {
+      setSureDakika(sure);
+    }
+  }
 
   function gunSayisiDegisti(deger: string) {
     const n = Number(deger);
@@ -104,7 +116,7 @@ export function PeriyodikRandevuFormu({
         <KayitliPaketler
           hastaId={hastaId}
           secili={islemTanimiId}
-          onSec={setIslemTanimiId}
+          onSec={tedaviSec}
           disabled={isPending}
         />
 
@@ -157,7 +169,7 @@ export function PeriyodikRandevuFormu({
             required
             disabled={isPending}
             value={islemTanimiId}
-            onValueChange={(v) => setIslemTanimiId(v as string)}
+            onValueChange={(v) => tedaviSec(v as string)}
             items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="periyodik_islem_tanimi_id" className="w-full">
@@ -259,7 +271,8 @@ export function PeriyodikRandevuFormu({
             type="number"
             min={5}
             max={480}
-            defaultValue={30}
+            value={sureDakika}
+            onChange={(e) => setSureDakika(Number(e.target.value))}
             required
             disabled={isPending}
           />

@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { SecenekSatir } from "@/types/randevu";
+import type { SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import { RandevuFormu } from "./randevu-formu";
 import { PeriyodikRandevuFormu } from "./periyodik-randevu-formu";
 
@@ -20,7 +20,7 @@ type Props = {
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
-  tedaviler: SecenekSatir[];
+  tedaviler: TedaviSecenekSatir[];
   /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
   sabitHasta?: { id: string; ad: string };
   buttonLabel?: string;

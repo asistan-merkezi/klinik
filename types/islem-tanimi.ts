@@ -7,6 +7,7 @@ export type IslemTanimiSatir = {
   prime_fiyat: number | null;
   kdv_orani: number;
   muhasebe_hizmet_ismi: string | null;
+  sure_dakika: number | null;
   aktif: boolean;
   cihaz: { ad: string } | null;
 };

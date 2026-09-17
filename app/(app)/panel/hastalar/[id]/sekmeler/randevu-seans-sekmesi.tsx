@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDateTime } from "@/lib/datetime";
 import { RANDEVU_DURUM_ETIKETLERI, RANDEVU_DURUM_TONLARI } from "@/types/hasta-detay";
 import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
-import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
+import type { RandevuSatir, SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import { PeriyodikRandevularKarti } from "../periyodik-randevular-karti";
 import { YeniRandevuDialog } from "../../../randevular/yeni-randevu-dialog";
 import { PeriyodikRandevuDialog } from "../../../randevular/periyodik-randevu-dialog";
@@ -29,7 +29,7 @@ export function RandevuSeansSekmesi({
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
-  tedaviler: SecenekSatir[];
+  tedaviler: TedaviSecenekSatir[];
 }) {
   return (
     <div className="flex flex-col gap-4">

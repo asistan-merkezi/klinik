@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
+import type { RandevuSatir, SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
@@ -67,7 +67,7 @@ export default async function RandevularSayfasi() {
         .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
       supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-      supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
+      supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
       supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
       supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
       supabase
@@ -96,7 +96,11 @@ export default async function RandevularSayfasi() {
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
+  const tedaviler: TedaviSecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({
+    id: t.id,
+    ad: t.ad,
+    sure_dakika: t.sure_dakika,
+  }));
   const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
   const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
 

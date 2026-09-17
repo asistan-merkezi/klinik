@@ -24,6 +24,10 @@ const islemSemasi = z.object({
   prime_fiyat: kademeFiyatiSemasi,
   kdv_orani: z.coerce.number().min(0, "KDV 0-100 arasında olmalı.").max(100, "KDV 0-100 arasında olmalı."),
   muhasebe_hizmet_ismi: z.string().trim().optional(),
+  sure_dakika: z
+    .union([z.coerce.number().int().min(1, "Süre 1 dakikadan az olamaz."), z.literal("")])
+    .optional()
+    .transform((deger) => (deger === "" || deger === undefined ? null : deger)),
 });
 
 async function klinikIdGetir() {
@@ -55,6 +59,7 @@ function ayristir(formData: FormData) {
     prime_fiyat: formData.get("prime_fiyat") ?? "",
     kdv_orani: formData.get("kdv_orani"),
     muhasebe_hizmet_ismi: formData.get("muhasebe_hizmet_ismi") ?? "",
+    sure_dakika: formData.get("sure_dakika") ?? "",
   });
 }
 
@@ -72,8 +77,17 @@ export async function islemTanimiOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, gerekli_cihaz_id, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi } =
-    ayristirma.data;
+  const {
+    ad,
+    gerekli_cihaz_id,
+    vita_fiyat,
+    plus_fiyat,
+    elit_fiyat,
+    prime_fiyat,
+    kdv_orani,
+    muhasebe_hizmet_ismi,
+    sure_dakika,
+  } = ayristirma.data;
 
   const { error } = await supabase.from("islem_tanimi").insert({
     klinik_id: klinikId,
@@ -85,6 +99,7 @@ export async function islemTanimiOlustur(
     prime_fiyat,
     kdv_orani,
     muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
+    sure_dakika,
   });
 
   if (error) {
@@ -114,8 +129,17 @@ export async function islemTanimiGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, gerekli_cihaz_id, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi } =
-    ayristirma.data;
+  const {
+    ad,
+    gerekli_cihaz_id,
+    vita_fiyat,
+    plus_fiyat,
+    elit_fiyat,
+    prime_fiyat,
+    kdv_orani,
+    muhasebe_hizmet_ismi,
+    sure_dakika,
+  } = ayristirma.data;
 
   const { error } = await supabase
     .from("islem_tanimi")
@@ -128,6 +152,7 @@ export async function islemTanimiGuncelle(
       prime_fiyat,
       kdv_orani,
       muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
+      sure_dakika,
     })
     .eq("id", islemId);
 

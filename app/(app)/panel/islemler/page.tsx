@@ -33,7 +33,7 @@ export default async function IslemlerSayfasi() {
     supabase
       .from("islem_tanimi")
       .select(
-        "id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi, aktif, cihaz:gerekli_cihaz_id(ad)"
+        "id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi, sure_dakika, aktif, cihaz:gerekli_cihaz_id(ad)"
       )
       .order("ad")
       .returns<IslemTanimiSatir[]>(),

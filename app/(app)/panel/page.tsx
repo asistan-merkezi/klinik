@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
-import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
+import type { RandevuSatir, SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
@@ -89,7 +89,7 @@ export default async function PanelSayfasi() {
       .select("id, personel(ad_soyad)")
       .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
+    supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
     supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
     supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
@@ -138,7 +138,11 @@ export default async function PanelSayfasi() {
     .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
+  const tedaviler: TedaviSecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({
+    id: t.id,
+    ad: t.ad,
+    sure_dakika: t.sure_dakika,
+  }));
   const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
   const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
   const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({ id: m.id, ad: m.ad_soyad }));

@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateForInput } from "@/lib/datetime";
-import type { SecenekSatir } from "@/types/randevu";
+import type { SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import { randevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
 import { KayitliPaketler } from "./kayitli-paketler";
@@ -23,7 +23,7 @@ type Props = {
   terapistler: SecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
-  tedaviler: SecenekSatir[];
+  tedaviler: TedaviSecenekSatir[];
   /** Randevu başarıyla oluşturulunca çağrılır (örn. dialog'u kapatmak için) */
   onBasarili?: () => void;
   /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
@@ -52,6 +52,20 @@ export function RandevuFormu({
   const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [hastaId, setHastaId] = useState(efektifSabitHasta?.id ?? "");
   const [islemTanimiId, setIslemTanimiId] = useState(talep?.islemTanimiId ?? "");
+  const [sureDakika, setSureDakika] = useState(
+    tedaviler.find((t) => t.id === talep?.islemTanimiId)?.sure_dakika ?? 30
+  );
+
+  // Tedavi seçilince (Tedavi seçiciden veya Kayıtlı Paketler'den) o tedavinin
+  // Yönetim > Tedavi Tanımları'nda ayarlanmış uygulama süresi varsa Süre alanına
+  // otomatik yansır; süre tanımlı değilse elle girilen/varsayılan değer korunur.
+  function tedaviSec(id: string) {
+    setIslemTanimiId(id);
+    const sure = tedaviler.find((t) => t.id === id)?.sure_dakika;
+    if (sure) {
+      setSureDakika(sure);
+    }
+  }
 
   // React 19'da form action'ı başarıyla tamamlanınca native alanlar otomatik
   // sıfırlanıyor (HastaArama'nın kendi state'i bundan habersiz kalıp
@@ -99,7 +113,7 @@ export function RandevuFormu({
         <KayitliPaketler
           hastaId={hastaId}
           secili={islemTanimiId}
-          onSec={setIslemTanimiId}
+          onSec={tedaviSec}
           disabled={isPending}
         />
 
@@ -153,7 +167,7 @@ export function RandevuFormu({
             required
             disabled={isPending}
             value={islemTanimiId}
-            onValueChange={(v) => setIslemTanimiId(v as string)}
+            onValueChange={(v) => tedaviSec(v as string)}
             items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="islem_tanimi_id" className="w-full">
@@ -216,7 +230,8 @@ export function RandevuFormu({
             type="number"
             min={5}
             max={480}
-            defaultValue={30}
+            value={sureDakika}
+            onChange={(e) => setSureDakika(Number(e.target.value))}
             required
             disabled={isPending}
           />

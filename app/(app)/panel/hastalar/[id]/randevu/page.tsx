@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
-import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
+import type { RandevuSatir, SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
 import { GeriLink } from "../geri-link";
 import { RandevuSeansSekmesi } from "../sekmeler/randevu-seans-sekmesi";
 import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
@@ -48,7 +48,7 @@ export default async function RandevuSeansSayfasi({
         .order("baslangic", { ascending: false })
         .limit(100)
         .returns<RandevuSatir[]>(),
-      supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
+      supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
       supabase
         .from("terapist")
         .select("id, personel(ad_soyad)")
@@ -59,7 +59,11 @@ export default async function RandevuSeansSayfasi({
 
   const periyodikRandevular = periyodikRandevuSonucu.data ?? [];
   const randevuListesi = randevuListesiSonucu.data ?? [];
-  const tedaviler: SecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({ id: i.id, ad: i.ad }));
+  const tedaviler: TedaviSecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({
+    id: i.id,
+    ad: i.ad,
+    sure_dakika: i.sure_dakika,
+  }));
   const terapistler: SecenekSatir[] = (terapistSonucu.data ?? [])
     .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));

@@ -16,11 +16,9 @@ export function TedaviListesi({
 }) {
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
 
-  const gorunenler = duzenlenenId ? islemler.filter((i) => i.id === duzenlenenId) : islemler;
-
   return (
-    <ul className="flex flex-col divide-y divide-border">
-      {gorunenler.map((islem) => (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {islemler.map((islem) => (
         <IslemSatiri
           key={islem.id}
           islem={islem}
@@ -31,6 +29,6 @@ export function TedaviListesi({
           onDuzenleBitir={() => setDuzenlenenId(null)}
         />
       ))}
-    </ul>
+    </div>
   );
 }
