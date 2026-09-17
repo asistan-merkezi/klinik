@@ -194,7 +194,7 @@ function egitimSatirlariniAyristir(json: string): EgitimSatiri[] {
     .filter((satir) => satir.derece || satir.okul || satir.bolum || satir.yil);
 }
 
-// Acil kişi + hassas (TC/pasaport, şifreli RPC üzerinden) + mesleki belge +
+// Acil kişi + hassas (TC/pasaport, RPC üzerinden — düz metin, RLS ile izole) + mesleki belge +
 // kaşe görseli — hem oluşturma hem düzenlemede aynı mantık, tek yerde.
 async function yardimciKayitlariIsle(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -253,10 +253,7 @@ async function yardimciKayitlariIsle(
     });
     if (hassasError) {
       console.error("personel_hassas_kaydet başarısız:", hassasError);
-      uyari =
-        hassasError.message === "sifreleme_anahtari_kurulu_degil"
-          ? "T.C. Kimlik/Pasaport kaydedilemedi: şifreleme anahtarı henüz kurulmadı, sistem yöneticinize başvurun."
-          : "T.C. Kimlik/Pasaport kaydedilemedi, lütfen tekrar deneyin.";
+      uyari = "T.C. Kimlik/Pasaport kaydedilemedi, lütfen tekrar deneyin.";
     }
   }
 

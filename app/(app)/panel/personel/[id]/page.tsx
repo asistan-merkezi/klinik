@@ -489,13 +489,11 @@ export default async function PersonelDetaySayfasi({
                       </div>
                     )}
                     <div className="flex items-center justify-between border-t border-border pt-3">
-                      <dt className="text-muted-foreground">T.C. Kimlik (şifreli)</dt>
+                      <dt className="text-muted-foreground">T.C. Kimlik</dt>
                       <dd>
-                        {!maskeliHassas?.anahtar_kurulu
-                          ? "Şifreleme kurulu değil"
-                          : maskeliHassas.tc_kimlik_var
-                            ? `••••••••${maskeliHassas.tc_kimlik_son2}`
-                            : "Kayıtlı değil"}
+                        {maskeliHassas?.tc_kimlik_var
+                          ? `••••••••${maskeliHassas.tc_kimlik_son2}`
+                          : "Kayıtlı değil"}
                       </dd>
                     </div>
                     {terapistMi && (

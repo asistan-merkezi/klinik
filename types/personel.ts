@@ -125,7 +125,6 @@ export type PersonelHassasMaskeli = {
   tc_kimlik_son2: string | null;
   pasaport_var: boolean;
   pasaport_son2: string | null;
-  anahtar_kurulu: boolean;
 };
 
 // Not: "super_admin" bilinçli olarak burada YOK — platform yöneticisi rolü

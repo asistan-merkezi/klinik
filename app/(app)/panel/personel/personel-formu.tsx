@@ -48,7 +48,6 @@ type EgitimSatiri = { derece: string; okul: string; bolum: string; yil: string }
 
 function hassasIpucu(maskeli: PersonelHassasMaskeli | null, alan: "tc_kimlik" | "pasaport"): string {
   if (!maskeli) return "Boş bırakılırsa mevcut kayıt değişmez.";
-  if (!maskeli.anahtar_kurulu) return "Şifreleme henüz kurulmadı — girilen değer kaydedilemeyecek.";
   const varMi = alan === "tc_kimlik" ? maskeli.tc_kimlik_var : maskeli.pasaport_var;
   const son2 = alan === "tc_kimlik" ? maskeli.tc_kimlik_son2 : maskeli.pasaport_son2;
   if (!varMi) return "Kayıtlı değil. Boş bırakılırsa kaydedilmez.";
@@ -321,7 +320,7 @@ export function PersonelFormu(props: Props) {
 
         <fieldset className="flex flex-col gap-3 rounded-lg border border-amber-500/30 p-3">
           <legend className="mb-1 text-sm font-medium text-amber-600 dark:text-amber-400">
-            Hassas Kimlik Bilgisi (şifreli saklanır)
+            Hassas Kimlik Bilgisi
           </legend>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
