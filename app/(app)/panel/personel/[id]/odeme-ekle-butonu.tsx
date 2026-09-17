@@ -17,43 +17,19 @@ import {
 } from "@/components/ui/select";
 import type { KlinikBankaHesabi } from "@/types/klinik";
 import {
+  ODEME_KATEGORI_ETIKET as KATEGORI_ETIKET,
+  ODEME_KATEGORI_TUR as KATEGORI_TUR,
   ODEME_TIPI_GOSTERILEN_TURLER,
   PERSONEL_ODEME_TIPI_ETIKET,
-  type ManuelHesapHareketTuru,
+  type OdemeKategori,
   type PersonelOdemeTipi,
 } from "@/types/hesap-hareket";
 import { hesapHareketiEkle } from "./actions";
 
-// "Maaş" DB'de ayrı bir tür DEĞİL — hakediş(maaş) elle eklenemez kuralı
-// (personel_hesap_hareket_ekle RPC + DB CHECK, bkz. personel/CLAUDE.md)
-// hiç ihlal edilmiyor: "Maaş" da altta tur='odeme' olarak yazılıyor, sadece
-// tutar önerisi ve açıklama etiketi farklı — maaş ödeme TARİHLERİNİ takip
-// edebilmek için "Diğer Ödeme"den ayrı bir hızlı-giriş kısayolu. Cari hesaba
-// manuel eklenebilen TÜM türler burada toplandı (eskiden ayrı bir "Hareket
-// Ekle" formu vardı — iki paralel giriş noktası bırakılmadı).
-type OdemeKategori = "maas" | "odeme" | "avans" | "prim" | "yol" | "yemek" | "mesai" | "kesinti";
-
-const KATEGORI_ETIKET: Record<OdemeKategori, string> = {
-  maas: "Maaş",
-  odeme: "Diğer Ödeme",
-  avans: "Avans",
-  prim: "Prim",
-  yol: "Yol",
-  yemek: "Yemek",
-  mesai: "Fazla Mesai",
-  kesinti: "Kesinti",
-};
-
-const KATEGORI_TUR: Record<OdemeKategori, ManuelHesapHareketTuru> = {
-  maas: "odeme",
-  odeme: "odeme",
-  avans: "avans",
-  prim: "prim",
-  yol: "yol",
-  yemek: "yemek",
-  mesai: "mesai",
-  kesinti: "kesinti",
-};
+// Cari hesaba manuel eklenebilen TÜM türler ODEME_KATEGORI_ETIKET/_TUR'da
+// toplu (Hesap sekmesindeki tekil+toplu ödeme formuyla paylaşılıyor, bkz.
+// types/hesap-hareket.ts) — eskiden burada ayrı tanımlanıyordu, tek kaynağa
+// indirildi.
 
 const ODEME_TIPI_SECILI_SINIFI =
   "!border-primary !bg-primary !text-primary-foreground hover:!bg-primary/90";

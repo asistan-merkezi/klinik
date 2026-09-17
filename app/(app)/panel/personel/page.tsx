@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type { PersonelSatir } from "@/types/personel";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { HESAP_HAREKET_YONU, type HesapHareketTuru } from "@/types/hesap-hareket";
 import { ayAraligi } from "@/lib/utils";
 import { PersonelListesi } from "./personel-listesi";
@@ -106,24 +107,34 @@ export default async function PersonelSayfasi({
 
   if (aktifSekme === "hesap") {
     const ay = ayAraligi(ayParam);
-    const [{ data: personelListesi }, { data: bakiyeler }, { data: buAyHareketler }] = await Promise.all([
-      // aktif=false filtrelenmiyor (eski Personel Takip ekranı da filtrelemiyordu) —
-      // işten ayrılmış ama hâlâ alacağı olan personel bakiye özetinden kaybolmamalı.
-      supabase.from("personel").select("id, ad_soyad, gorev").order("ad_soyad"),
-      supabase.from("v_personel_hesap_bakiye").select("personel_id, bakiye"),
-      supabase
-        .from("personel_hesap_hareket")
-        .select("personel_id, tur, tutar")
-        .gte("tarih", ay.baslangicTarih)
-        .lt("tarih", ay.bitisTarih)
-        .returns<{ personel_id: string; tur: HesapHareketTuru; tutar: number }[]>(),
-    ]);
+    const [{ data: personelListesi }, { data: bakiyeler }, { data: buAyHareketler }, { data: bankaHesaplari }] =
+      await Promise.all([
+        // aktif=false filtrelenmiyor (eski Personel Takip ekranı da filtrelemiyordu) —
+        // işten ayrılmış ama hâlâ alacağı olan personel bakiye özetinden kaybolmamalı.
+        supabase.from("personel").select("id, ad_soyad, gorev, maas").order("ad_soyad"),
+        supabase.from("v_personel_hesap_bakiye").select("personel_id, bakiye"),
+        supabase
+          .from("personel_hesap_hareket")
+          .select("personel_id, tur, tutar")
+          .gte("tarih", ay.baslangicTarih)
+          .lt("tarih", ay.bitisTarih)
+          .returns<{ personel_id: string; tur: HesapHareketTuru; tutar: number }[]>(),
+        supabase
+          .from("klinik_banka_hesaplari")
+          .select("id, banka_adi, sube")
+          .order("sort_order")
+          .returns<KlinikBankaHesabi[]>(),
+      ]);
 
     const bakiyeMap = new Map((bakiyeler ?? []).map((b) => [b.personel_id, b.bakiye]));
     const buAyMap = new Map<string, number>();
+    const avansMap = new Map<string, number>();
     for (const h of buAyHareketler ?? []) {
       const yon = HESAP_HAREKET_YONU[h.tur];
       buAyMap.set(h.personel_id, (buAyMap.get(h.personel_id) ?? 0) + yon * h.tutar);
+      if (h.tur === "avans") {
+        avansMap.set(h.personel_id, (avansMap.get(h.personel_id) ?? 0) + h.tutar);
+      }
     }
 
     const satirlar: HesapOzetSatir[] = (personelListesi ?? []).map((p) => ({
@@ -132,10 +143,19 @@ export default async function PersonelSayfasi({
       gorev: p.gorev,
       bakiye: bakiyeMap.get(p.id) ?? 0,
       buAyEklenen: buAyMap.get(p.id) ?? 0,
+      maas: p.maas,
+      buAykiAvans: avansMap.get(p.id) ?? 0,
     }));
 
     hesapIcerigi = (
-      <HesapOzeti satirlar={satirlar} ayEtiketi={ay.etiket} oncekiParam={ay.oncekiParam} sonrakiParam={ay.sonrakiParam} />
+      <HesapOzeti
+        satirlar={satirlar}
+        ayEtiketi={ay.etiket}
+        oncekiParam={ay.oncekiParam}
+        sonrakiParam={ay.sonrakiParam}
+        bankaHesaplari={bankaHesaplari ?? []}
+        yonetici={yonetici}
+      />
     );
   }
 

@@ -582,3 +582,93 @@ export async function hizliPuantajKaydet(
   };
 }
 
+const topluHareketKalemSemasi = z.object({
+  personelId: z.string().uuid(),
+  tutar: z.number().positive(),
+});
+
+const topluHareketSemasi = z.object({
+  tur: z.enum(["prim", "yol", "yemek", "mesai", "avans", "kesinti", "odeme"]),
+  tarih: z.string().min(1, "Tarih seçilmeli."),
+  aciklama: z.string().trim().optional(),
+  odeme_tipi: z.enum(["nakit", "havale"]).optional().or(z.literal("")),
+  banka_hesap_id: z.string().trim().optional(),
+  kalemler_json: z.string().min(1),
+});
+
+/**
+ * Hesap sekmesindeki "Ödeme Ekle"nin ortak yazma yolu — Tekil modda tek
+ * elemanlı, Toplu Ödeme modda çok elemanlı `kalemler_json` ile aynı action
+ * çağrılır (iki paralel giriş noktası açılmadı). Her kalem kendi tutarıyla
+ * ayrı ayrı personel_hesap_hareket_ekle RPC'sine gider — biri başarısız olsa
+ * bile diğerleri kaydedilmeye devam eder (satır bazlı hata toleransı, arşiv
+ * içe aktarma ile aynı desen), sonuçta kaç tanesinin başarılı olduğu mesajla
+ * bildirilir.
+ */
+export async function topluHesapHareketiEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const ayristirma = topluHareketSemasi.safeParse({
+    tur: formData.get("tur"),
+    tarih: formData.get("tarih"),
+    aciklama: formData.get("aciklama") ?? "",
+    odeme_tipi: formData.get("odeme_tipi") ?? "",
+    banka_hesap_id: formData.get("banka_hesap_id") ?? "",
+    kalemler_json: formData.get("kalemler_json"),
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { tur, tarih, aciklama, odeme_tipi, banka_hesap_id, kalemler_json } = ayristirma.data;
+
+  let kalemlerHam: unknown;
+  try {
+    kalemlerHam = JSON.parse(kalemler_json);
+  } catch {
+    return { success: false, message: "Girdi hatalı." };
+  }
+
+  const kalemlerAyristirma = z.array(topluHareketKalemSemasi).min(1, "En az bir personel seçilmeli.").safeParse(kalemlerHam);
+  if (!kalemlerAyristirma.success) {
+    return { success: false, message: kalemlerAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  let basarili = 0;
+  let basarisiz = 0;
+  for (const kalem of kalemlerAyristirma.data) {
+    const { error } = await supabase.rpc("personel_hesap_hareket_ekle", {
+      p_personel_id: kalem.personelId,
+      p_tur: tur,
+      p_tutar: kalem.tutar,
+      p_tarih: tarih,
+      p_aciklama: aciklama ? aciklama : null,
+      p_odeme_tipi: odeme_tipi ? odeme_tipi : null,
+      p_banka_hesap_id: odeme_tipi === "havale" && banka_hesap_id ? banka_hesap_id : null,
+    });
+    if (error) {
+      console.error("Toplu hesap hareketi eklenemedi:", kalem.personelId, error);
+      basarisiz++;
+    } else {
+      basarili++;
+    }
+  }
+
+  revalidatePath("/panel/personel");
+
+  if (basarili === 0) {
+    return { success: false, message: "Hiçbir ödeme eklenemedi, lütfen tekrar deneyin." };
+  }
+  return {
+    success: true,
+    message:
+      basarisiz > 0
+        ? `${basarili} personele ödeme eklendi, ${basarisiz} tanesi başarısız oldu.`
+        : `${basarili} personele ödeme eklendi.`,
+  };
+}
+

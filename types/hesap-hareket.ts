@@ -29,6 +29,37 @@ export const HESAP_HAREKET_YONU: Record<HesapHareketTuru, 1 | -1> = {
 /** Ödeme tipi seçimi sadece bu türlerde anlamlı — Kasa/Banka'nın "Giden" tarafı buradan besleniyor (bkz. supabase/migrations/20260916090000). */
 export const ODEME_TIPI_GOSTERILEN_TURLER: ManuelHesapHareketTuru[] = ["odeme", "avans"];
 
+/**
+ * Manuel ödeme formundaki kategori seçimi — "Maaş" DB'de ayrı bir tür DEĞİL,
+ * hakediş(maaş) elle eklenemez kuralı (bkz. personel/CLAUDE.md) hiç ihlal
+ * edilmeden altta tur='odeme' olarak yazılır, sadece tutar önerisi ve
+ * açıklama etiketi farklı. Personel detayındaki tekil ödeme formu ve Hesap
+ * sekmesindeki tekil+toplu ödeme formu TEK bu eşlemeyi paylaşır.
+ */
+export type OdemeKategori = "maas" | "odeme" | "avans" | "prim" | "yol" | "yemek" | "mesai" | "kesinti";
+
+export const ODEME_KATEGORI_ETIKET: Record<OdemeKategori, string> = {
+  maas: "Maaş",
+  odeme: "Diğer Ödeme",
+  avans: "Avans",
+  prim: "Prim",
+  yol: "Yol",
+  yemek: "Yemek",
+  mesai: "Fazla Mesai",
+  kesinti: "Kesinti",
+};
+
+export const ODEME_KATEGORI_TUR: Record<OdemeKategori, ManuelHesapHareketTuru> = {
+  maas: "odeme",
+  odeme: "odeme",
+  avans: "avans",
+  prim: "prim",
+  yol: "yol",
+  yemek: "yemek",
+  mesai: "mesai",
+  kesinti: "kesinti",
+};
+
 export type PersonelOdemeTipi = "nakit" | "havale";
 
 export const PERSONEL_ODEME_TIPI_ETIKET: Record<PersonelOdemeTipi, string> = {

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import type { KlinikBankaHesabi } from "@/types/klinik";
+import { HesapOdemeEkleButonu } from "./hesap-odeme-ekle-butonu";
 
 export type HesapOzetSatir = {
   personelId: string;
@@ -11,6 +13,10 @@ export type HesapOzetSatir = {
   gorev: string;
   bakiye: number;
   buAyEklenen: number;
+  /** personel.maas — "kayıtta olan" sabit maaş, Toplu Ödeme'de tutar önerisinin kaynağı. */
+  maas: number | null;
+  /** Görüntülenen ay içinde bu personele verilmiş avans toplamı (maaş önerisinden düşülür). */
+  buAykiAvans: number;
 };
 
 export function HesapOzeti({
@@ -18,11 +24,15 @@ export function HesapOzeti({
   ayEtiketi,
   oncekiParam,
   sonrakiParam,
+  bankaHesaplari,
+  yonetici,
 }: {
   satirlar: HesapOzetSatir[];
   ayEtiketi: string;
   oncekiParam: string;
   sonrakiParam: string;
+  bankaHesaplari: KlinikBankaHesabi[];
+  yonetici: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -38,12 +48,14 @@ export function HesapOzeti({
               nativeButton={false}
               render={<Link href={`/panel/personel?tab=hesap&ay=${oncekiParam}`}>‹ Önceki</Link>}
             />
+            <span className="px-1 text-sm font-medium whitespace-nowrap">{ayEtiketi}</span>
             <Button
               variant="outline"
               size="sm"
               nativeButton={false}
               render={<Link href={`/panel/personel?tab=hesap&ay=${sonrakiParam}`}>Sonraki ›</Link>}
             />
+            {yonetici && <HesapOdemeEkleButonu satirlar={satirlar} bankaHesaplari={bankaHesaplari} />}
           </>
         }
       />
