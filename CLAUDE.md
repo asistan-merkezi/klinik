@@ -70,7 +70,7 @@ Tenant izolasyonu `current_klinik_id()` + RLS, kritik tablolarda `klinik_id`; po
 
 **Personel** (detay: `app/(app)/panel/personel/CLAUDE.md`)
 - Tek giriş noktası bir İŞ BAŞVURUSUNU onaylamak; doğrudan personel oluşturma kaldırıldı. "Olumlu" bir durum güncellemesi değil, önceden doldurulmuş sihirbazı açar; aynı başvurudan iki kez personel oluşturulamaz.
-- Maaş 3 model: sabit / işlem başı prim / barajlı prim. Prim **seans sayısı** bazlı (ciro yüzdesi kapsam dışı — `odeme_kalemi` randevuya bağlı değil). Hakediş formülü TEK dosyada: `lib/personel/hakedis.ts`. Yıllık izin hakkı kıdem+yaştan, yalnız `tip='yillik'` düşer.
+- Maaş modeli artık Maaş Ayarları'nda ayrıca seçtirilmiyor (2026-09-17'de kaldırıldı, Çalışma Tipi ile mükerrerdi) — `terapist.maas_hesaplama_modeli` personelin İş Bilgileri'ndeki Çalışma Tipi'nden türetilir (`calismaTipindenHesaplamaModeli`, `[id]/actions.ts`): `prim_usulu` → işlem başı prim, aksi halde sabit. `barajli_prim` enum değeri DB'de/hakediş formülünde hâlâ duruyor ama UI'dan artık hiç yazılamıyor (kullanıcı kararı, mevcut barajlı terapistler bir sonraki Maaş Ayarları kaydında sabit/prim'e döner). Prim **seans sayısı** bazlı (ciro yüzdesi kapsam dışı — `odeme_kalemi` randevuya bağlı değil). Hakediş formülü TEK dosyada: `lib/personel/hakedis.ts`. Yıllık izin hakkı kıdem+yaştan, yalnız `tip='yillik'` düşer.
 
 **Arşiv içe aktarma** (klinik_admin-only, Excel/CSV): satır bazlı hata toleranslı — her satır kendi `BEGIN/EXCEPTION` alt bloğunda, sonuç `{satir_no, durum, sebep}`. Ödeme importu `odeme_olustur`'u ÇAĞIRMAZ, `fatura` kuyruğuna satır eklemez, KVKK/rıza tarihlerini set ETMEZ. Hasta importunda dedup var, randevu/ödemede yok. `xlsx` (SheetJS) bilinçli kullanılmadı (yamasız yüksek önemli açıklar) → `exceljs`.
 

@@ -13,14 +13,20 @@ function bosIseNull(deger: FormDataEntryValue | null) {
   return s === "" ? null : s;
 }
 
+// Hesaplama Modeli artık ayrı seçtirilmiyor — Çalışma Tipi (İş Bilgileri)
+// ile aynı bilgiyi tekrar sormak kullanıcı kararıyla kaldırıldı: "prim_usulu"
+// çalışma tipi ise İşlem Başı Prim, aksi halde Sabit maaş uygulanır (bkz.
+// calismaTipindenHesaplamaModeli). Barajlı Prim modu bu yüzden UI'dan
+// erişilemez hale geldi — mevcut barajlı terapistlerin verisi DB'de duruyor
+// ama Maaş Ayarları kaydedildiğinde üzerine yazılır.
 const maasAyarSemasi = z.object({
   maas: z.coerce.number().min(0, "Maaş 0'dan küçük olamaz.").nullable(),
-  maas_gecerlilik_tarihi: z.string().min(1, "Geçerlilik tarihi seçilmeli."),
-  maas_hesaplama_modeli: z.enum(["sabit", "islem_basi_prim", "barajli_prim"]),
   prim_sabit_tutar: z.coerce.number().min(0, "Prim tutarı 0'dan küçük olamaz.").nullable(),
-  baraj_seans_sayisi: z.coerce.number().int("Tam sayı olmalı.").min(1, "Baraj en az 1 seans olmalı.").nullable(),
-  baraj_bonus_tutari: z.coerce.number().min(0, "Bonus tutarı 0'dan küçük olamaz.").nullable(),
 });
+
+function calismaTipindenHesaplamaModeli(calismaTipi: string | null): "sabit" | "islem_basi_prim" {
+  return calismaTipi === "prim_usulu" ? "islem_basi_prim" : "sabit";
+}
 
 const hesapHareketSemasi = z.object({
   tur: z.enum(["prim", "yol", "yemek", "mesai", "avans", "kesinti", "odeme"]),
@@ -70,27 +76,17 @@ export async function maasAyarlariGuncelle(
 
   const ayristirma = maasAyarSemasi.safeParse({
     maas: bosIseNull(formData.get("maas")),
-    maas_gecerlilik_tarihi: formData.get("maas_gecerlilik_tarihi"),
-    maas_hesaplama_modeli: formData.get("maas_hesaplama_modeli"),
     prim_sabit_tutar: bosIseNull(formData.get("prim_sabit_tutar")),
-    baraj_seans_sayisi: bosIseNull(formData.get("baraj_seans_sayisi")),
-    baraj_bonus_tutari: bosIseNull(formData.get("baraj_bonus_tutari")),
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const {
-    maas,
-    maas_gecerlilik_tarihi,
-    maas_hesaplama_modeli,
-    prim_sabit_tutar,
-    baraj_seans_sayisi,
-    baraj_bonus_tutari,
-  } = ayristirma.data;
+  const { maas, prim_sabit_tutar } = ayristirma.data;
 
-  const { data: eskiPersonel } = await supabase.from("personel").select("maas").eq("id", personelId).single();
+  const { data: eskiPersonel } = await supabase.from("personel").select("maas, calisma_tipi").eq("id", personelId).single();
+  const maas_hesaplama_modeli = calismaTipindenHesaplamaModeli(eskiPersonel?.calisma_tipi ?? null);
 
   const [personelSonucu, terapistSonucu] = await Promise.all([
     supabase.from("personel").update({ maas }).eq("id", personelId),
@@ -99,8 +95,6 @@ export async function maasAyarlariGuncelle(
       .update({
         maas_hesaplama_modeli,
         prim_sabit_tutar,
-        baraj_seans_sayisi,
-        baraj_bonus_tutari,
       })
       .eq("id", terapistId),
   ]);
@@ -111,8 +105,9 @@ export async function maasAyarlariGuncelle(
   }
 
   // Maaş fiilen değiştiyse geçmişe bir satır düşülür (kullanıcı kararı: "hangi
-  // tarihte hangi maaşı alıyor kayıt olsun") — prim/baraj ayarı değişse bile
-  // maaş aynıysa geçmiş tabloya gereksiz tekrar satır eklenmez.
+  // tarihte hangi maaşı alıyor kayıt olsun") — prim ayarı değişse bile maaş
+  // aynıysa geçmiş tabloya gereksiz tekrar satır eklenmez. Geçerlilik tarihi
+  // artık seçtirilmiyor, her zaman bugün.
   if (maas != null && maas !== eskiPersonel?.maas) {
     const {
       data: { user },
@@ -122,7 +117,7 @@ export async function maasAyarlariGuncelle(
       klinik_id: klinikId,
       personel_id: personelId,
       maas,
-      gecerlilik_tarihi: maas_gecerlilik_tarihi,
+      gecerlilik_tarihi: new Date().toISOString().slice(0, 10),
       ekleyen_kullanici_id: user?.id ?? null,
     });
 
