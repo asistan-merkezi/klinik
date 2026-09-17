@@ -10,14 +10,6 @@ import { HastaArama } from "@/app/(app)/panel/randevular/hasta-arama";
 import { odemeAl } from "@/app/(app)/panel/hastalar/[id]/actions";
 import { cn } from "@/lib/utils";
 import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
-import type { HastaKategori } from "@/types/hasta";
-
-const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
-  vita: "Vita",
-  plus: "Plus",
-  elit: "Elit",
-  prime: "Prime",
-};
 
 export function PaketSatisDialog({
   paket,
@@ -107,13 +99,6 @@ export function PaketSatisDialog({
                 />
               )}
             </div>
-
-            {seciliHasta && (
-              <div className="flex flex-col gap-1">
-                <Label>Kategori</Label>
-                <p className="text-sm text-muted-foreground">{KATEGORI_ETIKETLERI[seciliHasta.kategori]}</p>
-              </div>
-            )}
 
             <div className="flex flex-col gap-1">
               <Label>Paket Fiyatı</Label>

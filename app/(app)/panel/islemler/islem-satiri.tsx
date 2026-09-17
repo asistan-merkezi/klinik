@@ -73,7 +73,7 @@ export function IslemSatiri({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`vita-${islem.id}`}>Fiyat (₺) — Vita</Label>
+              <Label htmlFor={`vita-${islem.id}`}>Fiyat (₺)</Label>
               <Input
                 id={`vita-${islem.id}`}
                 name="vita_fiyat"
@@ -85,45 +85,13 @@ export function IslemSatiri({
                 disabled={isPending}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`plus-${islem.id}`}>Fiyat (₺) — Plus (opsiyonel)</Label>
-              <Input
-                id={`plus-${islem.id}`}
-                name="plus_fiyat"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue={islem.plus_fiyat ?? ""}
-                placeholder="Boşsa iskonto oranından hesaplanır"
-                disabled={isPending}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`elit-${islem.id}`}>Fiyat (₺) — Elit (opsiyonel)</Label>
-              <Input
-                id={`elit-${islem.id}`}
-                name="elit_fiyat"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue={islem.elit_fiyat ?? ""}
-                placeholder="Boşsa iskonto oranından hesaplanır"
-                disabled={isPending}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`prime-${islem.id}`}>Fiyat (₺) — Prime (opsiyonel)</Label>
-              <Input
-                id={`prime-${islem.id}`}
-                name="prime_fiyat"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue={islem.prime_fiyat ?? ""}
-                placeholder="Boşsa iskonto oranından hesaplanır"
-                disabled={isPending}
-              />
-            </div>
+            {/* Kategori (Plus/Elit/Prime) fiyat override'ları bilinçli olarak
+                gizli input'a taşındı — müşteriye kategori tanımlanınca devreye
+                giren bilgi, tedavi tanımı ekranında gösterilmiyor ama mevcut
+                değer kaydet'te sıfırlanmasın diye formda kalıyor. */}
+            <input type="hidden" name="plus_fiyat" value={islem.plus_fiyat ?? ""} />
+            <input type="hidden" name="elit_fiyat" value={islem.elit_fiyat ?? ""} />
+            <input type="hidden" name="prime_fiyat" value={islem.prime_fiyat ?? ""} />
             <div className="flex flex-col gap-1">
               <Label htmlFor={`kdv-${islem.id}`}>KDV (%)</Label>
               <Input
