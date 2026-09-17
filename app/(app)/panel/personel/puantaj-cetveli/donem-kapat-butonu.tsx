@@ -11,7 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { saatEtiket } from "@/lib/puantaj";
 import type { AyOzeti } from "@/lib/puantaj";
+import type { HakedisSonucu } from "@/lib/personel/hakedis";
 import { donemKapat, donemYenidenAc } from "./actions";
+
+const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
 export function DonemKapatButonu({
   personelId,
@@ -19,12 +22,14 @@ export function DonemKapatButonu({
   ay,
   ayEtiket,
   ozet,
+  hakedis,
 }: {
   personelId: string;
   yil: number;
   ay: number;
   ayEtiket: string;
   ozet: AyOzeti;
+  hakedis: HakedisSonucu;
 }) {
   const [acik, setAcik] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -86,7 +91,19 @@ export function DonemKapatButonu({
               <dt className="text-muted-foreground">Devamsızlık günü</dt>
               <dd>{ozet.devamsizlikGun}</dd>
             </div>
+            <div className="flex items-center justify-between border-t border-border pt-1 font-medium">
+              <dt>Yazılacak hakediş</dt>
+              <dd>{paraFormat(hakedis.toplam)}</dd>
+            </div>
           </dl>
+
+          {hakedis.taban === 0 && (
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Taban hakediş ₺0 görünüyor — personelin maaşı girilmemiş olabilir. Kapatıldıktan sonra bu
+              satır DEĞİŞTİRİLEMEZ (yeniden açılsa bile eski satır silinmez, düzeltme elle yeni bir
+              hareketle yapılmalı) — devam etmeden önce Maaş Ayarları&apos;nı kontrol edin.
+            </p>
+          )}
 
           {hata && (
             <p role="alert" className="text-sm text-destructive">

@@ -217,6 +217,7 @@ export function PuantajCetveliIstemci({
                           yil={yil}
                           ay={ayNum}
                           ayEtiket={ay.etiket}
+                          hakedis={satir.hakedis}
                           ozet={{
                             netDakika: satir.toplam.calismaSaat * 60,
                             onayliFmDakika: satir.toplam.onayliFmSaat * 60,
