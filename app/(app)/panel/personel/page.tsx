@@ -192,7 +192,7 @@ export default async function PersonelSayfasi({
                 {yonetici && (
                   <Card>
                     <CardContent className="flex flex-col gap-2">
-                      <span className="text-sm font-medium">İzin Talepleri</span>
+                      <span className="text-sm font-medium">İzin / Rapor Takibi</span>
                       <span className="text-xs text-muted-foreground">
                         {bekleyenIzinSayisi > 0 ? `${bekleyenIzinSayisi} talep onay bekliyor.` : "Onay bekleyen talep yok."}
                       </span>
@@ -202,7 +202,7 @@ export default async function PersonelSayfasi({
                         nativeButton={false}
                         render={
                           <Link href="/panel/personel/izinler">
-                            <CalendarCheck2 /> İzin Taleplerini İncele
+                            <CalendarCheck2 /> İzin / Rapor Takibini Aç
                           </Link>
                         }
                       />
