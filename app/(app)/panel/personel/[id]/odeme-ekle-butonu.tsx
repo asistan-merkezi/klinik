@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,16 +64,32 @@ export function OdemeEkleButonu({
   sabitMaas,
   buAykiAvansToplami,
   bankaHesaplari,
+  otomatikAc,
 }: {
   personelId: string;
   guncelBakiye: number;
   sabitMaas: number | null;
   buAykiAvansToplami: number;
   bankaHesaplari: KlinikBankaHesabi[];
+  otomatikAc?: boolean;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const idOnEki = "odeme-ekle";
   const netMaasOnerisi = Math.max(0, (sabitMaas ?? 0) - buAykiAvansToplami);
-  const [acik, setAcik] = useState(false);
+  const [acik, setAcik] = useState(() => otomatikAc ?? false);
+
+  // Personel listesinden "Ödeme" ile gelindiğinde (?odemeEkle=1) popup zaten
+  // açık başlıyor — parametre tek seferlik bir tetikleyici, geri/yenilemede
+  // tekrar açılmasın diye URL'den hemen temizleniyor.
+  useEffect(() => {
+    if (!otomatikAc) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("odemeEkle");
+    router.replace(`${pathname}?${params.toString()}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const eklemeAction = hesapHareketiEkle.bind(null, personelId);
   const [durum, formAction, isPending] = useActionState(eklemeAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);

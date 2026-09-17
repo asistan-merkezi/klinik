@@ -124,7 +124,7 @@ export function PersonelSatiri({
                 size="sm"
                 className="border-sky-500/30 bg-sky-500/10 text-sky-700 hover:bg-sky-500/20 dark:border-sky-500/30 dark:text-sky-400 dark:hover:bg-sky-500/20"
                 nativeButton={false}
-                render={<Link href={`/panel/personel/${personel.id}?tab=odemeler`}>Ödeme</Link>}
+                render={<Link href={`/panel/personel/${personel.id}?tab=odemeler&odemeEkle=1`}>Ödeme</Link>}
               />
             </div>
 

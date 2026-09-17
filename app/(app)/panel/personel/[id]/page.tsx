@@ -33,10 +33,10 @@ export default async function PersonelDetaySayfasi({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ay?: string; tab?: string }>;
+  searchParams: Promise<{ ay?: string; tab?: string; odemeEkle?: string }>;
 }) {
   const { id } = await params;
-  const { ay: ayParam, tab } = await searchParams;
+  const { ay: ayParam, tab, odemeEkle } = await searchParams;
   const sekme: Sekme = tab === "kisisel" || tab === "odemeler" ? tab : undefined;
   const supabase = await createClient();
 
@@ -278,6 +278,7 @@ export default async function PersonelDetaySayfasi({
             sabitMaas={personel.maas}
             buAykiAvansToplami={buAykiAvansToplami}
             bankaHesaplari={bankaHesabiSonucu.data ?? []}
+            otomatikAc={odemeEkle === "1"}
           />
         )}
       </CardHeader>
