@@ -239,6 +239,10 @@ export default async function PersonelDetaySayfasi({
           prim_sabit_tutar: terapist.prim_sabit_tutar,
           baraj_seans_sayisi: terapist.baraj_seans_sayisi,
           baraj_bonus_tutari: terapist.baraj_bonus_tutari,
+          ayBaslangicTarih: ay.baslangicTarih,
+          ayBitisTarihExclusive: ay.bitisTarih,
+          iseGirisTarihi: personel.ise_giris_tarihi,
+          istenCikisTarihi: personel.isten_cikis_tarihi,
         },
         aySayisi,
         ekstraToplami

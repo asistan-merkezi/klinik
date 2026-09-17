@@ -52,7 +52,7 @@ export default async function PuantajCetveliSayfasi({
     supabase.from("klinik").select("cumartesi_baslangic, pazar_baslangic").eq("id", kullanici.klinik_id).single(),
     supabase
       .from("personel")
-      .select("id, ad_soyad, maas, fm_saatlik_ucret, ise_giris_tarihi, pozisyon:pozisyon_id(ad, puantaj_modu)")
+      .select("id, ad_soyad, maas, fm_saatlik_ucret, ise_giris_tarihi, isten_cikis_tarihi, pozisyon:pozisyon_id(ad, puantaj_modu)")
       .eq("aktif", true)
       .order("ad_soyad"),
     supabase
@@ -145,6 +145,10 @@ export default async function PuantajCetveliSayfasi({
             : null,
           tamamlananSeansSayisi: seansSayisiMap.get(p.id) ?? 0,
           onayliFmSaat: toplam.onayliFmSaat,
+          ayBaslangicTarih: ay.baslangicTarih,
+          ayBitisTarihExclusive: ay.bitisTarih,
+          iseGirisTarihi: p.ise_giris_tarihi,
+          istenCikisTarihi: p.isten_cikis_tarihi,
         });
 
     return {

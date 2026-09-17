@@ -9,7 +9,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type { PersonelSatir } from "@/types/personel";
 import type { KlinikBankaHesabi } from "@/types/klinik";
-import { HESAP_HAREKET_YONU, type HesapHareketTuru } from "@/types/hesap-hareket";
 import { ayAraligi } from "@/lib/utils";
 import { PersonelListesi } from "./personel-listesi";
 import { PersonelSekmeCubugu } from "./sekme-cubugu";
@@ -107,7 +106,7 @@ export default async function PersonelSayfasi({
 
   if (aktifSekme === "hesap") {
     const ay = ayAraligi(ayParam);
-    const [{ data: personelListesi }, { data: bakiyeler }, { data: buAyHareketler }, { data: bankaHesaplari }] =
+    const [{ data: personelListesi }, { data: bakiyeler }, { data: buAykiAvanslar }, { data: bankaHesaplari }] =
       await Promise.all([
         // aktif=false filtrelenmiyor (eski Personel Takip ekranı da filtrelemiyordu) —
         // işten ayrılmış ama hâlâ alacağı olan personel bakiye özetinden kaybolmamalı.
@@ -115,10 +114,10 @@ export default async function PersonelSayfasi({
         supabase.from("v_personel_hesap_bakiye").select("personel_id, bakiye"),
         supabase
           .from("personel_hesap_hareket")
-          .select("personel_id, tur, tutar")
+          .select("personel_id, tutar")
+          .eq("tur", "avans")
           .gte("tarih", ay.baslangicTarih)
-          .lt("tarih", ay.bitisTarih)
-          .returns<{ personel_id: string; tur: HesapHareketTuru; tutar: number }[]>(),
+          .lt("tarih", ay.bitisTarih),
         supabase
           .from("klinik_banka_hesaplari")
           .select("id, banka_adi, sube")
@@ -127,14 +126,9 @@ export default async function PersonelSayfasi({
       ]);
 
     const bakiyeMap = new Map((bakiyeler ?? []).map((b) => [b.personel_id, b.bakiye]));
-    const buAyMap = new Map<string, number>();
     const avansMap = new Map<string, number>();
-    for (const h of buAyHareketler ?? []) {
-      const yon = HESAP_HAREKET_YONU[h.tur];
-      buAyMap.set(h.personel_id, (buAyMap.get(h.personel_id) ?? 0) + yon * h.tutar);
-      if (h.tur === "avans") {
-        avansMap.set(h.personel_id, (avansMap.get(h.personel_id) ?? 0) + h.tutar);
-      }
+    for (const h of buAykiAvanslar ?? []) {
+      avansMap.set(h.personel_id, (avansMap.get(h.personel_id) ?? 0) + h.tutar);
     }
 
     const satirlar: HesapOzetSatir[] = (personelListesi ?? []).map((p) => ({
@@ -142,7 +136,6 @@ export default async function PersonelSayfasi({
       adSoyad: p.ad_soyad,
       gorev: p.gorev,
       bakiye: bakiyeMap.get(p.id) ?? 0,
-      buAyEklenen: buAyMap.get(p.id) ?? 0,
       maas: p.maas,
       buAykiAvans: avansMap.get(p.id) ?? 0,
     }));

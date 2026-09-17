@@ -173,7 +173,7 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
     const ayBitis = new Date(Date.UTC(yil, ay, 1)).toISOString();
 
     const [{ data: personel }, { data: terapist }] = await Promise.all([
-      supabase.from("personel").select("maas").eq("id", personelId).single(),
+      supabase.from("personel").select("maas, ise_giris_tarihi, isten_cikis_tarihi").eq("id", personelId).single(),
       supabase
         .from("terapist")
         .select("id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
@@ -206,6 +206,10 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
         : null,
       tamamlananSeansSayisi: seansSayisi,
       onayliFmSaat: 0,
+      ayBaslangicTarih: ayBaslangic.slice(0, 10),
+      ayBitisTarihExclusive: ayBitis.slice(0, 10),
+      iseGirisTarihi: personel?.ise_giris_tarihi ?? null,
+      istenCikisTarihi: personel?.isten_cikis_tarihi ?? null,
     });
 
     const { error: hesapHatasi } = await supabase.rpc("personel_hesap_hareket_donem_ekle", {

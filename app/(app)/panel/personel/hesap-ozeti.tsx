@@ -12,7 +12,6 @@ export type HesapOzetSatir = {
   adSoyad: string;
   gorev: string;
   bakiye: number;
-  buAyEklenen: number;
   /** personel.maas — "kayıtta olan" sabit maaş, Toplu Ödeme'de tutar önerisinin kaynağı. */
   maas: number | null;
   /** Görüntülenen ay içinde bu personele verilmiş avans toplamı (maaş önerisinden düşülür). */
@@ -70,9 +69,7 @@ export function HesapOzeti({
                 <Link href={`/panel/personel/${s.personelId}?tab=odemeler`} className="flex flex-1 items-center justify-between gap-3">
                   <div className="flex flex-col">
                     <span className="font-medium">{s.adSoyad}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {s.gorev} · {ayEtiketi}: {s.buAyEklenen.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })} eklendi
-                    </span>
+                    <span className="text-xs text-muted-foreground">{s.gorev}</span>
                   </div>
                   <span className={`font-semibold ${s.bakiye < 0 ? "text-rose-600 dark:text-rose-400" : ""}`}>
                     {s.bakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}

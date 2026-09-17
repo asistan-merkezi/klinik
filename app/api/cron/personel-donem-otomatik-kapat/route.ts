@@ -9,6 +9,8 @@ export const maxDuration = 60;
 type PersonelSatiri = {
   id: string;
   maas: number | null;
+  ise_giris_tarihi: string | null;
+  isten_cikis_tarihi: string | null;
   pozisyon: { puantaj_modu?: string } | { puantaj_modu?: string }[] | null;
 };
 
@@ -47,7 +49,7 @@ export async function GET(request: Request) {
   const [{ data: personelSatirlari, error: personelHata }, { data: kapaliDonemler, error: donemHata }] = await Promise.all([
     admin
       .from("personel")
-      .select("id, maas, pozisyon:pozisyon_id(puantaj_modu)")
+      .select("id, maas, ise_giris_tarihi, isten_cikis_tarihi, pozisyon:pozisyon_id(puantaj_modu)")
       .eq("aktif", true)
       .returns<PersonelSatiri[]>(),
     admin
@@ -127,6 +129,10 @@ export async function GET(request: Request) {
         : null,
       tamamlananSeansSayisi: seansSayisi,
       onayliFmSaat: 0,
+      ayBaslangicTarih: hedefAy.baslangicTarih,
+      ayBitisTarihExclusive: hedefAy.bitisTarih,
+      iseGirisTarihi: personel.ise_giris_tarihi,
+      istenCikisTarihi: personel.isten_cikis_tarihi,
     });
 
     const { error: hesapHatasi } = await admin.rpc("personel_hesap_hareket_donem_ekle", {

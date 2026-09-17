@@ -25,6 +25,11 @@ export type HakedisGirdisi = {
   } | null;
   tamamlananSeansSayisi: number;
   onayliFmSaat: number;
+  /** Kısmi ay oranlaması — bkz. lib/maas.ts kismiAyOrani. */
+  ayBaslangicTarih?: string;
+  ayBitisTarihExclusive?: string;
+  iseGirisTarihi?: string | null;
+  istenCikisTarihi?: string | null;
 };
 
 export type HakedisSonucu = {
@@ -50,6 +55,11 @@ export function hakedisHesapla(girdi: HakedisGirdisi): HakedisSonucu {
         baraj_bonus_tutari: girdi.terapistAyarlari.baraj_bonus_tutari,
       }
     : { maas_hesaplama_modeli: "sabit", sabit_maas: girdi.personelMaasi, prim_sabit_tutar: null, baraj_seans_sayisi: null, baraj_bonus_tutari: null };
+
+  parametreler.ayBaslangicTarih = girdi.ayBaslangicTarih;
+  parametreler.ayBitisTarihExclusive = girdi.ayBitisTarihExclusive;
+  parametreler.iseGirisTarihi = girdi.iseGirisTarihi;
+  parametreler.istenCikisTarihi = girdi.istenCikisTarihi;
 
   const hesap = maasHesapla(parametreler, girdi.tamamlananSeansSayisi, 0);
   const mesai = yuvarla2((girdi.fmSaatlikUcret ?? 0) * girdi.onayliFmSaat);
