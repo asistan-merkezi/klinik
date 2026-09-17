@@ -7,9 +7,11 @@ import { PozisyonSatiri } from "./pozisyon-satiri";
 export function PozisyonlarListesi({
   pozisyonlar,
   personelSayilari,
+  duzenlenebilir,
 }: {
   pozisyonlar: Pozisyon[];
   personelSayilari: Map<string, number>;
+  duzenlenebilir: boolean;
 }) {
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
 
@@ -41,6 +43,7 @@ export function PozisyonlarListesi({
                   key={poz.id}
                   pozisyon={poz}
                   personelSayisi={personelSayilari.get(poz.id) ?? 0}
+                  duzenlenebilir={duzenlenebilir}
                   duzenleniyor={duzenlenenId === poz.id}
                   onDuzenleBaslat={() => setDuzenlenenId(poz.id)}
                   onDuzenleBitir={() => setDuzenlenenId(null)}

@@ -13,12 +13,14 @@ import { pozisyonGuncelle, pozisyonAktifDurumDegistir } from "./actions";
 export function PozisyonSatiri({
   pozisyon,
   personelSayisi,
+  duzenlenebilir,
   duzenleniyor,
   onDuzenleBaslat,
   onDuzenleBitir,
 }: {
   pozisyon: Pozisyon;
   personelSayisi: number;
+  duzenlenebilir: boolean;
   duzenleniyor: boolean;
   onDuzenleBaslat: () => void;
   onDuzenleBitir: () => void;
@@ -36,7 +38,7 @@ export function PozisyonSatiri({
     }
   }
 
-  if (duzenleniyor) {
+  if (duzenlenebilir && duzenleniyor) {
     return (
       <li className="py-3">
         <form action={formAction} className="flex flex-col gap-3 text-sm">
@@ -165,31 +167,33 @@ export function PozisyonSatiri({
           {pozisyon.sistem_erisimi ? " · Sistem erişimi var" : " · Sistem erişimi yok"}
         </span>
       </div>
-      <div className="flex flex-col items-end gap-1">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={aktifPending}
-            onClick={() =>
-              startAktifTransition(async () => {
-                setAktifHata(null);
-                const sonuc = await pozisyonAktifDurumDegistir(pozisyon.id, !pozisyon.aktif);
-                if (sonuc && !sonuc.success) {
-                  setAktifHata(sonuc.message);
-                }
-              })
-            }
-          >
-            {pozisyon.aktif ? "Pasife al" : "Aktifleştir"}
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={onDuzenleBaslat}>
-            Düzenle
-          </Button>
+      {duzenlenebilir && (
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={aktifPending}
+              onClick={() =>
+                startAktifTransition(async () => {
+                  setAktifHata(null);
+                  const sonuc = await pozisyonAktifDurumDegistir(pozisyon.id, !pozisyon.aktif);
+                  if (sonuc && !sonuc.success) {
+                    setAktifHata(sonuc.message);
+                  }
+                })
+              }
+            >
+              {pozisyon.aktif ? "Pasife al" : "Aktifleştir"}
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={onDuzenleBaslat}>
+              Düzenle
+            </Button>
+          </div>
+          {aktifHata && <p className="text-xs text-destructive">{aktifHata}</p>}
         </div>
-        {aktifHata && <p className="text-xs text-destructive">{aktifHata}</p>}
-      </div>
+      )}
     </li>
   );
 }

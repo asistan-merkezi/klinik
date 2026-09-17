@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { Briefcase, Users, Wallet, Clock } from "lucide-react";
+import { Users, Wallet, Clock } from "lucide-react";
 import type { ReactNode } from "react";
 import { Tabs, TabsList, TabsPanel, TabsTrigger } from "@/components/ui/tabs";
 import type { PersonelSekme } from "./sekmeler";
@@ -11,7 +11,6 @@ import type { PersonelSekme } from "./sekmeler";
 // (page.tsx) bir LucideIcon'u prop olarak geçirmek RSC serileştirmesini kırıyor
 // (bkz. CLAUDE.md: Mesajlaşma sayfası 500 hatası, aynı sınıf hata).
 const SEKME_IKONLARI: Record<PersonelSekme, LucideIcon> = {
-  pozisyonlar: Briefcase,
   liste: Users,
   hesap: Wallet,
   puantaj: Clock,

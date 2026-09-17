@@ -4,7 +4,7 @@ Bu dosya `app/(app)/panel/personel/` altında çalışırken proje kökündeki `
 
 ## Rota Haritası
 
-- `/panel/personel` — hub, 4 sekmeli (`?tab=` ile): **Pozisyonlar** (klinik_admin-only, gruplu liste + inline düzenleme + özel pozisyon ekleme), **Liste** (varsayılan, tüm roller), **Hesap** (cari hesap özeti, klinik_admin+muhasebe), **Puantaj** (İznim/İzin Talepleri kartları + Puantaj Cetveli'ne giriş, tüm roller). Sekme tanımları/rol erişimi tek yerde: `sekmeler.ts`.
+- `/panel/personel` — hub, 3 sekmeli (`?tab=` ile): **Liste** (varsayılan, tüm roller), **Hesap** (cari hesap özeti, klinik_admin+muhasebe), **Puantaj** (İznim/İzin Talepleri kartları + Puantaj Cetveli'ne giriş, tüm roller). Sekme tanımları/rol erişimi tek yerde: `sekmeler.ts`. **Pozisyonlar sekmesi 2026-09-17'de buradan kaldırıldı**, `/panel/ayarlar/personel-tanimlama`'ya taşındı (bkz. altındaki not) — Liste sekmesindeki gruplama serbest metin `gorev` alanına göre, Pozisyon entity'siyle (sistem erişimi/rol/ücret tipi/puantaj modu) KARIŞTIRILMAMALI, ikisi senkron değil.
 - `/panel/personel/[id]` — kişi detayı, kendi içinde 2 sekmeli (`?tab=kisisel|odemeler`, farklı bir mekanizma — bu hub'ın `?tab=`'ıyla KARIŞTIRILMAMALI, ayrı bir state).
 - `/panel/personel/puantaj-cetveli` — TÜM klinik için tek aylık matris (satır=personel, sütun=gün) — bkz. "Puantaj Cetveli" bölümü. **Eski `/panel/personel/[id]/calisma-cizelgesi` (tek kişilik günlük/yıllık tablo) 2026-08-19'da tamamen kaldırıldı, bu rota onun yerini alıyor** — iki paralel puantaj düzenleme ekranı bırakılmadı.
 - `/panel/personel/basvurular` — iş başvurusu inceleme (klinik_admin-only).
@@ -46,7 +46,9 @@ Maaş/hakediş/avans tek deftere taşındı — eski `personel_ekstra_hakedis` v
 
 **`personel_ucret`** (eski adı `personel_maas_gecmisi`) — append-only, UPDATE/DELETE yok. Ücret değişikliği her zaman YENİ satır (mevcut satır asla güncellenmez) — bu davranış zaten mevcuttu, sadece isim netleşti.
 
-## Pozisyonlar (2026-08-19)
+## Pozisyonlar (2026-08-19, yönetim ekranı 2026-09-17'de `/panel/ayarlar/personel-tanimlama`'ya taşındı)
+
+Yönetim UI'ı (liste + inline düzenleme + özel pozisyon ekleme, `pozisyonlar-listesi.tsx`/`pozisyon-satiri.tsx`/`ozel-pozisyon-dialog.tsx`/`actions.ts`) artık bu modülde DEĞİL, `app/(app)/panel/ayarlar/personel-tanimlama/` altında — Ayarlar sayfalarının ortak deseniyle (herkes görür, düzenleme `klinik_admin`'e kilitli — `sirket-bilgileri`/`muhasebe-sync` ile aynı) tutarlı olsun diye eski `roller: ["klinik_admin"]` sekme kısıtı (görmeyi de engelleyen) kaldırıldı. Aşağıdaki veri modeli/kısıt notları hâlâ geçerli, sadece UI'ın dosya yolu değişti.
 
 `pozisyon_sablonlari` (platform şablonu, klinik_id yok, sadece migration/seed ile değişir) + `pozisyonlar` (klinik bazlı, `sablon_id` opsiyonel bağlantı) — her pozisyonun 4 ayarı: `sistem_erisimi` (login hesabı olacak mı), `varsayilan_rol` (`kullanici_rol_tipi`, `super_admin` HARİÇ — aynı gerekçe: klinik_admin kendini platform admine yükseltemesin), `ucret_tipi` (`aylik_maas`/`prim_usulu`), `puantaj_modu` (`gunluk`/`esnek`/`takipsiz`). **Yeni bir klinik oluşturulunca `trg_klinik_pozisyonlari_seed` trigger'ı 9 şablon pozisyonu otomatik kopyalıyor** (Fizyoterapist/Doktor/Klinik Yöneticisi/Resepsiyon/Hemşire/Masör/Diyetisyen/Temizlik/Muhasebe) — bu trigger olmadan yeni klinikler boş bir Pozisyonlar sekmesiyle başlıyordu, Playwright ile gerçek bir test klinikte bulunup düzeltildi.
 

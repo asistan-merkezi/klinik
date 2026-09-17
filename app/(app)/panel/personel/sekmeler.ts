@@ -1,4 +1,4 @@
-export type PersonelSekme = "pozisyonlar" | "liste" | "hesap" | "puantaj";
+export type PersonelSekme = "liste" | "hesap" | "puantaj";
 
 export type PersonelSekmeTanimi = {
   key: PersonelSekme;
@@ -8,7 +8,6 @@ export type PersonelSekmeTanimi = {
 
 // Sıra, sekme çubuğunda görünecek sırayla birebir aynı.
 export const PERSONEL_SEKME_TANIMLARI: readonly PersonelSekmeTanimi[] = [
-  { key: "pozisyonlar", label: "Pozisyonlar", roller: ["klinik_admin"] },
   { key: "liste", label: "Liste", roller: "hepsi" },
   { key: "hesap", label: "Hesap", roller: ["klinik_admin", "muhasebe"] },
   { key: "puantaj", label: "Puantaj", roller: "hepsi" },
