@@ -87,6 +87,7 @@ export type PersonelDetay = {
   calisma_tipi: CalismaTipi | null;
   sgk_sicil_no: string | null;
   ise_giris_tarihi: string | null;
+  isten_cikis_tarihi: string | null;
   ise_baslama_notu: string | null;
   egitim_okul: string | null;
   egitim_brans: string | null;

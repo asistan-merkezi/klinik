@@ -73,7 +73,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, maas, aktif, kullanici_id, uzmanlik_tescil_no, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, ise_baslama_notu, egitim_okul, egitim_brans, egitim_mezuniyet_yili, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
+        "id, ad_soyad, gorev, maas, aktif, kullanici_id, uzmanlik_tescil_no, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, egitim_okul, egitim_brans, egitim_mezuniyet_yili, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),
@@ -238,6 +238,7 @@ export default async function PersonelDetaySayfasi({
   const rolEtiketi = personel.kullanici?.rol
     ? ROL_SECENEKLERI.find((r) => r.value === personel.kullanici?.rol)?.label ?? personel.kullanici.rol
     : null;
+  const terapistMi = personel.kullanici?.rol === "terapist";
 
   // Çalışma Çizelgesi kartı: her zaman İÇİNDE BULUNULAN ay (Ödemeler
   // sekmesindeki ay gezinmesinden bağımsız) + bugünün durumu.
@@ -424,10 +425,6 @@ export default async function PersonelDetaySayfasi({
                   <dd>{telefonGoster(personel.kullanici?.telefon) || "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">Uzmanlık / Tescil No</dt>
-                  <dd>{personel.uzmanlik_tescil_no ?? "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">Durum</dt>
                   <dd>{personel.aktif ? "Aktif" : "Pasif"}</dd>
                 </div>
@@ -457,6 +454,10 @@ export default async function PersonelDetaySayfasi({
                       <dd>{personel.ise_giris_tarihi ? new Date(personel.ise_giris_tarihi).toLocaleDateString("tr-TR") : "—"}</dd>
                     </div>
                     <div className="flex items-center justify-between">
+                      <dt className="text-muted-foreground">İşten Çıkış Tarihi</dt>
+                      <dd>{personel.isten_cikis_tarihi ? new Date(personel.isten_cikis_tarihi).toLocaleDateString("tr-TR") : "—"}</dd>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">Departman</dt>
                       <dd>{personel.departman ?? "—"}</dd>
                     </div>
@@ -465,16 +466,6 @@ export default async function PersonelDetaySayfasi({
                       <dd>
                         {personel.calisma_tipi
                           ? CALISMA_TIPI_SECENEKLERI.find((s) => s.value === personel.calisma_tipi)?.label
-                          : "—"}
-                      </dd>
-                    </div>
-                    <div className="flex flex-col gap-1 border-t border-border pt-3">
-                      <dt className="text-muted-foreground">Eğitim Bilgileri</dt>
-                      <dd>
-                        {personel.egitim_okul || personel.egitim_brans || personel.egitim_mezuniyet_yili
-                          ? [personel.egitim_okul, personel.egitim_brans, personel.egitim_mezuniyet_yili]
-                              .filter(Boolean)
-                              .join(" / ")
                           : "—"}
                       </dd>
                     </div>
@@ -496,20 +487,38 @@ export default async function PersonelDetaySayfasi({
                             : "Kayıtlı değil"}
                       </dd>
                     </div>
-                    {mesleki && (
-                      <div className="flex flex-col gap-1 border-t border-border pt-3">
-                        <dt className="text-muted-foreground">Mesleki Belgeler</dt>
-                        <dd className="text-xs text-muted-foreground">
-                          {[
-                            mesleki.diploma_no && `Diploma: ${mesleki.diploma_no}`,
-                            mesleki.uzmanlik_belge_no && `Uzmanlık Belge: ${mesleki.uzmanlik_belge_no}`,
-                            mesleki.meslek_odasi_sicil_no && `Meslek Odası: ${mesleki.meslek_odasi_sicil_no}`,
-                            mesleki.saglik_bakanligi_tescil_no && `S.B. Tescil: ${mesleki.saglik_bakanligi_tescil_no}`,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ") || "—"}
-                        </dd>
-                      </div>
+                    {terapistMi && (
+                      <>
+                        <div className="flex items-center justify-between border-t border-border pt-3">
+                          <dt className="text-muted-foreground">Uzmanlık / Tescil No</dt>
+                          <dd>{personel.uzmanlik_tescil_no ?? "—"}</dd>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <dt className="text-muted-foreground">Eğitim Bilgileri</dt>
+                          <dd>
+                            {personel.egitim_okul || personel.egitim_brans || personel.egitim_mezuniyet_yili
+                              ? [personel.egitim_okul, personel.egitim_brans, personel.egitim_mezuniyet_yili]
+                                  .filter(Boolean)
+                                  .join(" / ")
+                              : "—"}
+                          </dd>
+                        </div>
+                        {mesleki && (
+                          <div className="flex flex-col gap-1">
+                            <dt className="text-muted-foreground">Mesleki Belgeler</dt>
+                            <dd className="text-xs text-muted-foreground">
+                              {[
+                                mesleki.diploma_no && `Diploma: ${mesleki.diploma_no}`,
+                                mesleki.uzmanlik_belge_no && `Uzmanlık Belge: ${mesleki.uzmanlik_belge_no}`,
+                                mesleki.meslek_odasi_sicil_no && `Meslek Odası: ${mesleki.meslek_odasi_sicil_no}`,
+                                mesleki.saglik_bakanligi_tescil_no && `S.B. Tescil: ${mesleki.saglik_bakanligi_tescil_no}`,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || "—"}
+                            </dd>
+                          </div>
+                        )}
+                      </>
                     )}
                   </>
                 )}
