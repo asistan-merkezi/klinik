@@ -78,6 +78,8 @@ export function PersonelFormu(props: Props) {
   const [unvan, setUnvan] = useState(initialData?.gorev ?? basvuru?.pozisyon ?? "");
   const [departman, setDepartman] = useState(initialData?.departman ?? "");
   const [uzmanlikTescilNo, setUzmanlikTescilNo] = useState(initialData?.uzmanlik_tescil_no ?? "");
+  const [egitimOkul, setEgitimOkul] = useState(initialData?.egitim_okul ?? "");
+  const [egitimBrans, setEgitimBrans] = useState(initialData?.egitim_brans ?? "");
 
   const adimRefleri = useRef<Record<number, HTMLDivElement | null>>({});
   const formRef = useRef<HTMLFormElement>(null);
@@ -97,8 +99,20 @@ export function PersonelFormu(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [durum]);
 
+  // Mesleki Belgeler artık Sistem Yetkileri'nden ÖNCE gösteriliyor — sıra
+  // kasıtlı olarak değiştirildi. Mesleki Belgeler varsa sabit 3. adım, Sistem
+  // Yetkileri ise ona göre 3. ya da 4. adım olur.
+  const meslekiAdimNo = 3;
+  const sistemYetkileriAdimNo = meslekiVar ? 4 : 3;
+
+  // Rol seçimi (Sistem Yetkileri) değiştikçe adım sayısı büyüyüp küçülebiliyor
+  // (Mesleki Belgeler yalnız terapist'te var) — `adim` bunu geriye doğru takip
+  // etmeyebilir (ör. terapist'ten başka role geçilince Sistem Yetkileri 4'ten
+  // 3'e kayar), o yüzden gösterim/doğrulama hep bu türetilmiş değeri kullanır.
+  const aktifAdim = Math.min(adim, sonAdim);
+
   function ileri() {
-    const kapsayici = adimRefleri.current[adim];
+    const kapsayici = adimRefleri.current[aktifAdim];
     if (kapsayici) {
       const elemanlar = Array.from(kapsayici.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select"));
       const gecersiz = elemanlar.find((el) => !el.checkValidity());
@@ -107,14 +121,16 @@ export function PersonelFormu(props: Props) {
         return;
       }
     }
-    setAdim((a) => Math.min(a + 1, sonAdim));
+    setAdim(Math.min(aktifAdim + 1, sonAdim));
   }
 
   function geri() {
-    setAdim((a) => Math.max(a - 1, 1));
+    setAdim(Math.max(aktifAdim - 1, 1));
   }
 
-  const ADIM_BASLIKLARI = ["Kişisel Bilgiler", "İş Bilgileri", "Sistem Yetkileri", "Mesleki Belgeler"];
+  const ADIM_BASLIKLARI = meslekiVar
+    ? ["Kişisel Bilgiler", "İş Bilgileri", "Mesleki Belgeler", "Sistem Yetkileri"]
+    : ["Kişisel Bilgiler", "İş Bilgileri", "Sistem Yetkileri"];
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-4">
@@ -132,9 +148,9 @@ export function PersonelFormu(props: Props) {
             <span
               key={baslik}
               className={`rounded-full px-2.5 py-1 font-medium ${
-                n === adim
+                n === aktifAdim
                   ? "bg-primary text-primary-foreground"
-                  : n < adim
+                  : n < aktifAdim
                     ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                     : "bg-muted text-muted-foreground"
               }`}
@@ -146,7 +162,7 @@ export function PersonelFormu(props: Props) {
       </div>
 
       {/* Adım 1: Kişisel Bilgiler */}
-      <div ref={(el) => { adimRefleri.current[1] = el; }} className={adim === 1 ? "flex flex-col gap-4" : "hidden"}>
+      <div ref={(el) => { adimRefleri.current[1] = el; }} className={aktifAdim === 1 ? "flex flex-col gap-4" : "hidden"}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="ad_soyad">Ad Soyad</Label>
@@ -308,94 +324,113 @@ export function PersonelFormu(props: Props) {
       </div>
 
       {/* Adım 2: İş Bilgileri */}
-      <div ref={(el) => { adimRefleri.current[2] = el; }} className={adim === 2 ? "grid gap-4 sm:grid-cols-2" : "hidden"}>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="unvan">Unvan / Branş</Label>
-          <Input
-            id="unvan"
-            name="unvan"
-            required
-            disabled={isPending}
-            placeholder="Fizyoterapist, Resepsiyon..."
-            value={unvan}
-            onChange={(e) => setUnvan(isimBasHarfBuyukYap(e.target.value))}
-          />
+      <div ref={(el) => { adimRefleri.current[2] = el; }} className={aktifAdim === 2 ? "flex flex-col gap-4" : "hidden"}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="sgk_sicil_no">SGK Sicil No</Label>
+            <Input id="sgk_sicil_no" name="sgk_sicil_no" disabled={isPending} defaultValue={initialData?.sgk_sicil_no ?? ""} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ise_giris_tarihi">İşe Başlama Tarihi</Label>
+            <Input id="ise_giris_tarihi" name="ise_giris_tarihi" type="date" disabled={isPending} defaultValue={initialData?.ise_giris_tarihi ?? ""} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="unvan">Unvan / Branş</Label>
+            <Input
+              id="unvan"
+              name="unvan"
+              required
+              disabled={isPending}
+              placeholder="Fizyoterapist, Resepsiyon..."
+              value={unvan}
+              onChange={(e) => setUnvan(isimBasHarfBuyukYap(e.target.value))}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="departman">Departman</Label>
+            <Input
+              id="departman"
+              name="departman"
+              disabled={isPending}
+              value={departman}
+              onChange={(e) => setDepartman(isimBasHarfBuyukYap(e.target.value))}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="calisma_tipi">Çalışma Tipi</Label>
+            <Select
+              name="calisma_tipi"
+              disabled={isPending}
+              defaultValue={initialData?.calisma_tipi ?? ""}
+              items={CALISMA_TIPI_SECENEKLERI}
+            >
+              <SelectTrigger id="calisma_tipi" className="w-full">
+                <SelectValue placeholder="Belirtilmemiş" />
+              </SelectTrigger>
+              <SelectContent>
+                {CALISMA_TIPI_SECENEKLERI.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="uzmanlik_tescil_no">Uzmanlık / Diploma / Tescil No</Label>
+            <Input
+              id="uzmanlik_tescil_no"
+              name="uzmanlik_tescil_no"
+              disabled={isPending}
+              value={uzmanlikTescilNo}
+              onChange={(e) => setUzmanlikTescilNo(isimBasHarfBuyukYap(e.target.value))}
+            />
+          </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="departman">Departman</Label>
-          <Input
-            id="departman"
-            name="departman"
-            disabled={isPending}
-            value={departman}
-            onChange={(e) => setDepartman(isimBasHarfBuyukYap(e.target.value))}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="ise_giris_tarihi">İşe Başlama Tarihi</Label>
-          <Input id="ise_giris_tarihi" name="ise_giris_tarihi" type="date" disabled={isPending} defaultValue={initialData?.ise_giris_tarihi ?? ""} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="calisma_tipi">Çalışma Tipi</Label>
-          <Select
-            name="calisma_tipi"
-            disabled={isPending}
-            defaultValue={initialData?.calisma_tipi ?? ""}
-            items={CALISMA_TIPI_SECENEKLERI}
-          >
-            <SelectTrigger id="calisma_tipi" className="w-full">
-              <SelectValue placeholder="Belirtilmemiş" />
-            </SelectTrigger>
-            <SelectContent>
-              {CALISMA_TIPI_SECENEKLERI.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="sgk_sicil_no">SGK Sicil No</Label>
-          <Input id="sgk_sicil_no" name="sgk_sicil_no" disabled={isPending} defaultValue={initialData?.sgk_sicil_no ?? ""} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="uzmanlik_tescil_no">Uzmanlık / Diploma / Tescil No</Label>
-          <Input
-            id="uzmanlik_tescil_no"
-            name="uzmanlik_tescil_no"
-            disabled={isPending}
-            value={uzmanlikTescilNo}
-            onChange={(e) => setUzmanlikTescilNo(isimBasHarfBuyukYap(e.target.value))}
-          />
-        </div>
+
+        <fieldset className="flex flex-col gap-4 border-t border-border pt-4">
+          <legend className="mb-1 text-sm font-medium">Eğitim Bilgileri</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="egitim_okul">Mezun Olduğu Okul</Label>
+              <Input
+                id="egitim_okul"
+                name="egitim_okul"
+                disabled={isPending}
+                value={egitimOkul}
+                onChange={(e) => setEgitimOkul(isimBasHarfBuyukYap(e.target.value))}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="egitim_brans">Branş</Label>
+              <Input
+                id="egitim_brans"
+                name="egitim_brans"
+                disabled={isPending}
+                value={egitimBrans}
+                onChange={(e) => setEgitimBrans(isimBasHarfBuyukYap(e.target.value))}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="egitim_mezuniyet_yili">Yıl</Label>
+              <Input
+                id="egitim_mezuniyet_yili"
+                name="egitim_mezuniyet_yili"
+                inputMode="numeric"
+                pattern="[0-9]{4}"
+                maxLength={4}
+                placeholder="2020"
+                disabled={isPending}
+                defaultValue={initialData?.egitim_mezuniyet_yili ?? ""}
+              />
+            </div>
+          </div>
+        </fieldset>
       </div>
 
-      {/* Adım 3: Sistem Yetkileri */}
-      <div ref={(el) => { adimRefleri.current[3] = el; }} className={adim === 3 ? "flex flex-col gap-4" : "hidden"}>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="rol">Rol</Label>
-          <Select name="rol" disabled={isPending} value={rol} onValueChange={(v) => setRol(v as KullaniciRol)} items={ROL_SECENEKLERI}>
-            <SelectTrigger id="rol" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROL_SECENEKLERI.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            Rol &quot;Terapist&quot; seçilirse bir sonraki adımda mesleki belge bilgileri istenir.
-          </p>
-        </div>
-      </div>
-
-      {/* Adım 4: Mesleki Belgeler (sadece terapist) */}
+      {/* Mesleki Belgeler (sadece terapist) — Sistem Yetkileri'nden önce, sabit 3. adım */}
       {meslekiVar && (
-        <div ref={(el) => { adimRefleri.current[4] = el; }} className={adim === 4 ? "grid gap-4 sm:grid-cols-2" : "hidden"}>
+        <div ref={(el) => { adimRefleri.current[meslekiAdimNo] = el; }} className={aktifAdim === meslekiAdimNo ? "grid gap-4 sm:grid-cols-2" : "hidden"}>
           <div className="flex flex-col gap-2">
             <Label htmlFor="diploma_no">Diploma No</Label>
             <Input id="diploma_no" name="diploma_no" disabled={isPending} defaultValue={initialMesleki?.diploma_no ?? ""} />
@@ -435,6 +470,28 @@ export function PersonelFormu(props: Props) {
         </div>
       )}
 
+      {/* Sistem Yetkileri — Mesleki Belgeler varsa 4., yoksa 3. adım */}
+      <div ref={(el) => { adimRefleri.current[sistemYetkileriAdimNo] = el; }} className={aktifAdim === sistemYetkileriAdimNo ? "flex flex-col gap-4" : "hidden"}>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="rol">Rol</Label>
+          <Select name="rol" disabled={isPending} value={rol} onValueChange={(v) => setRol(v as KullaniciRol)} items={ROL_SECENEKLERI}>
+            <SelectTrigger id="rol" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROL_SECENEKLERI.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Rol &quot;Terapist&quot; seçilirse Mesleki Belgeler adımı da gösterilir.
+          </p>
+        </div>
+      </div>
+
       {durum && (
         <p role="alert" className={`text-sm ${durum.success ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
           {durum.message}
@@ -449,10 +506,10 @@ export function PersonelFormu(props: Props) {
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <Button type="button" variant="outline" disabled={isPending || adim === 1} onClick={geri}>
+        <Button type="button" variant="outline" disabled={isPending || aktifAdim === 1} onClick={geri}>
           ‹ Geri
         </Button>
-        {adim < sonAdim ? (
+        {aktifAdim < sonAdim ? (
           <Button type="button" onClick={ileri} disabled={isPending}>
             İleri ›
           </Button>

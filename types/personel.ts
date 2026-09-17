@@ -88,6 +88,9 @@ export type PersonelDetay = {
   sgk_sicil_no: string | null;
   ise_giris_tarihi: string | null;
   ise_baslama_notu: string | null;
+  egitim_okul: string | null;
+  egitim_brans: string | null;
+  egitim_mezuniyet_yili: string | null;
   puantaj_pin_guncelleme_tarihi: string | null;
   kullanici: { telefon: string | null; rol: KullaniciRol } | null;
 };

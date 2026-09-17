@@ -73,7 +73,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, maas, aktif, kullanici_id, uzmanlik_tescil_no, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, ise_baslama_notu, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
+        "id, ad_soyad, gorev, maas, aktif, kullanici_id, uzmanlik_tescil_no, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, ise_baslama_notu, egitim_okul, egitim_brans, egitim_mezuniyet_yili, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),
@@ -449,6 +449,14 @@ export default async function PersonelDetaySayfasi({
                       </dd>
                     </div>
                     <div className="flex items-center justify-between">
+                      <dt className="text-muted-foreground">SGK Sicil No</dt>
+                      <dd>{personel.sgk_sicil_no ?? "—"}</dd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <dt className="text-muted-foreground">İşe Giriş Tarihi</dt>
+                      <dd>{personel.ise_giris_tarihi ? new Date(personel.ise_giris_tarihi).toLocaleDateString("tr-TR") : "—"}</dd>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">Departman</dt>
                       <dd>{personel.departman ?? "—"}</dd>
                     </div>
@@ -460,13 +468,15 @@ export default async function PersonelDetaySayfasi({
                           : "—"}
                       </dd>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">İşe Giriş Tarihi</dt>
-                      <dd>{personel.ise_giris_tarihi ? new Date(personel.ise_giris_tarihi).toLocaleDateString("tr-TR") : "—"}</dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">SGK Sicil No</dt>
-                      <dd>{personel.sgk_sicil_no ?? "—"}</dd>
+                    <div className="flex flex-col gap-1 border-t border-border pt-3">
+                      <dt className="text-muted-foreground">Eğitim Bilgileri</dt>
+                      <dd>
+                        {personel.egitim_okul || personel.egitim_brans || personel.egitim_mezuniyet_yili
+                          ? [personel.egitim_okul, personel.egitim_brans, personel.egitim_mezuniyet_yili]
+                              .filter(Boolean)
+                              .join(" / ")
+                          : "—"}
+                      </dd>
                     </div>
                     {acilKisi && (
                       <div className="flex items-center justify-between">
