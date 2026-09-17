@@ -14,6 +14,31 @@ alter table personel_hassas
   add column if not exists tc_kimlik text,
   add column if not exists pasaport_no text;
 
+-- v_personel_bilgi_durumu (20260810090000) eski *_sifreli kolonlarına
+-- bağımlı — düz metin kolonlara işaret edecek şekilde önce burada
+-- yeniden tanımlanıyor, yoksa aşağıdaki DROP COLUMN "depends on" hatası verir.
+CREATE OR REPLACE VIEW v_personel_bilgi_durumu WITH (security_invoker = true) AS
+SELECT
+  p.id AS personel_id,
+  (
+    p.dogum_tarihi IS NOT NULL
+    AND (COALESCE(p.il, '') <> '' OR COALESCE(p.adres, '') <> '')
+    AND EXISTS (SELECT 1 FROM personel_acil_kisi ak WHERE ak.personel_id = p.id)
+    AND EXISTS (
+      SELECT 1 FROM personel_hassas ph
+      WHERE ph.personel_id = p.id AND (ph.tc_kimlik IS NOT NULL OR ph.pasaport_no IS NOT NULL)
+    )
+    AND (
+      k.rol IS DISTINCT FROM 'terapist'
+      OR EXISTS (
+        SELECT 1 FROM personel_mesleki_belge mb
+        WHERE mb.personel_id = p.id AND (mb.diploma_no IS NOT NULL OR mb.uzmanlik_belge_no IS NOT NULL)
+      )
+    )
+  ) AS bilgiler_tamam
+FROM personel p
+LEFT JOIN kullanici k ON k.id = p.kullanici_id;
+
 alter table personel_hassas
   drop column if exists tc_kimlik_sifreli,
   drop column if exists pasaport_no_sifreli;
