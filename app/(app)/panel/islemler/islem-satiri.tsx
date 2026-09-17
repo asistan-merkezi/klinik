@@ -240,11 +240,7 @@ export function IslemSatiri({
         </StatusBadge>
       </div>
       <span className="text-sm text-muted-foreground">
-        Vita {paraFormatla(islem.vita_fiyat)}
-        {islem.plus_fiyat !== null && <> · Plus {paraFormatla(islem.plus_fiyat)}</>}
-        {islem.elit_fiyat !== null && <> · Elit {paraFormatla(islem.elit_fiyat)}</>}
-        {islem.prime_fiyat !== null && <> · Prime {paraFormatla(islem.prime_fiyat)}</>}
-        {" "}(KDV %{islem.kdv_orani})
+        {paraFormatla(islem.vita_fiyat)} (KDV %{islem.kdv_orani})
       </span>
       <span className="text-sm text-muted-foreground">
         {islem.sure_dakika !== null ? `Uygulama süresi: ${islem.sure_dakika} dk` : "Uygulama süresi girilmemiş"}
