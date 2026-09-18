@@ -43,7 +43,7 @@ export default async function PersonelTanimlamaSayfasi() {
         <PageHeader
           icon={Briefcase}
           title="Personel Tanımlama"
-          description="Personele atanacak pozisyonların sistem erişimi, rol, ücret tipi ve puantaj ayarlarını yönet."
+          description="İşletmenizde çalışılan departman/unvanları seçin. Aktif olanlar Personel ve Yetkilendirme'de kullanılabilir olur; sistem erişimi olup olmayacağını da buradan belirleyin."
           actions={duzenlenebilir && <OzelPozisyonDialog />}
         />
 

@@ -42,40 +42,6 @@ const pozisyonSemasi = z.object({
   puantaj_modu: z.enum(["gunluk", "esnek", "takipsiz"]),
 });
 
-export async function pozisyonGuncelle(pozisyonId: string, _onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-
-  const ayristirma = pozisyonSemasi.safeParse({
-    grup: formData.get("grup"),
-    sira: formData.get("sira") || 0,
-    sistem_erisimi: formData.get("sistem_erisimi") === "on",
-    varsayilan_rol: formData.get("varsayilan_rol"),
-    ucret_tipi: formData.get("ucret_tipi"),
-    puantaj_modu: formData.get("puantaj_modu"),
-  });
-
-  if (!ayristirma.success) {
-    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
-  }
-
-  const { error } = await supabase
-    .from("pozisyonlar")
-    .update(ayristirma.data)
-    .eq("id", pozisyonId)
-    .eq("klinik_id", klinikId);
-
-  if (error) {
-    console.error("Pozisyon güncellenemedi:", error);
-    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
-  }
-
-  revalidatePath("/panel/ayarlar/personel-tanimlama");
-  return { success: true, message: "Pozisyon güncellendi." };
-}
-
 export async function pozisyonAktifDurumDegistir(pozisyonId: string, yeniDurum: boolean): Promise<SonucDurumu> {
   const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
   if (yetkisiz || !klinikId) {
@@ -99,6 +65,30 @@ export async function pozisyonAktifDurumDegistir(pozisyonId: string, yeniDurum: 
 
   revalidatePath("/panel/ayarlar/personel-tanimlama");
   return { success: true, message: yeniDurum ? "Pozisyon aktifleştirildi." : "Pozisyon pasife alındı." };
+}
+
+export async function pozisyonSistemErisimiDegistir(pozisyonId: string, yeniDurum: boolean): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { error } = await supabase
+    .from("pozisyonlar")
+    .update({ sistem_erisimi: yeniDurum })
+    .eq("id", pozisyonId)
+    .eq("klinik_id", klinikId);
+
+  if (error) {
+    console.error("Pozisyon sistem erişimi değiştirilemedi:", error);
+    return { success: false, message: "Değiştirilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/personel-tanimlama");
+  return {
+    success: true,
+    message: yeniDurum ? "Sistem erişimi açıldı." : "Sistem erişimi kapatıldı.",
+  };
 }
 
 const ozelPozisyonSemasi = pozisyonSemasi.extend({

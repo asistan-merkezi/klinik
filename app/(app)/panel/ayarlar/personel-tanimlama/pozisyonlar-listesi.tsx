@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import type { Pozisyon } from "@/types/pozisyon";
 import { PozisyonSatiri } from "./pozisyon-satiri";
 
@@ -13,8 +10,6 @@ export function PozisyonlarListesi({
   personelSayilari: Map<string, number>;
   duzenlenebilir: boolean;
 }) {
-  const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
-
   const gruplar = new Map<string, Pozisyon[]>();
   for (const poz of pozisyonlar) {
     const liste = gruplar.get(poz.grup) ?? [];
@@ -32,21 +27,16 @@ export function PozisyonlarListesi({
     <div className="flex flex-col gap-6">
       {grupAdlari.map((grup) => {
         const satirlar = (gruplar.get(grup) ?? []).sort((a, b) => a.sira - b.sira);
-        const gorunenler = duzenlenenId ? satirlar.filter((p) => p.id === duzenlenenId) : satirlar;
-        if (gorunenler.length === 0) return null;
         return (
           <div key={grup} className="flex flex-col gap-1">
             <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{grup}</h2>
             <ul className="flex flex-col divide-y divide-border">
-              {gorunenler.map((poz) => (
+              {satirlar.map((poz) => (
                 <PozisyonSatiri
                   key={poz.id}
                   pozisyon={poz}
                   personelSayisi={personelSayilari.get(poz.id) ?? 0}
                   duzenlenebilir={duzenlenebilir}
-                  duzenleniyor={duzenlenenId === poz.id}
-                  onDuzenleBaslat={() => setDuzenlenenId(poz.id)}
-                  onDuzenleBitir={() => setDuzenlenenId(null)}
                 />
               ))}
             </ul>
