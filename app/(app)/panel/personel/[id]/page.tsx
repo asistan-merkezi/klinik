@@ -19,6 +19,7 @@ import {
 } from "@/types/personel";
 import { HESAP_HAREKET_TUR_ETIKETLERI, HESAP_HAREKET_YONU, type HesapBakiye, type HesapHareket } from "@/types/hesap-hareket";
 import type { KlinikBankaHesabi } from "@/types/klinik";
+import type { Pozisyon } from "@/types/pozisyon";
 import { ayAraligi, gunAraligi, haftaAraligi, telefonGoster } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
 import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
@@ -74,7 +75,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
+        "id, ad_soyad, gorev, pozisyon_id, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),
@@ -139,7 +140,7 @@ export default async function PersonelDetaySayfasi({
 
   const terapist = terapistSonucu.data;
 
-  const [acilSonucu, meslekiSonucu, egitimSonucu, hassasSonucu, gunSonucu, haftaSonucu, aySonucu, maasGecmisiSonucu] = await Promise.all([
+  const [acilSonucu, meslekiSonucu, egitimSonucu, hassasSonucu, gunSonucu, haftaSonucu, aySonucu, maasGecmisiSonucu, pozisyonlarSonucu] = await Promise.all([
     yonetici
       ? supabase
           .from("personel_acil_kisi")
@@ -203,6 +204,16 @@ export default async function PersonelDetaySayfasi({
           .limit(24)
           .returns<MaasGecmisiSatir[]>()
       : Promise.resolve({ data: null as MaasGecmisiSatir[] | null }),
+    // Düzenle formunun Pozisyon seçimi için — aktif pozisyonlar + (varsa)
+    // personelin şu an bağlı olduğu pasif pozisyon (seçim kaybolmasın diye).
+    yonetici
+      ? supabase
+          .from("pozisyonlar")
+          .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
+          .or(personel.pozisyon_id ? `aktif.eq.true,id.eq.${personel.pozisyon_id}` : "aktif.eq.true")
+          .order("sira")
+          .returns<Pozisyon[]>()
+      : Promise.resolve({ data: null as Pozisyon[] | null }),
   ]);
 
   const acilKisi = acilSonucu.data;
@@ -210,6 +221,7 @@ export default async function PersonelDetaySayfasi({
   const egitim = egitimSonucu.data ?? [];
   const maasGecmisi = maasGecmisiSonucu.data ?? [];
   const maskeliHassas = (hassasSonucu.data as PersonelHassasMaskeli | null) ?? null;
+  const pozisyonlar = pozisyonlarSonucu.data ?? [];
 
   const gunSayisi = gunSonucu.count ?? 0;
   const haftaSayisi = haftaSonucu.count ?? 0;
@@ -420,6 +432,7 @@ export default async function PersonelDetaySayfasi({
                   mesleki={mesleki}
                   egitim={egitim}
                   maskeliHassas={maskeliHassas}
+                  pozisyonlar={pozisyonlar}
                 />
               )}
             </CardHeader>

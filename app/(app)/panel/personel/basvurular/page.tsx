@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QrKart } from "@/components/panel/qr-kart";
 import { IsBasvuruFormuPdfButonu } from "@/components/panel/is-basvuru-formu-pdf-butonu";
 import type { IsBasvurusu } from "@/types/personel";
+import type { Pozisyon } from "@/types/pozisyon";
 import { BasvuruListesi } from "./basvuru-listesi";
 import { BasvuruArsivi } from "./basvuru-arsivi";
 
@@ -45,6 +46,16 @@ export default async function BasvurularSayfasi() {
     .neq("durum", "olumlu")
     .order("created_at", { ascending: false })
     .returns<IsBasvurusu[]>();
+
+  // "Olumlu / Onayla" ile açılan Personel Ekle formunun Pozisyon seçimi için —
+  // sadece aktif pozisyonlar (bkz. Ayarlar → Personel Tanımlama).
+  const { data: pozisyonlarSonucu } = await supabase
+    .from("pozisyonlar")
+    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
+    .eq("aktif", true)
+    .order("sira")
+    .returns<Pozisyon[]>();
+  const pozisyonlar = pozisyonlarSonucu ?? [];
 
   const liste = basvurular ?? [];
   const bekleyenler = liste.filter((b) => b.durum === "beklemede");
@@ -89,12 +100,12 @@ export default async function BasvurularSayfasi() {
               <h2 className="text-sm font-semibold text-muted-foreground">
                 Bekleyen Başvurular ({bekleyenler.length})
               </h2>
-              <BasvuruListesi basvurular={bekleyenler} />
+              <BasvuruListesi basvurular={bekleyenler} pozisyonlar={pozisyonlar} />
             </section>
 
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold text-muted-foreground">Arşiv</h2>
-              <BasvuruArsivi basvurular={liste} />
+              <BasvuruArsivi basvurular={liste} pozisyonlar={pozisyonlar} />
             </section>
           </>
         )}

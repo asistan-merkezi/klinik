@@ -99,7 +99,7 @@ const kisiselIsSemasi = z.object({
   acil_ad_soyad: z.string().trim().optional().or(z.literal("")),
   acil_yakinlik: z.string().trim().optional().or(z.literal("")),
   acil_telefon: z.string().trim().optional().or(z.literal("")),
-  unvan: z.string().trim().min(2, "Unvan/branş en az 2 karakter olmalı."),
+  pozisyon_id: z.string().trim().min(1, "Pozisyon seçilmeli."),
   departman: z.string().trim().optional().or(z.literal("")),
   ise_giris_tarihi: z.string().trim().optional().or(z.literal("")),
   isten_cikis_tarihi: z.string().trim().optional().or(z.literal("")),
@@ -146,7 +146,7 @@ function formVerisiTopla(formData: FormData) {
     acil_ad_soyad: formData.get("acil_ad_soyad") ?? "",
     acil_yakinlik: formData.get("acil_yakinlik") ?? "",
     acil_telefon: formData.get("acil_telefon") ?? "",
-    unvan: formData.get("unvan"),
+    pozisyon_id: formData.get("pozisyon_id"),
     departman: formData.get("departman") ?? "",
     ise_giris_tarihi: formData.get("ise_giris_tarihi") ?? "",
     isten_cikis_tarihi: formData.get("isten_cikis_tarihi") ?? "",
@@ -351,6 +351,17 @@ export async function personelHesabiOlustur(
   const veri = ayristirma.data;
   const kaseDosyasi = formData.get("kase_dosya");
 
+  const { data: pozisyon } = await supabase
+    .from("pozisyonlar")
+    .select("id, ad, aktif")
+    .eq("id", veri.pozisyon_id)
+    .eq("klinik_id", klinikId)
+    .maybeSingle();
+
+  if (!pozisyon || !pozisyon.aktif) {
+    return { success: false, message: "Seçilen pozisyon bulunamadı ya da pasif." };
+  }
+
   const adminClient = createAdminClient();
   const geciciSifre = geciciSifreUret();
 
@@ -388,7 +399,8 @@ export async function personelHesabiOlustur(
       klinik_id: klinikId,
       kullanici_id: yeniKullanici.user.id,
       ad_soyad: veri.ad_soyad,
-      gorev: veri.unvan,
+      gorev: pozisyon.ad,
+      pozisyon_id: pozisyon.id,
       dogum_tarihi: veri.dogum_tarihi || null,
       dogum_yeri: veri.dogum_yeri || null,
       cinsiyet: veri.cinsiyet || null,
@@ -483,7 +495,7 @@ export async function personelBilgileriGuncelle(
 
   const { data: mevcutPersonel } = await supabase
     .from("personel")
-    .select("id, kullanici_id, klinik_id")
+    .select("id, kullanici_id, klinik_id, pozisyon_id")
     .eq("id", personelId)
     .single();
 
@@ -498,13 +510,29 @@ export async function personelBilgileriGuncelle(
   const veri = ayristirma.data;
   const kaseDosyasi = formData.get("kase_dosya");
 
+  const { data: pozisyon } = await supabase
+    .from("pozisyonlar")
+    .select("id, ad, aktif")
+    .eq("id", veri.pozisyon_id)
+    .eq("klinik_id", klinikId)
+    .maybeSingle();
+
+  // Mevcut atanmış pozisyon değişmiyorsa pasif olsa bile kabul edilir
+  // (bkz. personel modülü CLAUDE.md — pasif personelin bağlı olduğu pozisyon
+  // serbestçe pasife alınabiliyor, bu değişikliği geri almaya zorlamıyoruz).
+  const pozisyonDegismiyor = pozisyon?.id === mevcutPersonel.pozisyon_id;
+  if (!pozisyon || (!pozisyon.aktif && !pozisyonDegismiyor)) {
+    return { success: false, message: "Seçilen pozisyon bulunamadı ya da pasif." };
+  }
+
   const adminClient = createAdminClient();
 
   const { error: personelError } = await adminClient
     .from("personel")
     .update({
       ad_soyad: veri.ad_soyad,
-      gorev: veri.unvan,
+      gorev: pozisyon.ad,
+      pozisyon_id: pozisyon.id,
       dogum_tarihi: veri.dogum_tarihi || null,
       dogum_yeri: veri.dogum_yeri || null,
       cinsiyet: veri.cinsiyet || null,

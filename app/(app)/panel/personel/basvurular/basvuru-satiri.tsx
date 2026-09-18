@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatDateTime, formatDate } from "@/lib/datetime";
 import { telefonGoster } from "@/lib/utils";
 import type { BasvuruDurum, IsBasvurusu } from "@/types/personel";
+import type { Pozisyon } from "@/types/pozisyon";
 import { PersonelFormu } from "../personel-formu";
 import { basvuruDurumGuncelle } from "./actions";
 
@@ -29,7 +30,7 @@ const CALISMA_SEKLI_ETIKET: Record<string, string> = {
   yari_zamanli: "Yarı Zamanlı",
 };
 
-export function BasvuruSatiri({ basvuru }: { basvuru: IsBasvurusu }) {
+export function BasvuruSatiri({ basvuru, pozisyonlar }: { basvuru: IsBasvurusu; pozisyonlar: Pozisyon[] }) {
   const [pending, startTransition] = useTransition();
   const [yerelDurum, setYerelDurum] = useState<BasvuruDurum>(basvuru.durum);
   const [aktarildi, setAktarildi] = useState(false);
@@ -102,6 +103,7 @@ export function BasvuruSatiri({ basvuru }: { basvuru: IsBasvurusu }) {
               </DialogHeader>
               <PersonelFormu
                 mod="olustur"
+                pozisyonlar={pozisyonlar}
                 basvuru={{
                   id: basvuru.id,
                   ad_soyad: basvuru.ad_soyad,

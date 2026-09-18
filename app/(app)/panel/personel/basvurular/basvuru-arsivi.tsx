@@ -5,6 +5,7 @@ import { ChevronDown, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { IsBasvurusu } from "@/types/personel";
+import type { Pozisyon } from "@/types/pozisyon";
 import { BasvuruListesi } from "./basvuru-listesi";
 
 /**
@@ -15,7 +16,13 @@ import { BasvuruListesi } from "./basvuru-listesi";
  * listesindekiler burada da görünür — arşiv "geçmişe dönük tarama", ayrı
  * bir durum değil).
  */
-export function BasvuruArsivi({ basvurular }: { basvurular: IsBasvurusu[] }) {
+export function BasvuruArsivi({
+  basvurular,
+  pozisyonlar,
+}: {
+  basvurular: IsBasvurusu[];
+  pozisyonlar: Pozisyon[];
+}) {
   const gruplar = useMemo(() => {
     const map = new Map<string, { etiket: string; liste: IsBasvurusu[] }>();
     for (const b of basvurular) {
@@ -37,13 +44,21 @@ export function BasvuruArsivi({ basvurular }: { basvurular: IsBasvurusu[] }) {
   return (
     <div className="flex flex-col gap-2">
       {gruplar.map((g) => (
-        <ArsivGrubu key={g.anahtar} etiket={g.etiket} liste={g.liste} />
+        <ArsivGrubu key={g.anahtar} etiket={g.etiket} liste={g.liste} pozisyonlar={pozisyonlar} />
       ))}
     </div>
   );
 }
 
-function ArsivGrubu({ etiket, liste }: { etiket: string; liste: IsBasvurusu[] }) {
+function ArsivGrubu({
+  etiket,
+  liste,
+  pozisyonlar,
+}: {
+  etiket: string;
+  liste: IsBasvurusu[];
+  pozisyonlar: Pozisyon[];
+}) {
   const [acik, setAcik] = useState(false);
 
   return (
@@ -61,7 +76,7 @@ function ArsivGrubu({ etiket, liste }: { etiket: string; liste: IsBasvurusu[] })
       </button>
       {acik && (
         <div className="border-t border-border p-3">
-          <BasvuruListesi basvurular={liste} />
+          <BasvuruListesi basvurular={liste} pozisyonlar={pozisyonlar} />
         </div>
       )}
     </div>

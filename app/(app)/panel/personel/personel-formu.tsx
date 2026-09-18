@@ -25,11 +25,12 @@ import {
   type PersonelHassasMaskeli,
   type PersonelMeslekiBelge,
 } from "@/types/personel";
+import type { Pozisyon } from "@/types/pozisyon";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { personelHesabiOlustur, personelBilgileriGuncelle } from "./actions";
 
 type Props =
-  | { mod: "olustur"; basvuru?: BasvuruPrefill; onBasarili?: () => void }
+  | { mod: "olustur"; basvuru?: BasvuruPrefill; pozisyonlar: Pozisyon[]; onBasarili?: () => void }
   | {
       mod: "duzenle";
       personelId: string;
@@ -38,6 +39,7 @@ type Props =
       initialMesleki: PersonelMeslekiBelge | null;
       initialEgitim: PersonelEgitim[];
       maskeliHassas: PersonelHassasMaskeli | null;
+      pozisyonlar: Pozisyon[];
       onBasarili?: () => void;
     };
 
@@ -79,7 +81,7 @@ export function PersonelFormu(props: Props) {
   const [dogumYeri, setDogumYeri] = useState(initialData?.dogum_yeri ?? "");
   const [acilAdSoyad, setAcilAdSoyad] = useState(initialAcilKisi?.ad_soyad ?? "");
   const [acilYakinlik, setAcilYakinlik] = useState(initialAcilKisi?.yakinlik ?? "");
-  const [unvan, setUnvan] = useState(initialData?.gorev ?? basvuru?.pozisyon ?? "");
+  const [pozisyonId, setPozisyonId] = useState(initialData?.pozisyon_id ?? props.pozisyonlar[0]?.id ?? "");
   const [departman, setDepartman] = useState(initialData?.departman ?? "");
   const [imzaYetkilisiMi, setImzaYetkilisiMi] = useState(initialData?.imza_yetkilisi_mi ?? false);
   const [egitimSatirlari, setEgitimSatirlari] = useState<EgitimSatiri[]>(
@@ -360,16 +362,35 @@ export function PersonelFormu(props: Props) {
             <Input id="isten_cikis_tarihi" name="isten_cikis_tarihi" type="date" disabled={isPending} defaultValue={initialData?.isten_cikis_tarihi ?? ""} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="unvan">Unvan / Branş</Label>
-            <Input
-              id="unvan"
-              name="unvan"
-              required
-              disabled={isPending}
-              placeholder="Fizyoterapist, Resepsiyon..."
-              value={unvan}
-              onChange={(e) => setUnvan(isimBasHarfBuyukYap(e.target.value))}
-            />
+            <Label htmlFor="pozisyon_id">Pozisyon</Label>
+            <Select
+              name="pozisyon_id"
+              disabled={isPending || props.pozisyonlar.length === 0}
+              value={pozisyonId}
+              onValueChange={(v) => {
+                if (!v) return;
+                setPozisyonId(v);
+                const secilen = props.pozisyonlar.find((p) => p.id === v);
+                if (secilen) setRol(secilen.varsayilan_rol);
+              }}
+              items={props.pozisyonlar.map((p) => ({ value: p.id, label: p.ad }))}
+            >
+              <SelectTrigger id="pozisyon_id" className="w-full">
+                <SelectValue placeholder="Pozisyon seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {props.pozisyonlar.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.ad}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {props.pozisyonlar.length === 0 && (
+              <p className="text-xs text-destructive">
+                Önce Ayarlar → Personel Tanımlama&apos;dan en az bir aktif pozisyon eklenmeli.
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="departman">Departman</Label>

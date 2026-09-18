@@ -17,6 +17,7 @@ import type {
   PersonelHassasMaskeli,
   PersonelMeslekiBelge,
 } from "@/types/personel";
+import type { Pozisyon } from "@/types/pozisyon";
 
 export function DuzenlePersonelDialog({
   personelId,
@@ -25,6 +26,7 @@ export function DuzenlePersonelDialog({
   mesleki,
   egitim,
   maskeliHassas,
+  pozisyonlar,
 }: {
   personelId: string;
   personel: PersonelDetay;
@@ -32,6 +34,7 @@ export function DuzenlePersonelDialog({
   mesleki: PersonelMeslekiBelge | null;
   egitim: PersonelEgitim[];
   maskeliHassas: PersonelHassasMaskeli | null;
+  pozisyonlar: Pozisyon[];
 }) {
   const [acik, setAcik] = useState(false);
 
@@ -54,6 +57,7 @@ export function DuzenlePersonelDialog({
             initialMesleki={mesleki}
             initialEgitim={egitim}
             maskeliHassas={maskeliHassas}
+            pozisyonlar={pozisyonlar}
             onBasarili={() => setAcik(false)}
           />
         </DialogContent>
