@@ -27,13 +27,11 @@ export default async function YetkilendirmeSayfasi() {
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
   const [{ data: pozisyonlar }, { data: klinikAyarlar }] = await Promise.all([
-    // Sadece AKTİF pozisyonlar gösterilir — bir pozisyon Ayarlar → Personel
-    // Tanımlama'da pasife alındığında burada da otomatik kaybolur (o görev
-    // artık firmada çalışmıyor sayılır).
+    // Personel Tanımlama'yla BİREBİR aynı liste — aktif/pasif filtresi YOK,
+    // departman isimleri ve içerik iki sayfada da tutarlı kalsın diye.
     supabase
       .from("pozisyonlar")
       .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
-      .eq("aktif", true)
       .order("sira")
       .returns<Pozisyon[]>(),
     supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
@@ -69,7 +67,7 @@ export default async function YetkilendirmeSayfasi() {
         <PageHeader
           icon={ShieldCheck}
           title="Yetkilendirme"
-          description="Aktif pozisyonların hangi role ve sistem erişimine bağlı olduğunu gösterir. Ekleme/çıkarma ve pasife alma Ayarlar → Personel Tanımlama'dan yapılır."
+          description="Personel Tanımlama'daki tüm departman ve pozisyonları, hangi role ve sistem erişimine bağlı olduklarıyla birlikte gösterir. Ekleme/çıkarma ve aktif-pasif değişikliği Ayarlar → Personel Tanımlama'dan yapılır."
         />
 
         <Card>
@@ -82,11 +80,11 @@ export default async function YetkilendirmeSayfasi() {
         </Card>
 
         {liste.length === 0 ? (
-          <EmptyState icon={Briefcase} title="Aktif pozisyon yok." />
+          <EmptyState icon={Briefcase} title="Henüz pozisyon tanımlı değil." />
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>Aktif Pozisyonlar</CardTitle>
+              <CardTitle>Departmanlar ve Pozisyonlar</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               {departmanAdlari.map((departman) => {
@@ -100,7 +98,12 @@ export default async function YetkilendirmeSayfasi() {
                       {gruptakiler.map((poz) => (
                         <li key={poz.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                           <div className="flex flex-col">
-                            <span className="font-medium">{poz.ad}</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`font-medium ${poz.aktif ? "" : "text-muted-foreground line-through"}`}>
+                                {poz.ad}
+                              </span>
+                              {!poz.aktif && <StatusBadge tone="rose">Pasif</StatusBadge>}
+                            </div>
                             <span className="text-xs text-muted-foreground">
                               {ROL_SECENEKLERI.find((r) => r.value === poz.varsayilan_rol)?.label}
                             </span>
