@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ROL_SECENEKLERI } from "@/types/personel";
+import { ROL_SECENEKLERI, type KullaniciRol } from "@/types/personel";
 import type { Pozisyon } from "@/types/pozisyon";
+import { SIDEBAR_GIZLI_VARSAYILAN } from "@/lib/panel/menu-gruplari";
+import { SidebarYetkiFormu } from "./sidebar-yetki-formu";
 
 export default async function YetkilendirmeSayfasi() {
   const supabase = await createClient();
@@ -21,15 +23,29 @@ export default async function YetkilendirmeSayfasi() {
     redirect("/giris");
   }
 
-  // Sadece AKTİF pozisyonlar gösterilir — bir pozisyon Ayarlar → Personel
-  // Tanımlama'da pasife alındığında burada da otomatik kaybolur (o görev
-  // artık firmada çalışmıyor sayılır).
-  const { data: pozisyonlar } = await supabase
-    .from("pozisyonlar")
-    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
-    .eq("aktif", true)
-    .order("sira")
-    .returns<Pozisyon[]>();
+  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
+  const duzenlenebilir = kullanici?.rol === "klinik_admin";
+
+  const [{ data: pozisyonlar }, { data: klinikAyarlar }] = await Promise.all([
+    // Sadece AKTİF pozisyonlar gösterilir — bir pozisyon Ayarlar → Personel
+    // Tanımlama'da pasife alındığında burada da otomatik kaybolur (o görev
+    // artık firmada çalışmıyor sayılır).
+    supabase
+      .from("pozisyonlar")
+      .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
+      .eq("aktif", true)
+      .order("sira")
+      .returns<Pozisyon[]>(),
+    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
+  ]);
+
+  const sidebarGizliKayitli =
+    ((klinikAyarlar?.ayarlar as Record<string, unknown> | null)?.sidebar_gizli as
+      | Record<string, string[]>
+      | undefined) ?? {};
+  const baslangicGizli = Object.fromEntries(
+    ROL_SECENEKLERI.map((r) => [r.value, sidebarGizliKayitli[r.value] ?? SIDEBAR_GIZLI_VARSAYILAN[r.value] ?? []])
+  ) as Record<KullaniciRol, string[]>;
 
   const liste = pozisyonlar ?? [];
 
@@ -55,6 +71,15 @@ export default async function YetkilendirmeSayfasi() {
           title="Yetkilendirme"
           description="Aktif pozisyonların hangi role ve sistem erişimine bağlı olduğunu gösterir. Ekleme/çıkarma ve pasife alma Ayarlar → Personel Tanımlama'dan yapılır."
         />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sidebar Menü Görünürlüğü</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SidebarYetkiFormu baslangicGizli={baslangicGizli} duzenlenebilir={duzenlenebilir} />
+          </CardContent>
+        </Card>
 
         {liste.length === 0 ? (
           <EmptyState icon={Briefcase} title="Aktif pozisyon yok." />
@@ -95,12 +120,14 @@ export default async function YetkilendirmeSayfasi() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Yakında</CardTitle>
+            <CardTitle>Kapsam Notu</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <p className="text-sm text-muted-foreground">
-              Rol bazlı ekran/işlem yetkilendirmesi (klinik_admin, resepsiyon, terapist, muhasebe) şu an veritabanı
-              seviyesinde (RLS) uygulanıyor — bu ekrandan yönetilebilen bir izin editörü henüz yok.
+              Yukarıdaki anahtarlar sadece sol menüdeki linki gizler/gösterir. Sayfaların kendi erişim kontrolü
+              (klinik_admin, resepsiyon, terapist, muhasebe rollerine göre) ayrı ve değişmedi — bir menüyü açık
+              bırakmak, o sayfaya rolün zaten erişimi yoksa erişim kazandırmaz; kapatmak da linki gizler, adresi
+              doğrudan yazan biri sayfanın kendi kuralına tabi kalır.
             </p>
             <Button variant="outline" size="sm" className="w-fit" nativeButton={false} render={<Link href="/panel/ayarlar/personel-tanimlama">Personel Tanımlama&apos;ya git</Link>} />
           </CardContent>

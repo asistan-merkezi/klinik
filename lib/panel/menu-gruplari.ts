@@ -33,6 +33,30 @@ import {
 export type MenuOgesi = { href: string; label: string; icon: LucideIcon };
 export type MenuGrubu = { key: string; label: string; icon: LucideIcon; ogeler: MenuOgesi[] };
 
+// Sidebar'da GERÇEKTEN görünen üst seviye linkler — Ayarlar > Yetkilendirme'de
+// rol bazlı aç/kapa listesi bunlarla birebir aynı (anahtarlar sidebar.tsx'teki
+// ANA_OGELER hrefleriyle ve MENU_GRUPLARI'ndaki grup.key'lerle eşleşiyor).
+// "Destek" bilinçli olarak burada YOK — her rol için hep açık kalıyor.
+export const SIDEBAR_YETKI_OGELERI: { key: string; label: string }[] = [
+  { key: "ana-ekran", label: "Ana Ekran" },
+  { key: "hastalar", label: "Hastalar" },
+  { key: "randevular", label: "Randevular" },
+  { key: "finans", label: "Finans" },
+  { key: "yonetim", label: "Yönetim" },
+  { key: "ayarlar", label: "Ayarlar" },
+];
+
+// klinik_ayarlar.ayarlar.sidebar_gizli hiç ayarlanmamışsa (yeni klinik veya
+// henüz Yetkilendirme'den hiç dokunulmamış) uygulanan varsayılan — eskiden
+// sidebar.tsx'te sabit kodlu olan "terapist Finans'ı görmez" kuralıyla
+// birebir aynı, geriye dönük davranış bozulmasın diye.
+export const SIDEBAR_GIZLI_VARSAYILAN: Record<string, string[]> = {
+  klinik_admin: [],
+  resepsiyon: [],
+  terapist: ["finans"],
+  muhasebe: [],
+};
+
 export const MENU_GRUPLARI: MenuGrubu[] = [
   {
     key: "finans",

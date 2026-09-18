@@ -21,27 +21,18 @@ import { Avatar } from "@/components/ui/avatar";
 import type { Klinik } from "@/types/klinik";
 
 const ANA_OGELER = [
-  { href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
-  { href: "/panel/hastalar", label: "Hastalar", icon: Users },
-  { href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
+  { key: "ana-ekran", href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
+  { key: "hastalar", href: "/panel/hastalar", label: "Hastalar", icon: Users },
+  { key: "randevular", href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
 ];
 
-// Bazı MENU_GRUPLARI grupları için NEREDEYSE TÜM alt sayfalar terapist'e
-// sunucu tarafında redirect atıyor (bkz. app/(app)/panel/finans/**/page.tsx:
-// kamusal-giderler/raporlar/satin-alma-faturalari/kasa/banka klinik_admin|
-// muhasebe|super_admin'e, gelirler-takibi/cari-alacaklar|faturalar bunlara+
-// resepsiyon'a kilitli — sadece giderler [placeholder] ve kategori-iskonto-
-// oranlari [salt-okunur mesaj, veri göstermiyor] terapist'e açık; Personel/
-// Paket & Ödeme kartları bu klasörün dışına, kendi hub'larının rol kontrolüne
-// linklenir) — linki göstermek sadece "tıkla, /panel'e geri at" deneyimi
-// üretiyor, veri sızdırmıyor. MERKEZİ bir yetki kaynağı YOK (her sayfa kendi
-// rol kontrolünü kendi içinde tekrar ediyor) — bu liste elle tarandı, sayfa
-// taraflı kontroller değişirse senkron kalmayabilir. Yönetim/Ayarlar/Destek
-// grupları TARANDI ve terapist için gerçek bir kilit bulunamadı (Ayarlar'ın 3
-// alt sayfası — arsiv-ice-aktarma/mesajlasma/qr-kodlar — non-admin'i
-// /panel/ayarlar'a geri atıyor ama bu hub'ın KENDİSİNİ değil, hub-içi bir
-// kartı etkiliyor; kapsam dışı, buraya dahil edilmedi).
-const TERAPISTE_GORUNMEYEN_GRUPLAR = new Set(["finans"]);
+// Sidebar'daki üst seviye linklerin (Ana Ekran/Hastalar/Randevular +
+// MENU_GRUPLARI'ndaki Finans/Yönetim/Ayarlar) rol bazlı görünürlüğü artık
+// sabit kodlu değil — Ayarlar > Yetkilendirme'de yönetiliyor, `gizliMenuAnahtarlari`
+// prop'uyla buraya geliyor (bkz. app/(app)/panel/layout.tsx). "Destek" bu
+// listede hiç yok, her rol için hep açık. NOT: bu SADECE linki gizler —
+// sayfaların kendi rol kontrolleri (her page.tsx kendi içinde) ayrı ve
+// değişmedi, bkz. root CLAUDE.md "Teknik Borç: Sidebar rol görünürlüğü".
 
 const BOTTOM_NAV_OGELERI = [
   { href: "/panel", label: "Panel", icon: Home, tamEslesme: true },
@@ -98,6 +89,7 @@ function SidebarGovde({
   klinikPlani,
   kullaniciAdi,
   kullaniciRolu,
+  gizliMenuAnahtarlari,
   pathname,
   linkTiklandi,
 }: {
@@ -105,6 +97,7 @@ function SidebarGovde({
   klinikPlani: string | null;
   kullaniciAdi: string;
   kullaniciRolu: string;
+  gizliMenuAnahtarlari: string[];
   pathname: string;
   linkTiklandi?: () => void;
 }) {
@@ -138,7 +131,7 @@ function SidebarGovde({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-        {ANA_OGELER.map((oge) => (
+        {ANA_OGELER.filter((oge) => !gizliMenuAnahtarlari.includes(oge.key)).map((oge) => (
           <SidebarLink
             key={oge.href}
             href={oge.href}
@@ -149,9 +142,7 @@ function SidebarGovde({
           />
         ))}
 
-        {MENU_GRUPLARI.filter(
-          (grup) => !(kullaniciRolu === "terapist" && TERAPISTE_GORUNMEYEN_GRUPLAR.has(grup.key))
-        ).map((grup) => {
+        {MENU_GRUPLARI.filter((grup) => !gizliMenuAnahtarlari.includes(grup.key)).map((grup) => {
           const grupHref = `/panel/${grup.key}`;
           const grupAktif =
             girdiAktifMi(pathname, grupHref) || grup.ogeler.some((o) => girdiAktifMi(pathname, o.href));
@@ -195,6 +186,7 @@ export function PanelSidebar({
   klinikPlani,
   kullaniciAdi,
   kullaniciRolu,
+  gizliMenuAnahtarlari,
   bildirimSayisi,
   children,
 }: {
@@ -202,6 +194,7 @@ export function PanelSidebar({
   klinikPlani: string | null;
   kullaniciAdi: string;
   kullaniciRolu: string;
+  gizliMenuAnahtarlari: string[];
   bildirimSayisi?: number;
   children: React.ReactNode;
 }) {
@@ -311,6 +304,7 @@ export function PanelSidebar({
               klinikPlani={klinikPlani}
               kullaniciAdi={kullaniciAdi}
               kullaniciRolu={kullaniciRolu}
+              gizliMenuAnahtarlari={gizliMenuAnahtarlari}
               pathname={pathname}
               linkTiklandi={() => setMenuAcik(false)}
             />
