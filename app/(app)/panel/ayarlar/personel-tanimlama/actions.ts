@@ -33,14 +33,6 @@ async function yetkiliKlinikAdminGetir() {
 // ---------------------------------------------------------------------
 // Pozisyonlar
 // ---------------------------------------------------------------------
-const pozisyonSemasi = z.object({
-  grup: z.string().trim().min(1, "Grup zorunlu."),
-  sira: z.coerce.number().int().default(0),
-  sistem_erisimi: z.coerce.boolean(),
-  varsayilan_rol: z.enum(["klinik_admin", "resepsiyon", "terapist", "muhasebe"]),
-  ucret_tipi: z.enum(["aylik_maas", "prim_usulu"]),
-  puantaj_modu: z.enum(["gunluk", "esnek", "takipsiz"]),
-});
 
 export async function pozisyonAktifDurumDegistir(pozisyonId: string, yeniDurum: boolean): Promise<SonucDurumu> {
   const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
@@ -91,8 +83,9 @@ export async function pozisyonSistemErisimiDegistir(pozisyonId: string, yeniDuru
   };
 }
 
-const ozelPozisyonSemasi = pozisyonSemasi.extend({
-  ad: z.string().trim().min(1, "Pozisyon adı zorunlu."),
+const ozelPozisyonSemasi = z.object({
+  grup: z.string().trim().min(1, "Departman seçilmeli."),
+  ad: z.string().trim().min(1, "Ünvan zorunlu."),
 });
 
 export async function ozelPozisyonOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
@@ -102,23 +95,42 @@ export async function ozelPozisyonOlustur(_onceki: SonucDurumu, formData: FormDa
   }
 
   const ayristirma = ozelPozisyonSemasi.safeParse({
+    grup: formData.get("grup"),
     ad: formData.get("ad"),
-    grup: formData.get("grup") || "Diğer",
-    sira: 999,
-    sistem_erisimi: formData.get("sistem_erisimi") === "on",
-    varsayilan_rol: formData.get("varsayilan_rol"),
-    ucret_tipi: formData.get("ucret_tipi"),
-    puantaj_modu: formData.get("puantaj_modu"),
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
+  const { grup, ad } = ayristirma.data;
+
+  // Rol/ücret tipi/puantaj modu artık ayrıca sorulmuyor — seçilen departmandaki
+  // mevcut bir pozisyondan (en küçük sıralı) devralınır, yeni ünvan aynı
+  // departmanın tipik ayarlarıyla sisteme girer.
+  const { data: ornekPozisyon } = await supabase
+    .from("pozisyonlar")
+    .select("varsayilan_rol, ucret_tipi, puantaj_modu")
+    .eq("klinik_id", klinikId)
+    .eq("grup", grup)
+    .order("sira", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!ornekPozisyon) {
+    return { success: false, message: "Departman bulunamadı." };
+  }
+
   const { error } = await supabase.from("pozisyonlar").insert({
     klinik_id: klinikId,
+    ad,
+    grup,
+    sira: 999,
+    sistem_erisimi: false,
+    varsayilan_rol: ornekPozisyon.varsayilan_rol,
+    ucret_tipi: ornekPozisyon.ucret_tipi,
+    puantaj_modu: ornekPozisyon.puantaj_modu,
     ozel_mi: true,
-    ...ayristirma.data,
   });
 
   if (error) {

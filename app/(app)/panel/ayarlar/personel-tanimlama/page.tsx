@@ -28,6 +28,16 @@ export default async function PersonelTanimlamaSayfasi() {
 
   const pozisyonlar = pozisyonSonucu ?? [];
 
+  // Özel Pozisyon Ekle'deki Departman seçimi — mevcut pozisyonlardaki grup
+  // adlarından türetilir (sabit bir liste değil, katalog değişirse otomatik
+  // güncellenir), listedeki sıralamayla aynı (en küçük sıraya göre).
+  const departmanSiralari = new Map<string, number>();
+  for (const poz of pozisyonlar) {
+    const mevcut = departmanSiralari.get(poz.grup);
+    if (mevcut === undefined || poz.sira < mevcut) departmanSiralari.set(poz.grup, poz.sira);
+  }
+  const departmanlar = [...departmanSiralari.entries()].sort((a, b) => a[1] - b[1]).map(([grup]) => grup);
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -35,7 +45,7 @@ export default async function PersonelTanimlamaSayfasi() {
           icon={Briefcase}
           title="Personel Tanımlama"
           description="İşletmenizde çalışılan departman/unvanları seçin. Aktif olanlar Personel ve Yetkilendirme'de kullanılabilir olur; sistem erişimi olup olmayacağını da buradan belirleyin."
-          actions={duzenlenebilir && <OzelPozisyonDialog />}
+          actions={duzenlenebilir && <OzelPozisyonDialog departmanlar={departmanlar} />}
         />
 
         {pozisyonlar.length === 0 ? (
