@@ -1,11 +1,42 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ROL_SECENEKLERI } from "@/types/personel";
-import { UCRET_TIPI_SECENEKLERI, PUANTAJ_MODU_SECENEKLERI, type Pozisyon } from "@/types/pozisyon";
+import { Switch } from "@/components/ui/switch";
+import type { Pozisyon } from "@/types/pozisyon";
 import { pozisyonAktifDurumDegistir, pozisyonSistemErisimiDegistir } from "./actions";
+
+function IkiliSwitch({
+  baslik,
+  soldakiEtiket,
+  sagdakiEtiket,
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  baslik: string;
+  soldakiEtiket: string;
+  sagdakiEtiket: string;
+  checked: boolean;
+  disabled: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">{baslik}</span>
+      <div className="flex items-center gap-2 text-xs">
+        <span className={cn(!checked ? "font-semibold text-rose-600 dark:text-rose-400" : "text-muted-foreground")}>
+          {soldakiEtiket}
+        </span>
+        <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+        <span className={cn(checked ? "font-semibold text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+          {sagdakiEtiket}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export function PozisyonSatiri({
   pozisyon,
@@ -23,68 +54,53 @@ export function PozisyonSatiri({
 
   return (
     <li className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`font-medium ${pozisyon.aktif ? "" : "text-muted-foreground line-through"}`}>
-            {pozisyon.ad}
-          </span>
-          {pozisyon.ozel_mi && <StatusBadge tone="sky">Özel</StatusBadge>}
-          {!pozisyon.aktif && <StatusBadge tone="rose">Pasif</StatusBadge>}
-          {personelSayisi > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {personelSayisi} personel
-            </span>
-          )}
-        </div>
-        <span className="text-xs text-muted-foreground">
-          {ROL_SECENEKLERI.find((r) => r.value === pozisyon.varsayilan_rol)?.label} ·{" "}
-          {UCRET_TIPI_SECENEKLERI.find((s) => s.value === pozisyon.ucret_tipi)?.label} ·{" "}
-          {PUANTAJ_MODU_SECENEKLERI.find((s) => s.value === pozisyon.puantaj_modu)?.label}
-          {pozisyon.sistem_erisimi ? " · Sistem erişimi var" : " · Sistem erişimi yok"}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`font-medium ${pozisyon.aktif ? "" : "text-muted-foreground line-through"}`}>
+          {pozisyon.ad}
         </span>
+        {pozisyon.ozel_mi && <StatusBadge tone="sky">Özel</StatusBadge>}
+        {personelSayisi > 0 && (
+          <span className="text-xs text-muted-foreground">{personelSayisi} personel</span>
+        )}
       </div>
-      {duzenlenebilir && (
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={aktifPending}
-              onClick={() =>
-                startAktifTransition(async () => {
-                  setAktifHata(null);
-                  const sonuc = await pozisyonAktifDurumDegistir(pozisyon.id, !pozisyon.aktif);
-                  if (sonuc && !sonuc.success) {
-                    setAktifHata(sonuc.message);
-                  }
-                })
-              }
-            >
-              {pozisyon.aktif ? "Pasife al" : "Aktifleştir"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={erisimPending}
-              onClick={() =>
-                startErisimTransition(async () => {
-                  setErisimHata(null);
-                  const sonuc = await pozisyonSistemErisimiDegistir(pozisyon.id, !pozisyon.sistem_erisimi);
-                  if (sonuc && !sonuc.success) {
-                    setErisimHata(sonuc.message);
-                  }
-                })
-              }
-            >
-              {pozisyon.sistem_erisimi ? "Sistem erişimini kapat" : "Sistem erişimini aç"}
-            </Button>
-          </div>
-          {aktifHata && <p className="text-xs text-destructive">{aktifHata}</p>}
-          {erisimHata && <p className="text-xs text-destructive">{erisimHata}</p>}
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-wrap items-center gap-4">
+          <IkiliSwitch
+            baslik="Durum"
+            soldakiEtiket="Pasif"
+            sagdakiEtiket="Aktif"
+            checked={pozisyon.aktif}
+            disabled={!duzenlenebilir || aktifPending}
+            onCheckedChange={(deger) =>
+              startAktifTransition(async () => {
+                setAktifHata(null);
+                const sonuc = await pozisyonAktifDurumDegistir(pozisyon.id, deger);
+                if (sonuc && !sonuc.success) {
+                  setAktifHata(sonuc.message);
+                }
+              })
+            }
+          />
+          <IkiliSwitch
+            baslik="Sistem Erişimi"
+            soldakiEtiket="Yok"
+            sagdakiEtiket="Var"
+            checked={pozisyon.sistem_erisimi}
+            disabled={!duzenlenebilir || erisimPending}
+            onCheckedChange={(deger) =>
+              startErisimTransition(async () => {
+                setErisimHata(null);
+                const sonuc = await pozisyonSistemErisimiDegistir(pozisyon.id, deger);
+                if (sonuc && !sonuc.success) {
+                  setErisimHata(sonuc.message);
+                }
+              })
+            }
+          />
         </div>
-      )}
+        {aktifHata && <p className="text-xs text-destructive">{aktifHata}</p>}
+        {erisimHata && <p className="text-xs text-destructive">{erisimHata}</p>}
+      </div>
     </li>
   );
 }
