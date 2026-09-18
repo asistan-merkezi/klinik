@@ -3,11 +3,9 @@ import { PozisyonSatiri } from "./pozisyon-satiri";
 
 export function PozisyonlarListesi({
   pozisyonlar,
-  personelSayilari,
   duzenlenebilir,
 }: {
   pozisyonlar: Pozisyon[];
-  personelSayilari: Map<string, number>;
   duzenlenebilir: boolean;
 }) {
   const gruplar = new Map<string, Pozisyon[]>();
@@ -32,12 +30,7 @@ export function PozisyonlarListesi({
             <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{grup}</h2>
             <ul className="flex flex-col divide-y divide-border">
               {satirlar.map((poz) => (
-                <PozisyonSatiri
-                  key={poz.id}
-                  pozisyon={poz}
-                  personelSayisi={personelSayilari.get(poz.id) ?? 0}
-                  duzenlenebilir={duzenlenebilir}
-                />
+                <PozisyonSatiri key={poz.id} pozisyon={poz} duzenlenebilir={duzenlenebilir} />
               ))}
             </ul>
           </div>

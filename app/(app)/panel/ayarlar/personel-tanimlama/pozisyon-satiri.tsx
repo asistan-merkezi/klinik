@@ -40,11 +40,9 @@ function IkiliSwitch({
 
 export function PozisyonSatiri({
   pozisyon,
-  personelSayisi,
   duzenlenebilir,
 }: {
   pozisyon: Pozisyon;
-  personelSayisi: number;
   duzenlenebilir: boolean;
 }) {
   const [aktifPending, startAktifTransition] = useTransition();
@@ -59,9 +57,6 @@ export function PozisyonSatiri({
           {pozisyon.ad}
         </span>
         {pozisyon.ozel_mi && <StatusBadge tone="sky">Özel</StatusBadge>}
-        {personelSayisi > 0 && (
-          <span className="text-xs text-muted-foreground">{personelSayisi} personel</span>
-        )}
       </div>
       <div className="flex flex-col items-end gap-1">
         <div className="flex flex-wrap items-center gap-4">

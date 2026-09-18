@@ -21,19 +21,10 @@ export default async function PersonelTanimlamaSayfasi() {
   const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
-  const [{ data: pozisyonSonucu }, { data: personelSayimSonucu }] = await Promise.all([
-    supabase
-      .from("pozisyonlar")
-      .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
-      .returns<Pozisyon[]>(),
-    supabase.from("personel").select("pozisyon_id").eq("aktif", true).not("pozisyon_id", "is", null),
-  ]);
-
-  const personelSayilari = new Map<string, number>();
-  for (const p of personelSayimSonucu ?? []) {
-    if (!p.pozisyon_id) continue;
-    personelSayilari.set(p.pozisyon_id, (personelSayilari.get(p.pozisyon_id) ?? 0) + 1);
-  }
+  const { data: pozisyonSonucu } = await supabase
+    .from("pozisyonlar")
+    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
+    .returns<Pozisyon[]>();
 
   const pozisyonlar = pozisyonSonucu ?? [];
 
@@ -50,11 +41,7 @@ export default async function PersonelTanimlamaSayfasi() {
         {pozisyonlar.length === 0 ? (
           <EmptyState icon={Briefcase} title="Henüz pozisyon tanımlı değil." />
         ) : (
-          <PozisyonlarListesi
-            pozisyonlar={pozisyonlar}
-            personelSayilari={personelSayilari}
-            duzenlenebilir={duzenlenebilir}
-          />
+          <PozisyonlarListesi pozisyonlar={pozisyonlar} duzenlenebilir={duzenlenebilir} />
         )}
       </div>
     </div>
