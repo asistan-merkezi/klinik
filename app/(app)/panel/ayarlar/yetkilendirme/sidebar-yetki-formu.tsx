@@ -3,62 +3,67 @@
 import { useState, useTransition } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsPanel } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { ROL_SECENEKLERI, type KullaniciRol } from "@/types/personel";
 import { SIDEBAR_YETKI_OGELERI } from "@/lib/panel/menu-gruplari";
 import { sidebarMenuGorunurlukDegistir } from "./actions";
 
 export function SidebarYetkiFormu({
+  departmanlar,
   baslangicGizli,
   duzenlenebilir,
 }: {
-  baslangicGizli: Record<KullaniciRol, string[]>;
+  departmanlar: string[];
+  baslangicGizli: Record<string, string[]>;
   duzenlenebilir: boolean;
 }) {
-  const [gizliByRol, setGizliByRol] = useState(baslangicGizli);
+  const [gizliByDepartman, setGizliByDepartman] = useState(baslangicGizli);
   const [pending, startTransition] = useTransition();
   const [hata, setHata] = useState<string | null>(null);
 
-  function degistir(rol: KullaniciRol, anahtar: string, gorunur: boolean) {
+  function degistir(departman: string, anahtar: string, gorunur: boolean) {
     setHata(null);
-    setGizliByRol((s) => ({
+    setGizliByDepartman((s) => ({
       ...s,
-      [rol]: gorunur ? s[rol].filter((k) => k !== anahtar) : [...s[rol], anahtar],
+      [departman]: gorunur ? (s[departman] ?? []).filter((k) => k !== anahtar) : [...(s[departman] ?? []), anahtar],
     }));
     startTransition(async () => {
-      const sonuc = await sidebarMenuGorunurlukDegistir(rol, anahtar, gorunur);
+      const sonuc = await sidebarMenuGorunurlukDegistir(departman, anahtar, gorunur);
       if (sonuc && !sonuc.success) {
         setHata(sonuc.message);
         // Sunucu reddettiyse ekrandaki değişikliği geri al.
-        setGizliByRol((s) => ({
+        setGizliByDepartman((s) => ({
           ...s,
-          [rol]: gorunur ? [...s[rol], anahtar] : s[rol].filter((k) => k !== anahtar),
+          [departman]: gorunur ? [...(s[departman] ?? []), anahtar] : (s[departman] ?? []).filter((k) => k !== anahtar),
         }));
       }
     });
   }
 
+  if (departmanlar.length === 0) {
+    return <p className="text-sm text-muted-foreground">Önce Personel Tanımlama&apos;dan bir departman/pozisyon eklenmeli.</p>;
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <Tabs defaultValue={ROL_SECENEKLERI[0].value}>
+      <Tabs defaultValue={departmanlar[0]}>
         <TabsList>
-          {ROL_SECENEKLERI.map((r) => (
-            <TabsTrigger key={r.value} value={r.value}>
-              {r.label}
+          {departmanlar.map((d) => (
+            <TabsTrigger key={d} value={d}>
+              {d}
             </TabsTrigger>
           ))}
         </TabsList>
-        {ROL_SECENEKLERI.map((r) => (
-          <TabsPanel key={r.value} value={r.value}>
+        {departmanlar.map((departman) => (
+          <TabsPanel key={departman} value={departman}>
             <ul className="flex flex-col divide-y divide-border">
               {SIDEBAR_YETKI_OGELERI.map((oge) => {
-                const gorunur = !gizliByRol[r.value].includes(oge.key);
+                const gorunur = !(gizliByDepartman[departman] ?? []).includes(oge.key);
                 return (
                   <li key={oge.key} className="flex items-center justify-between gap-2 py-2 text-sm">
                     <span>{oge.label}</span>
                     <Switch
                       checked={gorunur}
                       disabled={!duzenlenebilir || pending}
-                      onCheckedChange={(deger) => degistir(r.value, oge.key, deger)}
+                      onCheckedChange={(deger) => degistir(departman, oge.key, deger)}
                     />
                   </li>
                 );

@@ -4,33 +4,34 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { SIDEBAR_GIZLI_VARSAYILAN, SIDEBAR_YETKI_OGELERI } from "@/lib/panel/menu-gruplari";
+import { SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN, SIDEBAR_YETKI_OGELERI } from "@/lib/panel/menu-gruplari";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-const rolSemasi = z.enum(["klinik_admin", "resepsiyon", "terapist", "muhasebe"]);
+const departmanSemasi = z.string().trim().min(1, "Departman zorunlu.");
 const anahtarSemasi = z.enum(SIDEBAR_YETKI_OGELERI.map((o) => o.key) as [string, ...string[]]);
 
 /**
  * Ayarlar > Yetkilendirme'deki "Sidebar Menü Görünürlüğü" — QR Kodları/Tablet
  * Ayarları'ndaki aynı read-modify-write deseni: klinik_ayarlar.ayarlar tek
- * jsonb kolonu, "sidebar_gizli" anahtarı { [rol]: gizli_anahtar[] } şeklinde.
- * Hiç ayarlanmamış roller SIDEBAR_GIZLI_VARSAYILAN'a düşer (sidebar.tsx'teki
- * eski sabit "terapist Finans'ı görmez" kuralıyla aynı) — bu action ilk kez
- * çağrıldığında o varsayılanın üzerine yazıyor, sonrasında hep DB'deki değer
- * geçerli olur.
+ * jsonb kolonu, "sidebar_gizli" anahtarı { [departman]: gizli_anahtar[] }
+ * şeklinde. Departman (rol değil — bkz. lib/panel/menu-gruplari.ts) burada
+ * sabit bir enum değil, personel-tanimlama'daki katalogdan gelen serbest bir
+ * string; klinik_admin'in Özel Pozisyon Ekle/Personel Tanımlama'dan görüp
+ * seçtiği departman adının BİREBİR aynısı olmalı, o yüzden zod'da sadece
+ * boş-olmama kontrolü var, sabit enum yok.
  */
 export async function sidebarMenuGorunurlukDegistir(
-  rolHam: string,
+  departmanHam: string,
   anahtarHam: string,
   gorunur: boolean
 ): Promise<SonucDurumu> {
-  const rolAyristirma = rolSemasi.safeParse(rolHam);
+  const departmanAyristirma = departmanSemasi.safeParse(departmanHam);
   const anahtarAyristirma = anahtarSemasi.safeParse(anahtarHam);
-  if (!rolAyristirma.success || !anahtarAyristirma.success) {
+  if (!departmanAyristirma.success || !anahtarAyristirma.success) {
     return { success: false, message: "Geçersiz istek." };
   }
-  const rol = rolAyristirma.data;
+  const departman = departmanAyristirma.data;
   const anahtar = anahtarAyristirma.data;
 
   const supabase = await createClient();
@@ -60,17 +61,17 @@ export async function sidebarMenuGorunurlukDegistir(
 
   const mevcutAyarlar = (mevcutSatir?.ayarlar as Record<string, unknown> | null) ?? {};
   const mevcutSidebarGizli = (mevcutAyarlar.sidebar_gizli as Record<string, string[]> | undefined) ?? {};
-  const mevcutRolListesi = mevcutSidebarGizli[rol] ?? SIDEBAR_GIZLI_VARSAYILAN[rol] ?? [];
+  const mevcutListe = mevcutSidebarGizli[departman] ?? SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN[departman] ?? [];
 
-  const yeniRolListesi = gorunur
-    ? mevcutRolListesi.filter((k) => k !== anahtar)
-    : mevcutRolListesi.includes(anahtar)
-      ? mevcutRolListesi
-      : [...mevcutRolListesi, anahtar];
+  const yeniListe = gorunur
+    ? mevcutListe.filter((k) => k !== anahtar)
+    : mevcutListe.includes(anahtar)
+      ? mevcutListe
+      : [...mevcutListe, anahtar];
 
   const guncelAyarlar = {
     ...mevcutAyarlar,
-    sidebar_gizli: { ...mevcutSidebarGizli, [rol]: yeniRolListesi },
+    sidebar_gizli: { ...mevcutSidebarGizli, [departman]: yeniListe },
   };
 
   const { error } = await supabase
@@ -83,7 +84,7 @@ export async function sidebarMenuGorunurlukDegistir(
   }
 
   revalidatePath("/panel/ayarlar/yetkilendirme");
-  // Sidebar tüm /panel altında ortak layout'tan geliyor — rolü değişen
+  // Sidebar tüm /panel altında ortak layout'tan geliyor — departmanı değişen
   // kullanıcı bir sonraki sayfa geçişinde güncel listeyi görür.
   revalidatePath("/panel", "layout");
   return { success: true, message: gorunur ? "Menü açıldı." : "Menü kapatıldı." };

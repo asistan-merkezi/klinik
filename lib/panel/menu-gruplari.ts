@@ -46,16 +46,24 @@ export const SIDEBAR_YETKI_OGELERI: { key: string; label: string }[] = [
   { key: "ayarlar", label: "Ayarlar" },
 ];
 
-// klinik_ayarlar.ayarlar.sidebar_gizli hiç ayarlanmamışsa (yeni klinik veya
-// henüz Yetkilendirme'den hiç dokunulmamış) uygulanan varsayılan — eskiden
-// sidebar.tsx'te sabit kodlu olan "terapist Finans'ı görmez" kuralıyla
-// birebir aynı, geriye dönük davranış bozulmasın diye.
-export const SIDEBAR_GIZLI_VARSAYILAN: Record<string, string[]> = {
-  klinik_admin: [],
-  resepsiyon: [],
-  terapist: ["finans"],
-  muhasebe: [],
+// klinik_ayarlar.ayarlar.sidebar_gizli artık ROL değil DEPARTMAN (pozisyon.grup)
+// bazlı — bir kullanıcının hangi departmanda olduğu personel.pozisyon_id
+// üzerinden çözülüyor (bkz. app/(app)/panel/layout.tsx). Departman hiç
+// özelleştirilmemişse bu varsayılana düşülür — eskiden sidebar.tsx'te sabit
+// kodlu olan "terapist Finans'ı görmez" kuralıyla aynı, sadece anahtar artık
+// rol değil o kuralın fiilen karşılığı olan departman. Departman adları
+// Ayarlar > Personel Tanımlama'daki katalogla birebir eşleşmeli — katalog
+// değişirse (departman adı değişir/silinirse) burası da elle güncellenmeli,
+// merkezi bir kaynak değil (bkz. root CLAUDE.md "Teknik Borç" notu, aynı sınıf).
+export const SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN: Record<string, string[]> = {
+  "Klinik & Terapi Departmanı": ["finans"],
 };
+
+// Departman hiç çözülemezse (personel kaydı yok, pozisyon_id boş vb.) veya
+// klinik hiç departman kullanmıyorsa düşülecek son çare — hiçbir şey gizli
+// değil, sidebar tam görünür (link gizlemek erişim vermiyor/almıyor, en
+// güvenli varsayılan budur).
+export const SIDEBAR_GIZLI_BOS: string[] = [];
 
 export const MENU_GRUPLARI: MenuGrubu[] = [
   {

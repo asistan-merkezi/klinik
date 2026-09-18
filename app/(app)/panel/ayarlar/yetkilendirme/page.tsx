@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ROL_SECENEKLERI, type KullaniciRol } from "@/types/personel";
+import { ROL_SECENEKLERI } from "@/types/personel";
 import type { Pozisyon } from "@/types/pozisyon";
-import { SIDEBAR_GIZLI_VARSAYILAN } from "@/lib/panel/menu-gruplari";
+import { SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN } from "@/lib/panel/menu-gruplari";
 import { SidebarYetkiFormu } from "./sidebar-yetki-formu";
 
 export default async function YetkilendirmeSayfasi() {
@@ -37,14 +37,6 @@ export default async function YetkilendirmeSayfasi() {
     supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
   ]);
 
-  const sidebarGizliKayitli =
-    ((klinikAyarlar?.ayarlar as Record<string, unknown> | null)?.sidebar_gizli as
-      | Record<string, string[]>
-      | undefined) ?? {};
-  const baslangicGizli = Object.fromEntries(
-    ROL_SECENEKLERI.map((r) => [r.value, sidebarGizliKayitli[r.value] ?? SIDEBAR_GIZLI_VARSAYILAN[r.value] ?? []])
-  ) as Record<KullaniciRol, string[]>;
-
   const liste = pozisyonlar ?? [];
 
   // Personel Tanımlama'yla aynı gruplama: departman (grup), en küçük sıraya
@@ -61,6 +53,14 @@ export default async function YetkilendirmeSayfasi() {
     return minA - minB;
   });
 
+  const sidebarGizliKayitli =
+    ((klinikAyarlar?.ayarlar as Record<string, unknown> | null)?.sidebar_gizli as
+      | Record<string, string[]>
+      | undefined) ?? {};
+  const baslangicGizli: Record<string, string[]> = Object.fromEntries(
+    departmanAdlari.map((d) => [d, sidebarGizliKayitli[d] ?? SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN[d] ?? []])
+  );
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -74,8 +74,16 @@ export default async function YetkilendirmeSayfasi() {
           <CardHeader>
             <CardTitle>Sidebar Menü Görünürlüğü</CardTitle>
           </CardHeader>
-          <CardContent>
-            <SidebarYetkiFormu baslangicGizli={baslangicGizli} duzenlenebilir={duzenlenebilir} />
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              Departman bazlı — bir kişinin hangi menüleri göreceği, Personel Tanımlama&apos;da bağlı olduğu
+              departmana göre belirlenir (kişinin sistem rolüne göre değil).
+            </p>
+            <SidebarYetkiFormu
+              departmanlar={departmanAdlari}
+              baslangicGizli={baslangicGizli}
+              duzenlenebilir={duzenlenebilir}
+            />
           </CardContent>
         </Card>
 
