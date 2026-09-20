@@ -5,11 +5,13 @@ import { LoginForm } from "./login-form";
 
 /**
  * docs/DESIGN.md hedef görsel 3 — sol tanıtım paneli + sağ giriş kartı.
- * Auth mantığına dokunulmadı (LoginForm aynen). Referans görseldeki rol
- * sekmeleri, klinik kodu alanı, "oturumu açık tut" ve "kiosk modu başlat"
- * BİLİNÇLİ OLARAK EKLENMEDİ — hiçbirinin gerçek karşılığı yok: giriş tek bir
- * e-posta/şifre akışı (rol sonradan kullanici.rol'den çözülüyor, seçilmiyor),
- * subdomain/custom_domain kolonları şemada var ama hiçbir kod yolu
+ * Referans görseldeki rol sekmeleri, klinik kodu alanı, "oturumu açık tut"
+ * ve "kiosk modu başlat" BİLİNÇLİ OLARAK EKLENMEDİ — hiçbirinin gerçek
+ * karşılığı yok: giriş tek bir alan (LoginForm, 2026-09-20'de telefon/e-posta
+ * otomatik ayrımına geçti — @ içeriyorsa e-posta+klinik_admin/super_admin,
+ * değilse telefon+diğer roller; rol yine sonradan kullanici.rol'den
+ * çözülüyor/zorlanıyor, elle seçilmiyor), subdomain/custom_domain kolonları
+ * şemada var ama hiçbir kod yolu
  * kullanmıyor, şifre sıfırlama akışı hiç yok, ScheduledLogout zaten
  * resepsiyon/terapist oturumlarını her gece zorla kapatıyor ("açık tut"
  * checkbox'ı bunu değiştirmezdi), kiosk ekranı da girişten ayrı bir staff-PIN
@@ -84,7 +86,7 @@ export default function GirisSayfasi() {
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle className="text-lg">Klinik Giriş Portalı</CardTitle>
-            <CardDescription>E-posta ve şifrenizle giriş yapın.</CardDescription>
+            <CardDescription>Personel telefon numarasıyla, yönetici e-posta ile giriş yapar.</CardDescription>
           </CardHeader>
           <CardContent>
             <LoginForm />

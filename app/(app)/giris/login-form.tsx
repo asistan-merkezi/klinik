@@ -12,12 +12,12 @@ export function LoginForm() {
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="eposta">E-posta</Label>
+        <Label htmlFor="giris_adi">Telefon (personel) veya e-posta (yönetici)</Label>
         <Input
-          id="eposta"
-          name="eposta"
-          type="email"
-          autoComplete="email"
+          id="giris_adi"
+          name="giris_adi"
+          type="text"
+          autoComplete="username"
           required
           disabled={isPending}
         />
