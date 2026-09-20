@@ -23,7 +23,7 @@ export default async function PersonelTanimlamaSayfasi() {
 
   const { data: pozisyonSonucu } = await supabase
     .from("pozisyonlar")
-    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
+    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi, allowed_modules")
     .returns<Pozisyon[]>();
 
   const pozisyonlar = pozisyonSonucu ?? [];

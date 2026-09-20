@@ -92,7 +92,12 @@ export type PersonelDetay = {
   ise_baslama_notu: string | null;
   imza_yetkilisi_mi: boolean;
   puantaj_pin_guncelleme_tarihi: string | null;
-  kullanici: { telefon: string | null; rol: KullaniciRol } | null;
+  kullanici: {
+    telefon: string | null;
+    rol: KullaniciRol;
+    allowed_modules: string[];
+    custom_permissions_enabled: boolean;
+  } | null;
 };
 
 export type PersonelAcilKisi = {

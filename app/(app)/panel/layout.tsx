@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
+import { kullaniciModulleriGetir } from "@/lib/auth/roles-server";
 import { PanelSidebar } from "@/components/panel/sidebar";
 import { QueryProvider } from "@/components/panel/query-provider";
 import { bildirimSayisiGetir } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-sayisi";
-import { SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN, SIDEBAR_GIZLI_BOS } from "@/lib/panel/menu-gruplari";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const oturum = await gecerliKullanici();
@@ -21,34 +21,18 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // resepsiyon görür. klinik ve bildirim sayısı birbirinden bağımsız —
   // Promise.all ile paralel (önceden sıralıydı).
   const bildirimGorulebilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
-  const [{ data: klinik }, bildirimSayisi, { data: klinikAyarlar }, { data: personelKaydi }] = await Promise.all([
+  const [{ data: klinik }, bildirimSayisi, allowedModules] = await Promise.all([
     supabase
       .from("klinik")
       .select("ad, logo_url, logo_url_koyu, marka_renkleri, plan_turu")
       .eq("id", kullanici?.klinik_id ?? "")
       .maybeSingle(),
     bildirimGorulebilir ? bildirimSayisiGetir(supabase) : Promise.resolve(undefined),
-    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
-    // Sidebar Menü Görünürlüğü artık ROL değil kullanıcının bağlı olduğu
-    // pozisyonun DEPARTMANI bazlı — personel.pozisyon_id üzerinden çözülür.
-    supabase
-      .from("personel")
-      .select("pozisyon_id, pozisyonlar(grup)")
-      .eq("kullanici_id", user.id)
-      .maybeSingle<{ pozisyon_id: string | null; pozisyonlar: { grup: string } | null }>(),
+    // Sidebar görünürlüğü artık lib/auth/roles.ts > kullaniciModulleriGetir()
+    // tek kaynağından — Pozisyon şablonu ya da kullanıcıya özel override
+    // (bkz. Ayarlar > Yetkilendirme, Personel formu "Sistem Yetkileri").
+    kullaniciModulleriGetir(),
   ]);
-
-  const departman = personelKaydi?.pozisyonlar?.grup ?? null;
-
-  // Ayarlar > Yetkilendirme'deki Sidebar Menü Görünürlüğü — bu departman hiç
-  // özelleştirilmediyse SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN'a, departman hiç
-  // çözülemediyse (personel kaydı/pozisyon_id yok) tam görünür varsayılana düşer.
-  const sidebarGizli = (klinikAyarlar?.ayarlar as Record<string, unknown> | null)?.sidebar_gizli as
-    | Record<string, string[]>
-    | undefined;
-  const gizliMenuAnahtarlari = departman
-    ? (sidebarGizli?.[departman] ?? SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN[departman] ?? SIDEBAR_GIZLI_BOS)
-    : SIDEBAR_GIZLI_BOS;
 
   return (
     <QueryProvider>
@@ -58,7 +42,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         kullaniciAdi={kullanici?.ad_soyad ?? user.email ?? ""}
         kullaniciRolu={kullanici?.rol ?? "rol atanmamış"}
         bildirimSayisi={bildirimSayisi}
-        gizliMenuAnahtarlari={gizliMenuAnahtarlari}
+        allowedModules={allowedModules}
       >
         {children}
       </PanelSidebar>

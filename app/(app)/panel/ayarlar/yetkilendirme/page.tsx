@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import type { Pozisyon } from "@/types/pozisyon";
-import { SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN } from "@/lib/panel/menu-gruplari";
-import { SidebarYetkiFormu } from "./sidebar-yetki-formu";
+import { PozisyonIzinListesi } from "./pozisyon-izin-listesi";
 
 export default async function YetkilendirmeSayfasi() {
   const supabase = await createClient();
@@ -23,29 +22,26 @@ export default async function YetkilendirmeSayfasi() {
   const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
-  const [{ data: pozisyonlar }, { data: klinikAyarlar }] = await Promise.all([
-    // Departman sekmeleri Personel Tanımlama'daki departmanlarla birebir
-    // aynı olsun diye aynı kaynaktan (pozisyonlar.grup) türetiliyor.
-    supabase.from("pozisyonlar").select("grup, sira").order("sira").returns<Pick<Pozisyon, "grup" | "sira">[]>(),
-    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
-  ]);
+  const { data: pozisyonSonucu } = await supabase
+    .from("pozisyonlar")
+    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi, allowed_modules")
+    .returns<Pozisyon[]>();
 
-  const liste = pozisyonlar ?? [];
+  const pozisyonlar = pozisyonSonucu ?? [];
 
+  // Departman sekmeleri Personel Tanımlama'daki gruplarla birebir aynı kaynaktan
+  // (pozisyonlar.grup) türetiliyor — sıralama o gruptaki en küçük `sira`ya göre.
   const departmanSiralari = new Map<string, number>();
-  for (const poz of liste) {
+  const pozisyonlarByDepartman: Record<string, Pozisyon[]> = {};
+  for (const poz of pozisyonlar) {
     const mevcut = departmanSiralari.get(poz.grup);
     if (mevcut === undefined || poz.sira < mevcut) departmanSiralari.set(poz.grup, poz.sira);
+    (pozisyonlarByDepartman[poz.grup] ??= []).push(poz);
   }
-  const departmanAdlari = [...departmanSiralari.entries()].sort((a, b) => a[1] - b[1]).map(([grup]) => grup);
-
-  const sidebarGizliKayitli =
-    ((klinikAyarlar?.ayarlar as Record<string, unknown> | null)?.sidebar_gizli as
-      | Record<string, string[]>
-      | undefined) ?? {};
-  const baslangicGizli: Record<string, string[]> = Object.fromEntries(
-    departmanAdlari.map((d) => [d, sidebarGizliKayitli[d] ?? SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN[d] ?? []])
-  );
+  for (const liste of Object.values(pozisyonlarByDepartman)) {
+    liste.sort((a, b) => a.sira - b.sira);
+  }
+  const departmanlar = [...departmanSiralari.entries()].sort((a, b) => a[1] - b[1]).map(([grup]) => grup);
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -53,27 +49,24 @@ export default async function YetkilendirmeSayfasi() {
         <PageHeader
           icon={ShieldCheck}
           title="Yetkilendirme"
-          description="Departmanlara göre sidebar menü erişimini yönetin. Departman/pozisyon eklemek, çıkarmak ve aktif-pasif etmek Ayarlar → Personel Tanımlama'dan yapılır."
+          description="Her pozisyonun hangi modüllere erişeceğini belirleyin — sidebar görünürlüğü ve sayfa erişimi buradan beslenir. Departman/pozisyon eklemek, çıkarmak ve aktif-pasif etmek Ayarlar → Personel Tanımlama'dan yapılır."
         />
 
         <Card>
           <CardHeader>
-            <CardTitle>Departman Yetkilendirmesi</CardTitle>
+            <CardTitle>Modül İzinleri</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
-              Bir departman seçip hangi menülerin o departmandaki kişilere görüneceğini belirleyin. Bir kişinin
-              hangi departmanda sayıldığı, Personel Tanımlama&apos;da bağlı olduğu pozisyona göre belirlenir.
+              Bir pozisyon seçip &quot;İzinleri Düzenle&quot;ye tıklayarak o pozisyondaki kişilerin hangi modüllere
+              erişeceğini belirleyin. Bir kullanıcıya pozisyonundan farklı özel yetki tanımlamak için Personel
+              formundaki &quot;Sistem Yetkileri&quot; adımını kullanın.
             </p>
-            <SidebarYetkiFormu
-              departmanlar={departmanAdlari}
-              baslangicGizli={baslangicGizli}
+            <PozisyonIzinListesi
+              departmanlar={departmanlar}
+              pozisyonlarByDepartman={pozisyonlarByDepartman}
               duzenlenebilir={duzenlenebilir}
             />
-            <p className="text-xs text-muted-foreground">
-              Not: bu anahtarlar sadece sol menüdeki linki gizler/gösterir — sayfaların kendi erişim kontrolü
-              (klinik_admin, resepsiyon, terapist, muhasebe rollerine göre) ayrı ve değişmedi.
-            </p>
             <Button
               variant="outline"
               size="sm"

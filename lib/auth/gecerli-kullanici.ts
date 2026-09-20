@@ -6,6 +6,8 @@ type KullaniciSatiri = {
   klinik_id: string | null;
   ad_soyad: string | null;
   rol: "super_admin" | "klinik_admin" | "resepsiyon" | "terapist" | "muhasebe" | null;
+  allowed_modules: string[];
+  custom_permissions_enabled: boolean;
 };
 
 export type GecerliKullanici = {
@@ -43,7 +45,7 @@ export const gecerliKullanici = cache(async (): Promise<GecerliKullanici | null>
 
   const { data: kullanici } = await supabase
     .from("kullanici")
-    .select("id, klinik_id, ad_soyad, rol")
+    .select("id, klinik_id, ad_soyad, rol, allowed_modules, custom_permissions_enabled")
     .eq("id", claims.sub)
     .single<KullaniciSatiri>();
 

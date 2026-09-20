@@ -3,6 +3,7 @@ import { Receipt, HandCoins } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { MenuGrubuSayfasi } from "@/components/panel/menu-grubu-sayfasi";
 import type { MenuGrubu } from "@/lib/panel/menu-gruplari";
+import { erisimKontrolEt, kullaniciModulleriGetir } from "@/lib/auth/roles-server";
 
 const GRUP: MenuGrubu = {
   key: "gelirler-takibi",
@@ -29,5 +30,8 @@ export default async function GelirlerTakibiSayfasi() {
     redirect("/giris");
   }
 
-  return <MenuGrubuSayfasi grup={GRUP} />;
+  await erisimKontrolEt("finans.gelirler_takibi");
+  const allowedModules = await kullaniciModulleriGetir();
+
+  return <MenuGrubuSayfasi grup={GRUP} allowedModules={allowedModules} />;
 }

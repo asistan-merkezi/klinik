@@ -8,6 +8,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tcKimlikGecerliMi } from "@/lib/tc-kimlik";
 import { bugunTarih } from "@/lib/puantaj";
 import { formatTime, toUTC } from "@/lib/datetime";
+import { MODULE_TREE, type ModuleNode } from "@/lib/auth/roles";
+
+function tumModulAnahtarlari(dugumler: ModuleNode[], sonuc: string[] = []): string[] {
+  for (const dugum of dugumler) {
+    sonuc.push(dugum.key);
+    if (dugum.children) tumModulAnahtarlari(dugum.children, sonuc);
+  }
+  return sonuc;
+}
+const GECERLI_MODUL_ANAHTARLARI = new Set(tumModulAnahtarlari(MODULE_TREE));
+
+// "Sistem Yetkileri" adımındaki ModulAgaci tek bir gizli input'ta JSON dizi
+// olarak taşınıyor (egitim_json ile aynı desen) — burada ayrıştırılıp
+// bilinmeyen/bozuk anahtarlar elenir.
+function ozelModulleriAyristir(json: string): string[] {
+  if (!json) return [];
+  let ham: unknown;
+  try {
+    ham = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(ham)) return [];
+  return ham.filter((k): k is string => typeof k === "string" && GECERLI_MODUL_ANAHTARLARI.has(k));
+}
 
 // `uyari: true`, success olsa da mesajda kullanıcının GÖRMESİ gereken bir
 // kısmi hata var demektir (ör. T.C. Kimlik şifreleme anahtarı kurulu değil)
@@ -100,7 +125,6 @@ const kisiselIsSemasi = z.object({
   acil_yakinlik: z.string().trim().optional().or(z.literal("")),
   acil_telefon: z.string().trim().optional().or(z.literal("")),
   pozisyon_id: z.string().trim().min(1, "Pozisyon seçilmeli."),
-  departman: z.string().trim().optional().or(z.literal("")),
   ise_giris_tarihi: z.string().trim().optional().or(z.literal("")),
   isten_cikis_tarihi: z.string().trim().optional().or(z.literal("")),
   calisma_tipi: z.enum(["tam_zamanli", "yari_zamanli", "vardiyali", "prim_usulu"]).optional().or(z.literal("")),
@@ -108,6 +132,8 @@ const kisiselIsSemasi = z.object({
   imza_yetkilisi_mi: z.string().trim().optional().or(z.literal("")),
   egitim_json: z.string().trim().optional().or(z.literal("")),
   rol: z.enum(["klinik_admin", "resepsiyon", "terapist", "muhasebe"]),
+  custom_permissions_enabled: z.string().trim().optional().or(z.literal("")),
+  allowed_modules_json: z.string().trim().optional().or(z.literal("")),
   tc_kimlik_no: z
     .string()
     .trim()
@@ -147,7 +173,6 @@ function formVerisiTopla(formData: FormData) {
     acil_yakinlik: formData.get("acil_yakinlik") ?? "",
     acil_telefon: formData.get("acil_telefon") ?? "",
     pozisyon_id: formData.get("pozisyon_id"),
-    departman: formData.get("departman") ?? "",
     ise_giris_tarihi: formData.get("ise_giris_tarihi") ?? "",
     isten_cikis_tarihi: formData.get("isten_cikis_tarihi") ?? "",
     calisma_tipi: formData.get("calisma_tipi") ?? "",
@@ -155,6 +180,8 @@ function formVerisiTopla(formData: FormData) {
     imza_yetkilisi_mi: formData.get("imza_yetkilisi_mi") ?? "",
     egitim_json: formData.get("egitim_json") ?? "",
     rol: formData.get("rol"),
+    custom_permissions_enabled: formData.get("custom_permissions_enabled") ?? "",
+    allowed_modules_json: formData.get("allowed_modules_json") ?? "",
     tc_kimlik_no: formData.get("tc_kimlik_no") ?? "",
     pasaport_no: formData.get("pasaport_no") ?? "",
     diploma_no: formData.get("diploma_no") ?? "",
@@ -169,6 +196,16 @@ function formVerisiTopla(formData: FormData) {
 }
 
 type FormVerisi = z.infer<typeof kisiselIsSemasi>;
+
+// klinik_admin pozisyon mirasıyla zaten "*" alır — self-escalation kaygısıyla
+// tutarlı (bkz. personel-formu.tsx aynı kural), bu rolde override sunucuda da
+// zorla kapatılır (client tarafı zaten göstermiyor, burası savunma amaçlı).
+function ozelYetkiAlanlari(veri: FormVerisi): { custom_permissions_enabled: boolean; allowed_modules: string[] } {
+  if (veri.rol === "klinik_admin" || veri.custom_permissions_enabled !== "on") {
+    return { custom_permissions_enabled: false, allowed_modules: [] };
+  }
+  return { custom_permissions_enabled: true, allowed_modules: ozelModulleriAyristir(veri.allowed_modules_json ?? "") };
+}
 
 type EgitimSatiri = { derece: string | null; okul: string | null; bolum: string | null; yil: string | null };
 
@@ -353,7 +390,7 @@ export async function personelHesabiOlustur(
 
   const { data: pozisyon } = await supabase
     .from("pozisyonlar")
-    .select("id, ad, aktif")
+    .select("id, ad, grup, aktif")
     .eq("id", veri.pozisyon_id)
     .eq("klinik_id", klinikId)
     .maybeSingle();
@@ -385,6 +422,7 @@ export async function personelHesabiOlustur(
     rol: veri.rol,
     ad_soyad: veri.ad_soyad,
     telefon: veri.gsm,
+    ...ozelYetkiAlanlari(veri),
   });
 
   if (kullaniciError) {
@@ -405,7 +443,7 @@ export async function personelHesabiOlustur(
       dogum_yeri: veri.dogum_yeri || null,
       cinsiyet: veri.cinsiyet || null,
       eposta: eposta.trim(),
-      departman: veri.departman || null,
+      departman: pozisyon.grup,
       calisma_tipi: veri.calisma_tipi || null,
       sgk_sicil_no: veri.sgk_sicil_no || null,
       ise_giris_tarihi: veri.ise_giris_tarihi || null,
@@ -512,7 +550,7 @@ export async function personelBilgileriGuncelle(
 
   const { data: pozisyon } = await supabase
     .from("pozisyonlar")
-    .select("id, ad, aktif")
+    .select("id, ad, grup, aktif")
     .eq("id", veri.pozisyon_id)
     .eq("klinik_id", klinikId)
     .maybeSingle();
@@ -536,7 +574,7 @@ export async function personelBilgileriGuncelle(
       dogum_tarihi: veri.dogum_tarihi || null,
       dogum_yeri: veri.dogum_yeri || null,
       cinsiyet: veri.cinsiyet || null,
-      departman: veri.departman || null,
+      departman: pozisyon.grup,
       calisma_tipi: veri.calisma_tipi || null,
       sgk_sicil_no: veri.sgk_sicil_no || null,
       ise_giris_tarihi: veri.ise_giris_tarihi || null,
@@ -557,7 +595,7 @@ export async function personelBilgileriGuncelle(
   if (mevcutPersonel.kullanici_id) {
     await adminClient
       .from("kullanici")
-      .update({ ad_soyad: veri.ad_soyad, telefon: veri.gsm, rol: veri.rol })
+      .update({ ad_soyad: veri.ad_soyad, telefon: veri.gsm, rol: veri.rol, ...ozelYetkiAlanlari(veri) })
       .eq("id", mevcutPersonel.kullanici_id);
   }
 
