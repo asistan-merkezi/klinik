@@ -39,12 +39,18 @@ export function SidebarYetkiFormu({
     });
   }
 
-  if (departmanlar.length === 0) {
-    return <p className="text-sm text-muted-foreground">Önce Personel Tanımlama&apos;dan bir departman/pozisyon eklenmeli.</p>;
-  }
-
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1 rounded-xl border border-border p-4">
+        <h3 className="text-sm font-medium">Hastalar</h3>
+        <p className="text-xs text-muted-foreground">
+          Not: hastalar personel değildir, bir departmana girmez. Kendi şifresiyle Hasta Portalı&apos;na giriş
+          yaptığında yalnızca kendi hasta detay bölümünü görür.
+        </p>
+      </div>
+      {departmanlar.length === 0 && (
+        <p className="text-sm text-muted-foreground">Önce Personel Tanımlama&apos;dan bir departman/pozisyon eklenmeli.</p>
+      )}
       {departmanlar.map((departman) => (
         <div key={departman} className="flex flex-col gap-1 rounded-xl border border-border p-4">
           <h3 className="text-sm font-medium">
