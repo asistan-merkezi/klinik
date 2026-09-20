@@ -1009,6 +1009,7 @@ const randevuErtelePanelSemasi = z.object({
 
 const hastaYorumPanelSemasi = z.object({
   randevu_id: z.string().uuid("Randevu seçilmeli."),
+  puan: z.coerce.number().refine((n) => Number.isInteger(n) && n >= 1 && n <= 5, "Bir puan seçilmeli."),
   yorum: z.string().trim().min(1, "Yorum gerekli."),
 });
 
@@ -1107,6 +1108,7 @@ export async function talepOneriGonder(
   } else {
     const ayristirma = hastaYorumPanelSemasi.safeParse({
       randevu_id: formData.get("randevu_id"),
+      puan: formData.get("puan"),
       yorum: formData.get("yorum"),
     });
     if (!ayristirma.success) {
@@ -1115,6 +1117,7 @@ export async function talepOneriGonder(
     const { error } = await supabase.from("hasta_yorum").insert({
       randevu_id: ayristirma.data.randevu_id,
       tur,
+      puan: ayristirma.data.puan,
       yorum: ayristirma.data.yorum,
       olusturan_kullanici_id: userId,
     });

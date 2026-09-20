@@ -40,6 +40,14 @@ const TALEP_TURU_SECENEKLERI: { value: TalepTuru; label: string; icon: LucideIco
 
 const KATILDI_DURUMLARI = ["geldi", "gecikmeli_geldi", "tamamlandi"];
 
+const PUAN_SECENEKLERI: { deger: number; emoji: string; etiket: string }[] = [
+  { deger: 1, emoji: "😟", etiket: "Çok Yetersiz" },
+  { deger: 2, emoji: "🙁", etiket: "Yetersiz" },
+  { deger: 3, emoji: "😐", etiket: "Orta" },
+  { deger: 4, emoji: "🙂", etiket: "İyi" },
+  { deger: 5, emoji: "😊", etiket: "Çok İyi" },
+];
+
 const TALEP_DURUM_TONU: Record<IptalTalebiDurum, StatusTone> = {
   bekliyor: "amber",
   onaylandi: "emerald",
@@ -65,12 +73,14 @@ export function TalepOneriModal({
   const [tur, setTur] = useState<TalepTuru>("randevu_talebi");
   const [terapistId, setTerapistId] = useState<string>("");
   const [randevuId, setRandevuId] = useState<string>("");
+  const [puan, setPuan] = useState<number | null>(null);
 
   const gonder = async (onceki: Awaited<ReturnType<typeof talepOneriGonder>>, formData: FormData) => {
     const sonuc = await talepOneriGonder(hastaId, onceki, formData);
     if (sonuc?.success) {
       queryClient.invalidateQueries({ queryKey: ["hasta_talep_oneri", hastaId] });
       setRandevuId("");
+      setPuan(null);
     }
     return sonuc;
   };
@@ -115,6 +125,7 @@ export function TalepOneriModal({
     setTur(yeniTur);
     setTerapistId("");
     setRandevuId("");
+    setPuan(null);
   }
 
   const randevuTalepleri = talepler?.randevuTalepleri ?? [];
@@ -341,6 +352,36 @@ export function TalepOneriModal({
                   </SelectContent>
                 </Select>
               )}
+
+              <input type="hidden" name="puan" value={puan ?? ""} />
+              <Label>Puan</Label>
+              <div className="flex gap-1.5">
+                {PUAN_SECENEKLERI.map((p) => {
+                  const secili = puan === p.deger;
+                  return (
+                    <button
+                      key={p.deger}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => setPuan(p.deger)}
+                      className={cn(
+                        "flex flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 text-center transition-colors disabled:pointer-events-none disabled:opacity-50",
+                        secili
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-surface-2 hover:border-input hover:bg-background"
+                      )}
+                    >
+                      <span className="text-xl leading-none" aria-hidden>
+                        {p.emoji}
+                      </span>
+                      <span className={cn("text-[10px] leading-tight font-medium", secili ? "text-primary" : "text-muted-foreground")}>
+                        {p.etiket}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <textarea
                 name="yorum"
                 rows={3}
