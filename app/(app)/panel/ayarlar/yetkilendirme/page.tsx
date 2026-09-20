@@ -85,10 +85,6 @@ export default async function YetkilendirmeSayfasi() {
               baslangicGizli={baslangicGizli}
               duzenlenebilir={duzenlenebilir}
             />
-            <p className="text-xs text-muted-foreground">
-              Not: Klinik & Terapi Departmanı&apos;ndaki kişiler (terapist), departmandan bağımsız olarak Hasta
-              Detayı&apos;nda Kişisel Bilgiler ve Cari &amp; Ödeme bölümlerini hiçbir zaman göremez.
-            </p>
           </CardContent>
         </Card>
       </div>

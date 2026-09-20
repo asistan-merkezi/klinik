@@ -68,6 +68,12 @@ export function SidebarYetkiFormu({
               );
             })}
           </ul>
+          {departman === "Klinik & Terapi Departmanı" && (
+            <p className="pt-2 text-xs text-muted-foreground">
+              Not: bu departmandaki kişiler (terapist), departmandan bağımsız olarak Hasta Detayı&apos;nda Kişisel
+              Bilgiler ve Cari &amp; Ödeme bölümlerini hiçbir zaman göremez.
+            </p>
+          )}
         </div>
       ))}
       {hata && <p className="text-xs text-destructive">{hata}</p>}
