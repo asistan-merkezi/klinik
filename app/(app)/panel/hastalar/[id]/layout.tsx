@@ -55,11 +55,7 @@ export default async function HastaDetayLayout({
           telefon={hasta.telefon}
           eposta={hasta.eposta}
           dogumTarihi={hasta.dogum_tarihi}
-          cinsiyet={hasta.cinsiyet}
-          kategori={hasta.kategori}
           kalanPaketHakki={ozet?.kalan_paket_hakki ?? null}
-          riskBayraklariBos={hasta.risk_bayraklari.length === 0}
-          eklenebilir={riskEklenebilir}
         />
 
         {children}

@@ -1,15 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Phone, Mail, ShieldAlert } from "lucide-react";
+import Link from "next/link";
+import { Phone, Mail, CalendarClock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { telefonGoster } from "@/lib/utils";
-import { RiskDetayModal } from "./risk-bandi";
 import { useHastaSigortalar } from "./queries";
-import type { Cinsiyet, HastaKategori } from "@/types/hasta";
 
 function yasHesapla(dogumTarihi: string | null): number | null {
   if (!dogumTarihi) return null;
@@ -22,19 +20,6 @@ function yasHesapla(dogumTarihi: string | null): number | null {
   }
   return yas;
 }
-
-const CINSIYET_ETIKETLERI: Record<Cinsiyet, string | null> = {
-  kadin: "Kadın",
-  erkek: "Erkek",
-  belirtilmemis: null,
-};
-
-const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
-  vita: "Vita",
-  plus: "Plus",
-  elit: "Elit",
-  prime: "Prime",
-};
 
 /**
  * Dosya başlığı (docs/DESIGN.md hedef görsel). Referans görseldeki "Seansı
@@ -54,27 +39,16 @@ export function OzetKart({
   telefon,
   eposta,
   dogumTarihi,
-  cinsiyet,
-  kategori,
   kalanPaketHakki,
-  riskBayraklariBos,
-  eklenebilir,
 }: {
   hastaId: string;
   adSoyad: string;
   telefon: string;
   eposta: string | null;
   dogumTarihi: string | null;
-  cinsiyet: Cinsiyet | null;
-  kategori: HastaKategori;
   kalanPaketHakki: number | null;
-  riskBayraklariBos: boolean;
-  eklenebilir: boolean;
 }) {
-  const [modalAcik, setModalAcik] = useState(false);
-  const [formAcik, setFormAcik] = useState(false);
   const yas = yasHesapla(dogumTarihi);
-  const cinsiyetEtiketi = cinsiyet ? CINSIYET_ETIKETLERI[cinsiyet] : null;
   const { data: sigortalar } = useHastaSigortalar(hastaId, true);
   const sigortaliMi = (sigortalar?.length ?? 0) > 0;
 
@@ -84,15 +58,7 @@ export function OzetKart({
         <div className="flex items-start gap-3">
           <Avatar name={adSoyad} />
           <div className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-foreground">{adSoyad}</h1>
-              <StatusBadge tone="slate">{KATEGORI_ETIKETLERI[kategori]}</StatusBadge>
-              {cinsiyetEtiketi && (
-                <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
-                  {cinsiyetEtiketi}
-                </span>
-              )}
-            </div>
+            <h1 className="text-xl font-semibold text-foreground">{adSoyad}</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <a href={`tel:${telefon}`} className="flex items-center gap-1.5 tabular-nums hover:text-foreground">
                 <Phone className="size-3.5 shrink-0 text-primary" aria-hidden />
@@ -115,32 +81,18 @@ export function OzetKart({
           </div>
         </div>
 
-        {riskBayraklariBos && eklenebilir && (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 shrink-0 gap-1.5 px-3 text-muted-foreground"
-              onClick={() => {
-                setModalAcik(true);
-                setFormAcik(true);
-              }}
-            >
-              <ShieldAlert className="size-4" aria-hidden />
-              Risk Bayrağı
-            </Button>
-            <RiskDetayModal
-              acik={modalAcik}
-              onOpenChange={setModalAcik}
-              hastaId={hastaId}
-              riskBayraklari={[]}
-              eklenebilir={eklenebilir}
-              formAcik={formAcik}
-              setFormAcik={setFormAcik}
-            />
-          </>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 shrink-0 gap-1.5 px-3 text-muted-foreground"
+          nativeButton={false}
+          render={
+            <Link href={`/panel/hastalar/${hastaId}/randevu`}>
+              <CalendarClock className="size-4" aria-hidden />
+              Randevu Takip
+            </Link>
+          }
+        />
       </CardContent>
     </Card>
   );
