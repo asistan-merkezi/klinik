@@ -1,13 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Phone, Mail, CalendarClock } from "lucide-react";
+import { Phone, Mail, CalendarClock, MessageSquareHeart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { telefonGoster } from "@/lib/utils";
+import { DURUM_TONU_SINIFLARI } from "@/lib/ui/durum-tonlari";
+import { cn, telefonGoster } from "@/lib/utils";
 import { useHastaSigortalar } from "./queries";
+import { TalepOneriModal } from "./talep-oneri-modal";
+
+const KUTU_SINIFI =
+  "flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:brightness-95";
 
 function yasHesapla(dogumTarihi: string | null): number | null {
   if (!dogumTarihi) return null;
@@ -48,6 +53,7 @@ export function OzetKart({
   dogumTarihi: string | null;
   kalanPaketHakki: number | null;
 }) {
+  const [talepModalAcik, setTalepModalAcik] = useState(false);
   const yas = yasHesapla(dogumTarihi);
   const { data: sigortalar } = useHastaSigortalar(hastaId, true);
   const sigortaliMi = (sigortalar?.length ?? 0) > 0;
@@ -81,18 +87,22 @@ export function OzetKart({
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 shrink-0 gap-1.5 px-3 text-muted-foreground"
-          nativeButton={false}
-          render={
-            <Link href={`/panel/hastalar/${hastaId}/randevu`}>
-              <CalendarClock className="size-4" aria-hidden />
-              Randevu Takip
-            </Link>
-          }
-        />
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link href={`/panel/hastalar/${hastaId}/randevu`} className={cn(KUTU_SINIFI, DURUM_TONU_SINIFLARI.primary)}>
+            <CalendarClock className="size-4" aria-hidden />
+            Randevu Takip
+          </Link>
+          <button
+            type="button"
+            onClick={() => setTalepModalAcik(true)}
+            className={cn(KUTU_SINIFI, DURUM_TONU_SINIFLARI.amber)}
+          >
+            <MessageSquareHeart className="size-4" aria-hidden />
+            Talep ve Öneriler
+          </button>
+        </div>
+
+        <TalepOneriModal acik={talepModalAcik} onOpenChange={setTalepModalAcik} hastaId={hastaId} />
       </CardContent>
     </Card>
   );

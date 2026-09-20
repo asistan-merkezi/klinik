@@ -17,6 +17,7 @@ import type {
   HastaAnamnezKaydi,
   SikayetDurumu,
 } from "@/types/hasta-detay";
+import type { IptalTalebiDurum, PortalRandevuTalebiSatir } from "@/types/portal";
 
 export function useHastaDetayOzet(hastaId: string) {
   return useQuery({
@@ -412,6 +413,70 @@ export function useHastaOlcumler(hastaId: string, aktif: boolean) {
         .returns<HastaOlcum[]>();
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+export type HastaIptalTalebiSatir = {
+  id: string;
+  durum: IptalTalebiDurum;
+  created_at: string;
+  randevuBaslangic: string;
+};
+
+type RandevuIptalEmbedSatir = {
+  id: string;
+  baslangic: string;
+  randevu_iptal_talebi: { id: string; durum: IptalTalebiDurum; created_at: string } | null;
+};
+
+/**
+ * OzetKart'taki "Talep ve Öneriler" kutusu için — hastanın portaldan
+ * gönderdiği randevu_talebi + randevu_iptal_talebi kayıtları. İptal talebi
+ * kendi tablosunda hasta_id taşımıyor (yalnız randevu_id) — ayrı sorgu yerine
+ * randevu üzerinden embed edilip client'ta filtreleniyor (hasta zaten tek
+ * bir randevu kümesine sahip, filtrelenen embed'i ayrı sorguya çevirmenin
+ * getirisi yok).
+ */
+export function useHastaTalepVeOneriler(hastaId: string, aktif: boolean) {
+  return useQuery({
+    queryKey: ["hasta_talep_oneri", hastaId],
+    enabled: aktif,
+    queryFn: async () => {
+      const supabase = createClient();
+      const [randevuTalepleriSonucu, randevularSonucu] = await Promise.all([
+        supabase
+          .from("randevu_talebi")
+          .select("id, islem_tanimi(ad), tercih_tarih, tercih_saat, not_metni, durum, created_at")
+          .eq("hasta_id", hastaId)
+          .order("created_at", { ascending: false })
+          .returns<PortalRandevuTalebiSatir[]>(),
+        supabase
+          .from("randevu")
+          .select("id, baslangic, randevu_iptal_talebi(id, durum, created_at)")
+          .eq("hasta_id", hastaId)
+          .order("baslangic", { ascending: false })
+          .limit(200)
+          .returns<RandevuIptalEmbedSatir[]>(),
+      ]);
+      if (randevuTalepleriSonucu.error) throw randevuTalepleriSonucu.error;
+      if (randevularSonucu.error) throw randevularSonucu.error;
+
+      const iptalTalepleri: HastaIptalTalebiSatir[] = (randevularSonucu.data ?? [])
+        .filter((r): r is RandevuIptalEmbedSatir & { randevu_iptal_talebi: NonNullable<RandevuIptalEmbedSatir["randevu_iptal_talebi"]> } =>
+          r.randevu_iptal_talebi != null
+        )
+        .map((r) => ({
+          id: r.randevu_iptal_talebi.id,
+          durum: r.randevu_iptal_talebi.durum,
+          created_at: r.randevu_iptal_talebi.created_at,
+          randevuBaslangic: r.baslangic,
+        }));
+
+      return {
+        randevuTalepleri: randevuTalepleriSonucu.data ?? [],
+        iptalTalepleri,
+      };
     },
   });
 }
