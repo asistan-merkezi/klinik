@@ -28,9 +28,9 @@ export default async function YetkilendirmeSayfasi() {
     // aynı olsun diye aynı kaynaktan (pozisyonlar.grup) türetiliyor.
     supabase
       .from("pozisyonlar")
-      .select("ad, grup, sira, aktif")
+      .select("ad, grup, sira")
       .order("sira")
-      .returns<Pick<Pozisyon, "ad" | "grup" | "sira" | "aktif">[]>(),
+      .returns<Pick<Pozisyon, "ad" | "grup" | "sira">[]>(),
     supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
   ]);
 
@@ -44,9 +44,12 @@ export default async function YetkilendirmeSayfasi() {
   const departmanAdlari = [...departmanSiralari.entries()].sort((a, b) => a[1] - b[1]).map(([grup]) => grup);
 
   // Başlığın yanında görünen "(İşletme Ortağı, Klinik Yöneticisi)" gibi liste —
-  // yalnız aktif pozisyonlar, Personel Tanımlama'daki sırayla.
+  // departman sekmesi de aktif/pasif ayrımı yapmadan tüm pozisyonlardan
+  // türetildiği için (yukarıdaki departmanAdlari) burada da aynı kaynak
+  // kullanılıyor, yoksa hiç aktif pozisyonu olmayan bir departman sekmesi
+  // görünüp yanındaki liste boş kalıyordu.
   const departmanPozisyonlari = new Map<string, string[]>();
-  for (const poz of [...liste].filter((p) => p.aktif).sort((a, b) => a.sira - b.sira)) {
+  for (const poz of [...liste].sort((a, b) => a.sira - b.sira)) {
     const mevcut = departmanPozisyonlari.get(poz.grup) ?? [];
     mevcut.push(poz.ad);
     departmanPozisyonlari.set(poz.grup, mevcut);
