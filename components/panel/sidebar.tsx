@@ -15,27 +15,24 @@ import {
 import { cn } from "@/lib/utils";
 import { cikisYap } from "@/app/(app)/panel/actions";
 import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
-import { canAccessModule, moduleKeyForRoute } from "@/lib/auth/roles";
 import { PanelLogo } from "@/components/panel/panel-logo";
 import { UstBar } from "@/components/panel/ust-bar";
 import { Avatar } from "@/components/ui/avatar";
 import type { Klinik } from "@/types/klinik";
 
 const ANA_OGELER = [
-  { key: "ana_ekran", href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
+  { key: "ana-ekran", href: "/panel", label: "Ana Ekran", icon: Home, tamEslesme: true },
   { key: "hastalar", href: "/panel/hastalar", label: "Hastalar", icon: Users },
   { key: "randevular", href: "/panel/randevular", label: "Randevular", icon: CalendarDays },
 ];
 
 // Sidebar'daki üst seviye linklerin (Ana Ekran/Hastalar/Randevular +
-// MENU_GRUPLARI'ndaki Finans/Yönetim/Ayarlar) görünürlüğü lib/auth/roles.ts'teki
-// MODULE_TREE/canAccessModule'den geliyor (Pozisyon şablonu + kullanıcı
-// override, bkz. Ayarlar > Yetkilendirme) — `allowedModules` prop'uyla buraya
-// geliyor (bkz. app/(app)/panel/layout.tsx). Bir grup için doğrudan izin
-// olmasa bile en az bir alt öğeye erişim varsa grup görünür kalır (Partial
-// Visibility) — hangi alt öğelerin gerçekten göründüğü grubun kendi hub
-// sayfasında (MenuGrubuSayfasi) ayrıca süzülür. "Destek" bu listede hiç yok,
-// her zaman açık (canAccessModule özel durumu).
+// MENU_GRUPLARI'ndaki Finans/Yönetim/Ayarlar) rol bazlı görünürlüğü artık
+// sabit kodlu değil — Ayarlar > Yetkilendirme'de yönetiliyor, `gizliMenuAnahtarlari`
+// prop'uyla buraya geliyor (bkz. app/(app)/panel/layout.tsx). "Destek" bu
+// listede hiç yok, her rol için hep açık. NOT: bu SADECE linki gizler —
+// sayfaların kendi rol kontrolleri (her page.tsx kendi içinde) ayrı ve
+// değişmedi, bkz. root CLAUDE.md "Teknik Borç: Sidebar rol görünürlüğü".
 
 const BOTTOM_NAV_OGELERI = [
   { href: "/panel", label: "Panel", icon: Home, tamEslesme: true },
@@ -92,7 +89,7 @@ function SidebarGovde({
   klinikPlani,
   kullaniciAdi,
   kullaniciRolu,
-  allowedModules,
+  gizliMenuAnahtarlari,
   pathname,
   linkTiklandi,
 }: {
@@ -100,7 +97,7 @@ function SidebarGovde({
   klinikPlani: string | null;
   kullaniciAdi: string;
   kullaniciRolu: string;
-  allowedModules: string[];
+  gizliMenuAnahtarlari: string[];
   pathname: string;
   linkTiklandi?: () => void;
 }) {
@@ -134,7 +131,7 @@ function SidebarGovde({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-        {ANA_OGELER.filter((oge) => canAccessModule(allowedModules, oge.key)).map((oge) => (
+        {ANA_OGELER.filter((oge) => !gizliMenuAnahtarlari.includes(oge.key)).map((oge) => (
           <SidebarLink
             key={oge.href}
             href={oge.href}
@@ -145,11 +142,7 @@ function SidebarGovde({
           />
         ))}
 
-        {MENU_GRUPLARI.filter(
-          (grup) =>
-            canAccessModule(allowedModules, grup.key) ||
-            grup.ogeler.some((oge) => canAccessModule(allowedModules, moduleKeyForRoute(oge.href) ?? grup.key))
-        ).map((grup) => {
+        {MENU_GRUPLARI.filter((grup) => !gizliMenuAnahtarlari.includes(grup.key)).map((grup) => {
           const grupHref = `/panel/${grup.key}`;
           const grupAktif =
             girdiAktifMi(pathname, grupHref) || grup.ogeler.some((o) => girdiAktifMi(pathname, o.href));
@@ -193,7 +186,7 @@ export function PanelSidebar({
   klinikPlani,
   kullaniciAdi,
   kullaniciRolu,
-  allowedModules,
+  gizliMenuAnahtarlari,
   bildirimSayisi,
   children,
 }: {
@@ -201,7 +194,7 @@ export function PanelSidebar({
   klinikPlani: string | null;
   kullaniciAdi: string;
   kullaniciRolu: string;
-  allowedModules: string[];
+  gizliMenuAnahtarlari: string[];
   bildirimSayisi?: number;
   children: React.ReactNode;
 }) {
@@ -311,7 +304,7 @@ export function PanelSidebar({
               klinikPlani={klinikPlani}
               kullaniciAdi={kullaniciAdi}
               kullaniciRolu={kullaniciRolu}
-              allowedModules={allowedModules}
+              gizliMenuAnahtarlari={gizliMenuAnahtarlari}
               pathname={pathname}
               linkTiklandi={() => setMenuAcik(false)}
             />

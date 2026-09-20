@@ -25,5 +25,4 @@ export type Pozisyon = {
   ucret_tipi: UcretTipi;
   puantaj_modu: PuantajModu;
   ozel_mi: boolean;
-  allowed_modules: string[];
 };

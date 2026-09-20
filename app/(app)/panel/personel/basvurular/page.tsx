@@ -51,7 +51,7 @@ export default async function BasvurularSayfasi() {
   // sadece aktif pozisyonlar (bkz. Ayarlar → Personel Tanımlama).
   const { data: pozisyonlarSonucu } = await supabase
     .from("pozisyonlar")
-    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi, allowed_modules")
+    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
     .eq("aktif", true)
     .order("sira")
     .returns<Pozisyon[]>();

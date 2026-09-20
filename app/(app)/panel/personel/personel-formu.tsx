@@ -5,9 +5,7 @@ import { AdresSecici } from "@/components/ui/AdresSecici";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { TelefonGirisi } from "@/components/ui/TelefonGirisi";
-import { ModulAgaci } from "@/components/panel/modul-agaci";
 import {
   Select,
   SelectContent,
@@ -79,17 +77,12 @@ export function PersonelFormu(props: Props) {
   const meslekiVar = rol === "terapist";
   const sonAdim = meslekiVar ? 4 : 3;
 
-  const [ozelYetkiAcik, setOzelYetkiAcik] = useState(initialData?.kullanici?.custom_permissions_enabled ?? false);
-  const [ozelModuller, setOzelModuller] = useState<string[]>(initialData?.kullanici?.allowed_modules ?? []);
-
   const [adSoyad, setAdSoyad] = useState(initialData?.ad_soyad ?? basvuru?.ad_soyad ?? "");
   const [dogumYeri, setDogumYeri] = useState(initialData?.dogum_yeri ?? "");
   const [acilAdSoyad, setAcilAdSoyad] = useState(initialAcilKisi?.ad_soyad ?? "");
   const [acilYakinlik, setAcilYakinlik] = useState(initialAcilKisi?.yakinlik ?? "");
   const [pozisyonId, setPozisyonId] = useState(initialData?.pozisyon_id ?? props.pozisyonlar[0]?.id ?? "");
-  // Departman artık serbest metin değil — seçilen Pozisyon'un grubundan (Ayarlar →
-  // Personel Tanımlama / Yetkilendirme'deki AYNI kaynak) otomatik türetilir, elle girilemez.
-  const departman = props.pozisyonlar.find((p) => p.id === pozisyonId)?.grup ?? "";
+  const [departman, setDepartman] = useState(initialData?.departman ?? "");
   const [imzaYetkilisiMi, setImzaYetkilisiMi] = useState(initialData?.imza_yetkilisi_mi ?? false);
   const [egitimSatirlari, setEgitimSatirlari] = useState<EgitimSatiri[]>(
     initialEgitim.map((e) => ({ derece: e.derece ?? "", okul: e.okul ?? "", bolum: e.bolum ?? "", yil: e.yil ?? "" }))
@@ -401,10 +394,13 @@ export function PersonelFormu(props: Props) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="departman">Departman</Label>
-            <Input id="departman" disabled value={departman || "—"} />
-            <p className="text-xs text-muted-foreground">
-              Pozisyon&apos;a göre otomatik belirlenir (Ayarlar → Personel Tanımlama&apos;daki grup).
-            </p>
+            <Input
+              id="departman"
+              name="departman"
+              disabled={isPending}
+              value={departman}
+              onChange={(e) => setDepartman(isimBasHarfBuyukYap(e.target.value))}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="calisma_tipi">Çalışma Tipi</Label>
@@ -571,36 +567,6 @@ export function PersonelFormu(props: Props) {
             Rol &quot;Terapist&quot; seçilirse Mesleki Belgeler adımı da gösterilir.
           </p>
         </div>
-
-        {/* klinik_admin zaten pozisyon mirasıyla "*" (tüm modüller) alır —
-            self-escalation kaygısıyla tutarlı, bu rolde override sunulmuyor. */}
-        {rol !== "klinik_admin" && (
-          <div className="flex flex-col gap-2 border-t border-border pt-4">
-            <label className="flex items-center justify-between gap-2 text-sm">
-              <span>Pozisyondan Farklı Özel Yetki Tanımla</span>
-              <Switch
-                checked={ozelYetkiAcik}
-                disabled={isPending}
-                onCheckedChange={(acik) => {
-                  setOzelYetkiAcik(acik);
-                  if (acik && ozelModuller.length === 0) {
-                    const secilenPozisyon = props.pozisyonlar.find((p) => p.id === pozisyonId);
-                    setOzelModuller(secilenPozisyon?.allowed_modules ?? []);
-                  }
-                }}
-              />
-            </label>
-            {ozelYetkiAcik ? (
-              <ModulAgaci value={ozelModuller} onValueChange={setOzelModuller} disabled={isPending} />
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Kapalıyken bu personel bağlı olduğu pozisyonun izinlerini kullanır.
-              </p>
-            )}
-          </div>
-        )}
-        <input type="hidden" name="custom_permissions_enabled" value={rol !== "klinik_admin" && ozelYetkiAcik ? "on" : ""} />
-        <input type="hidden" name="allowed_modules_json" value={JSON.stringify(ozelModuller)} />
       </div>
 
       {durum && (

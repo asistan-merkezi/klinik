@@ -75,7 +75,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, pozisyon_id, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol, allowed_modules, custom_permissions_enabled)"
+        "id, ad_soyad, gorev, pozisyon_id, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),
@@ -209,7 +209,7 @@ export default async function PersonelDetaySayfasi({
     yonetici
       ? supabase
           .from("pozisyonlar")
-          .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi, allowed_modules")
+          .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
           .or(personel.pozisyon_id ? `aktif.eq.true,id.eq.${personel.pozisyon_id}` : "aktif.eq.true")
           .order("sira")
           .returns<Pozisyon[]>()
