@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import type { Pozisyon } from "@/types/pozisyon";
@@ -88,16 +86,9 @@ export default async function YetkilendirmeSayfasi() {
               duzenlenebilir={duzenlenebilir}
             />
             <p className="text-xs text-muted-foreground">
-              Not: bu anahtarlar sadece sol menüdeki linki gizler/gösterir — sayfaların kendi erişim kontrolü
-              (klinik_admin, resepsiyon, terapist, muhasebe rollerine göre) ayrı ve değişmedi.
+              Not: Klinik & Terapi Departmanı&apos;ndaki kişiler (terapist), departmandan bağımsız olarak Hasta
+              Detayı&apos;nda Kişisel Bilgiler ve Cari &amp; Ödeme bölümlerini hiçbir zaman göremez.
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              nativeButton={false}
-              render={<Link href="/panel/ayarlar/personel-tanimlama">Personel Tanımlama&apos;ya git</Link>}
-            />
           </CardContent>
         </Card>
       </div>

@@ -26,6 +26,9 @@ export default async function KisiselBilgilerSayfasi({
   }
 
   const rol = await kullaniciRolGetir(user.id);
+  if (rol === "terapist") {
+    redirect(`/panel/hastalar/${id}`);
+  }
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
   const hastaKullanici = hastaKullaniciSonucu.data;
 
