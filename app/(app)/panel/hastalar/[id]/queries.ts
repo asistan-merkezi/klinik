@@ -18,6 +18,7 @@ import type {
   SikayetDurumu,
 } from "@/types/hasta-detay";
 import type { IptalTalebiDurum, PortalRandevuTalebiSatir } from "@/types/portal";
+import type { RandevuDurum } from "@/types/randevu";
 
 export function useHastaDetayOzet(hastaId: string) {
   return useQuery({
@@ -477,6 +478,34 @@ export function useHastaTalepVeOneriler(hastaId: string, aktif: boolean) {
         randevuTalepleri: randevuTalepleriSonucu.data ?? [],
         iptalTalepleri,
       };
+    },
+  });
+}
+
+export type TalepIcinRandevuSatir = {
+  id: string;
+  baslangic: string;
+  durum: RandevuDurum;
+  terapist: { id: string; personel: { ad_soyad: string } | null } | null;
+  islem_tanimi: { ad: string } | null;
+};
+
+/** "Randevu İptali" / "Terapist Yorumu" / "Randevu Hakkında Yorum" alanlarındaki seçim listeleri için. */
+export function useHastaTalepIcinRandevular(hastaId: string, aktif: boolean) {
+  return useQuery({
+    queryKey: ["hasta_talep_icin_randevular", hastaId],
+    enabled: aktif,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("randevu")
+        .select("id, baslangic, durum, terapist(id, personel(ad_soyad)), islem_tanimi(ad)")
+        .eq("hasta_id", hastaId)
+        .order("baslangic", { ascending: false })
+        .limit(200)
+        .returns<TalepIcinRandevuSatir[]>();
+      if (error) throw error;
+      return data ?? [];
     },
   });
 }

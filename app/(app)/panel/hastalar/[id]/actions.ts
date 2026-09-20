@@ -980,3 +980,112 @@ export async function portalErisimDurumDegistir(hastaId: string, yeniDurum: bool
   revalidateHastaDetay(hastaId);
   return { success: true, message: yeniDurum ? "Portal erişimi açıldı." : "Portal erişimi kapatıldı." };
 }
+
+const talepTuruSemasi = z.enum(["randevu_talebi", "randevu_iptali", "terapist_yorumu", "randevu_yorumu"]);
+
+const randevuTalebiPanelSemasi = z.object({
+  islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
+  tercih_tarih: z.string().min(1, "Tarih gerekli."),
+  tercih_saat: z.string().optional(),
+  not_metni: z.string().trim().optional(),
+});
+
+const randevuIptaliPanelSemasi = z.object({
+  randevu_id: z.string().uuid("Randevu seçilmeli."),
+});
+
+const hastaYorumPanelSemasi = z.object({
+  randevu_id: z.string().uuid("Randevu seçilmeli."),
+  yorum: z.string().trim().min(1, "Yorum gerekli."),
+});
+
+/**
+ * Hasta Detayı > "Talep ve Öneriler" popup'ının tek gönderim action'ı — 4 tür
+ * (randevu_talebi/randevu_iptali portal'daki randevuTalebiOlustur/iptalTalebiOlustur'un
+ * panel eşdeğeri — hasta_id burada zaten context'ten biliniyor, portaldaki gibi
+ * current_hasta_id()'ye değil client'ın gönderdiği hastaId'ye güveniyoruz çünkü
+ * terapistDahilYetkiliHastaGetir zaten RLS ile "bu hasta çağıranın kliniğinde mi"
+ * garantisini veriyor; terapist_yorumu/randevu_yorumu ise hiç karşılığı olmayan
+ * yeni hasta_yorum tablosuna yazıyor, tur formData'dan okunuyor ki tek bir
+ * useActionState action'ı yeterli olsun (select'in adı da "tur").
+ */
+export async function talepOneriGonder(
+  hastaId: string,
+  _onceki: PortalSonucu,
+  formData: FormData
+): Promise<PortalSonucu> {
+  const { supabase, userId, hasta, yetkisiz } = await terapistDahilYetkiliHastaGetir(hastaId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!hasta) {
+    return { success: false, message: "Hasta bulunamadı." };
+  }
+
+  const turAyristirma = talepTuruSemasi.safeParse(formData.get("tur"));
+  if (!turAyristirma.success) {
+    return { success: false, message: "Bir talep türü seçilmeli." };
+  }
+  const tur = turAyristirma.data;
+
+  if (tur === "randevu_talebi") {
+    const ayristirma = randevuTalebiPanelSemasi.safeParse({
+      islem_tanimi_id: formData.get("islem_tanimi_id"),
+      tercih_tarih: formData.get("tercih_tarih"),
+      tercih_saat: formData.get("tercih_saat") ?? "",
+      not_metni: formData.get("not_metni") ?? "",
+    });
+    if (!ayristirma.success) {
+      return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+    }
+    const { islem_tanimi_id, tercih_tarih, tercih_saat, not_metni } = ayristirma.data;
+    const { error } = await supabase.from("randevu_talebi").insert({
+      hasta_id: hastaId,
+      islem_tanimi_id,
+      tercih_tarih,
+      tercih_saat: tercih_saat ? tercih_saat : null,
+      not_metni: not_metni ? not_metni : null,
+    });
+    if (error) {
+      console.error("Randevu talebi eklenemedi (panel):", error);
+      return { success: false, message: "Gönderilemedi, lütfen tekrar deneyin." };
+    }
+  } else if (tur === "randevu_iptali") {
+    const ayristirma = randevuIptaliPanelSemasi.safeParse({ randevu_id: formData.get("randevu_id") });
+    if (!ayristirma.success) {
+      return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+    }
+    const { error } = await supabase.from("randevu_iptal_talebi").insert({
+      randevu_id: ayristirma.data.randevu_id,
+      hasta_id: hastaId,
+    });
+    if (error) {
+      console.error("İptal talebi eklenemedi (panel):", error);
+      if (error.code === "23505") {
+        return { success: false, message: "Bu randevu için zaten bir talep gönderilmiş." };
+      }
+      return { success: false, message: "Gönderilemedi, lütfen tekrar deneyin." };
+    }
+  } else {
+    const ayristirma = hastaYorumPanelSemasi.safeParse({
+      randevu_id: formData.get("randevu_id"),
+      yorum: formData.get("yorum"),
+    });
+    if (!ayristirma.success) {
+      return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+    }
+    const { error } = await supabase.from("hasta_yorum").insert({
+      randevu_id: ayristirma.data.randevu_id,
+      tur,
+      yorum: ayristirma.data.yorum,
+      olusturan_kullanici_id: userId,
+    });
+    if (error) {
+      console.error("Hasta yorumu eklenemedi:", error);
+      return { success: false, message: "Gönderilemedi, lütfen tekrar deneyin." };
+    }
+  }
+
+  revalidateHastaDetay(hastaId);
+  return { success: true, message: "Gönderildi." };
+}
