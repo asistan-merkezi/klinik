@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { FATURA_ALAN_ETIKETLERI } from "@/lib/fatura/eksik-bilgi";
 import { revalidateHastaDetay } from "./revalidate";
+import { randevuErtele } from "../../randevular/actions";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -981,7 +982,13 @@ export async function portalErisimDurumDegistir(hastaId: string, yeniDurum: bool
   return { success: true, message: yeniDurum ? "Portal erişimi açıldı." : "Portal erişimi kapatıldı." };
 }
 
-const talepTuruSemasi = z.enum(["randevu_talebi", "randevu_iptali", "terapist_yorumu", "randevu_yorumu"]);
+const talepTuruSemasi = z.enum([
+  "randevu_talebi",
+  "randevu_iptali",
+  "randevu_ertele",
+  "terapist_yorumu",
+  "randevu_yorumu",
+]);
 
 const randevuTalebiPanelSemasi = z.object({
   islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
@@ -994,20 +1001,29 @@ const randevuIptaliPanelSemasi = z.object({
   randevu_id: z.string().uuid("Randevu seçilmeli."),
 });
 
+const randevuErtelePanelSemasi = z.object({
+  randevu_id: z.string().uuid("Randevu seçilmeli."),
+  tarih: z.string().min(1, "Yeni tarih gerekli."),
+  saat: z.string().min(1, "Yeni saat gerekli."),
+});
+
 const hastaYorumPanelSemasi = z.object({
   randevu_id: z.string().uuid("Randevu seçilmeli."),
   yorum: z.string().trim().min(1, "Yorum gerekli."),
 });
 
 /**
- * Hasta Detayı > "Talep ve Öneriler" popup'ının tek gönderim action'ı — 4 tür
+ * Hasta Detayı > "Talep ve Öneriler" popup'ının tek gönderim action'ı — 5 tür
  * (randevu_talebi/randevu_iptali portal'daki randevuTalebiOlustur/iptalTalebiOlustur'un
  * panel eşdeğeri — hasta_id burada zaten context'ten biliniyor, portaldaki gibi
  * current_hasta_id()'ye değil client'ın gönderdiği hastaId'ye güveniyoruz çünkü
  * terapistDahilYetkiliHastaGetir zaten RLS ile "bu hasta çağıranın kliniğinde mi"
- * garantisini veriyor; terapist_yorumu/randevu_yorumu ise hiç karşılığı olmayan
- * yeni hasta_yorum tablosuna yazıyor, tur formData'dan okunuyor ki tek bir
- * useActionState action'ı yeterli olsun (select'in adı da "tur").
+ * garantisini veriyor; randevu_ertele Randevu Çizelgesi'ndeki "Ertelendi" ile AYNI
+ * randevuErtele action'ını çağırır (talep+onay modeli değil, doğrudan taşıma) —
+ * yalnız seçilen randevu_id'nin gerçekten bu hastaya ait olduğu burada ayrıca
+ * doğrulanır; terapist_yorumu/randevu_yorumu ise hiç karşılığı olmayan yeni
+ * hasta_yorum tablosuna yazıyor, tur formData'dan okunuyor ki tek bir
+ * useActionState action'ı yeterli olsun (tür seçimi artık dropdown değil kutu).
  */
 export async function talepOneriGonder(
   hastaId: string,
@@ -1066,6 +1082,28 @@ export async function talepOneriGonder(
       }
       return { success: false, message: "Gönderilemedi, lütfen tekrar deneyin." };
     }
+  } else if (tur === "randevu_ertele") {
+    const ayristirma = randevuErtelePanelSemasi.safeParse({
+      randevu_id: formData.get("randevu_id"),
+      tarih: formData.get("tarih"),
+      saat: formData.get("saat"),
+    });
+    if (!ayristirma.success) {
+      return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+    }
+    const { data: mevcutRandevu } = await supabase
+      .from("randevu")
+      .select("hasta_id")
+      .eq("id", ayristirma.data.randevu_id)
+      .single();
+    if (!mevcutRandevu || mevcutRandevu.hasta_id !== hastaId) {
+      return { success: false, message: "Randevu bulunamadı." };
+    }
+    const erteleFormData = new FormData();
+    erteleFormData.set("tarih", ayristirma.data.tarih);
+    erteleFormData.set("saat", ayristirma.data.saat);
+    const sonuc = await randevuErtele(ayristirma.data.randevu_id, erteleFormData);
+    return sonuc ?? { success: false, message: "Ertelenemedi, lütfen tekrar deneyin." };
   } else {
     const ayristirma = hastaYorumPanelSemasi.safeParse({
       randevu_id: formData.get("randevu_id"),

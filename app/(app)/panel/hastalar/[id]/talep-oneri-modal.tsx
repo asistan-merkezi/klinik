@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { CalendarPlus, CalendarX, CalendarClock, MessageCircle, MessageSquareText, type LucideIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,13 +28,14 @@ import { talepOneriGonder } from "./actions";
 import { useHastaTalepIcinRandevular, useHastaTalepVeOneriler, useIslemTanimlari } from "./queries";
 import type { IptalTalebiDurum } from "@/types/portal";
 
-type TalepTuru = "randevu_talebi" | "randevu_iptali" | "terapist_yorumu" | "randevu_yorumu";
+type TalepTuru = "randevu_talebi" | "randevu_iptali" | "randevu_ertele" | "terapist_yorumu" | "randevu_yorumu";
 
-const TALEP_TURU_SECENEKLERI: { value: TalepTuru; label: string }[] = [
-  { value: "randevu_talebi", label: "Randevu Talebi" },
-  { value: "randevu_iptali", label: "Randevu İptali" },
-  { value: "terapist_yorumu", label: "Terapist Yorumu" },
-  { value: "randevu_yorumu", label: "Randevu Hakkında Yorum" },
+const TALEP_TURU_SECENEKLERI: { value: TalepTuru; label: string; icon: LucideIcon }[] = [
+  { value: "randevu_talebi", label: "Randevu Talebi", icon: CalendarPlus },
+  { value: "randevu_iptali", label: "Randevu İptali", icon: CalendarX },
+  { value: "randevu_ertele", label: "Randevu Ertele", icon: CalendarClock },
+  { value: "terapist_yorumu", label: "Terapist Yorumu", icon: MessageCircle },
+  { value: "randevu_yorumu", label: "Randevu Hakkında Yorum", icon: MessageSquareText },
 ];
 
 const KATILDI_DURUMLARI = ["geldi", "gecikmeli_geldi", "tamamlandi"];
@@ -123,26 +125,37 @@ export function TalepOneriModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Talep ve Öneriler</DialogTitle>
-          <DialogDescription>Hasta adına randevu talebi/iptali gönderin ya da bir not bırakın.</DialogDescription>
+          <DialogDescription>Randevu talebi, iptali veya ertelemesi gönderin ya da bir not bırakın.</DialogDescription>
         </DialogHeader>
 
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="tur" value={tur} />
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="talep_tur">Tür</Label>
-            <Select value={tur} onValueChange={(v) => turDegistir((v as TalepTuru) ?? "randevu_talebi")} disabled={isPending} items={TALEP_TURU_SECENEKLERI}>
-              <SelectTrigger id="talep_tur" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TALEP_TURU_SECENEKLERI.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
+            <Label>Tür</Label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {TALEP_TURU_SECENEKLERI.map((s) => {
+                const Icon = s.icon;
+                const secili = tur === s.value;
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => turDegistir(s.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-center text-xs font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
+                      secili
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-surface-2 text-muted-foreground hover:border-input hover:bg-background hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="size-5" aria-hidden />
                     {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {tur === "randevu_talebi" && (
@@ -221,6 +234,50 @@ export function TalepOneriModal({
                 </Select>
               )}
             </div>
+          )}
+
+          {tur === "randevu_ertele" && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="randevu_id_ertele">Randevu</Label>
+                {planlandiRandevular.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Ertelenebilecek (planlanmış) randevu yok.</p>
+                ) : (
+                  <Select
+                    name="randevu_id"
+                    required
+                    disabled={isPending}
+                    value={randevuId}
+                    onValueChange={(v) => setRandevuId(v ?? "")}
+                    items={planlandiRandevular.map((r) => ({
+                      value: r.id,
+                      label: `${formatDateTime(r.baslangic)} · ${r.islem_tanimi?.ad ?? "—"}`,
+                    }))}
+                  >
+                    <SelectTrigger id="randevu_id_ertele" className="w-full">
+                      <SelectValue placeholder="Randevu seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {planlandiRandevular.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {formatDateTime(r.baslangic)} · {r.islem_tanimi?.ad ?? "—"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="tarih">Yeni Tarih</Label>
+                  <Input id="tarih" name="tarih" type="date" min={bugun} required disabled={isPending} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="saat">Yeni Saat</Label>
+                  <Input id="saat" name="saat" type="time" required disabled={isPending} />
+                </div>
+              </div>
+            </>
           )}
 
           {tur === "terapist_yorumu" && (
