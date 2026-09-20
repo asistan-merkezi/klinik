@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsPanel } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { SIDEBAR_YETKI_OGELERI } from "@/lib/panel/menu-gruplari";
 import { sidebarMenuGorunurlukDegistir } from "./actions";
@@ -43,35 +42,27 @@ export function SidebarYetkiFormu({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Tabs defaultValue={departmanlar[0]}>
-        <TabsList>
-          {departmanlar.map((d) => (
-            <TabsTrigger key={d} value={d}>
-              {d}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {departmanlar.map((departman) => (
-          <TabsPanel key={departman} value={departman}>
-            <ul className="flex flex-col divide-y divide-border">
-              {SIDEBAR_YETKI_OGELERI.map((oge) => {
-                const gorunur = !(gizliByDepartman[departman] ?? []).includes(oge.key);
-                return (
-                  <li key={oge.key} className="flex items-center justify-between gap-2 py-2 text-sm">
-                    <span>{oge.label}</span>
-                    <Switch
-                      checked={gorunur}
-                      disabled={!duzenlenebilir || pending}
-                      onCheckedChange={(deger) => degistir(departman, oge.key, deger)}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </TabsPanel>
-        ))}
-      </Tabs>
+    <div className="flex flex-col gap-6">
+      {departmanlar.map((departman) => (
+        <div key={departman} className="flex flex-col gap-1 rounded-xl border border-border p-4">
+          <h3 className="text-sm font-medium">{departman}</h3>
+          <ul className="flex flex-col divide-y divide-border">
+            {SIDEBAR_YETKI_OGELERI.map((oge) => {
+              const gorunur = !(gizliByDepartman[departman] ?? []).includes(oge.key);
+              return (
+                <li key={oge.key} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <span>{oge.label}</span>
+                  <Switch
+                    checked={gorunur}
+                    disabled={!duzenlenebilir || pending}
+                    onCheckedChange={(deger) => degistir(departman, oge.key, deger)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
       {hata && <p className="text-xs text-destructive">{hata}</p>}
     </div>
   );
