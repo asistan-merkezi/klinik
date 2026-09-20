@@ -26,7 +26,11 @@ export default async function YetkilendirmeSayfasi() {
   const [{ data: pozisyonlar }, { data: klinikAyarlar }] = await Promise.all([
     // Departman sekmeleri Personel Tanımlama'daki departmanlarla birebir
     // aynı olsun diye aynı kaynaktan (pozisyonlar.grup) türetiliyor.
-    supabase.from("pozisyonlar").select("grup, sira").order("sira").returns<Pick<Pozisyon, "grup" | "sira">[]>(),
+    supabase
+      .from("pozisyonlar")
+      .select("ad, grup, sira, aktif")
+      .order("sira")
+      .returns<Pick<Pozisyon, "ad" | "grup" | "sira" | "aktif">[]>(),
     supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
   ]);
 
@@ -38,6 +42,18 @@ export default async function YetkilendirmeSayfasi() {
     if (mevcut === undefined || poz.sira < mevcut) departmanSiralari.set(poz.grup, poz.sira);
   }
   const departmanAdlari = [...departmanSiralari.entries()].sort((a, b) => a[1] - b[1]).map(([grup]) => grup);
+
+  // Başlığın yanında görünen "(İşletme Ortağı, Klinik Yöneticisi)" gibi liste —
+  // yalnız aktif pozisyonlar, Personel Tanımlama'daki sırayla.
+  const departmanPozisyonlari = new Map<string, string[]>();
+  for (const poz of [...liste].filter((p) => p.aktif).sort((a, b) => a.sira - b.sira)) {
+    const mevcut = departmanPozisyonlari.get(poz.grup) ?? [];
+    mevcut.push(poz.ad);
+    departmanPozisyonlari.set(poz.grup, mevcut);
+  }
+  const departmanRolleri: Record<string, string[]> = Object.fromEntries(
+    departmanAdlari.map((d) => [d, departmanPozisyonlari.get(d) ?? []])
+  );
 
   const sidebarGizliKayitli =
     ((klinikAyarlar?.ayarlar as Record<string, unknown> | null)?.sidebar_gizli as
@@ -67,6 +83,7 @@ export default async function YetkilendirmeSayfasi() {
             </p>
             <SidebarYetkiFormu
               departmanlar={departmanAdlari}
+              departmanRolleri={departmanRolleri}
               baslangicGizli={baslangicGizli}
               duzenlenebilir={duzenlenebilir}
             />

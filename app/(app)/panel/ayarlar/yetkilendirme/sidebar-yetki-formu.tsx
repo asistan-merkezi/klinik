@@ -7,10 +7,12 @@ import { sidebarMenuGorunurlukDegistir } from "./actions";
 
 export function SidebarYetkiFormu({
   departmanlar,
+  departmanRolleri,
   baslangicGizli,
   duzenlenebilir,
 }: {
   departmanlar: string[];
+  departmanRolleri: Record<string, string[]>;
   baslangicGizli: Record<string, string[]>;
   duzenlenebilir: boolean;
 }) {
@@ -45,7 +47,12 @@ export function SidebarYetkiFormu({
     <div className="flex flex-col gap-6">
       {departmanlar.map((departman) => (
         <div key={departman} className="flex flex-col gap-1 rounded-xl border border-border p-4">
-          <h3 className="text-sm font-medium">{departman}</h3>
+          <h3 className="text-sm font-medium">
+            {departman}
+            {departmanRolleri[departman]?.length ? (
+              <span className="font-normal text-muted-foreground"> ({departmanRolleri[departman].join(", ")})</span>
+            ) : null}
+          </h3>
           <ul className="flex flex-col divide-y divide-border">
             {SIDEBAR_YETKI_OGELERI.map((oge) => {
               const gorunur = !(gizliByDepartman[departman] ?? []).includes(oge.key);
