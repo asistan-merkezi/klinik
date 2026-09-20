@@ -120,6 +120,8 @@ export function TalepOneriModal({
   );
 
   const yorumRandevuSecenekleri = tur === "terapist_yorumu" ? terapistRandevulari : katildiRandevular;
+  const secilenYorumRandevu = yorumRandevuSecenekleri.find((r) => r.id === randevuId) ?? null;
+  const secilenTerapistAdi = terapistler.find((t) => t.id === terapistId)?.ad ?? "";
 
   function turDegistir(yeniTur: TalepTuru) {
     setTur(yeniTur);
@@ -353,43 +355,60 @@ export function TalepOneriModal({
                 </Select>
               )}
 
-              <input type="hidden" name="puan" value={puan ?? ""} />
-              <Label>Puan</Label>
-              <div className="flex gap-1.5">
-                {PUAN_SECENEKLERI.map((p) => {
-                  const secili = puan === p.deger;
-                  return (
-                    <button
-                      key={p.deger}
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => setPuan(p.deger)}
-                      className={cn(
-                        "flex flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 text-center transition-colors disabled:pointer-events-none disabled:opacity-50",
-                        secili
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-surface-2 hover:border-input hover:bg-background"
-                      )}
-                    >
-                      <span className="text-xl leading-none" aria-hidden>
-                        {p.emoji}
-                      </span>
-                      <span className={cn("text-[10px] leading-tight font-medium", secili ? "text-primary" : "text-muted-foreground")}>
-                        {p.etiket}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              {secilenYorumRandevu && (
+                <>
+                  <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                    Yorum{" "}
+                    {tur === "terapist_yorumu" && (
+                      <>
+                        <span className="font-medium text-foreground">{secilenTerapistAdi}</span> ile{" "}
+                      </>
+                    )}
+                    <span className="font-medium text-foreground">
+                      {formatDateTime(secilenYorumRandevu.baslangic)} · {secilenYorumRandevu.islem_tanimi?.ad ?? "—"}
+                    </span>{" "}
+                    {tur === "terapist_yorumu" ? "seansı" : "randevusu"} hakkında.
+                  </div>
 
-              <textarea
-                name="yorum"
-                rows={3}
-                required
-                placeholder={tur === "terapist_yorumu" ? "Terapist hakkındaki yorumunuz..." : "Randevu hakkındaki yorumunuz..."}
-                disabled={isPending}
-                className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              />
+                  <input type="hidden" name="puan" value={puan ?? ""} />
+                  <Label>Puan</Label>
+                  <div className="flex gap-1.5">
+                    {PUAN_SECENEKLERI.map((p) => {
+                      const secili = puan === p.deger;
+                      return (
+                        <button
+                          key={p.deger}
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => setPuan(p.deger)}
+                          className={cn(
+                            "flex flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 text-center transition-colors disabled:pointer-events-none disabled:opacity-50",
+                            secili
+                              ? "border-primary bg-primary/10"
+                              : "border-border bg-surface-2 hover:border-input hover:bg-background"
+                          )}
+                        >
+                          <span className="text-xl leading-none" aria-hidden>
+                            {p.emoji}
+                          </span>
+                          <span className={cn("text-[10px] leading-tight font-medium", secili ? "text-primary" : "text-muted-foreground")}>
+                            {p.etiket}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <textarea
+                    name="yorum"
+                    rows={3}
+                    required
+                    placeholder={tur === "terapist_yorumu" ? "Terapist hakkındaki yorumunuz..." : "Randevu hakkındaki yorumunuz..."}
+                    disabled={isPending}
+                    className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </>
+              )}
             </div>
           )}
 
