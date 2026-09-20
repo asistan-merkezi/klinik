@@ -24,7 +24,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const [{ data: klinik }, bildirimSayisi, { data: klinikAyarlar }, { data: personelKaydi }] = await Promise.all([
     supabase
       .from("klinik")
-      .select("ad, logo_url, logo_url_koyu, marka_renkleri, plan_turu")
+      .select("ad, logo_url, logo_url_koyu, marka_renkleri")
       .eq("id", kullanici?.klinik_id ?? "")
       .maybeSingle(),
     bildirimGorulebilir ? bildirimSayisiGetir(supabase) : Promise.resolve(undefined),
@@ -54,7 +54,6 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <QueryProvider>
       <PanelSidebar
         klinik={klinik ?? { ad: "Klinik", logo_url: null, logo_url_koyu: null, marka_renkleri: null }}
-        klinikPlani={klinik?.plan_turu ?? null}
         kullaniciAdi={kullanici?.ad_soyad ?? user.email ?? ""}
         kullaniciRolu={kullanici?.rol ?? "rol atanmamış"}
         bildirimSayisi={bildirimSayisi}

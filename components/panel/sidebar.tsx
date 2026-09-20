@@ -40,12 +40,6 @@ const BOTTOM_NAV_OGELERI = [
   { href: "/panel/hastalar", label: "Hastalar", icon: Users },
 ];
 
-const PLAN_ETIKETLERI: Record<string, string> = {
-  starter: "Başlangıç",
-  pro: "Pro",
-  enterprise: "Kurumsal",
-};
-
 function girdiAktifMi(pathname: string, href: string, tamEslesme?: boolean) {
   if (tamEslesme) {
     return pathname === href;
@@ -86,7 +80,6 @@ function SidebarLink({
 
 function SidebarGovde({
   klinik,
-  klinikPlani,
   kullaniciAdi,
   kullaniciRolu,
   gizliMenuAnahtarlari,
@@ -94,7 +87,6 @@ function SidebarGovde({
   linkTiklandi,
 }: {
   klinik: Klinik;
-  klinikPlani: string | null;
   kullaniciAdi: string;
   kullaniciRolu: string;
   gizliMenuAnahtarlari: string[];
@@ -103,7 +95,8 @@ function SidebarGovde({
 }) {
   return (
     <>
-      {/* Marka bloğu */}
+      {/* Marka bloğu — üst satır Ayarlar > Şirket Bilgileri'nde girilmiş
+          şirket adı, alt satır sabit "Yönetim Asistanı" etiketi. */}
       <Link
         href="/panel"
         onClick={linkTiklandi}
@@ -111,24 +104,10 @@ function SidebarGovde({
       >
         <PanelLogo klinik={klinik} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-sidebar-foreground">Klinik Asistanı</p>
-          <p className="truncate text-xs text-muted-foreground">{klinik.ad}</p>
+          <p className="truncate text-sm font-semibold text-sidebar-foreground">{klinik.ad}</p>
+          <p className="truncate text-xs text-muted-foreground">Yönetim Asistanı</p>
         </div>
       </Link>
-
-      {/* Klinik/şube değiştirici kartı — şube kavramı veri modelinde yok
-          (bkz. CLAUDE.md: çoklu şube ertelendi), bu yüzden dropdown/chevron
-          YOK, sadece bilgi kartı. */}
-      <div className="px-3 pt-3">
-        <div className="rounded-md border border-sidebar-border bg-card p-3">
-          <p className="truncate text-sm font-medium text-card-foreground">{klinik.ad}</p>
-          {klinikPlani && (
-            <span className="mt-1.5 inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
-              {PLAN_ETIKETLERI[klinikPlani] ?? klinikPlani}
-            </span>
-          )}
-        </div>
-      </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
         {ANA_OGELER.filter((oge) => !gizliMenuAnahtarlari.includes(oge.key)).map((oge) => (
@@ -183,7 +162,6 @@ function SidebarGovde({
 
 export function PanelSidebar({
   klinik,
-  klinikPlani,
   kullaniciAdi,
   kullaniciRolu,
   gizliMenuAnahtarlari,
@@ -191,7 +169,6 @@ export function PanelSidebar({
   children,
 }: {
   klinik: Klinik;
-  klinikPlani: string | null;
   kullaniciAdi: string;
   kullaniciRolu: string;
   gizliMenuAnahtarlari: string[];
@@ -301,7 +278,6 @@ export function PanelSidebar({
             </div>
             <SidebarGovde
               klinik={klinik}
-              klinikPlani={klinikPlani}
               kullaniciAdi={kullaniciAdi}
               kullaniciRolu={kullaniciRolu}
               gizliMenuAnahtarlari={gizliMenuAnahtarlari}
