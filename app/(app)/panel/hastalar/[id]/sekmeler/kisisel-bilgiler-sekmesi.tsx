@@ -5,11 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { telefonGoster } from "@/lib/utils";
-import type { HastaDetay } from "@/types/hasta";
+import type { Cinsiyet, HastaDetay } from "@/types/hasta";
 import { DetayliBilgilerKarti } from "../detayli-bilgiler-karti";
 import { PortalErisimKarti } from "../portal-erisim-karti";
 import { PlaceholderSekmesi } from "./placeholder-sekmesi";
 import { useHastaHassas, useHastaSigortalar } from "../queries";
+
+const CINSIYET_ETIKETLERI: Record<Cinsiyet, string> = {
+  kadin: "Kadın",
+  erkek: "Erkek",
+  belirtilmemis: "Belirtilmedi",
+};
 
 function OnayRozeti({ etiket, tarih }: { etiket: string; tarih: string | null }) {
   return (
@@ -49,11 +55,9 @@ export function KisiselBilgilerSekmesi({
             <span className="text-muted-foreground">Doğum Tarihi</span>
             <span>{hasta.dogum_tarihi ? new Date(hasta.dogum_tarihi).toLocaleDateString("tr-TR") : "—"}</span>
             <span className="text-muted-foreground">Cinsiyet</span>
-            <span>{hasta.cinsiyet ?? "—"}</span>
+            <span>{hasta.cinsiyet ? CINSIYET_ETIKETLERI[hasta.cinsiyet] : "—"}</span>
             <span className="text-muted-foreground">E-posta</span>
             <span>{hasta.eposta ?? "—"}</span>
-            <span className="text-muted-foreground">Bizi Nereden Duydu</span>
-            <span>{hasta.referans_kanali ?? "—"}</span>
           </div>
           <div className="flex flex-col gap-1.5 border-t border-border pt-3">
             <OnayRozeti etiket="KVKK Onayı" tarih={hasta.kvkk_onay_tarihi} />

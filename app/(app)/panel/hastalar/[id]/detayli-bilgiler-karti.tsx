@@ -39,14 +39,6 @@ const KIMLIK_TIPI_SECENEKLERI = [
   { value: "pasaport", label: "Pasaport No" },
 ];
 
-const REFERANS_SECENEKLERI_TABAN = [
-  { value: "sosyal_medya", label: "Sosyal Medya" },
-  { value: "tavsiye", label: "Tavsiye" },
-  { value: "google", label: "Google" },
-  { value: "reklam", label: "Reklam" },
-  { value: "diger", label: "Diğer" },
-];
-
 function textAlaniSinifi(kritikMi?: boolean) {
   return cn(
     "rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -228,7 +220,15 @@ function OnaySatiri({
 }
 
 /** Kimlik/iletişim/adres/veli — sadece klinik_admin/resepsiyon (idari veri). */
-function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassasSatir | null }) {
+function TemelBilgilerFormu({
+  hasta,
+  hassas,
+  duzenleModu,
+}: {
+  hasta: HastaDetay;
+  hassas: HastaHassasSatir | null;
+  duzenleModu: boolean;
+}) {
   const guncelleAction = temelBilgileriGuncelle.bind(null, hasta.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const queryClient = useQueryClient();
@@ -257,11 +257,6 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
   const kimlikNoHaneSayisi = kimlikNo.replace(/\D/g, "").length;
   const kimlikNoUyari = kimlikNoTipi === "tc" && kimlikNo.trim() !== "" && kimlikNoHaneSayisi !== 11;
 
-  const referansSecenekleri =
-    !hasta.referans_kanali || REFERANS_SECENEKLERI_TABAN.some((s) => s.value === hasta.referans_kanali)
-      ? REFERANS_SECENEKLERI_TABAN
-      : [{ value: hasta.referans_kanali, label: hasta.referans_kanali }, ...REFERANS_SECENEKLERI_TABAN];
-
   return (
     <form
       action={formAction}
@@ -277,10 +272,10 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             name="ad_soyad"
             value={adSoyad}
             onChange={(e) => setAdSoyad(isimBasHarfBuyukYap(e.target.value))}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
           />
         </div>
-        <TelefonGirisi ad="telefon" label="Telefon" varsayilanTelefon={hasta.telefon} disabled={isPending} />
+        <TelefonGirisi ad="telefon" label="Telefon" varsayilanTelefon={hasta.telefon} disabled={isPending || !duzenleModu} />
         <div className="flex flex-col gap-2">
           <Label htmlFor="dogum_tarihi">Doğum Tarihi</Label>
           <Input
@@ -289,7 +284,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             type="date"
             value={dogumTarihi}
             onChange={(e) => setDogumTarihi(e.target.value)}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
           />
         </div>
       </fieldset>
@@ -305,14 +300,14 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
                 name="anne_adi"
                 value={anneAdi}
                 onChange={(e) => setAnneAdi(isimBasHarfBuyukYap(e.target.value))}
-                disabled={isPending}
+                disabled={isPending || !duzenleModu}
               />
             </div>
             <TelefonGirisi
               ad="anne_telefon"
               label="Anne Telefonu"
               varsayilanTelefon={hassas?.anne_telefon}
-              disabled={isPending}
+              disabled={isPending || !duzenleModu}
             />
             <div className="flex flex-col gap-2">
               <Label htmlFor="baba_adi">Baba Adı</Label>
@@ -321,14 +316,14 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
                 name="baba_adi"
                 value={babaAdi}
                 onChange={(e) => setBabaAdi(isimBasHarfBuyukYap(e.target.value))}
-                disabled={isPending}
+                disabled={isPending || !duzenleModu}
               />
             </div>
             <TelefonGirisi
               ad="baba_telefon"
               label="Baba Telefonu"
               varsayilanTelefon={hassas?.baba_telefon}
-              disabled={isPending}
+              disabled={isPending || !duzenleModu}
             />
           </div>
 
@@ -340,14 +335,14 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
                 name="diger_yakini_ad_soyad"
                 value={digerYakiniAdSoyad}
                 onChange={(e) => setDigerYakiniAdSoyad(isimBasHarfBuyukYap(e.target.value))}
-                disabled={isPending}
+                disabled={isPending || !duzenleModu}
               />
             </div>
             <TelefonGirisi
               ad="diger_yakini_telefon"
               label="Diğer Yakını Telefonu"
               varsayilanTelefon={hassas?.diger_yakini_telefon}
-              disabled={isPending}
+              disabled={isPending || !duzenleModu}
             />
             <div className="flex flex-col gap-2">
               <Label htmlFor="diger_yakini_yakinlik">Yakınlık Derecesi</Label>
@@ -356,7 +351,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
                 name="diger_yakini_yakinlik"
                 placeholder="Teyze, Amca, Dede..."
                 defaultValue={hassas?.diger_yakini_yakinlik ?? ""}
-                disabled={isPending}
+                disabled={isPending || !duzenleModu}
               />
             </div>
           </div>
@@ -369,7 +364,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
           <Label htmlFor="cinsiyet">Cinsiyet</Label>
           <Select
             name="cinsiyet"
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
             defaultValue={hasta.cinsiyet ?? undefined}
             items={CINSIYET_SECENEKLERI}
           >
@@ -387,33 +382,14 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="eposta">E-posta</Label>
-          <Input id="eposta" name="eposta" type="email" defaultValue={hasta.eposta ?? ""} disabled={isPending} />
+          <Input id="eposta" name="eposta" type="email" defaultValue={hasta.eposta ?? ""} disabled={isPending || !duzenleModu} />
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="referans_kanali">Bizi Nereden Duydunuz?</Label>
-          <Select
-            name="referans_kanali"
-            disabled={isPending}
-            defaultValue={hasta.referans_kanali ?? undefined}
-            items={referansSecenekleri}
-          >
-            <SelectTrigger id="referans_kanali" className="w-full">
-              <SelectValue placeholder="Seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {referansSecenekleri.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <input type="hidden" name="referans_kanali" value={hasta.referans_kanali ?? ""} />
         <div className="flex flex-col gap-2">
           <Label htmlFor="kategori">Hasta Kategorisi</Label>
           <Select
             name="kategori"
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
             defaultValue={hasta.kategori}
             items={KATEGORI_SECENEKLERI}
           >
@@ -433,7 +409,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
           <Label htmlFor="kimlik_no_tipi">Kimlik Türü</Label>
           <Select
             name="kimlik_no_tipi"
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
             value={kimlikNoTipi}
             onValueChange={(v) => setKimlikNoTipi(v as "tc" | "pasaport")}
             items={KIMLIK_TIPI_SECENEKLERI}
@@ -457,7 +433,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             name="kimlik_no"
             value={kimlikNo}
             onChange={(e) => setKimlikNo(e.target.value)}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
           />
           {kimlikNoUyari && (
             <p className="text-xs text-destructive">T.C. Kimlik No 11 haneli olmalı ({kimlikNoHaneSayisi} hane girildi).</p>
@@ -472,7 +448,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
           defaultIl={hassas?.il}
           defaultIlce={hassas?.ilce}
           defaultMahalle={hassas?.mahalle}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
         <div className="flex flex-col gap-2">
           <Label htmlFor="adres">Sokak / Cadde, Bina No, Daire</Label>
@@ -481,7 +457,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             name="adres"
             rows={2}
             defaultValue={hassas?.adres ?? ""}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
             className={textAlaniSinifi()}
           />
         </div>
@@ -496,7 +472,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             name="acil_durum_ad_soyad"
             value={acilDurumAdSoyad}
             onChange={(e) => setAcilDurumAdSoyad(isimBasHarfBuyukYap(e.target.value))}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -505,14 +481,14 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
             id="acil_durum_yakinlik"
             name="acil_durum_yakinlik"
             defaultValue={hassas?.acil_durum_yakinlik ?? ""}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
           />
         </div>
         <TelefonGirisi
           ad="acil_durum_telefon"
           label="Telefon"
           varsayilanTelefon={hassas?.acil_durum_telefon}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
       </fieldset>
 
@@ -563,7 +539,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
                 type="checkbox"
                 name="whatsapp_izin_durumu"
                 defaultChecked={hasta.whatsapp_izin_durumu}
-                disabled={isPending}
+                disabled={isPending || !duzenleModu}
                 className="size-4 rounded border-input"
               />
               İzin veriyorum
@@ -582,7 +558,7 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
         />
       </div>
 
-      <Button type="submit" disabled={isPending} className="w-fit">
+      <Button type="submit" disabled={isPending || !duzenleModu} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Temel bilgileri kaydet"}
       </Button>
     </form>
@@ -590,7 +566,15 @@ function TemelBilgilerFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: Hast
 }
 
 /** Tıbbi ön geçmiş / anamnez — terapist + klinik_admin/resepsiyon. hasta tablosuna dokunmaz. */
-function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassasSatir | null }) {
+function AnamnezFormu({
+  hasta,
+  hassas,
+  duzenleModu,
+}: {
+  hasta: HastaDetay;
+  hassas: HastaHassasSatir | null;
+  duzenleModu: boolean;
+}) {
   const guncelleAction = anamnezGuncelle.bind(null, hasta.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const queryClient = useQueryClient();
@@ -616,7 +600,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           detayDegeri={hassas?.alerjiler ?? null}
           hizliEtiketler={["Penisilin Alerjisi", "Lateks Alerjisi", "Anestezi Alerjisi", "Gıda Alerjisi"]}
           kritik
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
 
         <EvetHayirAlan
@@ -627,7 +611,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           varDegeri={hassas?.kan_sulandirici_kullanimi ?? null}
           detayDegeri={hassas?.kan_sulandirici_detay ?? null}
           kritik
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
 
         <EvetHayirAlan
@@ -638,7 +622,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           varDegeri={hassas?.kronik_hastalik_var ?? null}
           detayDegeri={hassas?.kronik_hastaliklar ?? null}
           hizliEtiketler={["Diyabet", "Tansiyon (Hipertansiyon)", "Kalp Hastalığı", "Astım"]}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
 
         <EvetHayirAlan
@@ -648,7 +632,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           detayPlaceholder="Düzenli alınan tüm ilaçların adları..."
           varDegeri={hassas?.surekli_ilac_var ?? null}
           detayDegeri={hassas?.surekli_ilaclar ?? null}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
 
         <EvetHayirAlan
@@ -658,7 +642,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           detayPlaceholder="Ameliyat türü ve yılları..."
           varDegeri={hassas?.ameliyat_var ?? null}
           detayDegeri={hassas?.gecirilmis_ameliyatlar ?? null}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
 
         <EvetHayirAlan
@@ -668,7 +652,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           detayPlaceholder="Hepatit, HIV, tüberküloz vb. detayı..."
           varDegeri={hassas?.bulasici_hastalik_var ?? null}
           detayDegeri={hassas?.bulasici_hastalik_detay ?? null}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
 
         <EvetHayirAlan
@@ -678,7 +662,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           detayPlaceholder="Vücutta bulunan protez veya tıbbi cihazlar..."
           varDegeri={hassas?.protez_implant_var ?? null}
           detayDegeri={hassas?.protez_implant_detay ?? null}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
 
         {hasta.cinsiyet === "kadin" && (
@@ -689,7 +673,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
             detayPlaceholder="Hafta/ay bilgisi veya özel durumlar..."
             varDegeri={hassas?.hamilelik_emzirme_var ?? null}
             detayDegeri={hassas?.hamilelik_emzirme_detay ?? null}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
           />
         )}
 
@@ -700,7 +684,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
           detayPlaceholder="Tüketim sıklığı ve miktarı..."
           varDegeri={hassas?.sigara_alkol_madde_var ?? null}
           detayDegeri={hassas?.sigara_alkol_madde_detay ?? null}
-          disabled={isPending}
+          disabled={isPending || !duzenleModu}
         />
       </fieldset>
 
@@ -713,7 +697,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
             name="gelis_sebebi"
             rows={2}
             defaultValue={hassas?.gelis_sebebi ?? ""}
-            disabled={isPending}
+            disabled={isPending || !duzenleModu}
             className={textAlaniSinifi()}
           />
         </div>
@@ -725,7 +709,7 @@ function AnamnezFormu({ hasta, hassas }: { hasta: HastaDetay; hassas: HastaHassa
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="w-fit">
+      <Button type="submit" disabled={isPending || !duzenleModu} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Tıbbi geçmişi kaydet"}
       </Button>
     </form>
@@ -767,17 +751,24 @@ export function DetayliBilgilerKarti({
   const sonDegisiklikVar = Boolean(
     hassas && hassas.updated_at && hassas.created_at && hassas.updated_at !== hassas.created_at
   );
+  const [duzenleModu, setDuzenleModu] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={() => setDuzenleModu((onceki) => !onceki)}>
+          {duzenleModu ? "Görüntüle" : "Düzenle"}
+        </Button>
+      </div>
+
       {duzenlenebilir && (
         <>
-          <TemelBilgilerFormu hasta={hasta} hassas={hassas} />
+          <TemelBilgilerFormu hasta={hasta} hassas={hassas} duzenleModu={duzenleModu} />
           <div className="border-t border-border" />
         </>
       )}
 
-      <AnamnezFormu hasta={hasta} hassas={hassas} />
+      <AnamnezFormu hasta={hasta} hassas={hassas} duzenleModu={duzenleModu} />
 
       <div className="flex flex-col gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
         {hassas ? (
