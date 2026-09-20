@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Phone, Mail, CalendarClock, MessageSquareHeart } from "lucide-react";
+import { Phone, Mail, MessageSquareHeart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -88,10 +87,6 @@ export function OzetKart({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link href={`/panel/hastalar/${hastaId}/randevu`} className={cn(KUTU_SINIFI, DURUM_TONU_SINIFLARI.primary)}>
-            <CalendarClock className="size-4" aria-hidden />
-            Randevu Takip
-          </Link>
           <button
             type="button"
             onClick={() => setTalepModalAcik(true)}
