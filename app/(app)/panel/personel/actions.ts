@@ -495,7 +495,7 @@ export async function personelBilgileriGuncelle(
 
   const { data: mevcutPersonel } = await supabase
     .from("personel")
-    .select("id, kullanici_id, klinik_id, pozisyon_id")
+    .select("id, kullanici_id, klinik_id, pozisyon_id, isten_cikis_tarihi")
     .eq("id", personelId)
     .single();
 
@@ -527,6 +527,19 @@ export async function personelBilgileriGuncelle(
 
   const adminClient = createAdminClient();
 
+  // İşten çıkış tarihi girilince (boştan doluya geçince), bir giriş hesabı
+  // varsa Supabase Auth hesabı banlanıp yeni giriş/oturum yenileme engellenir
+  // — "sisteme girişi/şifreleri iptal olsun" isteği. Tarih sonradan
+  // temizlenirse (yanlışlık/yeniden işe alım) ban kaldırılır. Bilinçli olarak
+  // `personel.aktif`'e DOKUNULMUYOR: o alan puantaj cetveli + otomatik dönem
+  // kapama cron'unun (aktif=true filtresiyle) hangi personeli işlediğini
+  // belirliyor — işten çıkış tarihi girilir girilmez aktif=false yapmak,
+  // kişinin son (kısmi) ayının hakedişinin hem cron'dan hem de cetvelden
+  // (artık görünmediği için) hiç kapanamamasına yol açardı. Personelin
+  // listelerden tamamen çıkarılması ayrı bir karar/özellik.
+  const eskiCikisVarMi = Boolean(mevcutPersonel.isten_cikis_tarihi);
+  const yeniCikisVarMi = Boolean(veri.isten_cikis_tarihi);
+
   const { error: personelError } = await adminClient
     .from("personel")
     .update({
@@ -554,6 +567,28 @@ export async function personelBilgileriGuncelle(
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
+  let hesapMesaji: string | null = null;
+  let hesapHata = false;
+  if (mevcutPersonel.kullanici_id && eskiCikisVarMi !== yeniCikisVarMi) {
+    // ban_duration: yeni bir sign-in veya token yenileme engellenir; o anda
+    // AÇIK olan bir sekmenin erişim token'ı kendi doğal süresi dolana kadar
+    // (Supabase varsayılanı ~1 saat) çalışmaya devam edebilir — GoTrue admin
+    // API'sinde tek bir kullanıcının aktif oturumunu anında sonlandıran bir
+    // uç nokta bu SDK sürümünde yok, bu yüzden anlık "kill switch" değil.
+    const { error: banError } = await adminClient.auth.admin.updateUserById(mevcutPersonel.kullanici_id, {
+      ban_duration: yeniCikisVarMi ? "876000h" : "none",
+    });
+    if (banError) {
+      console.error("personel hesabı ban durumu güncellenemedi:", banError);
+      hesapHata = true;
+      hesapMesaji = yeniCikisVarMi
+        ? "Personel pasife alındı ama giriş erişimi iptal edilemedi, lütfen tekrar deneyin."
+        : "Personel aktif edildi ama giriş erişimi geri açılamadı, lütfen tekrar deneyin.";
+    } else {
+      hesapMesaji = yeniCikisVarMi ? "Giriş erişimi iptal edildi." : "Giriş erişimi geri açıldı.";
+    }
+  }
+
   if (mevcutPersonel.kullanici_id) {
     await adminClient
       .from("kullanici")
@@ -561,7 +596,7 @@ export async function personelBilgileriGuncelle(
       .eq("id", mevcutPersonel.kullanici_id);
   }
 
-  const uyari = await yardimciKayitlariIsle(
+  const uyariListesi = await yardimciKayitlariIsle(
     supabase,
     adminClient,
     personelId,
@@ -569,10 +604,15 @@ export async function personelBilgileriGuncelle(
     kaseDosyasi instanceof File ? kaseDosyasi : null,
     klinikId
   );
+  const ekMesaj = [uyariListesi, hesapMesaji].filter(Boolean).join(" ");
 
   revalidatePath(`/panel/personel/${personelId}`);
   revalidatePath("/panel/personel");
-  return { success: true, message: uyari ? `Kaydedildi. ${uyari}` : "Kaydedildi.", uyari: Boolean(uyari) };
+  return {
+    success: true,
+    message: ekMesaj ? `Kaydedildi. ${ekMesaj}` : "Kaydedildi.",
+    uyari: Boolean(uyariListesi) || hesapHata,
+  };
 }
 
 /**
