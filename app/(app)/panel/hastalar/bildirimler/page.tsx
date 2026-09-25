@@ -14,6 +14,7 @@ import { BekleyenIptalTalepleri } from "../../randevular/bekleyen-iptal-talepler
 import { BekleyenRandevuTalepleri } from "../../randevular/bekleyen-randevu-talepleri";
 import { AnketYanitiListesi, SeansDegerlendirmeListesi } from "./geri-bildirim-listesi";
 import { GoruluIsaretleyici } from "./goruldu-isaretleyici";
+import { atanabilirTerapistleriGetir } from "@/lib/personel/atanabilir-terapistler";
 
 export default async function HastaBildirimleriSayfasi() {
   const supabase = await createClient();
@@ -38,7 +39,7 @@ export default async function HastaBildirimleriSayfasi() {
     anketSonucu,
     seansDegerlendirmeSonucu,
     hastaSonucu,
-    terapistSonucu,
+    terapistler,
     odaSonucu,
     cihazSonucu,
     tedaviSonucu,
@@ -68,10 +69,7 @@ export default async function HastaBildirimleriSayfasi() {
       .limit(50)
       .returns<SeansDegerlendirmeSatir[]>(),
     supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
-    supabase
-      .from("terapist")
-      .select("id, personel(ad_soyad)")
-      .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
+    atanabilirTerapistleriGetir(supabase),
     supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
@@ -83,9 +81,6 @@ export default async function HastaBildirimleriSayfasi() {
   const seansDegerlendirmeleri = seansDegerlendirmeSonucu.data ?? [];
 
   const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({ id: m.id, ad: m.ad_soyad }));
-  const terapistler: SecenekSatir[] = (terapistSonucu.data ?? [])
-    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
-    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const tedaviler: TedaviSecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({

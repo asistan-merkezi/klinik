@@ -9,6 +9,7 @@ import { whatsappLinkOlustur } from "@/lib/utils";
 import type { RandevuDurum } from "@/types/randevu";
 import { GUN_ETIKETI, type HaftaninGunu } from "@/types/periyodik-randevu";
 import { revalidateHastaDetay } from "../hastalar/[id]/revalidate";
+import { terapistAtanabilirMi } from "@/lib/personel/atanabilir-terapistler";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -79,6 +80,10 @@ export async function randevuOlustur(
 
   const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika, talep_id } =
     ayristirma.data;
+
+  if (!(await terapistAtanabilirMi(supabase, terapist_id))) {
+    return { success: false, message: "Seçilen terapist işten ayrılmış, randevu atanamaz." };
+  }
 
   let baslangicIso: string;
   try {
@@ -202,6 +207,10 @@ export async function randevuGuncelle(
 
   const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika } = ayristirma.data;
   const { tani, antrenor_id, tedavi_protokolu_id } = tedaviBilgileriAyristirma.data;
+
+  if (!(await terapistAtanabilirMi(supabase, terapist_id))) {
+    return { success: false, message: "Seçilen terapist işten ayrılmış, randevu atanamaz." };
+  }
 
   let baslangicIso: string;
   try {
@@ -780,6 +789,10 @@ export async function periyodikRandevuOlustur(
   }
 
   const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, gunler, sure_dakika } = ayristirma.data;
+
+  if (!(await terapistAtanabilirMi(supabase, terapist_id))) {
+    return { success: false, message: "Seçilen terapist işten ayrılmış, randevu atanamaz." };
+  }
 
   const { data: hasta } = await supabase
     .from("hasta")

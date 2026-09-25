@@ -5,6 +5,7 @@ import type { RandevuSatir, SecenekSatir, TedaviSecenekSatir } from "@/types/ran
 import { GeriLink } from "../geri-link";
 import { RandevuSeansSekmesi } from "../sekmeler/randevu-seans-sekmesi";
 import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
+import { atanabilirTerapistleriGetir } from "@/lib/personel/atanabilir-terapistler";
 
 const RANDEVU_ARSIV_SELECT =
   "id, baslangic, bitis, durum, gecikme_dakika, terapist(personel(ad_soyad)), oda(ad), islem_tanimi(id, ad), kaynak";
@@ -30,7 +31,7 @@ export default async function RandevuSeansSayfasi({
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
   const supabase = await createClient();
-  const [periyodikRandevuSonucu, randevuListesiSonucu, islemTanimiSonucu, terapistSonucu, odaSonucu, cihazSonucu] =
+  const [periyodikRandevuSonucu, randevuListesiSonucu, islemTanimiSonucu, terapistler, odaSonucu, cihazSonucu] =
     await Promise.all([
       supabase
         .from("periyodik_randevu")
@@ -49,10 +50,7 @@ export default async function RandevuSeansSayfasi({
         .limit(100)
         .returns<RandevuSatir[]>(),
       supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
-      supabase
-        .from("terapist")
-        .select("id, personel(ad_soyad)")
-        .returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
+      atanabilirTerapistleriGetir(supabase),
       supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
     ]);
@@ -64,9 +62,6 @@ export default async function RandevuSeansSayfasi({
     ad: i.ad,
     sure_dakika: i.sure_dakika,
   }));
-  const terapistler: SecenekSatir[] = (terapistSonucu.data ?? [])
-    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
-    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
 
