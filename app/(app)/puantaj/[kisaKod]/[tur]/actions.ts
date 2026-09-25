@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
 
 type SonucDurumu = { success: boolean; message: string; adSoyad?: string; saat?: string } | null;
 
@@ -40,6 +41,15 @@ export async function puantajPinIleKaydet(_onceki: SonucDurumu, formData: FormDa
   }
 
   const { klinik_id, tur, pin } = ayristirma.data;
+
+  // RPC yalnız personelin aktif olup olmadığını kontrol ediyor, QR'ın
+  // klinik_admin tarafından kapatılıp kapatılmadığını değil — page.tsx'teki
+  // kontrol server action'ı korumaz, burada da ayrıca zorlanmalı.
+  const aktif = await qrKoduAktifMi(klinik_id, tur === "giris" ? "puantaj_giris" : "puantaj_cikis");
+  if (!aktif) {
+    return { success: false, message: "Bu puantaj bağlantısı artık aktif değil." };
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("personel_puantaj_pin_ile_kaydet", {

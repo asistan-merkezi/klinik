@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
+import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -59,6 +60,14 @@ export async function hastaQrKayitOlustur(
 
   if (!kvkk_onay) {
     return { success: false, message: "Devam etmek için KVKK Aydınlatma Metni'ni onaylamanız gerekiyor." };
+  }
+
+  // Sayfa render'ı kapalı QR'da formu hiç göstermiyor, ama server action
+  // bağımsız bir endpoint — linki/action'ı bilen biri formu atlayıp doğrudan
+  // POST edebilir. Kapalı QR'ın kayıt kabul etmemesi burada da zorlanmalı.
+  const aktif = await qrKoduAktifMi(klinik_id, "hasta_on_kayit");
+  if (!aktif) {
+    return { success: false, message: "Bu kayıt bağlantısı artık aktif değil." };
   }
 
   const supabase = await createClient();

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
+import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -32,6 +33,13 @@ export async function anketYanitiOlustur(_onceki: SonucDurumu, formData: FormDat
   }
 
   const { klinik_id, puan, oneri_metni, ad_soyad, telefon } = ayristirma.data;
+
+  // Kapalı QR'ın formu göstermemesi sadece page.tsx'te — server action bağımsız
+  // bir endpoint olduğu için burada da ayrıca zorlanmalı.
+  const aktif = await qrKoduAktifMi(klinik_id, "anket");
+  if (!aktif) {
+    return { success: false, message: "Bu anket bağlantısı artık aktif değil." };
+  }
 
   const supabase = await createClient();
 
