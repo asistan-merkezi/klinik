@@ -88,27 +88,33 @@ export function maasHesapla(
   }
 
   let prim = 0;
-  let aciklama = `Sabit maaş${kismiAciklama}`;
+  let ekAciklama = "";
 
   // Prim artık çalışma tipinden/hesaplama modelinden BAĞIMSIZ: prim_sabit_tutar
   // girilmişse (sabit maaş alan biri dahil) her zaman seans sayısına göre uygulanır
-  // (kullanıcı kararı, 2026-09-17). barajli_prim SADECE eski/miras veriler için
-  // korunuyor — UI'dan artık hiç seçilemiyor.
+  // (kullanıcı kararı, 2026-09-17) — barajli_prim (eski/miras model, UI'dan artık
+  // seçilemiyor) dahil, o modelde de prim_sabit_tutar girilmişse uygulanmalı.
+  const birimPrim = parametreler.prim_sabit_tutar ?? 0;
+  if (birimPrim > 0) {
+    prim += tamamlananSeansSayisi * birimPrim;
+    ekAciklama += ` + ${tamamlananSeansSayisi} seans × ${paraFormat(birimPrim)} prim`;
+  }
+
+  // barajli_prim SADECE eski/miras veriler için korunuyor, baraj bonusu
+  // prim_sabit_tutar'a EK olarak (onun yerine değil) uygulanır.
   if (parametreler.maas_hesaplama_modeli === "barajli_prim") {
     const baraj = parametreler.baraj_seans_sayisi ?? 0;
     const bonus = parametreler.baraj_bonus_tutari ?? 0;
     const barajAsildi = tamamlananSeansSayisi > baraj;
-    prim = barajAsildi ? bonus : 0;
-    aciklama = barajAsildi
-      ? `Sabit maaş${kismiAciklama} + baraj (${baraj} seans) aşıldı, ${paraFormat(bonus)} bonus eklendi`
-      : `Sabit maaş${kismiAciklama}, baraj (${baraj} seans) aşılmadı — bonus yok`;
-  } else {
-    const birimPrim = parametreler.prim_sabit_tutar ?? 0;
-    if (birimPrim > 0) {
-      prim = tamamlananSeansSayisi * birimPrim;
-      aciklama = `Sabit maaş${kismiAciklama} + ${tamamlananSeansSayisi} seans × ${paraFormat(birimPrim)} prim`;
+    if (barajAsildi) {
+      prim += bonus;
+      ekAciklama += ` + baraj (${baraj} seans) aşıldı, ${paraFormat(bonus)} bonus`;
+    } else {
+      ekAciklama += ` + baraj (${baraj} seans) aşılmadı — bonus yok`;
     }
   }
+
+  const aciklama = `Sabit maaş${kismiAciklama}${ekAciklama}`;
 
   return {
     taban,
