@@ -68,14 +68,26 @@ export function LedgerView({
   gelenRows,
   gidenRows,
   openingBalance,
+  yil,
+  onYilDegistir,
 }: {
   gelenRows: LedgerSatiri[];
   gidenRows: LedgerSatiri[];
   openingBalance: number;
+  /**
+   * Gösterilen yıl artık burada değil, çağıran server component'te (bkz.
+   * kasa/page.tsx, banka/page.tsx ?yil= parametresi) belirleniyor — gelenRows/
+   * gidenRows sadece BU yılın detayını içeriyor (tüm ömür boyu geçmiş yerine),
+   * "dönem başı bakiye" ise `openingBalance` üzerinden zaten bu yıldan ÖNCEKİ
+   * her şeyi kapsayacak şekilde hesaplanmış geliyor. Yıl değiştiğinde veri
+   * yeniden sunucudan çekilmesi gerektiği için bu artık local state değil,
+   * kontrollü bir prop.
+   */
+  yil: number;
+  onYilDegistir: (yeniYil: number) => void;
 }) {
   const simdi = new Date();
   const [donemModu, setDonemModu] = useState<DonemModu>("aylik");
-  const [yil, setYil] = useState(simdi.getFullYear());
   const [ay, setAy] = useState(simdi.getMonth() + 1);
   const [acikSatirlar, setAcikSatirlar] = useState<Set<string>>(new Set());
 
@@ -98,7 +110,7 @@ export function LedgerView({
       yeniYil -= 1;
     }
     setAy(yeniAy);
-    setYil(yeniYil);
+    if (yeniYil !== yil) onYilDegistir(yeniYil);
   }
 
   const { donemBasiBakiye, satirOzetleri, donemGelenToplam, donemGidenToplam } = useMemo(() => {
@@ -193,11 +205,11 @@ export function LedgerView({
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" size="icon-sm" onClick={() => setYil((y) => y - 1)} aria-label="Önceki yıl">
+              <Button type="button" variant="outline" size="icon-sm" onClick={() => onYilDegistir(yil - 1)} aria-label="Önceki yıl">
                 <ChevronLeft />
               </Button>
               <span className="min-w-16 text-center text-sm font-medium">{yil}</span>
-              <Button type="button" variant="outline" size="icon-sm" onClick={() => setYil((y) => y + 1)} aria-label="Sonraki yıl">
+              <Button type="button" variant="outline" size="icon-sm" onClick={() => onYilDegistir(yil + 1)} aria-label="Sonraki yıl">
                 <ChevronRight />
               </Button>
             </>

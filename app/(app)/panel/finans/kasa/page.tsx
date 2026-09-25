@@ -26,7 +26,15 @@ type NakitBankaSatiri = {
   karsi_taraf_adi: string | null;
 };
 
-export default async function KasaSayfasi() {
+export default async function KasaSayfasi({ searchParams }: { searchParams: Promise<{ yil?: string }> }) {
+  const { yil: yilParam } = await searchParams;
+  const simdikiYil = new Date().getFullYear();
+  const secilenYil = yilParam && /^\d{4}$/.test(yilParam) ? Number(yilParam) : simdikiYil;
+  const yilBaslangicTarih = `${secilenYil}-01-01`;
+  const yilBitisTarih = `${secilenYil + 1}-01-01`;
+  const yilBaslangicTs = `${yilBaslangicTarih}T00:00:00.000Z`;
+  const yilBitisTs = `${yilBitisTarih}T00:00:00.000Z`;
+
   const supabase = await createClient();
 
   const {
@@ -62,6 +70,7 @@ export default async function KasaSayfasi() {
     bankaHesabiSonucu,
     personelListesiSonucu,
     aracSonucu,
+    oncekiToplamSonucu,
   ] = await Promise.all([
       supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId ?? "").maybeSingle(),
       supabase
@@ -69,22 +78,30 @@ export default async function KasaSayfasi() {
         .select("id, created_at, tutar, hasta:hasta_id(ad_soyad)")
         .eq("tur", "odeme")
         .eq("odeme_yontemi", "nakit")
+        .gte("created_at", yilBaslangicTs)
+        .lt("created_at", yilBitisTs)
         .returns<HastaOdemeSatiri[]>(),
       supabase
         .from("klinik_harcama")
         .select("id, tarih, tutar, tedarikci_adi, kategori")
         .eq("odeme_tipi", "nakit")
+        .gte("tarih", yilBaslangicTarih)
+        .lt("tarih", yilBitisTarih)
         .returns<HarcamaSatiri[]>(),
       supabase
         .from("personel_hesap_hareket")
         .select("id, tarih, tutar, tur, personel:personel_id(ad_soyad)")
         .eq("odeme_tipi", "nakit")
         .in("tur", ["odeme", "avans"])
+        .gte("tarih", yilBaslangicTarih)
+        .lt("tarih", yilBitisTarih)
         .returns<PersonelOdemeSatiri[]>(),
       supabase
         .from("nakit_banka_hareketi")
         .select("id, tip, kaynak_kasa, hedef_kasa, tutar, tarih, aciklama, karsi_taraf_adi")
         .or("kaynak_kasa.eq.true,hedef_kasa.eq.true")
+        .gte("tarih", yilBaslangicTarih)
+        .lt("tarih", yilBitisTarih)
         .returns<NakitBankaSatiri[]>(),
       supabase
         .from("klinik_banka_hesaplari")
@@ -98,10 +115,18 @@ export default async function KasaSayfasi() {
         .order("ad_soyad")
         .returns<{ id: string; ad_soyad: string }[]>(),
       supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
+      supabase.rpc("kasa_bakiye_once_toplam", { p_once_tarih: yilBaslangicTarih }),
     ]);
 
+  // "Kasa Başlangıç Tutarı" kartında gösterilip düzenlenen ayar — LedgerView'a
+  // verilen dönem başı bakiyeden AYRI tutuluyor (biri sabit ayar, diğeri seçili
+  // yıla göre değişen hesaplanmış bir değer).
   const baslangicTutari =
     (ayarSonucu.data?.ayarlar as { kasa?: { baslangic_tutari?: number } } | null)?.kasa?.baslangic_tutari ?? 0;
+  // Seçili yıldan önceki tüm hareketlerin net toplamı artık tek bir RPC'den
+  // (Postgres SUM) geliyor — tüm ömür boyu geçmişi indirip JS'te toplamak
+  // yerine (bkz. 20260925090000_kasa_banka_bakiye_once_toplam_rpc.sql).
+  const donemBaslangicBakiyesi = baslangicTutari + (oncekiToplamSonucu.data ?? 0);
 
   const gelenRows: LedgerSatiri[] = [
     ...(hastaOdemeSonucu.data ?? []).map((h) => ({
@@ -154,6 +179,8 @@ export default async function KasaSayfasi() {
 
         <KasaClient
           baslangicTutari={baslangicTutari}
+          donemBaslangicBakiyesi={donemBaslangicBakiyesi}
+          yil={secilenYil}
           gelenRows={gelenRows}
           gidenRows={gidenRows}
           bankaHesaplari={bankaHesabiSonucu.data ?? []}

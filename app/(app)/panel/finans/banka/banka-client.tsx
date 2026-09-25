@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2, ArrowDownToLine, ArrowUpFromLine, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -534,6 +535,8 @@ export function BankaClient({
   personelListesi,
   araclar,
   duzenlenebilir,
+  oncekiBakiyeMap,
+  yil,
 }: {
   bankaHesaplari: KlinikBankaHesabi[];
   hastaOdemeleri: HastaOdemeSatiri[];
@@ -543,7 +546,11 @@ export function BankaClient({
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
   duzenlenebilir: boolean;
+  /** Her hesabın seçili yıldan ÖNCEKİ net toplamı (bkz. banka/page.tsx) — hesap bazlı "dönem başı bakiye". */
+  oncekiBakiyeMap: Record<string, number>;
+  yil: number;
 }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string>(bankaHesaplari[0]?.id ?? "");
 
   const { gelenRows, gidenRows, hesabiIlgilendirenTransferler } = useMemo(() => {
@@ -608,7 +615,13 @@ export function BankaClient({
         </div>
       )}
 
-      <LedgerView gelenRows={gelenRows} gidenRows={gidenRows} openingBalance={0} />
+      <LedgerView
+        gelenRows={gelenRows}
+        gidenRows={gidenRows}
+        openingBalance={selectedId ? (oncekiBakiyeMap[selectedId] ?? 0) : 0}
+        yil={yil}
+        onYilDegistir={(yeniYil) => router.push(`/panel/finans/banka?yil=${yeniYil}`)}
+      />
 
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-muted-foreground">Havale Kayıtları</h3>

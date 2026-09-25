@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
-import { LedgerView } from "@/components/panel/ledger-view";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
+import { KrediKartiLedger } from "./kredi-karti-ledger";
 
 type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; hasta: { ad_soyad: string } | null };
 type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string };
@@ -18,7 +18,15 @@ type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: 
  * hareket girişi YOK: nakit_banka_hareketi şeması kart bacağı taşımıyor,
  * kart için "elden" bir kasa kavramı da yok — salt okunur mutabakat yeterli.
  */
-export default async function KrediKartiSayfasi() {
+export default async function KrediKartiSayfasi({ searchParams }: { searchParams: Promise<{ yil?: string }> }) {
+  const { yil: yilParam } = await searchParams;
+  const simdikiYil = new Date().getFullYear();
+  const secilenYil = yilParam && /^\d{4}$/.test(yilParam) ? Number(yilParam) : simdikiYil;
+  const yilBaslangicTarih = `${secilenYil}-01-01`;
+  const yilBitisTarih = `${secilenYil + 1}-01-01`;
+  const yilBaslangicTs = `${yilBaslangicTarih}T00:00:00.000Z`;
+  const yilBitisTs = `${yilBitisTarih}T00:00:00.000Z`;
+
   const supabase = await createClient();
 
   const {
@@ -42,18 +50,23 @@ export default async function KrediKartiSayfasi() {
     redirect("/panel");
   }
 
-  const [hastaOdemeSonucu, harcamaSonucu] = await Promise.all([
+  const [hastaOdemeSonucu, harcamaSonucu, oncekiToplamSonucu] = await Promise.all([
     supabase
       .from("hasta_bakiye_hareket")
       .select("id, created_at, tutar, hasta:hasta_id(ad_soyad)")
       .eq("tur", "odeme")
       .eq("odeme_yontemi", "kredi_karti")
+      .gte("created_at", yilBaslangicTs)
+      .lt("created_at", yilBitisTs)
       .returns<HastaOdemeSatiri[]>(),
     supabase
       .from("klinik_harcama")
       .select("id, tarih, tutar, tedarikci_adi, kategori")
       .eq("odeme_tipi", "kredi_karti")
+      .gte("tarih", yilBaslangicTarih)
+      .lt("tarih", yilBitisTarih)
       .returns<HarcamaSatiri[]>(),
+    supabase.rpc("kredi_karti_bakiye_once_toplam", { p_once_tarih: yilBaslangicTarih }),
   ]);
 
   const gelenRows: LedgerSatiri[] = (hastaOdemeSonucu.data ?? []).map((h) => ({
@@ -79,7 +92,12 @@ export default async function KrediKartiSayfasi() {
           icon={CreditCard}
         />
 
-        <LedgerView gelenRows={gelenRows} gidenRows={gidenRows} openingBalance={0} />
+        <KrediKartiLedger
+          gelenRows={gelenRows}
+          gidenRows={gidenRows}
+          openingBalance={oncekiToplamSonucu.data ?? 0}
+          yil={secilenYil}
+        />
       </div>
     </div>
   );

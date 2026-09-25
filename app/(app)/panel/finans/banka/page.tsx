@@ -44,7 +44,15 @@ type NakitBankaSatiri = {
   karsi_taraf_iban: string | null;
 };
 
-export default async function BankaSayfasi() {
+export default async function BankaSayfasi({ searchParams }: { searchParams: Promise<{ yil?: string }> }) {
+  const { yil: yilParam } = await searchParams;
+  const simdikiYil = new Date().getFullYear();
+  const secilenYil = yilParam && /^\d{4}$/.test(yilParam) ? Number(yilParam) : simdikiYil;
+  const yilBaslangicTarih = `${secilenYil}-01-01`;
+  const yilBitisTarih = `${secilenYil + 1}-01-01`;
+  const yilBaslangicTs = `${yilBaslangicTarih}T00:00:00.000Z`;
+  const yilBitisTs = `${yilBitisTarih}T00:00:00.000Z`;
+
   const supabase = await createClient();
 
   const {
@@ -78,6 +86,7 @@ export default async function BankaSayfasi() {
     nakitBankaSonucu,
     personelListesiSonucu,
     aracSonucu,
+    oncekiToplamSonucu,
   ] = await Promise.all([
     supabase.from("klinik_banka_hesaplari").select("id, banka_adi, sube").order("sort_order").returns<KlinikBankaHesabi[]>(),
     supabase
@@ -85,17 +94,23 @@ export default async function BankaSayfasi() {
       .select("id, created_at, tutar, banka_hesap_id, hasta:hasta_id(ad_soyad)")
       .eq("tur", "odeme")
       .eq("odeme_yontemi", "banka_havalesi")
+      .gte("created_at", yilBaslangicTs)
+      .lt("created_at", yilBitisTs)
       .returns<HastaOdemeSatiri[]>(),
     supabase
       .from("klinik_harcama")
       .select("id, tarih, tutar, tedarikci_adi, kategori, banka_hesap_id")
       .eq("odeme_tipi", "havale")
+      .gte("tarih", yilBaslangicTarih)
+      .lt("tarih", yilBitisTarih)
       .returns<HarcamaSatiri[]>(),
     supabase
       .from("personel_hesap_hareket")
       .select("id, tarih, tutar, tur, banka_hesap_id, personel:personel_id(ad_soyad)")
       .eq("odeme_tipi", "havale")
       .in("tur", ["odeme", "avans"])
+      .gte("tarih", yilBaslangicTarih)
+      .lt("tarih", yilBitisTarih)
       .returns<PersonelOdemeSatiri[]>(),
     supabase
       .from("nakit_banka_hareketi")
@@ -103,10 +118,21 @@ export default async function BankaSayfasi() {
         "id, tip, kaynak_kasa, kaynak_banka_hesap_id, hedef_kasa, hedef_banka_hesap_id, odeme_yontemi, tutar, tarih, aciklama, karsi_taraf_adi, karsi_taraf_banka, karsi_taraf_iban"
       )
       .or("kaynak_banka_hesap_id.not.is.null,hedef_banka_hesap_id.not.is.null")
+      .gte("tarih", yilBaslangicTarih)
+      .lt("tarih", yilBitisTarih)
       .returns<NakitBankaSatiri[]>(),
     supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad").returns<{ id: string; ad_soyad: string }[]>(),
     supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
+    supabase.rpc("banka_bakiye_once_toplam_tumu", { p_once_tarih: yilBaslangicTarih }),
   ]);
+
+  // Her banka hesabının seçili yıldan ÖNCEKİ net toplamı — tüm ömür boyu
+  // geçmişi indirip JS'te toplamak yerine tek bir RPC'den (Postgres SUM)
+  // geliyor (bkz. 20260925090000_kasa_banka_bakiye_once_toplam_rpc.sql).
+  const oncekiBakiyeMap: Record<string, number> = {};
+  for (const satir of oncekiToplamSonucu.data ?? []) {
+    oncekiBakiyeMap[satir.banka_hesap_id] = satir.toplam;
+  }
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -122,6 +148,8 @@ export default async function BankaSayfasi() {
           personelListesi={personelListesiSonucu.data ?? []}
           araclar={aracSonucu.data ?? []}
           duzenlenebilir={duzenlenebilir}
+          oncekiBakiyeMap={oncekiBakiyeMap}
+          yil={secilenYil}
         />
       </div>
     </div>

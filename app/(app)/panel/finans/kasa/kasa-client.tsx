@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Pencil, Check, X, Trash2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -499,6 +500,8 @@ function KasaHareketleriTablosu({
 
 export function KasaClient({
   baslangicTutari,
+  donemBaslangicBakiyesi,
+  yil,
   gelenRows,
   gidenRows,
   bankaHesaplari,
@@ -508,6 +511,8 @@ export function KasaClient({
   duzenlenebilir,
 }: {
   baslangicTutari: number;
+  donemBaslangicBakiyesi: number;
+  yil: number;
   gelenRows: LedgerSatiri[];
   gidenRows: LedgerSatiri[];
   bankaHesaplari: KlinikBankaHesabi[];
@@ -516,6 +521,8 @@ export function KasaClient({
   araclar: KlinikArac[];
   duzenlenebilir: boolean;
 }) {
+  const router = useRouter();
+
   return (
     <div className="flex flex-col gap-6">
       <BaslangicTutariKarti baslangicTutari={baslangicTutari} duzenlenebilir={duzenlenebilir} />
@@ -527,7 +534,13 @@ export function KasaClient({
         </div>
       )}
 
-      <LedgerView gelenRows={gelenRows} gidenRows={gidenRows} openingBalance={baslangicTutari} />
+      <LedgerView
+        gelenRows={gelenRows}
+        gidenRows={gidenRows}
+        openingBalance={donemBaslangicBakiyesi}
+        yil={yil}
+        onYilDegistir={(yeniYil) => router.push(`/panel/finans/kasa?yil=${yeniYil}`)}
+      />
 
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-muted-foreground">Kasa Hareketleri</h3>
