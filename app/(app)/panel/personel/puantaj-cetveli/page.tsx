@@ -74,7 +74,11 @@ export default async function PuantajCetveliSayfasi({
   const gunlukPersonel = (personelSonucu ?? []).filter(
     (p) =>
       (p.pozisyon as { puantaj_modu?: string } | null)?.puantaj_modu !== "takipsiz" &&
-      (!p.ise_giris_tarihi || p.ise_giris_tarihi < ay.bitisTarih)
+      (!p.ise_giris_tarihi || p.ise_giris_tarihi < ay.bitisTarih) &&
+      // İşten çıkış tarihi bu ayın BAŞLANGICINDAN önceyse (tamamen geçmiş bir
+      // ay) satır hiç gösterilmiyor — çıkış tarihi bu ayın İÇİNDEYSE (kısmi
+      // ayın kendisi) hâlâ görünmeye devam eder, o ayın dönemi kapatılabilsin.
+      (!p.isten_cikis_tarihi || p.isten_cikis_tarihi >= ay.baslangicTarih)
   );
 
   const terapistIdleri = gunlukPersonel.map((p) => p.id);
@@ -103,23 +107,39 @@ export default async function PuantajCetveliSayfasi({
 
   // Terapist olan personel için bu ayki tamamlanan seans sayısı (hakediş
   // tahmini için) — dönem kapalıysa zaten ledger'dan okunacağı için hesaba
-  // gerek yok, sadece açık dönemler için sorgulanıyor.
-  const seansSayisiMap = new Map<string, number>();
-  await Promise.all(
-    gunlukPersonel.map(async (p) => {
-      const terapist = terapistMap.get(p.id);
-      const donemKapali = donemMap.get(p.id) === "kapali";
-      if (!terapist || donemKapali) return;
-      const { count } = await supabase
-        .from("randevu")
-        .select("id", { count: "exact", head: true })
-        .eq("terapist_id", terapist.id)
-        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-        .gte("baslangic", new Date(Date.UTC(yil, ayNum - 1, 1)).toISOString())
-        .lt("baslangic", new Date(Date.UTC(yil, ayNum, 1)).toISOString());
-      seansSayisiMap.set(p.id, count ?? 0);
-    })
+  // gerek yok, sadece açık dönemler için sorgulanıyor. Kişi başına ayrı bir
+  // count sorgusu atmak yerine (N+1) tek IN() sorgusuyla toplanıp JS'te
+  // gruplanıyor.
+  const terapistIdToPersonelId = new Map(
+    gunlukPersonel.filter((p) => terapistMap.has(p.id)).map((p) => [terapistMap.get(p.id)!.id, p.id])
   );
+  const acikDonemTerapistIdleri = gunlukPersonel
+    .filter((p) => donemMap.get(p.id) !== "kapali" && terapistMap.has(p.id))
+    .map((p) => terapistMap.get(p.id)!.id);
+
+  // İşten çıkış tarihinden SONRAKİ seanslar prime hiç katılmasın — normal
+  // şartlarda öyle bir randevu oluşamaz (terapistAtanabilirMi kontrolü,
+  // bkz. lib/personel/atanabilir-terapistler.ts) ama daha önceden atanmış
+  // olabilecek bir randevu için ek güvenlik.
+  const cikisTarihiByPersonelId = new Map(gunlukPersonel.map((p) => [p.id, p.isten_cikis_tarihi]));
+
+  const seansSayisiMap = new Map<string, number>();
+  if (acikDonemTerapistIdleri.length > 0) {
+    const { data: randevuSonucu } = await supabase
+      .from("randevu")
+      .select("terapist_id, baslangic")
+      .in("terapist_id", acikDonemTerapistIdleri)
+      .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
+      .gte("baslangic", new Date(Date.UTC(yil, ayNum - 1, 1)).toISOString())
+      .lt("baslangic", new Date(Date.UTC(yil, ayNum, 1)).toISOString());
+    for (const r of randevuSonucu ?? []) {
+      const personelId = terapistIdToPersonelId.get(r.terapist_id);
+      if (!personelId) continue;
+      const cikisTarihi = cikisTarihiByPersonelId.get(personelId);
+      if (cikisTarihi && r.baslangic.slice(0, 10) > cikisTarihi) continue;
+      seansSayisiMap.set(personelId, (seansSayisiMap.get(personelId) ?? 0) + 1);
+    }
+  }
 
   const satirlar: PuantajCetveliSatir[] = gunlukPersonel.map((p) => {
     const kayitlarMap = puantajByPersonel.get(p.id) ?? new Map();
