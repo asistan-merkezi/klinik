@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { SecenekSatir } from "@/types/randevu";
-import type { IslemTanimiSatir } from "@/types/islem-tanimi";
+import type { IslemAdimiSablonuSatir, IslemTanimiSatir } from "@/types/islem-tanimi";
 import { YeniTedaviDialog } from "./yeni-tedavi-dialog";
+import { YeniIslemSablonuDialog } from "./yeni-islem-sablonu-dialog";
 import { TedaviListesi } from "./tedavi-listesi";
 
 export default async function IslemlerSayfasi() {
@@ -28,7 +29,7 @@ export default async function IslemlerSayfasi() {
 
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
-  const [cihazSonucu, pozisyonSonucu, islemSonucu] = await Promise.all([
+  const [cihazSonucu, pozisyonSonucu, islemSonucu, sablonSonucu] = await Promise.all([
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("pozisyonlar").select("id, ad").eq("aktif", true).order("sira"),
     supabase
@@ -39,11 +40,18 @@ export default async function IslemlerSayfasi() {
       .order("ad")
       .order("sira", { referencedTable: "islem_tanimi_adim" })
       .returns<IslemTanimiSatir[]>(),
+    supabase
+      .from("islem_adimi_sablonu")
+      .select("id, ad, uygulayici_pozisyon_id, sure_dakika")
+      .eq("aktif", true)
+      .order("ad")
+      .returns<IslemAdimiSablonuSatir[]>(),
   ]);
 
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const pozisyonlar: SecenekSatir[] = (pozisyonSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
   const islemler = islemSonucu.data ?? [];
+  const sablonlar = sablonSonucu.data ?? [];
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -52,7 +60,14 @@ export default async function IslemlerSayfasi() {
           title="Tedavi Tanımları"
           description="Fiyat kataloğunu görüntüle ve yönet."
           icon={Stethoscope}
-          actions={duzenlenebilir && <YeniTedaviDialog cihazlar={cihazlar} pozisyonlar={pozisyonlar} />}
+          actions={
+            duzenlenebilir && (
+              <div className="flex flex-col items-end gap-2">
+                <YeniTedaviDialog cihazlar={cihazlar} pozisyonlar={pozisyonlar} sablonlar={sablonlar} />
+                <YeniIslemSablonuDialog pozisyonlar={pozisyonlar} />
+              </div>
+            )
+          }
         />
 
         <Card className="bg-surface-2">
@@ -71,6 +86,7 @@ export default async function IslemlerSayfasi() {
                 islemler={islemler}
                 cihazlar={cihazlar}
                 pozisyonlar={pozisyonlar}
+                sablonlar={sablonlar}
                 duzenlenebilir={duzenlenebilir}
               />
             )}

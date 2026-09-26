@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SecenekSatir } from "@/types/randevu";
+import type { IslemAdimiSablonuSatir } from "@/types/islem-tanimi";
 import { islemTanimiOlustur } from "./actions";
 import {
   IslemAdimSatirlari,
@@ -16,9 +17,11 @@ import {
 export function IslemFormu({
   cihazlar,
   pozisyonlar,
+  sablonlar,
 }: {
   cihazlar: SecenekSatir[];
   pozisyonlar: SecenekSatir[];
+  sablonlar: IslemAdimiSablonuSatir[];
 }) {
   const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(islemTanimiOlustur, null);
@@ -73,6 +76,7 @@ export function IslemFormu({
       <IslemAdimSatirlari
         cihazlar={cihazlar}
         pozisyonlar={pozisyonlar}
+        sablonlar={sablonlar}
         adimlar={adimlar}
         onAdimlarDegisti={setAdimlar}
         disabled={isPending}

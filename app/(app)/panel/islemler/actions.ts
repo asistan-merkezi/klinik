@@ -148,6 +148,58 @@ export async function islemTanimiGuncelle(
   return islemTanimiKaydet(islemId, formData);
 }
 
+const sablonSemasi = z.object({
+  ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
+  uygulayici_pozisyon_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+  sure_dakika: z
+    .union([z.coerce.number().int().min(1, "Süre 1 dakikadan az olamaz."), z.literal("")])
+    .optional()
+    .transform((deger) => (deger === "" || deger === undefined ? null : deger)),
+});
+
+export async function islemAdimiSablonuOlustur(
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+
+  const ayristirma = sablonSemasi.safeParse({
+    ad: formData.get("ad"),
+    uygulayici_pozisyon_id: formData.get("uygulayici_pozisyon_id") ?? "",
+    sure_dakika: formData.get("sure_dakika") ?? "",
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { ad, uygulayici_pozisyon_id, sure_dakika } = ayristirma.data;
+
+  const { error } = await supabase.from("islem_adimi_sablonu").insert({
+    klinik_id: klinikId,
+    ad,
+    uygulayici_pozisyon_id: uygulayici_pozisyon_id ? uygulayici_pozisyon_id : null,
+    sure_dakika,
+  });
+
+  if (error) {
+    console.error("İşlem tanımlama eklenemedi:", error);
+    if (error.code === "23505") {
+      return { success: false, message: "Bu isimde bir işlem tanımı zaten var." };
+    }
+    if (error.code === "42501") {
+      return { success: false, message: "Bu işlem için yetkiniz yok." };
+    }
+    return { success: false, message: "İşlem tanımı eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/islemler");
+  return { success: true, message: "İşlem tanımı eklendi." };
+}
+
 export async function islemTanimiAktifDurumDegistir(islemId: string, yeniDurum: boolean) {
   const { supabase, klinikId } = await klinikIdGetir();
   if (!klinikId) {

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import type { SecenekSatir } from "@/types/randevu";
-import type { IslemTanimiSatir } from "@/types/islem-tanimi";
+import type { IslemAdimiSablonuSatir, IslemTanimiSatir } from "@/types/islem-tanimi";
 import { islemTanimiAktifDurumDegistir, islemTanimiGuncelle } from "./actions";
 import {
   IslemAdimSatirlari,
@@ -24,6 +24,7 @@ export function IslemSatiri({
   islem,
   cihazlar,
   pozisyonlar,
+  sablonlar,
   duzenlenebilir,
   duzenleniyor,
   onDuzenleBaslat,
@@ -32,6 +33,7 @@ export function IslemSatiri({
   islem: IslemTanimiSatir;
   cihazlar: SecenekSatir[];
   pozisyonlar: SecenekSatir[];
+  sablonlar: IslemAdimiSablonuSatir[];
   duzenlenebilir: boolean;
   duzenleniyor: boolean;
   onDuzenleBaslat: () => void;
@@ -88,6 +90,7 @@ export function IslemSatiri({
           <IslemAdimSatirlari
             cihazlar={cihazlar}
             pozisyonlar={pozisyonlar}
+            sablonlar={sablonlar}
             adimlar={adimlar}
             onAdimlarDegisti={setAdimlar}
             disabled={isPending}

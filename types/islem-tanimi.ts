@@ -8,6 +8,13 @@ export type IslemTanimiAdimSatir = {
   pozisyon: { ad: string } | null;
 };
 
+export type IslemAdimiSablonuSatir = {
+  id: string;
+  ad: string;
+  uygulayici_pozisyon_id: string | null;
+  sure_dakika: number | null;
+};
+
 export type IslemTanimiSatir = {
   id: string;
   ad: string;

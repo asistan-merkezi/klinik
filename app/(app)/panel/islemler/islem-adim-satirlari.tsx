@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SecenekSatir } from "@/types/randevu";
-import type { IslemTanimiAdimSatir } from "@/types/islem-tanimi";
+import type { IslemAdimiSablonuSatir, IslemTanimiAdimSatir } from "@/types/islem-tanimi";
 
 export type IslemAdimi = {
   anahtar: string;
@@ -47,12 +47,14 @@ export function toplamSureHesapla(adimlar: IslemAdimi[]): number {
 export function IslemAdimSatirlari({
   cihazlar,
   pozisyonlar,
+  sablonlar,
   adimlar,
   onAdimlarDegisti,
   disabled,
 }: {
   cihazlar: SecenekSatir[];
   pozisyonlar: SecenekSatir[];
+  sablonlar: IslemAdimiSablonuSatir[];
   adimlar: IslemAdimi[];
   onAdimlarDegisti: (adimlar: IslemAdimi[]) => void;
   disabled?: boolean;
@@ -78,6 +80,23 @@ export function IslemAdimSatirlari({
     onAdimlarDegisti(adimlar.map((a) => (a.anahtar === anahtar ? { ...a, [alan]: deger } : a)));
   }
 
+  function adimSablondanDoldur(anahtar: string, sablonId: string) {
+    const sablon = sablonlar.find((s) => s.id === sablonId);
+    if (!sablon) return;
+    onAdimlarDegisti(
+      adimlar.map((a) =>
+        a.anahtar === anahtar
+          ? {
+              ...a,
+              ad: sablon.ad,
+              uygulayiciPozisyonId: sablon.uygulayici_pozisyon_id ?? "",
+              sureDakika: sablon.sure_dakika !== null ? String(sablon.sure_dakika) : "",
+            }
+          : a
+      )
+    );
+  }
+
   const gonderilecekJson = JSON.stringify(
     adimlar.map((a) => ({
       id: a.id ?? null,
@@ -99,6 +118,27 @@ export function IslemAdimSatirlari({
             className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-end"
           >
             <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {sablonlar.length > 0 && (
+                <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-4">
+                  <Label className="text-xs text-muted-foreground">Şablondan Doldur (opsiyonel)</Label>
+                  <Select
+                    onValueChange={(deger) => adimSablondanDoldur(adim.anahtar, deger as string)}
+                    disabled={disabled}
+                    items={sablonlar.map((s) => ({ value: s.id, label: s.ad }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Kayıtlı işlem tanımından seç" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sablonlar.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.ad}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">İşlem Adı</Label>
                 <Input

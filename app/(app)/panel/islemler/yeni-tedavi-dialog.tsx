@@ -10,14 +10,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { SecenekSatir } from "@/types/randevu";
+import type { IslemAdimiSablonuSatir } from "@/types/islem-tanimi";
 import { IslemFormu } from "./islem-formu";
 
 export function YeniTedaviDialog({
   cihazlar,
   pozisyonlar,
+  sablonlar,
 }: {
   cihazlar: SecenekSatir[];
   pozisyonlar: SecenekSatir[];
+  sablonlar: IslemAdimiSablonuSatir[];
 }) {
   const [acik, setAcik] = useState(false);
 
@@ -36,7 +39,7 @@ export function YeniTedaviDialog({
           <DialogHeader>
             <DialogTitle>Yeni Tedavi Tanımı</DialogTitle>
           </DialogHeader>
-          <IslemFormu cihazlar={cihazlar} pozisyonlar={pozisyonlar} />
+          <IslemFormu cihazlar={cihazlar} pozisyonlar={pozisyonlar} sablonlar={sablonlar} />
         </DialogContent>
       </Dialog>
     </>

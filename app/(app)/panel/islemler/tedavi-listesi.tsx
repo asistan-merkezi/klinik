@@ -2,18 +2,20 @@
 
 import { useState } from "react";
 import type { SecenekSatir } from "@/types/randevu";
-import type { IslemTanimiSatir } from "@/types/islem-tanimi";
+import type { IslemAdimiSablonuSatir, IslemTanimiSatir } from "@/types/islem-tanimi";
 import { IslemSatiri } from "./islem-satiri";
 
 export function TedaviListesi({
   islemler,
   cihazlar,
   pozisyonlar,
+  sablonlar,
   duzenlenebilir,
 }: {
   islemler: IslemTanimiSatir[];
   cihazlar: SecenekSatir[];
   pozisyonlar: SecenekSatir[];
+  sablonlar: IslemAdimiSablonuSatir[];
   duzenlenebilir: boolean;
 }) {
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
@@ -26,6 +28,7 @@ export function TedaviListesi({
           islem={islem}
           cihazlar={cihazlar}
           pozisyonlar={pozisyonlar}
+          sablonlar={sablonlar}
           duzenlenebilir={duzenlenebilir}
           duzenleniyor={duzenlenenId === islem.id}
           onDuzenleBaslat={() => setDuzenlenenId(islem.id)}
