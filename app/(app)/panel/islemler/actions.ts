@@ -16,7 +16,7 @@ const kademeFiyatiSemasi = z
   .transform((deger) => (deger === "" || deger === undefined ? null : deger));
 
 const adimSemasi = z.object({
-  id: z.string().uuid().optional(),
+  id: z.union([z.string().uuid(), z.null()]).optional(),
   ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
   uygulayici_pozisyon_id: z.union([z.string().uuid(), z.literal(""), z.null()]).optional(),
   gerekli_cihaz_id: z.union([z.string().uuid(), z.literal(""), z.null()]).optional(),

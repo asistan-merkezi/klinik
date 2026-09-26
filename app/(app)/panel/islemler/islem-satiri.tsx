@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useState, useTransition } from "react";
+import { useActionState, useEffect, useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,14 +47,12 @@ export function IslemSatiri({
   const guncelleAction = islemTanimiGuncelle.bind(null, islem.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const [aktifPending, startAktifTransition] = useTransition();
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
+  useEffect(() => {
     if (durum?.success) {
       onDuzenleBitir();
     }
-  }
+  }, [durum, onDuzenleBitir]);
 
   if (duzenleniyor) {
     const toplamSure = toplamSureHesapla(adimlar);

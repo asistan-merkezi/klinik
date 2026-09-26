@@ -122,7 +122,7 @@ export function IslemAdimSatirlari({
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">İşlem Adı</Label>
                 <Select
-                  value={sablonlar.find((s) => s.ad === adim.ad)?.id}
+                  value={sablonlar.find((s) => s.ad === adim.ad)?.id ?? ""}
                   onValueChange={(deger) => adimSablondanDoldur(adim.anahtar, deger as string)}
                   disabled={disabled || sablonlar.length === 0}
                   items={sablonlar.map((s) => ({ value: s.id, label: s.ad }))}
@@ -154,7 +154,7 @@ export function IslemAdimSatirlari({
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">İşlem Uygulayıcı (opsiyonel)</Label>
                 <Select
-                  value={adim.uygulayiciPozisyonId || undefined}
+                  value={adim.uygulayiciPozisyonId}
                   onValueChange={(deger) =>
                     adimGuncelle(adim.anahtar, "uygulayiciPozisyonId", deger as string)
                   }
@@ -176,7 +176,7 @@ export function IslemAdimSatirlari({
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">Gerekli Cihaz (opsiyonel)</Label>
                 <Select
-                  value={adim.gerekliCihazId || undefined}
+                  value={adim.gerekliCihazId}
                   onValueChange={(deger) => adimGuncelle(adim.anahtar, "gerekliCihazId", deger as string)}
                   disabled={disabled || cihazlar.length === 0}
                   items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}

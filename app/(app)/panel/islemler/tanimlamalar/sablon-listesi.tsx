@@ -76,7 +76,7 @@ function SablonSatiri({
           <div className="flex flex-col gap-1">
             <Label className="text-xs text-muted-foreground">Uygulayacak Kişi</Label>
             <Select
-              value={uygulayiciPozisyonId || undefined}
+              value={uygulayiciPozisyonId}
               onValueChange={(deger) => setUygulayiciPozisyonId(deger as string)}
               disabled={kaydediliyor || pozisyonlar.length === 0}
               items={pozisyonlar.map((p) => ({ value: p.id, label: p.ad }))}
