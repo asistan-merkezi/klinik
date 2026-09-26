@@ -23,6 +23,7 @@ const paraFormatla = (tutar: number) =>
 export function IslemSatiri({
   islem,
   cihazlar,
+  pozisyonlar,
   duzenlenebilir,
   duzenleniyor,
   onDuzenleBaslat,
@@ -30,6 +31,7 @@ export function IslemSatiri({
 }: {
   islem: IslemTanimiSatir;
   cihazlar: SecenekSatir[];
+  pozisyonlar: SecenekSatir[];
   duzenlenebilir: boolean;
   duzenleniyor: boolean;
   onDuzenleBaslat: () => void;
@@ -85,6 +87,7 @@ export function IslemSatiri({
 
           <IslemAdimSatirlari
             cihazlar={cihazlar}
+            pozisyonlar={pozisyonlar}
             adimlar={adimlar}
             onAdimlarDegisti={setAdimlar}
             disabled={isPending}
@@ -206,7 +209,7 @@ export function IslemSatiri({
         <span className="text-sm text-muted-foreground">
           {islem.adimlar
             .map((a) => {
-              const detay = [a.cihaz?.ad, a.sure_dakika !== null ? `${a.sure_dakika} dk` : null]
+              const detay = [a.pozisyon?.ad, a.cihaz?.ad, a.sure_dakika !== null ? `${a.sure_dakika} dk` : null]
                 .filter(Boolean)
                 .join(", ");
               return detay ? `${a.ad} (${detay})` : a.ad;

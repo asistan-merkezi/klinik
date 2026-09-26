@@ -4,6 +4,8 @@ export type IslemTanimiAdimSatir = {
   sure_dakika: number | null;
   gerekli_cihaz_id: string | null;
   cihaz: { ad: string } | null;
+  uygulayici_pozisyon_id: string | null;
+  pozisyon: { ad: string } | null;
 };
 
 export type IslemTanimiSatir = {

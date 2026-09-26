@@ -18,6 +18,7 @@ const kademeFiyatiSemasi = z
 const adimSemasi = z.object({
   id: z.string().uuid().optional(),
   ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
+  uygulayici_pozisyon_id: z.union([z.string().uuid(), z.literal(""), z.null()]).optional(),
   gerekli_cihaz_id: z.union([z.string().uuid(), z.literal(""), z.null()]).optional(),
   sure_dakika: z
     .union([z.coerce.number().int().min(1, "Süre 1 dakikadan az olamaz."), z.literal(""), z.null()])
@@ -109,6 +110,7 @@ async function islemTanimiKaydet(islemId: string | null, formData: FormData): Pr
     p_adimlar: adimlar.map((a) => ({
       id: a.id ?? null,
       ad: a.ad,
+      uygulayici_pozisyon_id: a.uygulayici_pozisyon_id ? a.uygulayici_pozisyon_id : null,
       gerekli_cihaz_id: a.gerekli_cihaz_id ? a.gerekli_cihaz_id : null,
       sure_dakika: a.sure_dakika,
     })),

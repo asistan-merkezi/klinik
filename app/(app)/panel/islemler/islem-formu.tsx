@@ -13,7 +13,13 @@ import {
   type IslemAdimi,
 } from "./islem-adim-satirlari";
 
-export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
+export function IslemFormu({
+  cihazlar,
+  pozisyonlar,
+}: {
+  cihazlar: SecenekSatir[];
+  pozisyonlar: SecenekSatir[];
+}) {
   const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(islemTanimiOlustur, null);
   const [ad, setAd] = useState("");
@@ -66,6 +72,7 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
 
       <IslemAdimSatirlari
         cihazlar={cihazlar}
+        pozisyonlar={pozisyonlar}
         adimlar={adimlar}
         onAdimlarDegisti={setAdimlar}
         disabled={isPending}

@@ -8,10 +8,12 @@ import { IslemSatiri } from "./islem-satiri";
 export function TedaviListesi({
   islemler,
   cihazlar,
+  pozisyonlar,
   duzenlenebilir,
 }: {
   islemler: IslemTanimiSatir[];
   cihazlar: SecenekSatir[];
+  pozisyonlar: SecenekSatir[];
   duzenlenebilir: boolean;
 }) {
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
@@ -23,6 +25,7 @@ export function TedaviListesi({
           key={islem.id}
           islem={islem}
           cihazlar={cihazlar}
+          pozisyonlar={pozisyonlar}
           duzenlenebilir={duzenlenebilir}
           duzenleniyor={duzenlenenId === islem.id}
           onDuzenleBaslat={() => setDuzenlenenId(islem.id)}

@@ -19,12 +19,13 @@ export type IslemAdimi = {
   anahtar: string;
   id?: string;
   ad: string;
+  uygulayiciPozisyonId: string;
   gerekliCihazId: string;
   sureDakika: string;
 };
 
 export function bosIslemAdimi(anahtar: string): IslemAdimi {
-  return { anahtar, ad: "", gerekliCihazId: "", sureDakika: "" };
+  return { anahtar, ad: "", uygulayiciPozisyonId: "", gerekliCihazId: "", sureDakika: "" };
 }
 
 export function adimlardanIslemAdimlari(adimlar: IslemTanimiAdimSatir[], idOnEki: string): IslemAdimi[] {
@@ -33,6 +34,7 @@ export function adimlardanIslemAdimlari(adimlar: IslemTanimiAdimSatir[], idOnEki
     anahtar: `${idOnEki}-${index}`,
     id: a.id,
     ad: a.ad,
+    uygulayiciPozisyonId: a.uygulayici_pozisyon_id ?? "",
     gerekliCihazId: a.gerekli_cihaz_id ?? "",
     sureDakika: a.sure_dakika !== null ? String(a.sure_dakika) : "",
   }));
@@ -44,11 +46,13 @@ export function toplamSureHesapla(adimlar: IslemAdimi[]): number {
 
 export function IslemAdimSatirlari({
   cihazlar,
+  pozisyonlar,
   adimlar,
   onAdimlarDegisti,
   disabled,
 }: {
   cihazlar: SecenekSatir[];
+  pozisyonlar: SecenekSatir[];
   adimlar: IslemAdimi[];
   onAdimlarDegisti: (adimlar: IslemAdimi[]) => void;
   disabled?: boolean;
@@ -66,7 +70,11 @@ export function IslemAdimSatirlari({
     onAdimlarDegisti(adimlar.filter((a) => a.anahtar !== anahtar));
   }
 
-  function adimGuncelle(anahtar: string, alan: "ad" | "gerekliCihazId" | "sureDakika", deger: string) {
+  function adimGuncelle(
+    anahtar: string,
+    alan: "ad" | "uygulayiciPozisyonId" | "gerekliCihazId" | "sureDakika",
+    deger: string
+  ) {
     onAdimlarDegisti(adimlar.map((a) => (a.anahtar === anahtar ? { ...a, [alan]: deger } : a)));
   }
 
@@ -74,6 +82,7 @@ export function IslemAdimSatirlari({
     adimlar.map((a) => ({
       id: a.id ?? null,
       ad: a.ad,
+      uygulayici_pozisyon_id: a.uygulayiciPozisyonId,
       gerekli_cihaz_id: a.gerekliCihazId,
       sure_dakika: a.sureDakika,
     }))
@@ -89,8 +98,8 @@ export function IslemAdimSatirlari({
             key={adim.anahtar}
             className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-end"
           >
-            <div className="flex flex-1 flex-col gap-2 sm:flex-row">
-              <div className="flex flex-1 flex-col gap-1">
+            <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">İşlem Adı</Label>
                 <Input
                   value={adim.ad}
@@ -99,7 +108,29 @@ export function IslemAdimSatirlari({
                   disabled={disabled}
                 />
               </div>
-              <div className="flex flex-1 flex-col gap-1">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">İşlem Uygulayıcı (opsiyonel)</Label>
+                <Select
+                  value={adim.uygulayiciPozisyonId || undefined}
+                  onValueChange={(deger) =>
+                    adimGuncelle(adim.anahtar, "uygulayiciPozisyonId", deger as string)
+                  }
+                  disabled={disabled || pozisyonlar.length === 0}
+                  items={pozisyonlar.map((p) => ({ value: p.id, label: p.ad }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={pozisyonlar.length === 0 ? "Kayıtlı pozisyon yok" : "Pozisyon seçin"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pozisyonlar.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.ad}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">Gerekli Cihaz (opsiyonel)</Label>
                 <Select
                   value={adim.gerekliCihazId || undefined}
@@ -119,7 +150,7 @@ export function IslemAdimSatirlari({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex w-full flex-col gap-1 sm:w-32">
+              <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">Süre (dk)</Label>
                 <Input
                   type="number"

@@ -12,7 +12,13 @@ import {
 import type { SecenekSatir } from "@/types/randevu";
 import { IslemFormu } from "./islem-formu";
 
-export function YeniTedaviDialog({ cihazlar }: { cihazlar: SecenekSatir[] }) {
+export function YeniTedaviDialog({
+  cihazlar,
+  pozisyonlar,
+}: {
+  cihazlar: SecenekSatir[];
+  pozisyonlar: SecenekSatir[];
+}) {
   const [acik, setAcik] = useState(false);
 
   return (
@@ -30,7 +36,7 @@ export function YeniTedaviDialog({ cihazlar }: { cihazlar: SecenekSatir[] }) {
           <DialogHeader>
             <DialogTitle>Yeni Tedavi Tanımı</DialogTitle>
           </DialogHeader>
-          <IslemFormu cihazlar={cihazlar} />
+          <IslemFormu cihazlar={cihazlar} pozisyonlar={pozisyonlar} />
         </DialogContent>
       </Dialog>
     </>

@@ -28,12 +28,13 @@ export default async function IslemlerSayfasi() {
 
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
-  const [cihazSonucu, islemSonucu] = await Promise.all([
+  const [cihazSonucu, pozisyonSonucu, islemSonucu] = await Promise.all([
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
+    supabase.from("pozisyonlar").select("id, ad").eq("aktif", true).order("sira"),
     supabase
       .from("islem_tanimi")
       .select(
-        "id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi, sure_dakika, aktif, adimlar:islem_tanimi_adim(id, ad, sure_dakika, gerekli_cihaz_id, sira, cihaz:gerekli_cihaz_id(ad))"
+        "id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi, sure_dakika, aktif, adimlar:islem_tanimi_adim(id, ad, sure_dakika, gerekli_cihaz_id, uygulayici_pozisyon_id, sira, cihaz:gerekli_cihaz_id(ad), pozisyon:uygulayici_pozisyon_id(ad))"
       )
       .order("ad")
       .order("sira", { referencedTable: "islem_tanimi_adim" })
@@ -41,6 +42,7 @@ export default async function IslemlerSayfasi() {
   ]);
 
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
+  const pozisyonlar: SecenekSatir[] = (pozisyonSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
   const islemler = islemSonucu.data ?? [];
 
   return (
@@ -50,7 +52,7 @@ export default async function IslemlerSayfasi() {
           title="Tedavi Tanımları"
           description="Fiyat kataloğunu görüntüle ve yönet."
           icon={Stethoscope}
-          actions={duzenlenebilir && <YeniTedaviDialog cihazlar={cihazlar} />}
+          actions={duzenlenebilir && <YeniTedaviDialog cihazlar={cihazlar} pozisyonlar={pozisyonlar} />}
         />
 
         <Card className="bg-surface-2">
@@ -65,7 +67,12 @@ export default async function IslemlerSayfasi() {
               <EmptyState icon={Stethoscope} title="Henüz tedavi tanımı yok." compact />
             )}
             {!islemSonucu.error && islemler.length > 0 && (
-              <TedaviListesi islemler={islemler} cihazlar={cihazlar} duzenlenebilir={duzenlenebilir} />
+              <TedaviListesi
+                islemler={islemler}
+                cihazlar={cihazlar}
+                pozisyonlar={pozisyonlar}
+                duzenlenebilir={duzenlenebilir}
+              />
             )}
           </CardContent>
         </Card>
