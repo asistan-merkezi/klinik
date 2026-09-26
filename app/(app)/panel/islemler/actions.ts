@@ -197,7 +197,71 @@ export async function islemAdimiSablonuOlustur(
   }
 
   revalidatePath("/panel/islemler");
+  revalidatePath("/panel/islemler/tanimlamalar");
   return { success: true, message: "İşlem tanımı eklendi." };
+}
+
+const sablonGuncelleSemasi = z.object({
+  ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
+  uygulayici_pozisyon_id: z.string().uuid().nullable(),
+  sure_dakika: z.number().int().min(1, "Süre 1 dakikadan az olamaz.").nullable(),
+});
+
+export async function islemAdimiSablonuGuncelle(
+  sablonId: string,
+  veri: { ad: string; uygulayici_pozisyon_id: string | null; sure_dakika: number | null }
+): Promise<SonucDurumu> {
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+
+  const ayristirma = sablonGuncelleSemasi.safeParse(veri);
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { ad, uygulayici_pozisyon_id, sure_dakika } = ayristirma.data;
+
+  const { error } = await supabase
+    .from("islem_adimi_sablonu")
+    .update({ ad, uygulayici_pozisyon_id, sure_dakika })
+    .eq("id", sablonId);
+
+  if (error) {
+    console.error("İşlem tanımlama güncellenemedi:", error);
+    if (error.code === "23505") {
+      return { success: false, message: "Bu isimde bir işlem tanımı zaten var." };
+    }
+    if (error.code === "42501") {
+      return { success: false, message: "Bu işlem için yetkiniz yok." };
+    }
+    return { success: false, message: "İşlem tanımı güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/islemler");
+  revalidatePath("/panel/islemler/tanimlamalar");
+  return { success: true, message: "İşlem tanımı güncellendi." };
+}
+
+export async function islemAdimiSablonuAktifDurumDegistir(sablonId: string, yeniDurum: boolean) {
+  const { supabase, klinikId } = await klinikIdGetir();
+  if (!klinikId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("islem_adimi_sablonu")
+    .update({ aktif: yeniDurum })
+    .eq("id", sablonId);
+
+  if (error) {
+    console.error("İşlem tanımlama durumu güncellenemedi:", error);
+    return;
+  }
+
+  revalidatePath("/panel/islemler");
+  revalidatePath("/panel/islemler/tanimlamalar");
 }
 
 export async function islemTanimiAktifDurumDegistir(islemId: string, yeniDurum: boolean) {

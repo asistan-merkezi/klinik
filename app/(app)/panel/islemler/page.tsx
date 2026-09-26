@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
-import { Stethoscope } from "lucide-react";
+import Link from "next/link";
+import { CirclePlus, Stethoscope } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemAdimiSablonuSatir, IslemTanimiSatir } from "@/types/islem-tanimi";
 import { YeniTedaviDialog } from "./yeni-tedavi-dialog";
-import { YeniIslemSablonuDialog } from "./yeni-islem-sablonu-dialog";
 import { TedaviListesi } from "./tedavi-listesi";
 
 export default async function IslemlerSayfasi() {
@@ -64,7 +65,15 @@ export default async function IslemlerSayfasi() {
             duzenlenebilir && (
               <div className="flex flex-col items-end gap-2">
                 <YeniTedaviDialog cihazlar={cihazlar} pozisyonlar={pozisyonlar} sablonlar={sablonlar} />
-                <YeniIslemSablonuDialog pozisyonlar={pozisyonlar} />
+                <Button
+                  variant="clinical"
+                  nativeButton={false}
+                  render={
+                    <Link href="/panel/islemler/tanimlamalar">
+                      <CirclePlus /> İşlem Tanımlama
+                    </Link>
+                  }
+                />
               </div>
             )
           }

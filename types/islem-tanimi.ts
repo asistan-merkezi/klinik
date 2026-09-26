@@ -15,6 +15,11 @@ export type IslemAdimiSablonuSatir = {
   sure_dakika: number | null;
 };
 
+export type IslemAdimiSablonuListSatir = IslemAdimiSablonuSatir & {
+  aktif: boolean;
+  pozisyon: { ad: string } | null;
+};
+
 export type IslemTanimiSatir = {
   id: string;
   ad: string;
