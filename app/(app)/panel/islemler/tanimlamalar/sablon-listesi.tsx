@@ -22,15 +22,18 @@ import { islemAdimiSablonuAktifDurumDegistir, islemAdimiSablonuGuncelle } from "
 function SablonSatiri({
   sablon,
   pozisyonlar,
+  cihazlar,
   duzenlenebilir,
 }: {
   sablon: IslemAdimiSablonuListSatir;
   pozisyonlar: SecenekSatir[];
+  cihazlar: SecenekSatir[];
   duzenlenebilir: boolean;
 }) {
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const [ad, setAd] = useState(sablon.ad);
   const [uygulayiciPozisyonId, setUygulayiciPozisyonId] = useState(sablon.uygulayici_pozisyon_id ?? "");
+  const [gerekliCihazId, setGerekliCihazId] = useState(sablon.gerekli_cihaz_id ?? "");
   const [sureDakika, setSureDakika] = useState(sablon.sure_dakika !== null ? String(sablon.sure_dakika) : "");
   const [hata, setHata] = useState<string | null>(null);
   const [kaydediliyor, startKaydetTransition] = useTransition();
@@ -39,6 +42,7 @@ function SablonSatiri({
   function vazgec() {
     setAd(sablon.ad);
     setUygulayiciPozisyonId(sablon.uygulayici_pozisyon_id ?? "");
+    setGerekliCihazId(sablon.gerekli_cihaz_id ?? "");
     setSureDakika(sablon.sure_dakika !== null ? String(sablon.sure_dakika) : "");
     setHata(null);
     setDuzenleniyor(false);
@@ -49,6 +53,7 @@ function SablonSatiri({
       const sonuc = await islemAdimiSablonuGuncelle(sablon.id, {
         ad,
         uygulayici_pozisyon_id: uygulayiciPozisyonId || null,
+        gerekli_cihaz_id: gerekliCihazId || null,
         sure_dakika: sureDakika === "" ? null : Number(sureDakika),
       });
       if (sonuc?.success) {
@@ -63,7 +68,7 @@ function SablonSatiri({
   if (duzenleniyor) {
     return (
       <Card className="gap-3 p-3">
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-1">
             <Label className="text-xs text-muted-foreground">İşlem Adı</Label>
             <Input
@@ -88,6 +93,26 @@ function SablonSatiri({
                 {pozisyonlar.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.ad}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs text-muted-foreground">Gerekli Cihaz</Label>
+            <Select
+              value={gerekliCihazId}
+              onValueChange={(deger) => setGerekliCihazId(deger as string)}
+              disabled={kaydediliyor || cihazlar.length === 0}
+              items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
+              </SelectTrigger>
+              <SelectContent>
+                {cihazlar.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.ad}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -127,9 +152,13 @@ function SablonSatiri({
           {sablon.ad}
         </span>
         <span className="text-sm text-muted-foreground">
-          {[sablon.pozisyon?.ad, sablon.sure_dakika !== null ? `${sablon.sure_dakika} dk` : null]
+          {[
+            sablon.pozisyon?.ad,
+            sablon.cihaz?.ad,
+            sablon.sure_dakika !== null ? `${sablon.sure_dakika} dk` : null,
+          ]
             .filter(Boolean)
-            .join(" · ") || "Uygulayıcı/süre girilmemiş"}
+            .join(" · ") || "Uygulayıcı/cihaz/süre girilmemiş"}
         </span>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -166,16 +195,24 @@ function SablonSatiri({
 export function SablonListesi({
   sablonlar,
   pozisyonlar,
+  cihazlar,
   duzenlenebilir,
 }: {
   sablonlar: IslemAdimiSablonuListSatir[];
   pozisyonlar: SecenekSatir[];
+  cihazlar: SecenekSatir[];
   duzenlenebilir: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
       {sablonlar.map((sablon) => (
-        <SablonSatiri key={sablon.id} sablon={sablon} pozisyonlar={pozisyonlar} duzenlenebilir={duzenlenebilir} />
+        <SablonSatiri
+          key={sablon.id}
+          sablon={sablon}
+          pozisyonlar={pozisyonlar}
+          cihazlar={cihazlar}
+          duzenlenebilir={duzenlenebilir}
+        />
       ))}
     </div>
   );

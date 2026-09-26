@@ -151,6 +151,7 @@ export async function islemTanimiGuncelle(
 const sablonSemasi = z.object({
   ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
   uygulayici_pozisyon_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+  gerekli_cihaz_id: z.union([z.string().uuid(), z.literal("")]).optional(),
   sure_dakika: z
     .union([z.coerce.number().int().min(1, "Süre 1 dakikadan az olamaz."), z.literal("")])
     .optional()
@@ -169,6 +170,7 @@ export async function islemAdimiSablonuOlustur(
   const ayristirma = sablonSemasi.safeParse({
     ad: formData.get("ad"),
     uygulayici_pozisyon_id: formData.get("uygulayici_pozisyon_id") ?? "",
+    gerekli_cihaz_id: formData.get("gerekli_cihaz_id") ?? "",
     sure_dakika: formData.get("sure_dakika") ?? "",
   });
 
@@ -176,12 +178,13 @@ export async function islemAdimiSablonuOlustur(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, uygulayici_pozisyon_id, sure_dakika } = ayristirma.data;
+  const { ad, uygulayici_pozisyon_id, gerekli_cihaz_id, sure_dakika } = ayristirma.data;
 
   const { error } = await supabase.from("islem_adimi_sablonu").insert({
     klinik_id: klinikId,
     ad,
     uygulayici_pozisyon_id: uygulayici_pozisyon_id ? uygulayici_pozisyon_id : null,
+    gerekli_cihaz_id: gerekli_cihaz_id ? gerekli_cihaz_id : null,
     sure_dakika,
   });
 
@@ -204,12 +207,18 @@ export async function islemAdimiSablonuOlustur(
 const sablonGuncelleSemasi = z.object({
   ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
   uygulayici_pozisyon_id: z.string().uuid().nullable(),
+  gerekli_cihaz_id: z.string().uuid().nullable(),
   sure_dakika: z.number().int().min(1, "Süre 1 dakikadan az olamaz.").nullable(),
 });
 
 export async function islemAdimiSablonuGuncelle(
   sablonId: string,
-  veri: { ad: string; uygulayici_pozisyon_id: string | null; sure_dakika: number | null }
+  veri: {
+    ad: string;
+    uygulayici_pozisyon_id: string | null;
+    gerekli_cihaz_id: string | null;
+    sure_dakika: number | null;
+  }
 ): Promise<SonucDurumu> {
   const { supabase, klinikId } = await klinikIdGetir();
   if (!klinikId) {
@@ -221,11 +230,11 @@ export async function islemAdimiSablonuGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { ad, uygulayici_pozisyon_id, sure_dakika } = ayristirma.data;
+  const { ad, uygulayici_pozisyon_id, gerekli_cihaz_id, sure_dakika } = ayristirma.data;
 
   const { error } = await supabase
     .from("islem_adimi_sablonu")
-    .update({ ad, uygulayici_pozisyon_id, sure_dakika })
+    .update({ ad, uygulayici_pozisyon_id, gerekli_cihaz_id, sure_dakika })
     .eq("id", sablonId);
 
   if (error) {

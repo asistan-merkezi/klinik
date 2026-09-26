@@ -91,6 +91,7 @@ export function IslemAdimSatirlari({
               ...a,
               ad: sablon.ad,
               uygulayiciPozisyonId: sablon.uygulayici_pozisyon_id ?? "",
+              gerekliCihazId: sablon.gerekli_cihaz_id ?? "",
               sureDakika: sablon.sure_dakika !== null ? String(sablon.sure_dakika) : "",
             }
           : a

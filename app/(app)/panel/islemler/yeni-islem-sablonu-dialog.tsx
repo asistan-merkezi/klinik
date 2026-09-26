@@ -22,7 +22,13 @@ import { isimBasHarfBuyukYap } from "@/lib/utils";
 import type { SecenekSatir } from "@/types/randevu";
 import { islemAdimiSablonuOlustur } from "./actions";
 
-export function YeniIslemSablonuDialog({ pozisyonlar }: { pozisyonlar: SecenekSatir[] }) {
+export function YeniIslemSablonuDialog({
+  pozisyonlar,
+  cihazlar,
+}: {
+  pozisyonlar: SecenekSatir[];
+  cihazlar: SecenekSatir[];
+}) {
   const [acik, setAcik] = useState(false);
   const [ad, setAd] = useState("");
   const [durum, formAction, isPending] = useActionState(islemAdimiSablonuOlustur, null);
@@ -76,6 +82,26 @@ export function YeniIslemSablonuDialog({ pozisyonlar }: { pozisyonlar: SecenekSa
                   {pozisyonlar.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.ad}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="sablon-cihaz">Gerekli Cihaz (opsiyonel)</Label>
+              <Select
+                name="gerekli_cihaz_id"
+                disabled={isPending || cihazlar.length === 0}
+                items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
+              >
+                <SelectTrigger id="sablon-cihaz" className="w-full">
+                  <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {cihazlar.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.ad}
                     </SelectItem>
                   ))}
                 </SelectContent>

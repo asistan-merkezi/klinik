@@ -12,12 +12,14 @@ export type IslemAdimiSablonuSatir = {
   id: string;
   ad: string;
   uygulayici_pozisyon_id: string | null;
+  gerekli_cihaz_id: string | null;
   sure_dakika: number | null;
 };
 
 export type IslemAdimiSablonuListSatir = IslemAdimiSablonuSatir & {
   aktif: boolean;
   pozisyon: { ad: string } | null;
+  cihaz: { ad: string } | null;
 };
 
 export type IslemTanimiSatir = {

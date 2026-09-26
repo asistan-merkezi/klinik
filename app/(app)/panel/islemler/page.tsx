@@ -43,7 +43,7 @@ export default async function IslemlerSayfasi() {
       .returns<IslemTanimiSatir[]>(),
     supabase
       .from("islem_adimi_sablonu")
-      .select("id, ad, uygulayici_pozisyon_id, sure_dakika")
+      .select("id, ad, uygulayici_pozisyon_id, gerekli_cihaz_id, sure_dakika")
       .eq("aktif", true)
       .order("ad")
       .returns<IslemAdimiSablonuSatir[]>(),

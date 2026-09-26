@@ -29,16 +29,20 @@ export default async function IslemTanimlamalarSayfasi() {
 
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
-  const [pozisyonSonucu, sablonSonucu] = await Promise.all([
+  const [pozisyonSonucu, cihazSonucu, sablonSonucu] = await Promise.all([
     supabase.from("pozisyonlar").select("id, ad").eq("aktif", true).order("sira"),
+    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
     supabase
       .from("islem_adimi_sablonu")
-      .select("id, ad, uygulayici_pozisyon_id, sure_dakika, aktif, pozisyon:uygulayici_pozisyon_id(ad)")
+      .select(
+        "id, ad, uygulayici_pozisyon_id, gerekli_cihaz_id, sure_dakika, aktif, pozisyon:uygulayici_pozisyon_id(ad), cihaz:gerekli_cihaz_id(ad)"
+      )
       .order("ad")
       .returns<IslemAdimiSablonuListSatir[]>(),
   ]);
 
   const pozisyonlar: SecenekSatir[] = (pozisyonSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
+  const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const sablonlar = sablonSonucu.data ?? [];
 
   return (
@@ -53,7 +57,7 @@ export default async function IslemTanimlamalarSayfasi() {
           }
           description="Tedavi adımlarında yeniden kullanılabilir işlem kataloğu — ad, uygulayacak kişi ve süre."
           icon={ListChecks}
-          actions={duzenlenebilir && <YeniIslemSablonuDialog pozisyonlar={pozisyonlar} />}
+          actions={duzenlenebilir && <YeniIslemSablonuDialog pozisyonlar={pozisyonlar} cihazlar={cihazlar} />}
         />
 
         <Card className="bg-surface-2">
@@ -68,7 +72,12 @@ export default async function IslemTanimlamalarSayfasi() {
               <EmptyState icon={ListChecks} title="Henüz işlem tanımı yok." compact />
             )}
             {!sablonSonucu.error && sablonlar.length > 0 && (
-              <SablonListesi sablonlar={sablonlar} pozisyonlar={pozisyonlar} duzenlenebilir={duzenlenebilir} />
+              <SablonListesi
+                sablonlar={sablonlar}
+                pozisyonlar={pozisyonlar}
+                cihazlar={cihazlar}
+                duzenlenebilir={duzenlenebilir}
+              />
             )}
           </CardContent>
         </Card>
