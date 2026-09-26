@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { CirclePlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { isimBasHarfBuyukYap } from "@/lib/utils";
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemAdimiSablonuSatir, IslemTanimiAdimSatir } from "@/types/islem-tanimi";
 
@@ -75,7 +75,7 @@ export function IslemAdimSatirlari({
 
   function adimGuncelle(
     anahtar: string,
-    alan: "ad" | "uygulayiciPozisyonId" | "gerekliCihazId" | "sureDakika",
+    alan: "uygulayiciPozisyonId" | "gerekliCihazId" | "sureDakika",
     deger: string
   ) {
     onAdimlarDegisti(adimlar.map((a) => (a.anahtar === anahtar ? { ...a, [alan]: deger } : a)));
@@ -119,35 +119,37 @@ export function IslemAdimSatirlari({
             className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-end"
           >
             <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {sablonlar.length > 0 && (
-                <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-4">
-                  <Label className="text-xs text-muted-foreground">Şablondan Doldur (opsiyonel)</Label>
-                  <Select
-                    onValueChange={(deger) => adimSablondanDoldur(adim.anahtar, deger as string)}
-                    disabled={disabled}
-                    items={sablonlar.map((s) => ({ value: s.id, label: s.ad }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Kayıtlı işlem tanımından seç" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sablonlar.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.ad}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">İşlem Adı</Label>
-                <Input
-                  value={adim.ad}
-                  onChange={(e) => adimGuncelle(adim.anahtar, "ad", isimBasHarfBuyukYap(e.target.value))}
-                  placeholder="Ör. TENS"
-                  disabled={disabled}
-                />
+                <Select
+                  value={sablonlar.find((s) => s.ad === adim.ad)?.id}
+                  onValueChange={(deger) => adimSablondanDoldur(adim.anahtar, deger as string)}
+                  disabled={disabled || sablonlar.length === 0}
+                  items={sablonlar.map((s) => ({ value: s.id, label: s.ad }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={sablonlar.length === 0 ? "Kayıtlı işlem tanımı yok" : "İşlem seçin"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sablonlar.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.ad}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {sablonlar.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Önce{" "}
+                    <Link href="/panel/islemler/tanimlamalar" className="underline">
+                      İşlem Tanımlama
+                    </Link>
+                    {" "}sayfasından bir işlem ekleyin.
+                  </p>
+                )}
+                {adim.ad && sablonlar.length > 0 && !sablonlar.some((s) => s.ad === adim.ad) && (
+                  <p className="text-xs text-muted-foreground">Mevcut: {adim.ad} (katalogda yok)</p>
+                )}
               </div>
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">İşlem Uygulayıcı (opsiyonel)</Label>
