@@ -1,22 +1,21 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemTanimiSatir } from "@/types/islem-tanimi";
 import { islemTanimiAktifDurumDegistir, islemTanimiGuncelle } from "./actions";
+import {
+  IslemAdimSatirlari,
+  adimlardanIslemAdimlari,
+  toplamSureHesapla,
+  type IslemAdimi,
+} from "./islem-adim-satirlari";
 
 const paraFormatla = (tutar: number) =>
   tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
@@ -36,9 +35,11 @@ export function IslemSatiri({
   onDuzenleBaslat: () => void;
   onDuzenleBitir: () => void;
 }) {
+  const idOnEki = useId();
   const [ad, setAd] = useState(islem.ad);
   const [muhasebeHizmetIsmi, setMuhasebeHizmetIsmi] = useState(islem.muhasebe_hizmet_ismi ?? "");
   const [muhasebeDokunuldu, setMuhasebeDokunuldu] = useState(Boolean(islem.muhasebe_hizmet_ismi));
+  const [adimlar, setAdimlar] = useState<IslemAdimi[]>(() => adimlardanIslemAdimlari(islem.adimlar, idOnEki));
   const guncelleAction = islemTanimiGuncelle.bind(null, islem.id);
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
   const [aktifPending, startAktifTransition] = useTransition();
@@ -52,6 +53,8 @@ export function IslemSatiri({
   }
 
   if (duzenleniyor) {
+    const toplamSure = toplamSureHesapla(adimlar);
+
     return (
       <Card className="gap-3 p-3 sm:col-span-2 lg:col-span-3">
         <form action={formAction} className="flex flex-col gap-3 text-sm">
@@ -73,6 +76,43 @@ export function IslemSatiri({
               />
             </div>
             <div className="flex flex-col gap-1">
+              <Label>Toplam Süre</Label>
+              <p className="flex h-9 items-center text-muted-foreground">
+                {toplamSure > 0 ? `${toplamSure} dakika` : "İşlem süreleri girilince hesaplanır"}
+              </p>
+            </div>
+          </div>
+
+          <IslemAdimSatirlari
+            cihazlar={cihazlar}
+            adimlar={adimlar}
+            onAdimlarDegisti={setAdimlar}
+            disabled={isPending}
+          />
+
+          {/* Kategori (Plus/Elit/Prime) fiyat override'ları bilinçli olarak
+              gizli input'a taşındı — müşteriye kategori tanımlanınca devreye
+              giren bilgi, tedavi tanımı ekranında gösterilmiyor ama mevcut
+              değer kaydet'te sıfırlanmasın diye formda kalıyor. */}
+          <input type="hidden" name="plus_fiyat" value={islem.plus_fiyat ?? ""} />
+          <input type="hidden" name="elit_fiyat" value={islem.elit_fiyat ?? ""} />
+          <input type="hidden" name="prime_fiyat" value={islem.prime_fiyat ?? ""} />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor={`muhasebe-${islem.id}`}>Muhasebe Hizmet İsmi</Label>
+              <Input
+                id={`muhasebe-${islem.id}`}
+                name="muhasebe_hizmet_ismi"
+                value={muhasebeHizmetIsmi}
+                onChange={(e) => {
+                  setMuhasebeDokunuldu(true);
+                  setMuhasebeHizmetIsmi(e.target.value);
+                }}
+                disabled={isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
               <Label htmlFor={`vita-${islem.id}`}>Fiyat (₺)</Label>
               <Input
                 id={`vita-${islem.id}`}
@@ -85,13 +125,6 @@ export function IslemSatiri({
                 disabled={isPending}
               />
             </div>
-            {/* Kategori (Plus/Elit/Prime) fiyat override'ları bilinçli olarak
-                gizli input'a taşındı — müşteriye kategori tanımlanınca devreye
-                giren bilgi, tedavi tanımı ekranında gösterilmiyor ama mevcut
-                değer kaydet'te sıfırlanmasın diye formda kalıyor. */}
-            <input type="hidden" name="plus_fiyat" value={islem.plus_fiyat ?? ""} />
-            <input type="hidden" name="elit_fiyat" value={islem.elit_fiyat ?? ""} />
-            <input type="hidden" name="prime_fiyat" value={islem.prime_fiyat ?? ""} />
             <div className="flex flex-col gap-1">
               <Label htmlFor={`kdv-${islem.id}`}>KDV (%)</Label>
               <Input
@@ -103,52 +136,6 @@ export function IslemSatiri({
                 step="0.01"
                 defaultValue={islem.kdv_orani}
                 required
-                disabled={isPending}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`sure-${islem.id}`}>Uygulama Süresi (dakika, opsiyonel)</Label>
-              <Input
-                id={`sure-${islem.id}`}
-                name="sure_dakika"
-                type="number"
-                min={1}
-                max={480}
-                defaultValue={islem.sure_dakika ?? ""}
-                placeholder="Randevu formunda otomatik doldurulur"
-                disabled={isPending}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`cihaz-${islem.id}`}>Gerekli Cihaz (opsiyonel)</Label>
-              <Select
-                name="gerekli_cihaz_id"
-                disabled={isPending || cihazlar.length === 0}
-                defaultValue={cihazlar.find((c) => c.ad === islem.cihaz?.ad)?.id}
-                items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
-              >
-                <SelectTrigger id={`cihaz-${islem.id}`} className="w-full">
-                  <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {cihazlar.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.ad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`muhasebe-${islem.id}`}>Muhasebe Hizmet İsmi</Label>
-              <Input
-                id={`muhasebe-${islem.id}`}
-                name="muhasebe_hizmet_ismi"
-                value={muhasebeHizmetIsmi}
-                onChange={(e) => {
-                  setMuhasebeDokunuldu(true);
-                  setMuhasebeHizmetIsmi(e.target.value);
-                }}
                 disabled={isPending}
               />
             </div>
@@ -195,6 +182,7 @@ export function IslemSatiri({
               setAd(islem.ad);
               setMuhasebeHizmetIsmi(islem.muhasebe_hizmet_ismi ?? "");
               setMuhasebeDokunuldu(Boolean(islem.muhasebe_hizmet_ismi));
+              setAdimlar(adimlardanIslemAdimlari(islem.adimlar, idOnEki));
               onDuzenleBaslat();
             }
           : undefined
@@ -212,8 +200,20 @@ export function IslemSatiri({
         {paraFormatla(islem.vita_fiyat)} (KDV %{islem.kdv_orani})
       </span>
       <span className="text-sm text-muted-foreground">
-        {islem.sure_dakika !== null ? `Uygulama süresi: ${islem.sure_dakika} dk` : "Uygulama süresi girilmemiş"}
+        {islem.sure_dakika !== null ? `Toplam süre: ${islem.sure_dakika} dk` : "Süre girilmemiş"}
       </span>
+      {islem.adimlar.length > 0 && (
+        <span className="text-sm text-muted-foreground">
+          {islem.adimlar
+            .map((a) => {
+              const detay = [a.cihaz?.ad, a.sure_dakika !== null ? `${a.sure_dakika} dk` : null]
+                .filter(Boolean)
+                .join(", ");
+              return detay ? `${a.ad} (${detay})` : a.ad;
+            })
+            .join(" · ")}
+        </span>
+      )}
     </Card>
   );
 }

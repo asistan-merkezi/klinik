@@ -33,9 +33,10 @@ export default async function IslemlerSayfasi() {
     supabase
       .from("islem_tanimi")
       .select(
-        "id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi, sure_dakika, aktif, cihaz:gerekli_cihaz_id(ad)"
+        "id, ad, vita_fiyat, plus_fiyat, elit_fiyat, prime_fiyat, kdv_orani, muhasebe_hizmet_ismi, sure_dakika, aktif, adimlar:islem_tanimi_adim(id, ad, sure_dakika, gerekli_cihaz_id, sira, cihaz:gerekli_cihaz_id(ad))"
       )
       .order("ad")
+      .order("sira", { referencedTable: "islem_tanimi_adim" })
       .returns<IslemTanimiSatir[]>(),
   ]);
 

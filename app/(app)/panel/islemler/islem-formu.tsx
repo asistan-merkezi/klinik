@@ -1,24 +1,25 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { SecenekSatir } from "@/types/randevu";
 import { islemTanimiOlustur } from "./actions";
+import {
+  IslemAdimSatirlari,
+  bosIslemAdimi,
+  toplamSureHesapla,
+  type IslemAdimi,
+} from "./islem-adim-satirlari";
 
 export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
+  const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(islemTanimiOlustur, null);
   const [ad, setAd] = useState("");
   const [muhasebeHizmetIsmi, setMuhasebeHizmetIsmi] = useState("");
   const [muhasebeDokunuldu, setMuhasebeDokunuldu] = useState(false);
+  const [adimlar, setAdimlar] = useState<IslemAdimi[]>([bosIslemAdimi(`${idOnEki}-0`)]);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [formKey, setFormKey] = useState(0);
 
@@ -28,9 +29,12 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
       setAd("");
       setMuhasebeHizmetIsmi("");
       setMuhasebeDokunuldu(false);
+      setAdimlar([bosIslemAdimi(`${idOnEki}-yeni`)]);
       setFormKey((k) => k + 1);
     }
   }
+
+  const toplamSure = toplamSureHesapla(adimlar);
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
@@ -53,6 +57,36 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
         </div>
 
         <div className="flex flex-col gap-2">
+          <Label>Toplam Süre</Label>
+          <p className="flex h-9 items-center text-sm text-muted-foreground">
+            {toplamSure > 0 ? `${toplamSure} dakika` : "İşlem süreleri girilince hesaplanır"}
+          </p>
+        </div>
+      </div>
+
+      <IslemAdimSatirlari
+        cihazlar={cihazlar}
+        adimlar={adimlar}
+        onAdimlarDegisti={setAdimlar}
+        disabled={isPending}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="muhasebe_hizmet_ismi">Muhasebe Hizmet İsmi (opsiyonel)</Label>
+          <Input
+            id="muhasebe_hizmet_ismi"
+            name="muhasebe_hizmet_ismi"
+            value={muhasebeHizmetIsmi}
+            onChange={(e) => {
+              setMuhasebeDokunuldu(true);
+              setMuhasebeHizmetIsmi(e.target.value);
+            }}
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
           <Label htmlFor="vita_fiyat">Fiyat (₺)</Label>
           <Input id="vita_fiyat" name="vita_fiyat" type="number" min={0} step="0.01" required disabled={isPending} />
         </div>
@@ -68,53 +102,6 @@ export function IslemFormu({ cihazlar }: { cihazlar: SecenekSatir[] }) {
             step="0.01"
             defaultValue={20}
             required
-            disabled={isPending}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="sure_dakika">Uygulama Süresi (dakika, opsiyonel)</Label>
-          <Input
-            id="sure_dakika"
-            name="sure_dakika"
-            type="number"
-            min={1}
-            max={480}
-            placeholder="Randevu formunda otomatik doldurulur"
-            disabled={isPending}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="gerekli_cihaz_id">Gerekli Cihaz (opsiyonel)</Label>
-          <Select
-            name="gerekli_cihaz_id"
-            disabled={isPending || cihazlar.length === 0}
-            items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
-          >
-            <SelectTrigger id="gerekli_cihaz_id" className="w-full">
-              <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
-            </SelectTrigger>
-            <SelectContent>
-              {cihazlar.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.ad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="muhasebe_hizmet_ismi">Muhasebe Hizmet İsmi (opsiyonel)</Label>
-          <Input
-            id="muhasebe_hizmet_ismi"
-            name="muhasebe_hizmet_ismi"
-            value={muhasebeHizmetIsmi}
-            onChange={(e) => {
-              setMuhasebeDokunuldu(true);
-              setMuhasebeHizmetIsmi(e.target.value);
-            }}
             disabled={isPending}
           />
         </div>

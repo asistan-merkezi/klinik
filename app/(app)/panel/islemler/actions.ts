@@ -15,19 +15,25 @@ const kademeFiyatiSemasi = z
   .optional()
   .transform((deger) => (deger === "" || deger === undefined ? null : deger));
 
+const adimSemasi = z.object({
+  id: z.string().uuid().optional(),
+  ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
+  gerekli_cihaz_id: z.union([z.string().uuid(), z.literal(""), z.null()]).optional(),
+  sure_dakika: z
+    .union([z.coerce.number().int().min(1, "Süre 1 dakikadan az olamaz."), z.literal(""), z.null()])
+    .optional()
+    .transform((deger) => (deger === "" || deger === null || deger === undefined ? null : deger)),
+});
+
 const islemSemasi = z.object({
   ad: z.string().trim().min(2, "Ad en az 2 karakter olmalı."),
-  gerekli_cihaz_id: z.union([z.string().uuid(), z.literal("")]).optional(),
   vita_fiyat: z.coerce.number().min(0, "Fiyat 0'dan küçük olamaz."),
   plus_fiyat: kademeFiyatiSemasi,
   elit_fiyat: kademeFiyatiSemasi,
   prime_fiyat: kademeFiyatiSemasi,
   kdv_orani: z.coerce.number().min(0, "KDV 0-100 arasında olmalı.").max(100, "KDV 0-100 arasında olmalı."),
   muhasebe_hizmet_ismi: z.string().trim().optional(),
-  sure_dakika: z
-    .union([z.coerce.number().int().min(1, "Süre 1 dakikadan az olamaz."), z.literal("")])
-    .optional()
-    .transform((deger) => (deger === "" || deger === undefined ? null : deger)),
+  adimlar: z.array(adimSemasi).min(1, "En az bir işlem eklenmeli."),
 });
 
 async function klinikIdGetir() {
@@ -50,23 +56,26 @@ async function klinikIdGetir() {
 }
 
 function ayristir(formData: FormData) {
+  let adimlarHam: unknown = [];
+  try {
+    adimlarHam = JSON.parse(String(formData.get("adimlar") ?? "[]"));
+  } catch {
+    adimlarHam = [];
+  }
+
   return islemSemasi.safeParse({
     ad: formData.get("ad"),
-    gerekli_cihaz_id: formData.get("gerekli_cihaz_id") ?? "",
     vita_fiyat: formData.get("vita_fiyat"),
     plus_fiyat: formData.get("plus_fiyat") ?? "",
     elit_fiyat: formData.get("elit_fiyat") ?? "",
     prime_fiyat: formData.get("prime_fiyat") ?? "",
     kdv_orani: formData.get("kdv_orani"),
     muhasebe_hizmet_ismi: formData.get("muhasebe_hizmet_ismi") ?? "",
-    sure_dakika: formData.get("sure_dakika") ?? "",
+    adimlar: adimlarHam,
   });
 }
 
-export async function islemTanimiOlustur(
-  _onceki: SonucDurumu,
-  formData: FormData
-): Promise<SonucDurumu> {
+async function islemTanimiKaydet(islemId: string | null, formData: FormData): Promise<SonucDurumu> {
   const { supabase, klinikId } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
@@ -79,39 +88,54 @@ export async function islemTanimiOlustur(
 
   const {
     ad,
-    gerekli_cihaz_id,
     vita_fiyat,
     plus_fiyat,
     elit_fiyat,
     prime_fiyat,
     kdv_orani,
     muhasebe_hizmet_ismi,
-    sure_dakika,
+    adimlar,
   } = ayristirma.data;
 
-  const { error } = await supabase.from("islem_tanimi").insert({
-    klinik_id: klinikId,
-    ad,
-    gerekli_cihaz_id: gerekli_cihaz_id ? gerekli_cihaz_id : null,
-    vita_fiyat,
-    plus_fiyat,
-    elit_fiyat,
-    prime_fiyat,
-    kdv_orani,
-    muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
-    sure_dakika,
+  const { error } = await supabase.rpc("islem_tanimi_kaydet", {
+    p_id: islemId,
+    p_ad: ad,
+    p_vita_fiyat: vita_fiyat,
+    p_plus_fiyat: plus_fiyat,
+    p_elit_fiyat: elit_fiyat,
+    p_prime_fiyat: prime_fiyat,
+    p_kdv_orani: kdv_orani,
+    p_muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
+    p_adimlar: adimlar.map((a) => ({
+      id: a.id ?? null,
+      ad: a.ad,
+      gerekli_cihaz_id: a.gerekli_cihaz_id ? a.gerekli_cihaz_id : null,
+      sure_dakika: a.sure_dakika,
+    })),
   });
 
   if (error) {
-    console.error("Tedavi tanımı oluşturulamadı:", error);
-    if (error.code === "42501") {
+    console.error(`Tedavi tanımı ${islemId ? "güncellenemedi" : "oluşturulamadı"}:`, error);
+    if (error.code === "42501" || error.message?.includes("yetkisiz")) {
       return { success: false, message: "Bu işlem için yetkiniz yok." };
     }
-    return { success: false, message: "Tedavi tanımı eklenemedi, lütfen tekrar deneyin." };
+    return {
+      success: false,
+      message: islemId
+        ? "Tedavi tanımı güncellenemedi, lütfen tekrar deneyin."
+        : "Tedavi tanımı eklenemedi, lütfen tekrar deneyin.",
+    };
   }
 
   revalidatePath("/panel/islemler");
-  return { success: true, message: "Tedavi tanımı eklendi." };
+  return { success: true, message: islemId ? "Tedavi tanımı güncellendi." : "Tedavi tanımı eklendi." };
+}
+
+export async function islemTanimiOlustur(
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  return islemTanimiKaydet(null, formData);
 }
 
 export async function islemTanimiGuncelle(
@@ -119,53 +143,7 @@ export async function islemTanimiGuncelle(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
-
-  const ayristirma = ayristir(formData);
-  if (!ayristirma.success) {
-    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
-  }
-
-  const {
-    ad,
-    gerekli_cihaz_id,
-    vita_fiyat,
-    plus_fiyat,
-    elit_fiyat,
-    prime_fiyat,
-    kdv_orani,
-    muhasebe_hizmet_ismi,
-    sure_dakika,
-  } = ayristirma.data;
-
-  const { error } = await supabase
-    .from("islem_tanimi")
-    .update({
-      ad,
-      gerekli_cihaz_id: gerekli_cihaz_id ? gerekli_cihaz_id : null,
-      vita_fiyat,
-      plus_fiyat,
-      elit_fiyat,
-      prime_fiyat,
-      kdv_orani,
-      muhasebe_hizmet_ismi: muhasebe_hizmet_ismi ? muhasebe_hizmet_ismi : null,
-      sure_dakika,
-    })
-    .eq("id", islemId);
-
-  if (error) {
-    console.error("Tedavi tanımı güncellenemedi:", error);
-    if (error.code === "42501") {
-      return { success: false, message: "Bu işlem için yetkiniz yok." };
-    }
-    return { success: false, message: "Tedavi tanımı güncellenemedi, lütfen tekrar deneyin." };
-  }
-
-  revalidatePath("/panel/islemler");
-  return { success: true, message: "Tedavi tanımı güncellendi." };
+  return islemTanimiKaydet(islemId, formData);
 }
 
 export async function islemTanimiAktifDurumDegistir(islemId: string, yeniDurum: boolean) {

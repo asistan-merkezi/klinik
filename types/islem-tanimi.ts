@@ -1,3 +1,11 @@
+export type IslemTanimiAdimSatir = {
+  id: string;
+  ad: string;
+  sure_dakika: number | null;
+  gerekli_cihaz_id: string | null;
+  cihaz: { ad: string } | null;
+};
+
 export type IslemTanimiSatir = {
   id: string;
   ad: string;
@@ -9,5 +17,5 @@ export type IslemTanimiSatir = {
   muhasebe_hizmet_ismi: string | null;
   sure_dakika: number | null;
   aktif: boolean;
-  cihaz: { ad: string } | null;
+  adimlar: IslemTanimiAdimSatir[];
 };
