@@ -18,11 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import type { SecenekSatir } from "@/types/randevu";
 import { islemAdimiSablonuOlustur } from "./actions";
 
 export function YeniIslemSablonuDialog({ pozisyonlar }: { pozisyonlar: SecenekSatir[] }) {
   const [acik, setAcik] = useState(false);
+  const [ad, setAd] = useState("");
   const [durum, formAction, isPending] = useActionState(islemAdimiSablonuOlustur, null);
   const [formKey, setFormKey] = useState(0);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
@@ -30,13 +32,14 @@ export function YeniIslemSablonuDialog({ pozisyonlar }: { pozisyonlar: SecenekSa
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
     if (durum?.success) {
+      setAd("");
       setFormKey((k) => k + 1);
     }
   }
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setAcik(true)}>
+      <Button type="button" variant="clinical" onClick={() => setAcik(true)}>
         <CirclePlus /> İşlem Tanımlama
       </Button>
 
@@ -48,7 +51,15 @@ export function YeniIslemSablonuDialog({ pozisyonlar }: { pozisyonlar: SecenekSa
           <form key={formKey} action={formAction} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="sablon-ad">İşlem Adı</Label>
-              <Input id="sablon-ad" name="ad" required disabled={isPending} placeholder="Ör. TENS" />
+              <Input
+                id="sablon-ad"
+                name="ad"
+                value={ad}
+                onChange={(e) => setAd(isimBasHarfBuyukYap(e.target.value))}
+                required
+                disabled={isPending}
+                placeholder="Ör. Tens"
+              />
             </div>
 
             <div className="flex flex-col gap-2">

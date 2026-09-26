@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isimBasHarfBuyukYap } from "@/lib/utils";
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemAdimiSablonuSatir, IslemTanimiAdimSatir } from "@/types/islem-tanimi";
 
@@ -143,7 +144,7 @@ export function IslemAdimSatirlari({
                 <Label className="text-xs text-muted-foreground">İşlem Adı</Label>
                 <Input
                   value={adim.ad}
-                  onChange={(e) => adimGuncelle(adim.anahtar, "ad", e.target.value)}
+                  onChange={(e) => adimGuncelle(adim.anahtar, "ad", isimBasHarfBuyukYap(e.target.value))}
                   placeholder="Ör. TENS"
                   disabled={disabled}
                 />
