@@ -21,7 +21,6 @@ type BorcSorguSatiri = {
   created_at: string;
   hasta: { ad_soyad: string; eposta: string | null } | null;
   randevu: {
-    terapist: { personel: { ad_soyad: string } | null } | null;
     islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null } | null;
   } | null;
   odeme: { fatura: FaturaSatir[] } | null;
@@ -132,7 +131,7 @@ export default async function FaturalarSayfasi({
     .select(
       "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
         "hasta(ad_soyad, eposta), " +
-        "randevu(terapist(personel(ad_soyad)), islem_tanimi(ad, muhasebe_hizmet_ismi)), " +
+        "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi)), " +
         "odeme(fatura(id, durum, hata_mesaji, e_arsiv_pdf_url))"
     )
     .eq("tur", "borc")
@@ -168,7 +167,6 @@ export default async function FaturalarSayfasi({
       hastaAdSoyad: b.hasta?.ad_soyad ?? "—",
       islemAdi:
         b.randevu?.islem_tanimi?.muhasebe_hizmet_ismi ?? b.randevu?.islem_tanimi?.ad ?? b.aciklama ?? "Borç",
-      terapistAdi: b.randevu?.terapist?.personel?.ad_soyad ?? null,
       tutar: b.tutar,
       iskontoTutari: b.iskonto_tutari,
       createdAt: b.created_at,

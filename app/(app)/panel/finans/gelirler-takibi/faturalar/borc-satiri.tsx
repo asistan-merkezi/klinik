@@ -23,7 +23,6 @@ export type FinansBorcSatiri = {
   id: string;
   hastaAdSoyad: string;
   islemAdi: string;
-  terapistAdi: string | null;
   tutar: number;
   iskontoTutari: number;
   createdAt: string;
@@ -49,12 +48,7 @@ export function FinansBorcSatiriBileseni({
       >
         <TableCell className="whitespace-nowrap text-muted-foreground">{formatDateTime(satir.createdAt)}</TableCell>
         <TableCell className="font-medium">{satir.hastaAdSoyad}</TableCell>
-        <TableCell className="text-muted-foreground">
-          <div className="flex flex-col">
-            <span className="text-foreground">{satir.islemAdi}</span>
-            {satir.terapistAdi && <span className="text-xs">{satir.terapistAdi}</span>}
-          </div>
-        </TableCell>
+        <TableCell className="text-foreground">{satir.islemAdi}</TableCell>
         <TableCell className="text-right tabular-nums">{paraFormat(satir.tutar)}</TableCell>
         <TableCell className="text-right tabular-nums">
           {satir.iskontoTutari > 0 ? paraFormat(satir.iskontoTutari) : "—"}
