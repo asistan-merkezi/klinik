@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { BildirimButonu } from "@/components/panel/bildirim-butonu";
 import { CanliSaat } from "@/components/panel/canli-saat";
 import { SuAnCizgisi } from "@/components/panel/su-an-cizgisi";
-import { RandevuKutusu, gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
+import { RandevuKutusu, gorunumDurumuHesapla, gorunumDurumBilgisi } from "@/components/panel/randevu-kutusu";
 import { RandevuDetayPaneli } from "@/components/panel/randevu-detay-paneli";
 import { Card } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 const GUN_BASLANGIC_SAAT = 8;
 const GUN_BITIS_SAAT = 20;
@@ -366,32 +367,41 @@ export function CanliCizelge({
                   <th className="px-4 py-2 sm:px-5">Oda</th>
                   <th className="px-4 py-2 sm:px-5">Terapist</th>
                   <th className="px-4 py-2 sm:px-5">İşlem</th>
+                  <th className="px-4 py-2 sm:px-5">Durum</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {gorunumler.map(({ randevu, durum }) => (
-                  <tr
-                    key={randevu.id}
-                    role="button"
-                    tabIndex={0}
-                    className="cursor-pointer outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
-                    onClick={(e) => randevuKutusunaTiklandi(e, randevu, durum)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        randevuKutusunaTiklandi(e, randevu, durum);
-                      }
-                    }}
-                  >
-                    <td className="px-4 py-2.5 tabular-nums sm:px-5">{formatTime(randevu.baslangic)}</td>
-                    <td className="px-4 py-2.5 font-medium sm:px-5">{randevu.hasta?.ad_soyad ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground sm:px-5">{randevu.oda?.ad ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground sm:px-5">
-                      {randevu.terapist?.personel?.ad_soyad ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground sm:px-5">{randevu.islem_tanimi?.ad ?? "—"}</td>
-                  </tr>
-                ))}
+                {gorunumler.map(({ randevu, durum }) => {
+                  const { etiket, tone, pulse } = gorunumDurumBilgisi(randevu, durum);
+                  return (
+                    <tr
+                      key={randevu.id}
+                      role="button"
+                      tabIndex={0}
+                      className="cursor-pointer outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
+                      onClick={(e) => randevuKutusunaTiklandi(e, randevu, durum)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          randevuKutusunaTiklandi(e, randevu, durum);
+                        }
+                      }}
+                    >
+                      <td className="px-4 py-2.5 tabular-nums sm:px-5">{formatTime(randevu.baslangic)}</td>
+                      <td className="px-4 py-2.5 font-medium sm:px-5">{randevu.hasta?.ad_soyad ?? "—"}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground sm:px-5">{randevu.oda?.ad ?? "—"}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground sm:px-5">
+                        {randevu.terapist?.personel?.ad_soyad ?? "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground sm:px-5">{randevu.islem_tanimi?.ad ?? "—"}</td>
+                      <td className="px-4 py-2.5 sm:px-5">
+                        <StatusBadge tone={tone} pulse={pulse}>
+                          {etiket}
+                        </StatusBadge>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

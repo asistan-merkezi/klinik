@@ -74,6 +74,16 @@ const DURUM_STIL: Record<
   tamamlandi: { etiket: "Tamamlandı", tone: "slate", soluk: true },
 };
 
+/** Kutucuk ve liste görünümündeki durum rozetinin TEK kaynağı — etiket (gecikme dakikası dahil), tone ve nabız. */
+export function gorunumDurumBilgisi(randevu: RandevuSatir, durum: GorunumDurumu) {
+  const stil = DURUM_STIL[durum];
+  const etiket =
+    durum === "gecikmeli_geldi" && randevu.gecikme_dakika
+      ? `${stil.etiket} (${randevu.gecikme_dakika} dk)`
+      : stil.etiket;
+  return { etiket, tone: stil.tone, pulse: stil.pulse ?? false };
+}
+
 // Tedavi (islem_tanimi) başına sabit, tutarlı bir renk — id'den türetilir,
 // elle renk seçimi/ekstra alan gerekmez. Sınıflar tam literal yazılır
 // (şablon string ile üretilmez), yoksa Tailwind'in statik taraması bunları
@@ -122,10 +132,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
     gorunumDurumu === "planlandi"
       ? tedaviRengi(randevu.islem_tanimi?.id)
       : (stil.kutuRenkOverride ?? DURUM_KUTU_RENKLERI[stil.tone]);
-  const etiket =
-    gorunumDurumu === "gecikmeli_geldi" && randevu.gecikme_dakika
-      ? `${stil.etiket} (${randevu.gecikme_dakika} dk)`
-      : stil.etiket;
+  const { etiket } = gorunumDurumBilgisi(randevu, gorunumDurumu);
   const baslikMetni = [
     randevu.hasta?.ad_soyad,
     formatTime(randevu.baslangic),
