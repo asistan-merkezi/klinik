@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { gecerliHasta } from "@/lib/auth/gecerli-hasta";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HastaDetay } from "@/types/hasta";
@@ -8,27 +9,13 @@ import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import { BilgilerFormu } from "./bilgiler-formu";
 
 export default async function PortalBilgilerimSayfasi() {
+  const oturum = await gecerliHasta();
+  if (!oturum) {
+    redirect("/portal/giris");
+  }
+
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/portal/giris");
-  }
-
-  const { data: mk } = await supabase
-    .from("hasta_kullanici")
-    .select("hasta_id, aktif")
-    .eq("id", user.id)
-    .single();
-
-  if (!mk?.hasta_id || !mk.aktif) {
-    redirect("/portal/giris");
-  }
-
-  const hastaId = mk.hasta_id;
+  const hastaId = oturum.hastaId;
 
   const [hastaSonucu, hassasSonucu] = await Promise.all([
     supabase

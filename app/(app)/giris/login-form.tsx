@@ -6,11 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { girisYap } from "./actions";
 
-export function LoginForm() {
+export function LoginForm({ oturumSonlandiMi }: { oturumSonlandiMi?: boolean } = {}) {
   const [durum, formAction, isPending] = useActionState(girisYap, null);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {oturumSonlandiMi && !durum && (
+        <p role="alert" className="text-sm text-destructive">
+          Bu hesapla başka bir yerden giriş yapıldığı için oturumunuz sonlandırıldı.
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="giris_adi">Telefon (personel) veya e-posta (yönetici)</Label>
         <Input

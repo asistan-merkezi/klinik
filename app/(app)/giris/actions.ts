@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { oturumKilidiYenile } from "@/lib/auth/oturum-kilidi";
 
 type GirisSonucu = { success: false; message: string } | never;
 
@@ -44,6 +45,7 @@ export async function girisYap(
       return { success: false, message: "Bu hesap yalnızca telefon numarasıyla giriş yapabilir." };
     }
 
+    await oturumKilidiYenile(supabase);
     redirect("/panel");
   }
 
@@ -67,5 +69,6 @@ export async function girisYap(
     return { success: false, message: "Telefon veya şifre hatalı." };
   }
 
+  await oturumKilidiYenile(supabase);
   redirect("/panel");
 }

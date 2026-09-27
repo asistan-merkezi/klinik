@@ -1,5 +1,7 @@
 import { cache } from "react";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { oturumKilidiGecerliMi } from "@/lib/auth/oturum-kilidi";
 
 type KullaniciSatiri = {
   id: string;
@@ -39,6 +41,12 @@ export const gecerliKullanici = cache(async (): Promise<GecerliKullanici | null>
 
   if (!claims) {
     return null;
+  }
+
+  // Tek oturum kilidi (bkz. lib/auth/oturum-kilidi.ts) — başka bir yerden
+  // yeniden giriş yapılmışsa bu tarayıcıyı zorla çıkışa yönlendirir.
+  if (!(await oturumKilidiGecerliMi(supabase, claims.sub))) {
+    redirect("/api/oturum-cikis?hedef=/giris");
   }
 
   const { data: kullanici } = await supabase

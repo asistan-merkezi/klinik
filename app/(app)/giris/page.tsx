@@ -20,7 +20,13 @@ import { LoginForm } from "./login-form";
  * veri OLAMAZ — DESIGN'ın izin verdiği gibi (statik/pazarlama) açıkça
  * "Örnek" etiketli, sahte sayı içermeyen bir önizleme olarak tutuldu.
  */
-export default function GirisSayfasi() {
+export default async function GirisSayfasi({
+  searchParams,
+}: {
+  searchParams: Promise<{ hata?: string }>;
+}) {
+  const { hata } = await searchParams;
+
   return (
     <div className="dark flex min-h-svh flex-1 bg-background">
       {/* Sol tanıtım paneli — mobilde gizli */}
@@ -89,7 +95,7 @@ export default function GirisSayfasi() {
             <CardDescription>Personel telefon numarasıyla, yönetici e-posta ile giriş yapar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <LoginForm />
+            <LoginForm oturumSonlandiMi={hata === "baska_cihaz"} />
           </CardContent>
         </Card>
       </div>

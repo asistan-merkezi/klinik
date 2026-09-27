@@ -4,9 +4,9 @@ import { PortalLoginForm } from "./login-form";
 export default async function PortalGirisSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ telefon?: string }>;
+  searchParams: Promise<{ telefon?: string; hata?: string }>;
 }) {
-  const { telefon } = await searchParams;
+  const { telefon, hata } = await searchParams;
 
   return (
     <div className="dark flex flex-1 items-center justify-center bg-background p-4">
@@ -15,7 +15,7 @@ export default async function PortalGirisSayfasi({
           <CardTitle>Hasta Portalı</CardTitle>
         </CardHeader>
         <CardContent>
-          <PortalLoginForm defaultTelefon={telefon} />
+          <PortalLoginForm defaultTelefon={telefon} oturumSonlandiMi={hata === "baska_cihaz"} />
         </CardContent>
       </Card>
     </div>

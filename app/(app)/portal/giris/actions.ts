@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { oturumKilidiYenile } from "@/lib/auth/oturum-kilidi";
 
 type GirisSonucu = { success: false; message: string } | null;
 
@@ -35,5 +36,6 @@ export async function portalGirisYap(
     return { success: false, message: "Telefon veya şifre hatalı." };
   }
 
+  await oturumKilidiYenile(supabase);
   redirect("/portal");
 }
