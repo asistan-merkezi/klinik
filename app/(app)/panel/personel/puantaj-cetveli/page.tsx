@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CalendarCheck2, Table2 } from "lucide-react";
+import { CalendarCheck2, CalendarClock, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
@@ -203,18 +203,30 @@ export default async function PuantajCetveliSayfasi({
           description={`${ay.etiket} — tüm personelin aylık devam/izin durumu.`}
           icon={Table2}
           actions={
-            yonetici && (
+            <>
               <Button
+                variant="outline"
                 nativeButton={false}
-                className="bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
                 render={
-                  <Link href="/panel/personel/izinler">
-                    <CalendarCheck2 /> İzin / Rapor Takibini Aç
-                    {bekleyenIzinSayisi > 0 ? ` (${bekleyenIzinSayisi})` : ""}
+                  <Link href="/panel/personel/izinlerim">
+                    <CalendarClock /> İzin Talebi
                   </Link>
                 }
               />
-            )
+
+              {yonetici && (
+                <Button
+                  nativeButton={false}
+                  className="bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
+                  render={
+                    <Link href="/panel/personel/izinler">
+                      <CalendarCheck2 /> İzin / Rapor Takibini Aç
+                      {bekleyenIzinSayisi > 0 ? ` (${bekleyenIzinSayisi})` : ""}
+                    </Link>
+                  }
+                />
+              )}
+            </>
           }
         />
 
