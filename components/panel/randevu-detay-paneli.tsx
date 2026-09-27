@@ -89,7 +89,7 @@ function OdemeVeyaCariKarti({
         guncelBakiye={guncelBakiye}
         onBasarili={() => setHesapKapandi(true)}
       />
-      <Button type="button" size="sm" variant="outline" onClick={() => setHesapKapandi(true)}>
+      <Button type="button" size="sm" variant="clinical" onClick={() => setHesapKapandi(true)}>
         <Wallet />
         Cariye Ekle
       </Button>
