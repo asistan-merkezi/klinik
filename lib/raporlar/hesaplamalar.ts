@@ -417,6 +417,7 @@ type RandevuGunlukSatir = {
   id: string;
   baslangic: string;
   durum: string;
+  hasta_id: string | null;
   hasta: { ad_soyad: string } | null;
   terapist: { personel: { ad_soyad: string } | null } | null;
   islem_tanimi: { ad: string } | null;
@@ -427,6 +428,7 @@ type OdemeGunlukSatir = {
   created_at: string;
   faturali: boolean;
   iskonto_tutari: number;
+  hasta_id: string | null;
   hasta: { ad_soyad: string } | null;
   odeme_kalemi: { miktar: number; birim_fiyat: number }[];
 };
@@ -473,7 +475,7 @@ export async function hesaplaGunlukDokum(
   const [randevuSonuc, odemeSonuc, harcamaSonuc, kamusalSonuc] = await Promise.all([
     supabase
       .from("randevu")
-      .select("id, baslangic, durum, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad)")
+      .select("id, baslangic, durum, hasta_id, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad)")
       .eq("klinik_id", klinikId)
       .gte("baslangic", donem.baslangic)
       .lt("baslangic", donem.bitis)
@@ -481,7 +483,7 @@ export async function hesaplaGunlukDokum(
       .returns<RandevuGunlukSatir[]>(),
     supabase
       .from("odeme")
-      .select("id, created_at, faturali, iskonto_tutari, hasta(ad_soyad), odeme_kalemi(miktar, birim_fiyat)")
+      .select("id, created_at, faturali, iskonto_tutari, hasta_id, hasta(ad_soyad), odeme_kalemi(miktar, birim_fiyat)")
       .eq("klinik_id", klinikId)
       .gte("created_at", donem.baslangic)
       .lt("created_at", donem.bitis)
@@ -506,6 +508,27 @@ export async function hesaplaGunlukDokum(
       .returns<KamusalOdemeGunlukSatir[]>(),
   ]);
 
+  // Randevu/gelir kalemlerinin yanında hastanın GÜNCEL toplam cari bakiyesini
+  // (v_hasta_cari_ozet.kalan_bakiye) göstermek için — bu VIEW olduğundan
+  // (PostgREST embed tuzağı, bkz. CLAUDE.md) hasta(...) ile birlikte
+  // EMBED EDİLEMEZ, ayrı çekilip hasta_id ile Map'lenir. View, bakiyesi
+  // sıfır/negatif olan hastaları hiç döndürmez (bkz. migration) — bu yüzden
+  // haritada bulunamayan hasta_id 0 (borcu yok) sayılır.
+  const hastaIdSeti = new Set<string>();
+  for (const r of randevuSonuc.data ?? []) if (r.hasta_id) hastaIdSeti.add(r.hasta_id);
+  for (const o of odemeSonuc.data ?? []) if (o.hasta_id) hastaIdSeti.add(o.hasta_id);
+
+  const { data: cariData } = hastaIdSeti.size
+    ? await supabase
+        .from("v_hasta_cari_ozet")
+        .select("hasta_id, kalan_bakiye")
+        .eq("klinik_id", klinikId)
+        .in("hasta_id", Array.from(hastaIdSeti))
+        .returns<{ hasta_id: string; kalan_bakiye: number }[]>()
+    : { data: [] as { hasta_id: string; kalan_bakiye: number }[] };
+  const bakiyeMap = new Map((cariData ?? []).map((c) => [c.hasta_id, c.kalan_bakiye]));
+  const hastaBakiyesi = (hastaId: string | null) => (hastaId ? (bakiyeMap.get(hastaId) ?? 0) : undefined);
+
   const gunler = new Map<string, GunlukOzet>();
   function gunuAl(tarih: string): GunlukOzet {
     let gun = gunler.get(tarih);
@@ -528,6 +551,7 @@ export async function hesaplaGunlukDokum(
       tutar: 0,
       yon: "notr",
       durum: r.durum,
+      bakiye: hastaBakiyesi(r.hasta_id),
     });
   }
 
@@ -544,6 +568,7 @@ export async function hesaplaGunlukDokum(
       altBaslik: o.faturali ? "Faturalı tahsilat" : "Faturasız tahsilat",
       tutar: net,
       yon: "gelir",
+      bakiye: hastaBakiyesi(o.hasta_id),
     });
   }
 

@@ -40,6 +40,16 @@ function KalemSatiri({ kalem }: { kalem: GunlukIsKalemi }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium text-foreground">{kalem.baslik}</span>
         {kalem.altBaslik && <span className="truncate text-muted-foreground">{kalem.altBaslik}</span>}
+        {kalem.bakiye !== undefined && (
+          <span
+            className={cn(
+              "truncate",
+              kalem.bakiye > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
+            )}
+          >
+            Bakiye: {paraFormat(kalem.bakiye)}
+          </span>
+        )}
       </div>
       {kalem.durum && (
         <StatusBadge tone={RANDEVU_DURUM_TONLARI[kalem.durum as RandevuDurumu] ?? "slate"} className="shrink-0">
