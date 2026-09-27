@@ -10,7 +10,13 @@ import { createClient } from "@/lib/supabase/client";
 import { IZIN_TIP_SECENEKLERI } from "@/types/izin";
 import { izinTalebiOlustur } from "./actions";
 
-export function TalepFormu() {
+export type PersonelSecenegi = { id: string; adSoyad: string; departman: string };
+
+export type PersonelSecici =
+  | { mod: "kendi"; adSoyad: string }
+  | { mod: "sec"; personelListesi: PersonelSecenegi[] };
+
+export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici }) {
   const [durum, formAction, isPending] = useActionState(izinTalebiOlustur, null);
   const formRef = useRef<HTMLFormElement>(null);
   const [baslangic, setBaslangic] = useState("");
@@ -18,6 +24,8 @@ export function TalepFormu() {
   const [gunSayisi, setGunSayisi] = useState<number | null>(null);
   const [sayaçYukleniyor, setSayaçYukleniyor] = useState(false);
   const sonIstekRef = useRef(0);
+  const [departman, setDepartman] = useState("");
+  const [personelId, setPersonelId] = useState("");
 
   // Render sırasında karşılaştırma — useEffect+setState yerine (bkz. proje
   // konvansiyonu: react-hooks/set-state-in-effect tuzağına düşmemek için
@@ -33,6 +41,8 @@ export function TalepFormu() {
       setBaslangic("");
       setBitis("");
       setGunSayisi(null);
+      setDepartman("");
+      setPersonelId("");
       setResetSayaci((n) => n + 1);
     }
   }
@@ -71,6 +81,69 @@ export function TalepFormu() {
       </CardHeader>
       <CardContent>
         <form ref={formRef} action={formAction} className="flex flex-col gap-3">
+          {personelSecici.mod === "kendi" ? (
+            <div className="flex flex-col gap-1">
+              <Label>Personel</Label>
+              <p className="text-sm font-medium">{personelSecici.adSoyad}</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="departman">Departman</Label>
+                <Select
+                  value={departman}
+                  onValueChange={(v) => {
+                    setDepartman(v ?? "");
+                    setPersonelId("");
+                  }}
+                  disabled={isPending}
+                  items={[...new Set(personelSecici.personelListesi.map((p) => p.departman))].map((d) => ({
+                    value: d,
+                    label: d,
+                  }))}
+                >
+                  <SelectTrigger id="departman" className="w-full">
+                    <SelectValue placeholder="Departman seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[...new Set(personelSecici.personelListesi.map((p) => p.departman))].map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="personel_id">Personel</Label>
+                <Select
+                  name="personel_id"
+                  required
+                  value={personelId}
+                  onValueChange={(v) => setPersonelId(v ?? "")}
+                  disabled={isPending || !departman}
+                  items={personelSecici.personelListesi
+                    .filter((p) => p.departman === departman)
+                    .map((p) => ({ value: p.id, label: p.adSoyad }))}
+                >
+                  <SelectTrigger id="personel_id" className="w-full">
+                    <SelectValue placeholder={departman ? "Personel seçin" : "Önce departman seçin"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {personelSecici.personelListesi
+                      .filter((p) => p.departman === departman)
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.adSoyad}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <Label htmlFor="tip">İzin Türü</Label>
@@ -150,7 +223,11 @@ export function TalepFormu() {
             </p>
           )}
 
-          <Button type="submit" disabled={isPending || gunSayisi === 0} className="w-fit">
+          <Button
+            type="submit"
+            disabled={isPending || gunSayisi === 0 || (personelSecici.mod === "sec" && !personelId)}
+            className="w-fit"
+          >
             {isPending ? "Gönderiliyor..." : "Talep Gönder"}
           </Button>
         </form>

@@ -80,13 +80,14 @@ export async function anlikMesajTetikle(
 /** Bir kliniğin klinik_admin rolündeki, personel kaydı olan üyeleri — izin talebi bildirimi gibi "yöneticiye" olaylar için. */
 export async function klinikAdminleriniGetir(
   admin: AdminClient,
-  klinikId: string
+  klinikId: string,
+  roller: string[] = ["klinik_admin"]
 ): Promise<{ personelId: string; telefon: string | null; eposta: string | null }[]> {
   const { data: adminKullanicilar } = await admin
     .from("kullanici")
     .select("id")
     .eq("klinik_id", klinikId)
-    .eq("rol", "klinik_admin");
+    .in("rol", roller);
 
   const kullaniciIdler = (adminKullanicilar ?? []).map((k) => k.id);
   if (kullaniciIdler.length === 0) return [];

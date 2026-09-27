@@ -18,6 +18,8 @@ const talepSemasi = z.object({
   gerekce: z.string().trim().optional(),
 });
 
+type HedefPersonel = { id: string; ad_soyad: string; klinik_id: string; klinik: { ad: string } | null };
+
 async function kendiPersoneliGetir() {
   const supabase = await createClient();
   const {
@@ -32,15 +34,53 @@ async function kendiPersoneliGetir() {
     .from("personel")
     .select("id, ad_soyad, klinik_id, klinik:klinik_id(ad)")
     .eq("kullanici_id", user.id)
-    .maybeSingle<{ id: string; ad_soyad: string; klinik_id: string; klinik: { ad: string } | null }>();
+    .maybeSingle<HedefPersonel>();
+
+  return { supabase, personel };
+}
+
+/**
+ * klinik_admin/muhasebe formdan bir personel_id seçmişse ONUN adına talep
+ * oluşturulur (RPC tarafı da bu iki rolü ayrıca yetkilendirir, bkz.
+ * personel_izin_talep_olustur) — aksi halde her zaman çağıranın kendi
+ * personel kaydına düşer (mevcut self-servis davranış, değişmedi).
+ */
+async function hedefPersoneliCoz(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
+  const secimYapabilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "muhasebe";
+
+  const secilenPersonelId = formData.get("personel_id");
+  if (secimYapabilir && typeof secilenPersonelId === "string" && secilenPersonelId) {
+    const { data: personel } = await supabase
+      .from("personel")
+      .select("id, ad_soyad, klinik_id, klinik:klinik_id(ad)")
+      .eq("id", secilenPersonelId)
+      .maybeSingle<HedefPersonel>();
+    return { supabase, personel };
+  }
+
+  const { data: personel } = await supabase
+    .from("personel")
+    .select("id, ad_soyad, klinik_id, klinik:klinik_id(ad)")
+    .eq("kullanici_id", user.id)
+    .maybeSingle<HedefPersonel>();
 
   return { supabase, personel };
 }
 
 export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, personel } = await kendiPersoneliGetir();
+  const { supabase, personel } = await hedefPersoneliCoz(formData);
   if (!personel) {
-    return { success: false, message: "Personel kaydınız bulunamadı." };
+    return { success: false, message: "Personel bulunamadı." };
   }
 
   const ayristirma = talepSemasi.safeParse({
@@ -100,7 +140,7 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
   // hata gösterilmez.
   try {
     const adminClient = createAdminClient();
-    const yoneticiler = await klinikAdminleriniGetir(adminClient, personel.klinik_id);
+    const yoneticiler = await klinikAdminleriniGetir(adminClient, personel.klinik_id, ["klinik_admin", "muhasebe"]);
     const degiskenler = {
       personel_adi: personel.ad_soyad,
       izin_tip: IZIN_TIP_ETIKETLERI[tip as IzinTip],
