@@ -64,8 +64,6 @@ Yönetim UI'ı (liste + inline düzenleme + özel pozisyon ekleme, `pozisyonlar-
 
 **Pasife alma kısıtı**: bağlı **aktif** personeli olan bir pozisyon pasife alınamaz (`trg_pozisyon_pasif_engelle`, `pozisyon_personel_bagli` hatası) — pasif personelin bağlı olduğu pozisyon serbestçe pasife alınabilir. **DELETE hiç yok** (RLS'te policy'si yok) — pozisyonlar sonsuza dek durur, sadece aktif/pasif.
 
-**Deneme İçin Oluştur** (2026-09-27, `pozisyon-satiri.tsx`): aktif AMA o unvanda hiç aktif çalışanı olmayan pozisyonlarda klinik_admin'e, kök `CLAUDE.md`'nin "tek giriş noktası İş Başvurusu" ilkesine bilinçli bir istisna olarak, doğrudan `PersonelFormu`yu (pozisyon önceden seçili) açan bir buton gösterilir — yeni bir RPC/action yazılmadı, `personelHesabiOlustur`'un zaten desteklediği `basvuruId=null` yoluna sadece yeni bir giriş noktası eklendi. Hangi pozisyonların "boş" sayıldığı `personel-tanimlama/page.tsx`'te tek sorguyla (`personel.pozisyon_id` distinct, `aktif=true`) hesaplanır, satır bileşenine `calisaniVarMi` olarak geçer.
-
 ## Puantaj Cetveli (2026-08-19)
 
 **Sayfa başlığındaki aksiyonlar** (2026-09-27): "İzin Talebi" butonu (herkese açık, `/panel/personel/izinlerim`'e gider) ve — sadece klinik_admin için — bekleyen sayıyı gösteren "İzin / Rapor Takibini Aç" butonu (`/panel/personel/izinler`'e gider, sayaç bu sayfada AYRICA sorgulanıyor, hub'daki rozetten bağımsız bir sorgu). Bu iki giriş noktası eskiden `/panel/personel?tab=puantaj` ara sayfasındaki kartlardı, o sayfa artık yok (bkz. Rota Haritası).
