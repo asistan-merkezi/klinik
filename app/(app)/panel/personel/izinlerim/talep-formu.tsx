@@ -87,6 +87,15 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
     return () => clearTimeout(zamanlayici);
   }
 
+  function vazgec() {
+    setBaslangic("");
+    setGunSayisiSecimi("1");
+    setIsGunuSayisi(null);
+    setDepartman("");
+    setPersonelId("");
+    formRef.current?.reset();
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -250,13 +259,18 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
             </p>
           )}
 
-          <Button
-            type="submit"
-            disabled={isPending || isGunuSayisi === 0 || (personelSecici.mod === "sec" && !personelId)}
-            className="w-fit"
-          >
-            {isPending ? "Gönderiliyor..." : "Talep Gönder"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="submit"
+              disabled={isPending || isGunuSayisi === 0 || (personelSecici.mod === "sec" && !personelId)}
+              className="w-fit"
+            >
+              {isPending ? "Gönderiliyor..." : "Talep Gönder"}
+            </Button>
+            <Button type="button" variant="outline" disabled={isPending} onClick={vazgec} className="w-fit">
+              Vazgeç
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
