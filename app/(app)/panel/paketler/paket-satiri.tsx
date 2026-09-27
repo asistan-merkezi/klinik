@@ -81,7 +81,7 @@ export function PaketSatiri({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <Label htmlFor={`islem-${paket.id}`}>İşlem</Label>
+                <Label htmlFor={`islem-${paket.id}`}>Tedavi</Label>
                 <Select
                   name="islem_tanimi_id"
                   required
@@ -90,7 +90,7 @@ export function PaketSatiri({
                   items={islemTanimlari.map((i) => ({ value: i.id, label: i.ad }))}
                 >
                   <SelectTrigger id={`islem-${paket.id}`} className="w-full">
-                    <SelectValue placeholder="İşlem seçin" />
+                    <SelectValue placeholder="Tedavi seçin" />
                   </SelectTrigger>
                   <SelectContent>
                     {islemTanimlari.map((i) => (

@@ -52,7 +52,7 @@ export function PaketFormu({ islemTanimlari }: { islemTanimlari: SecenekSatir[] 
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="islem_tanimi_id">İşlem</Label>
+          <Label htmlFor="islem_tanimi_id">Tedavi</Label>
           <Select
             name="islem_tanimi_id"
             required
@@ -60,7 +60,7 @@ export function PaketFormu({ islemTanimlari }: { islemTanimlari: SecenekSatir[] 
             items={islemTanimlari.map((i) => ({ value: i.id, label: i.ad }))}
           >
             <SelectTrigger id="islem_tanimi_id" className="w-full">
-              <SelectValue placeholder="İşlem seçin" />
+              <SelectValue placeholder="Tedavi seçin" />
             </SelectTrigger>
             <SelectContent>
               {islemTanimlari.map((i) => (
