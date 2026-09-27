@@ -61,6 +61,20 @@ function KalemSatiri({ kalem }: { kalem: GunlukIsKalemi }) {
   );
 }
 
+/** Bir güne ait kalemlerin düz listesi — hem GunlukDokumKarti'nin açılan satırında hem de Günlük görünümün İş Dökümü kartında kullanılır. */
+export function KalemListesi({ kalemler }: { kalemler: GunlukIsKalemi[] }) {
+  if (kalemler.length === 0) {
+    return <EmptyState icon={CalendarDays} title="Bu günde kayıtlı işlem yok." compact />;
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {kalemler.map((kalem) => (
+        <KalemSatiri key={kalem.id} kalem={kalem} />
+      ))}
+    </div>
+  );
+}
+
 export function GunlukDokumKarti({ gunler }: { gunler: GunlukOzet[] }) {
   const [acikGun, setAcikGun] = useState<string | null>(null);
 
@@ -100,10 +114,8 @@ export function GunlukDokumKarti({ gunler }: { gunler: GunlukOzet[] }) {
                     </div>
                   </button>
                   {acik && (
-                    <div className="flex flex-col gap-2 border-t border-border bg-muted/20 px-3 py-2.5 pl-8">
-                      {gun.kalemler.map((kalem) => (
-                        <KalemSatiri key={kalem.id} kalem={kalem} />
-                      ))}
+                    <div className="border-t border-border bg-muted/20 px-3 py-2.5 pl-8">
+                      <KalemListesi kalemler={gun.kalemler} />
                     </div>
                   )}
                 </div>

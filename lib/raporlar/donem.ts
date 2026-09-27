@@ -1,5 +1,5 @@
 import { ayBaslangiciUTC } from "@/lib/utils";
-import { formatDateForInput } from "@/lib/datetime";
+import { endOfDayUTC, formatDateForInput, startOfDayUTC } from "@/lib/datetime";
 
 /**
  * Rapor hesaplamalarının tamamı bu aralık tipini kullanır: `baslangic`/`bitis`
@@ -46,4 +46,22 @@ export function raporYilDonemi(yil: number): RaporDonemi {
 /** Yılın 12 ayının her biri için ayrı dönem aralığı (yıllık grafik kırılımı için). */
 export function yilinAylari(yil: number): RaporDonemi[] {
   return Array.from({ length: 12 }, (_, i) => raporAyDonemi(yil, i + 1));
+}
+
+/** tarih: "YYYY-MM-DD" (İstanbul takvim günü — Günlük görünümün gezinme birimi). */
+export function raporGunDonemi(tarih: string): RaporDonemi {
+  const [yil, ay, gun] = tarih.split("-").map(Number);
+  // Diğer donem fonksiyonlarındaki gibi (ayBaslangiciUTC) UTC öğle vakti
+  // "güvenli an" olarak alınır — İstanbul hep UTC+3 olduğundan bu an her
+  // zaman aynı takvim gününe denk gelir, DST kayması riski yok.
+  const guvenliAn = new Date(Date.UTC(yil, ay - 1, gun, 12));
+  const baslangicIso = startOfDayUTC(guvenliAn);
+  const bitisIso = endOfDayUTC(guvenliAn);
+  const etiket = new Date(yil, ay - 1, gun).toLocaleDateString("tr-TR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    weekday: "long",
+  });
+  return donemOlustur(baslangicIso, bitisIso, etiket);
 }

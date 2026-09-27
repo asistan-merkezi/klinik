@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
-import { raporAyDonemi, raporYilDonemi } from "@/lib/raporlar/donem";
+import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
+import { raporAyDonemi, raporGunDonemi, raporYilDonemi } from "@/lib/raporlar/donem";
 import {
   hesaplaDigerGiderler,
   hesaplaFaturaliGiderler,
@@ -18,19 +19,35 @@ import {
   hesaplaYillikOzet,
 } from "@/lib/raporlar/hesaplamalar";
 import { YillikGrafik } from "@/components/raporlar/yillik-grafik";
-import { GunlukDokumKarti } from "@/components/raporlar/gunluk-dokum-karti";
+import { GunlukDokumKarti, KalemListesi } from "@/components/raporlar/gunluk-dokum-karti";
 import { YazdirButonu } from "@/components/panel/yazdir-butonu";
 import type { GelirOzeti, RandevuDurumOzeti, SabitPersonelMaliyeti } from "@/types/raporlar";
 
 const paraFormat = (tutar: number) =>
   tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
+/**
+ * Saf "YYYY-MM-DD" takvim tarihine gün ekler/çıkarır — ledger-view.tsx'teki
+ * aynı sebeple (bkz. oradaki yorum) `new Date(tarih)` ile UTC ayrıştırma
+ * riskine girmemek için bileşenlerden yerel bir Date kurulur; ay/yıl taşması
+ * `setDate` tarafından otomatik doğru şekilde çözülür.
+ */
+function gunEkle(tarih: string, delta: number): string {
+  const [yil, ay, gun] = tarih.split("-").map(Number);
+  const tarihNesnesi = new Date(yil, ay - 1, gun);
+  tarihNesnesi.setDate(tarihNesnesi.getDate() + delta);
+  const yeniYil = tarihNesnesi.getFullYear();
+  const yeniAy = String(tarihNesnesi.getMonth() + 1).padStart(2, "0");
+  const yeniGun = String(tarihNesnesi.getDate()).padStart(2, "0");
+  return `${yeniYil}-${yeniAy}-${yeniGun}`;
+}
+
 export default async function RaporlarSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ gorunum?: string; yil?: string; ay?: string }>;
+  searchParams: Promise<{ gorunum?: string; yil?: string; ay?: string; tarih?: string }>;
 }) {
-  const { gorunum: gorunumParam, yil: yilParam, ay: ayParam } = await searchParams;
+  const { gorunum: gorunumParam, yil: yilParam, ay: ayParam, tarih: tarihParam } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -66,10 +83,20 @@ export default async function RaporlarSayfasi({
   const buYil = simdi.getFullYear();
   const buAy = simdi.getMonth() + 1;
   const klinikBaslangicYili = klinik?.created_at ? new Date(klinik.created_at).getFullYear() : buYil;
+  const bugunTarih = bugunIstanbulTarihi();
+  const klinikBaslangicTarihi = klinik?.created_at ? formatDateForInput(klinik.created_at) : bugunTarih;
 
-  const gorunum = gorunumParam === "yillik" ? "yillik" : "aylik";
+  const gorunum = gorunumParam === "yillik" ? "yillik" : gorunumParam === "gunluk" ? "gunluk" : "aylik";
   const yil = Math.min(Math.max(parseInt(yilParam ?? "", 10) || buYil, klinikBaslangicYili), buYil);
   const ay = Math.min(Math.max(parseInt(ayParam ?? "", 10) || buAy, 1), 12);
+  const tarihGecerliMi = !!tarihParam && /^\d{4}-\d{2}-\d{2}$/.test(tarihParam);
+  const tarih = tarihGecerliMi
+    ? tarihParam < klinikBaslangicTarihi
+      ? klinikBaslangicTarihi
+      : tarihParam > bugunTarih
+        ? bugunTarih
+        : tarihParam
+    : bugunTarih;
 
   const oncekiAyTarih = new Date(Date.UTC(yil, ay - 2, 1));
   const sonrakiAyTarih = new Date(Date.UTC(yil, ay, 1));
@@ -79,6 +106,11 @@ export default async function RaporlarSayfasi({
   const sonrakiAyGosterilebilir =
     sonrakiAyTarih.getUTCFullYear() < buYil ||
     (sonrakiAyTarih.getUTCFullYear() === buYil && sonrakiAyTarih.getUTCMonth() + 1 <= buAy);
+
+  const oncekiGunTarih = gunEkle(tarih, -1);
+  const sonrakiGunTarih = gunEkle(tarih, 1);
+  const oncekiGunGosterilebilir = tarih > klinikBaslangicTarihi;
+  const sonrakiGunGosterilebilir = tarih < bugunTarih;
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8 print:bg-white print:p-0">
@@ -120,9 +152,48 @@ export default async function RaporlarSayfasi({
               >
                 Yıllık
               </Link>
+              <Link
+                href={`?gorunum=gunluk&tarih=${tarih}`}
+                className={cn(
+                  "rounded-lg px-3.5 py-1.5 font-medium transition-colors",
+                  gorunum === "gunluk"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Günlük
+              </Link>
             </div>
 
-            {gorunum === "aylik" ? (
+            {gorunum === "gunluk" ? (
+              <div className="flex items-center gap-2 text-sm">
+                {oncekiGunGosterilebilir ? (
+                  <Link
+                    className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted/60"
+                    href={`?gorunum=gunluk&tarih=${oncekiGunTarih}`}
+                  >
+                    ‹ Önceki
+                  </Link>
+                ) : (
+                  <span className="rounded-lg border border-border px-3 py-1.5 text-muted-foreground opacity-50">
+                    ‹ Önceki
+                  </span>
+                )}
+                <span className="min-w-48 text-center font-medium">{raporGunDonemi(tarih).etiket}</span>
+                {sonrakiGunGosterilebilir ? (
+                  <Link
+                    className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted/60"
+                    href={`?gorunum=gunluk&tarih=${sonrakiGunTarih}`}
+                  >
+                    Sonraki ›
+                  </Link>
+                ) : (
+                  <span className="rounded-lg border border-border px-3 py-1.5 text-muted-foreground opacity-50">
+                    Sonraki ›
+                  </span>
+                )}
+              </div>
+            ) : gorunum === "aylik" ? (
               <div className="flex items-center gap-2 text-sm">
                 {oncekiAyGosterilebilir ? (
                   <Link
@@ -184,7 +255,9 @@ export default async function RaporlarSayfasi({
           </div>
         </header>
 
-        {gorunum === "aylik" ? (
+        {gorunum === "gunluk" ? (
+          <GunlukGorunum supabase={supabase} klinikId={klinikId} tarih={tarih} />
+        ) : gorunum === "aylik" ? (
           <AylikGorunum supabase={supabase} klinikId={klinikId} yil={yil} ay={ay} />
         ) : (
           <YillikGorunum supabase={supabase} klinikId={klinikId} yil={yil} />
@@ -311,6 +384,67 @@ async function YillikGorunum({
         />
       </div>
       <NetKarZararKarti gelir={gelir.netTahsilat} gider={toplamGider} />
+    </div>
+  );
+}
+
+async function GunlukGorunum({
+  supabase,
+  klinikId,
+  tarih,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  klinikId: string;
+  tarih: string;
+}) {
+  const donem = raporGunDonemi(tarih);
+
+  const [isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu, gunlukDokum] =
+    await Promise.all([
+      hesaplaIsletmeGideri(supabase, klinikId, donem),
+      hesaplaFaturaliGiderler(supabase, klinikId, donem),
+      hesaplaMuhasebeGideri(supabase, klinikId, donem),
+      hesaplaDigerGiderler(supabase, klinikId, donem),
+      hesaplaGelir(supabase, klinikId, donem),
+      hesaplaRandevuDurumOzeti(supabase, klinikId, donem),
+      hesaplaGunlukDokum(supabase, klinikId, donem),
+    ]);
+
+  // hesaplaGunlukDokum tek günlük bir dönem için en fazla 1 eleman döner —
+  // o gün hiç kalem yoksa (gunOzet undefined) sıfır değerlerle devam edilir.
+  const gunOzet = gunlukDokum[0] ?? { tarih, gelir: 0, gider: 0, seansSayisi: 0, kalemler: [] };
+
+  // Toplam gider burada sabit personel maliyeti İÇERMEZ (bkz. GiderKalemleriKarti
+  // ve hesaplaGunlukDokum'daki aynı gerekçe: maaş tek bir güne ait değil).
+  const toplamGider = isletmeGideri + faturaliGiderler + muhasebeGideri + digerGiderler;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <IstatistikKartlari
+        toplamGelir={gelir.netTahsilat}
+        toplamGider={toplamGider}
+        tamamlananSayisi={randevuDurumu.tamamlanan}
+      />
+      <RandevuDurumBandi ozet={randevuDurumu} baslikEk={donem.etiket} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <GelirDetayKarti gelir={gelir} />
+        <GiderKalemleriKarti
+          isletmeGideri={isletmeGideri}
+          faturaliGiderler={faturaliGiderler}
+          muhasebeGideri={muhasebeGideri}
+          digerGiderler={digerGiderler}
+          toplamGider={toplamGider}
+        />
+      </div>
+      <NetKarZararKarti gelir={gelir.netTahsilat} gider={toplamGider} />
+      <Card>
+        <CardHeader>
+          <CardTitle>İş Dökümü</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <KalemListesi kalemler={gunOzet.kalemler} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -448,7 +582,8 @@ function GiderKalemleriKarti({
   digerGiderler,
   toplamGider,
 }: {
-  sabitPersonel: SabitPersonelMaliyeti;
+  /** Günlük görünümde verilmez — tek bir maaş tahakkuku belirli bir güne ait olmadığından o günde anlamsız/yanıltıcı olurdu (bkz. hesaplaGunlukDokum'daki aynı gerekçe). */
+  sabitPersonel?: SabitPersonelMaliyeti;
   isletmeGideri: number;
   faturaliGiderler: number;
   muhasebeGideri: number;
@@ -456,8 +591,12 @@ function GiderKalemleriKarti({
   toplamGider: number;
 }) {
   const kalemler = [
-    { etiket: "Sabit Personel Gideri", tutar: sabitPersonel.sabitToplam },
-    { etiket: "Extra Personel Gideri", tutar: sabitPersonel.ekstraToplam },
+    ...(sabitPersonel
+      ? [
+          { etiket: "Sabit Personel Gideri", tutar: sabitPersonel.sabitToplam },
+          { etiket: "Extra Personel Gideri", tutar: sabitPersonel.ekstraToplam },
+        ]
+      : []),
     { etiket: "İşletme Gideri", tutar: isletmeGideri },
     { etiket: "Faturalı Giderler", tutar: faturaliGiderler },
     { etiket: "Muhasebe (Vergi, SGK)", tutar: muhasebeGideri },
@@ -484,7 +623,7 @@ function GiderKalemleriKarti({
           <dd className="text-rose-600 dark:text-rose-400">{paraFormat(toplamGider)}</dd>
         </div>
 
-        {sabitPersonel.terapistPrimleri.length > 0 && (
+        {sabitPersonel && sabitPersonel.terapistPrimleri.length > 0 && (
           <details className="mt-3 text-xs text-muted-foreground print:hidden">
             <summary className="cursor-pointer select-none text-foreground">
               Terapist prim dökümü ({sabitPersonel.terapistPrimleri.length})
