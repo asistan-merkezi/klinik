@@ -29,6 +29,9 @@ export type RandevuSatir = {
   tedavi_protokolu_id?: string | null;
   tedavi_protokolu?: { id: string; ad: string } | null;
   kaynak?: "uygulama" | "arsiv";
+  tamamlanma_aciklamasi?: string | null;
+  tamamlanma_tarihi?: string | null;
+  tamamlayan_kullanici?: { ad_soyad: string } | null;
 };
 
 export type SecenekSatir = {

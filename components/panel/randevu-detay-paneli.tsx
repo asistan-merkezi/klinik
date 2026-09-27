@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateForInput, formatTimeForInput } from "@/lib/datetime";
+import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/datetime";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { randevuGuncelle } from "@/app/(app)/panel/randevular/actions";
 import { DurumButonlari } from "@/app/(app)/panel/randevular/durum-butonlari";
@@ -72,6 +72,23 @@ export function RandevuDetayPaneli({
         <DialogHeader>
           <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
         </DialogHeader>
+
+        {randevu.durum === "tamamlandi" && (
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5 text-sm">
+            <div className="grid grid-cols-[110px_1fr] gap-2">
+              <span className="font-medium text-muted-foreground">Seans Bitişi:</span>
+              <span>{randevu.tamamlanma_tarihi ? formatDateTime(randevu.tamamlanma_tarihi) : "—"}</span>
+            </div>
+            <div className="grid grid-cols-[110px_1fr] gap-2">
+              <span className="font-medium text-muted-foreground">Bitiren:</span>
+              <span>{randevu.tamamlayan_kullanici?.ad_soyad ?? "—"}</span>
+            </div>
+            <div className="grid grid-cols-[110px_1fr] gap-2">
+              <span className="font-medium text-muted-foreground">Not:</span>
+              <span>{randevu.tamamlanma_aciklamasi ?? "—"}</span>
+            </div>
+          </div>
+        )}
 
         <DurumButonlari randevu={randevu} />
 
