@@ -205,7 +205,6 @@ export default async function PuantajCetveliSayfasi({
           actions={
             <>
               <Button
-                variant="outline"
                 nativeButton={false}
                 render={
                   <Link href="/panel/personel/izinlerim">
