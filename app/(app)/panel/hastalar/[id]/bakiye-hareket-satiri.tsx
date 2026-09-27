@@ -103,14 +103,7 @@ export function BakiyeHareketSatiri({
           )}
         </td>
         <td className="px-3 py-2 text-right tabular-nums">
-          {manuelIskontoTutari > 0 ? (
-            <div className="flex flex-col items-end">
-              <span>{paraFormat(manuelIskontoTutari)}</span>
-              {iskontoUygulayanAdi && <span className="text-xs text-muted-foreground">{iskontoUygulayanAdi}</span>}
-            </div>
-          ) : (
-            "—"
-          )}
+          {manuelIskontoTutari > 0 ? paraFormat(manuelIskontoTutari) : "—"}
         </td>
         <td
           className={`px-3 py-2 text-right tabular-nums font-medium ${
@@ -118,6 +111,9 @@ export function BakiyeHareketSatiri({
           }`}
         >
           {paraFormat(bakiyeSonrasi)}
+        </td>
+        <td className="px-3 py-2 text-muted-foreground">
+          {manuelIskontoTutari > 0 ? (iskontoUygulayanAdi ?? "—") : "—"}
         </td>
       </tr>
 

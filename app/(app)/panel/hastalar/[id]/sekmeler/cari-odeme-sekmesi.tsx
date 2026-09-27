@@ -104,7 +104,7 @@ export function CariOdemeSekmesi({
             <EmptyState icon={Wallet} title="Hareket yok." />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-[1050px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
                     <th className="px-3 py-2 text-left font-medium">Tarih</th>
@@ -115,6 +115,7 @@ export function CariOdemeSekmesi({
                     <th className="px-3 py-2 text-right font-medium">Kategori İskonto</th>
                     <th className="px-3 py-2 text-right font-medium">İskonto</th>
                     <th className="px-3 py-2 text-right font-medium">Bakiye</th>
+                    <th className="px-3 py-2 text-left font-medium">İskonto Uygulayan</th>
                   </tr>
                 </thead>
                 <tbody>
