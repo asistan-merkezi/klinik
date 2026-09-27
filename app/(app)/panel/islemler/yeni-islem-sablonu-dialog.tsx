@@ -46,7 +46,7 @@ export function YeniIslemSablonuDialog({
   return (
     <>
       <Button type="button" variant="clinical" onClick={() => setAcik(true)}>
-        <CirclePlus /> İşlem Tanımlama
+        <CirclePlus /> İşlem İlave Et
       </Button>
 
       <Dialog open={acik} onOpenChange={setAcik}>
