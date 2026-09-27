@@ -34,6 +34,15 @@ export type RandevuSatir = {
   tamamlayan_kullanici?: { ad_soyad: string } | null;
   /** Check-in'de bir paketten düşüldüyse dolu (bkz. randevu_gelis_isaretle). */
   paket_satis_id?: string | null;
+  /**
+   * Bu randevuya bağlı hasta_bakiye_hareket satırları (yalnız id+tur) — seans
+   * tamamlandıktan sonra "Cariye Ekle"/"Ödeme Ekle" ile bir 'borc' satırı
+   * yazılıp yazılmadığını anlamak için (bkz. randevu-kutusu.tsx'teki kutu
+   * rengi ve randevu-detay-paneli.tsx'teki "İşlem kapanmıştır" durumu).
+   * Check-in artık borç yazmıyor (2026-09-27) — bu alan yalnız seans
+   * tamamlandıktan SONRA oluşan satırları görür.
+   */
+  hasta_bakiye_hareket?: { id: string; tur: string }[];
 };
 
 export type SecenekSatir = {

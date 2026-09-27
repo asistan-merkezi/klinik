@@ -17,6 +17,7 @@ import type { OdemeYontemi } from "@/types/odeme";
 import type { KlinikBankaHesabi } from "@/types/klinik";
 import { OdemeTipiSecici, ODEME_TIPI_ETIKETLERI, ODEME_TIPI_SECILI_SINIFI } from "./odeme-tipi-secici";
 import { bakiyeHareketiEkle } from "./actions";
+import { randevuSeansOdemesiEkle } from "@/app/(app)/panel/randevular/actions";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -26,20 +27,30 @@ export function BakiyeHareketiEkleButonu({
   bankaHesaplari,
   guncelBakiye,
   onBasarili,
+  randevuId,
 }: {
   hastaId: string;
   hastaAdSoyad: string;
   bankaHesaplari: KlinikBankaHesabi[];
   guncelBakiye: number;
-  /** Ödeme başarıyla kaydedildiğinde çağrılır (örn. randevu tamamlama özetinde "Hesap kapanmıştır" göstermek için). */
+  /** Ödeme başarıyla kaydedildiğinde çağrılır (örn. randevu tamamlama özetinde "İşlem kapanmıştır" göstermek için). */
   onBasarili?: () => void;
+  /**
+   * Doluysa (Randevu Çizelgesi'nde tamamlanan bir seansın "Ödeme Ekle" kartı)
+   * bu, hasta seviyesinde bağımsız bir ödeme EKLEMEZ — o randevunun seans
+   * bedelini (henüz hiç yazılmamışsa) borç olarak oluşturup üstüne bu ödemeyi
+   * işler, ikisi tek RPC'de (randevu_seans_bedelini_isle, bkz. randevuSeansOdemesiEkle).
+   * Boşsa (Cari & Ödeme sekmesindeki genel kullanım) eskisi gibi bağımsız bir
+   * 'odeme' satırı ekler (bakiyeHareketiEkle) — hiçbir borç yazmaz.
+   */
+  randevuId?: string;
 }) {
   const idOnEki = useId();
   const [acik, setAcik] = useState(false);
   const [odemeTipi, setOdemeTipi] = useState<OdemeYontemi>("nakit");
   const [aciklamaMetni, setAciklamaMetni] = useState("");
   const [bankaHesapId, setBankaHesapId] = useState<string | undefined>(undefined);
-  const eklemeAction = bakiyeHareketiEkle.bind(null, hastaId);
+  const eklemeAction = randevuId ? randevuSeansOdemesiEkle.bind(null, randevuId) : bakiyeHareketiEkle.bind(null, hastaId);
   const [durum, formAction, isPending] = useActionState(eklemeAction, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
 

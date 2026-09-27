@@ -272,15 +272,18 @@ export async function randevuGuncelle(
 
 /**
  * "Geldi" / "Gecikmeli Geldi" — ayrı bir RPC üzerinden yapılır: durum
- * güncellemesiyle birlikte atomik olarak randevunun işlem_tanimi'ne göre ya
- * aktif paketten 1 hak düşer ya da hasta_bakiye_hareket'e 'borc' satırı
- * eklenir (bkz. migration 20260731110000/20260731130000, kullanıcı kararı —
- * CLAUDE.md). gecikmeDakika verilirse durum 'gecikmeli_geldi' olur, ikisi de
- * aynı paket/borç mantığını çalıştırır. Randevu Detay panelindeki 5 sonuç
- * seçeneği (Geldi/Gecikmeli Geldi/Gelmedi/Ertelendi/İptal) her zaman
- * tıklanabilir olduğu için (kullanıcı kararı) RPC içinde idempotency kontrolü
- * var — bu fonksiyon aynı randevu için birden çok kez çağrılsa bile paket/
- * borç mantığı sadece ilk seferde işler.
+ * güncellemesiyle birlikte atomik olarak randevunun işlem_tanimi'ne göre
+ * aktif bir paket varsa ondan 1 hak düşer (bkz. migration 20260731110000/
+ * 20260731130000). 2026-09-27'den beri paketsiz check-in ARTIK bakiyeye
+ * hiç dokunmuyor (kullanıcı kararı — bkz. migration 20260927150000, CLAUDE.md
+ * > Cari) — seans bedeli yalnız seans TAMAMLANDIKTAN sonra "Cariye Ekle"/
+ * "Ödeme Ekle" ile bakiyeye yazılır (randevuSeansBedeliniCariyeEkle/
+ * randevuSeansOdemesiEkle, randevu_seans_bedelini_isle RPC'si). gecikmeDakika
+ * verilirse durum 'gecikmeli_geldi' olur, ikisi de aynı paket mantığını
+ * çalıştırır. Randevu Detay panelindeki 5 sonuç seçeneği (Geldi/Gecikmeli
+ * Geldi/Gelmedi/Ertelendi/İptal) her zaman tıklanabilir olduğu için
+ * (kullanıcı kararı) RPC içinde idempotency kontrolü var — bu fonksiyon aynı
+ * randevu için birden çok kez çağrılsa bile paket mantığı sadece ilk seferde işler.
  */
 export async function randevuGelisIsaretle(
   randevuId: string,
@@ -320,16 +323,126 @@ export async function randevuGelisIsaretle(
   const mesaj =
     sonuc?.yontem === "paket"
       ? `${gelisEtiketi} işaretlendi, paketten 1 hak düşüldü (kalan: ${sonuc.kalan_adet}).`
-      : sonuc?.yontem === "borc"
-        ? `${gelisEtiketi} işaretlendi, ${sonuc.tutar?.toLocaleString("tr-TR", {
-            style: "currency",
-            currency: "TRY",
-          })} bakiyeye borç olarak eklendi.`
-        : sonuc?.yontem === "zaten_islendi"
-          ? "Durum güncellendi (bakiye/paket bu randevu için zaten işlenmişti, tekrar işlenmedi)."
-          : `${gelisEtiketi} işaretlendi.`;
+      : sonuc?.yontem === "zaten_islendi"
+        ? "Durum güncellendi (paket bu randevu için zaten işlenmişti, tekrar işlenmedi)."
+        : `${gelisEtiketi} işaretlendi.`;
 
   return { success: true, message: mesaj };
+}
+
+const seansBedelOdemeSemasi = z.object({
+  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tarih: z.string().min(1, "Tarih seçilmeli."),
+  aciklama: z.string().trim().optional(),
+  odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"]),
+  banka_hesap_id: z.string().trim().optional(),
+});
+
+/**
+ * Randevu Çizelgesi'nde tamamlanan bir seansın "Cariye Ekle" butonu — seans
+ * bedelini (sunucuda hesaplanan etkin fiyat - planlanan iskonto) hiçbir ödeme
+ * eklemeden borç olarak bakiyeye yazar (bkz. randevu_seans_bedelini_isle,
+ * migration 20260927150000 — check-in artık bunu otomatik yapmıyor).
+ */
+export async function randevuSeansBedeliniCariyeEkle(randevuId: string): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data, error } = await supabase.rpc("randevu_seans_bedelini_isle", { p_randevu_id: randevuId });
+  if (error) {
+    console.error("Seans bedeli cariye eklenemedi:", error);
+    if (error.message?.includes("seans_tamamlanmamis")) {
+      return { success: false, message: "Bu randevu henüz tamamlanmamış." };
+    }
+    return { success: false, message: "İşlem yapılamadı, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+
+  const sonuc = data as { yontem?: string; hasta_id?: string } | null;
+  if (sonuc?.hasta_id) {
+    revalidateHastaDetay(sonuc.hasta_id);
+  }
+
+  if (sonuc?.yontem === "zaten_islendi") {
+    return { success: true, message: "Bu seansın bedeli zaten işlenmişti." };
+  }
+
+  return { success: true, message: "Seans bedeli cariye eklendi." };
+}
+
+/**
+ * Randevu Çizelgesi'nde tamamlanan bir seansın "Ödeme Ekle" butonu — seans
+ * bedelini borç olarak yazar VE aynı anda staff'ın girdiği tutarı ödeme
+ * olarak işler (borç/ödeme eşleştirmesi yok, ikisi bağımsız satır — bkz.
+ * CLAUDE.md > Cari). BakiyeHareketiEkleButonu'nun randevuId verilen hâli
+ * bunu çağırır (bkz. bakiye-hareketi-formu.tsx).
+ */
+export async function randevuSeansOdemesiEkle(
+  randevuId: string,
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const ayristirma = seansBedelOdemeSemasi.safeParse({
+    tutar: formData.get("tutar"),
+    tarih: formData.get("tarih"),
+    aciklama: formData.get("aciklama") ?? "",
+    odeme_yontemi: formData.get("odeme_yontemi"),
+    banka_hesap_id: formData.get("banka_hesap_id") ?? "",
+  });
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+  const { tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id } = ayristirma.data;
+
+  const simdi = new Date();
+  const odemeTarihi = new Date(tarih);
+  odemeTarihi.setHours(simdi.getHours(), simdi.getMinutes(), simdi.getSeconds());
+
+  const { data, error } = await supabase.rpc("randevu_seans_bedelini_isle", {
+    p_randevu_id: randevuId,
+    p_odeme_tutari: tutar,
+    p_odeme_yontemi: odeme_yontemi,
+    p_banka_hesap_id: banka_hesap_id || null,
+    p_aciklama: aciklama ? aciklama : null,
+    p_odeme_tarihi: odemeTarihi.toISOString(),
+  });
+
+  if (error) {
+    console.error("Seans ödemesi eklenemedi:", error);
+    if (error.message?.includes("seans_tamamlanmamis")) {
+      return { success: false, message: "Bu randevu henüz tamamlanmamış." };
+    }
+    return { success: false, message: "Ödeme kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+
+  const sonuc = data as { yontem?: string; hasta_id?: string } | null;
+  if (sonuc?.hasta_id) {
+    revalidateHastaDetay(sonuc.hasta_id);
+  }
+
+  if (sonuc?.yontem === "zaten_islendi") {
+    return { success: true, message: "Bu seansın bedeli zaten işlenmişti." };
+  }
+
+  return { success: true, message: "Ödeme kaydedildi." };
 }
 
 const durumSemasi = z.enum(["gelmedi", "iptal"]);

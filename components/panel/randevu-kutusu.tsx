@@ -74,6 +74,19 @@ const DURUM_STIL: Record<
   tamamlandi: { etiket: "Tamamlandı", tone: "slate", soluk: true },
 };
 
+/**
+ * Tamamlanmış bir seansın bedeli henüz bakiyeye işlenmedi mi? (Kullanıcı
+ * kararı, 2026-09-27: check-in artık borç yazmıyor — seans tamamlandıktan
+ * sonra "Cariye Ekle"/"Ödeme Ekle" ile bir 'borc' satırı yazılana kadar bu
+ * randevu "beklemede" sayılır.) Paketten düşülen randevular hiçbir zaman
+ * beklemede sayılmaz (bakiyeye zaten dokunmuyorlar).
+ */
+function cariBeklemedeMi(randevu: RandevuSatir, durum: GorunumDurumu): boolean {
+  if (durum !== "tamamlandi") return false;
+  if (randevu.paket_satis_id != null) return false;
+  return !(randevu.hasta_bakiye_hareket ?? []).some((h) => h.tur === "borc");
+}
+
 /** Kutucuk ve liste görünümündeki durum rozetinin TEK kaynağı — etiket (gecikme dakikası dahil), tone ve nabız. */
 export function gorunumDurumBilgisi(randevu: RandevuSatir, durum: GorunumDurumu) {
   const stil = DURUM_STIL[durum];
@@ -81,7 +94,8 @@ export function gorunumDurumBilgisi(randevu: RandevuSatir, durum: GorunumDurumu)
     durum === "gecikmeli_geldi" && randevu.gecikme_dakika
       ? `${stil.etiket} (${randevu.gecikme_dakika} dk)`
       : stil.etiket;
-  return { etiket, tone: stil.tone, pulse: stil.pulse ?? false };
+  const beklemede = cariBeklemedeMi(randevu, durum);
+  return { etiket, tone: beklemede ? ("amber" as StatusTone) : stil.tone, pulse: stil.pulse ?? false, beklemede };
 }
 
 // Tedavi (islem_tanimi) başına sabit, tutarlı bir renk — id'den türetilir,
@@ -125,14 +139,19 @@ export const RandevuKutusu = memo(function RandevuKutusu({
   hastaLinki = false,
 }: RandevuKutusuProps) {
   const stil = DURUM_STIL[gorunumDurumu];
+  const { etiket, tone, beklemede } = gorunumDurumBilgisi(randevu, gorunumDurumu);
   // "Planlandı" (henüz gerçekleşmemiş) kutuları DURUM'a göre değil TEDAVİYE
   // göre renklenir (görsel tarama kolaylığı) — bu tek istisna, diğer 7 durumun
-  // hepsi kendi tone'una göre renklenir (bkz. DURUM_STIL yorumu).
+  // hepsi kendi tone'una göre renklenir (bkz. DURUM_STIL yorumu). "Tamamlandı"
+  // içinde de kendi ikili ayrımı var: bedeli bakiyeye henüz işlenmemişse amber
+  // (dikkat çeksin), işlenmişse mevcut soluk gri (bkz. cariBeklemedeMi).
   const renk =
     gorunumDurumu === "planlandi"
       ? tedaviRengi(randevu.islem_tanimi?.id)
-      : (stil.kutuRenkOverride ?? DURUM_KUTU_RENKLERI[stil.tone]);
-  const { etiket } = gorunumDurumBilgisi(randevu, gorunumDurumu);
+      : gorunumDurumu === "tamamlandi"
+        ? DURUM_KUTU_RENKLERI[tone]
+        : (stil.kutuRenkOverride ?? DURUM_KUTU_RENKLERI[stil.tone]);
+  const soluk = gorunumDurumu === "tamamlandi" ? !beklemede : stil.soluk;
   const baslikMetni = [
     randevu.hasta?.ad_soyad,
     formatTime(randevu.baslangic),
@@ -152,7 +171,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
         "relative flex h-full w-full flex-col gap-0.5 overflow-hidden rounded-lg border pl-2.5 pr-1.5 py-1 transition-colors",
         renk.dolgu,
         renk.kenar,
-        stil.soluk && "opacity-50",
+        soluk && "opacity-50",
         stil.vurgu
       )}
     >
@@ -165,7 +184,7 @@ export const RandevuKutusu = memo(function RandevuKutusu({
         <span
           className={cn(
             "flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight",
-            DURUM_TONU_SINIFLARI[stil.tone]
+            DURUM_TONU_SINIFLARI[tone]
           )}
         >
           {stil.pulse && (

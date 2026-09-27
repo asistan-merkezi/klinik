@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,39 +22,45 @@ import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/da
 import { createClient } from "@/lib/supabase/client";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { KlinikBankaHesabi } from "@/types/klinik";
-import { randevuGuncelle } from "@/app/(app)/panel/randevular/actions";
+import { randevuGuncelle, randevuSeansBedeliniCariyeEkle } from "@/app/(app)/panel/randevular/actions";
 import { DurumButonlari } from "@/app/(app)/panel/randevular/durum-butonlari";
 import { BakiyeHareketiEkleButonu } from "@/app/(app)/panel/hastalar/[id]/bakiye-hareketi-formu";
+import { useTedaviEtkinFiyat } from "@/app/(app)/panel/randevular/queries";
+
+const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
 function sureDakika(baslangic: string, bitis: string) {
   return Math.round((new Date(bitis).getTime() - new Date(baslangic).getTime()) / 60_000);
 }
 
 /**
- * Ödeme Ekle diyaloğu güncel bakiyeyi göstermek istiyor, ama bunu tüm günün
- * randevuları için önceden toplu çekmeye değmez (her hasta farklı) — bu yüzden
- * kart yalnız açıldığında, o hastanın bakiyesini tek satır sorguyla çeker.
+ * 2026-09-27'den beri (kullanıcı kararı) check-in artık bakiyeye hiç
+ * dokunmuyor — paketsiz bir seansın bedeli YALNIZ burada, "Cariye Ekle" ya da
+ * "Ödeme Ekle" tıklanınca bakiyeye yazılır (bkz. randevu_seans_bedelini_isle,
+ * migration 20260927150000). "Cariye Ekle" bedeli borç olarak yazıp ödemesiz
+ * bırakır ("şimdi tahsil etmedim"); "Ödeme Ekle" aynı borcu yazıp üstüne
+ * girilen tutarı ödeme olarak da işler ("şimdi tahsil ettim") — ikisi de aynı
+ * RPC'yi çağırır (bkz. bakiye-hareketi-formu.tsx'teki randevuId dallanması).
  *
- * "Cariye Ekle" ayrı bir yazma işlemi YAPMAZ: paketsiz check-in'de borç satırı
- * zaten randevu_gelis_isaretle'de otomatik yazılmıştı (bkz. CLAUDE.md > Cari).
- * Buradaki iki buton yalnız resepsiyonun "şimdi tahsil ettim" (Ödeme Ekle) mi
- * yoksa "cari hesapta bıraktım" (Cariye Ekle) mı kararını verdiğini işaretler;
- * ikisi de bu kartı "Hesap kapanmıştır" özetine çevirir. Bu kapanma durumu
- * kalıcı DEĞİL (DB'de tutulmaz) — diyalog kapatılıp yeniden açılırsa kart
- * tekrar görünür, borç kaydının hiç "kapanmayan" append-only defter modeliyle
- * tutarlı (bkz. CLAUDE.md > Cari — borç/ödeme modeli).
+ * Bu randevu için daha önce (bu ekrandan ya da eski check-in akışından) zaten
+ * bir borç satırı yazılmışsa kart baştan "İşlem kapanmıştır" gösterir — artık
+ * yalnız diyalog state'i değil, randevu.hasta_bakiye_hareket'ten (bkz.
+ * randevu-kutusu.tsx'teki aynı sinyal) türeyen KALICI bir durum.
  */
 function OdemeVeyaCariKarti({
-  hastaId,
-  hastaAdSoyad,
+  randevu,
   bankaHesaplari,
 }: {
-  hastaId: string;
-  hastaAdSoyad: string;
+  randevu: RandevuSatir;
   bankaHesaplari: KlinikBankaHesabi[];
 }) {
+  const hastaId = randevu.hasta_id ?? "";
+  const zatenIslendi = (randevu.hasta_bakiye_hareket ?? []).some((h) => h.tur === "borc");
   const [guncelBakiye, setGuncelBakiye] = useState<number | null>(null);
-  const [hesapKapandi, setHesapKapandi] = useState(false);
+  const [hesapKapandi, setHesapKapandi] = useState(zatenIslendi);
+  const [hata, setHata] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const { data: tedaviBedeli } = useTedaviEtkinFiyat(randevu.islem_tanimi?.id ?? "", hastaId);
 
   useEffect(() => {
     let iptalEdildi = false;
@@ -72,8 +78,20 @@ function OdemeVeyaCariKarti({
     };
   }, [hastaId]);
 
+  function cariyeEkle() {
+    setHata(null);
+    startTransition(async () => {
+      const sonuc = await randevuSeansBedeliniCariyeEkle(randevu.id);
+      if (sonuc?.success) {
+        setHesapKapandi(true);
+      } else {
+        setHata(sonuc?.message ?? "İşlem yapılamadı, lütfen tekrar deneyin.");
+      }
+    });
+  }
+
   if (hesapKapandi) {
-    return <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Hesap kapanmıştır.</p>;
+    return <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">İşlem kapanmıştır.</p>;
   }
 
   if (guncelBakiye === null) {
@@ -81,18 +99,29 @@ function OdemeVeyaCariKarti({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <BakiyeHareketiEkleButonu
-        hastaId={hastaId}
-        hastaAdSoyad={hastaAdSoyad}
-        bankaHesaplari={bankaHesaplari}
-        guncelBakiye={guncelBakiye}
-        onBasarili={() => setHesapKapandi(true)}
-      />
-      <Button type="button" size="sm" variant="clinical" onClick={() => setHesapKapandi(true)}>
-        <Wallet />
-        Cariye Ekle
-      </Button>
+    <div className="flex flex-col gap-2">
+      {tedaviBedeli != null && (
+        <p className="text-sm text-muted-foreground">Tedavi bedeli: {paraFormat(tedaviBedeli)}</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <BakiyeHareketiEkleButonu
+          hastaId={hastaId}
+          hastaAdSoyad={randevu.hasta?.ad_soyad ?? ""}
+          bankaHesaplari={bankaHesaplari}
+          guncelBakiye={guncelBakiye}
+          randevuId={randevu.id}
+          onBasarili={() => setHesapKapandi(true)}
+        />
+        <Button type="button" size="sm" variant="clinical" disabled={isPending} onClick={cariyeEkle}>
+          <Wallet />
+          {isPending ? "Ekleniyor..." : "Cariye Ekle"}
+        </Button>
+      </div>
+      {hata && (
+        <p role="alert" className="text-sm text-destructive">
+          {hata}
+        </p>
+      )}
     </div>
   );
 }
@@ -174,13 +203,7 @@ export function RandevuDetayPaneli({
             <p className="text-sm font-medium text-muted-foreground">Paketten düşülmüştür.</p>
           ) : (
             (rol === "klinik_admin" || rol === "resepsiyon") &&
-            randevu.hasta_id && (
-              <OdemeVeyaCariKarti
-                hastaId={randevu.hasta_id}
-                hastaAdSoyad={randevu.hasta?.ad_soyad ?? ""}
-                bankaHesaplari={bankaHesaplari}
-              />
-            )
+            randevu.hasta_id && <OdemeVeyaCariKarti randevu={randevu} bankaHesaplari={bankaHesaplari} />
           )}
         </DialogContent>
       </Dialog>
