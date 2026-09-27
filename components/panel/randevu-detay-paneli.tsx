@@ -66,14 +66,18 @@ export function RandevuDetayPaneli({
     return null;
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
-        </DialogHeader>
+  // Seans tamamlandıktan sonra Geldi/Gelmedi/Ertele gibi durum seçenekleri ve
+  // Tedavi & Anamnez'de zaten yönetilen alanlar (Tanı, Terapist, vb.) burada
+  // hiç gösterilmez — kullanıcı kararı, tamamlanmış bir seans için bu ekran
+  // salt-okunur bir özet olmalı.
+  if (randevu.durum === "tamamlandi") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
+          </DialogHeader>
 
-        {randevu.durum === "tamamlandi" && (
           <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5 text-sm">
             <div className="grid grid-cols-[110px_1fr] gap-2">
               <span className="font-medium text-muted-foreground">Seans Bitişi:</span>
@@ -88,7 +92,17 @@ export function RandevuDetayPaneli({
               <span>{randevu.tamamlanma_aciklamasi ?? "—"}</span>
             </div>
           </div>
-        )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
+        </DialogHeader>
 
         <DurumButonlari randevu={randevu} />
 
