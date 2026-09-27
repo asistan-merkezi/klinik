@@ -11,13 +11,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
+import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import { RandevuFormu } from "./randevu-formu";
 import { PeriyodikRandevuFormu } from "./periyodik-randevu-formu";
 
 type Props = {
   hastalar: SecenekSatir[];
-  terapistler: SecenekSatir[];
+  terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: TedaviSecenekSatir[];

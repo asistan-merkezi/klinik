@@ -1,9 +1,9 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { SecenekSatir } from "@/types/randevu";
+import type { TerapistSecenekSatir } from "@/types/randevu";
 
 type TerapistSatir = {
   id: string;
-  personel: { ad_soyad: string; isten_cikis_tarihi: string | null } | null;
+  personel: { ad_soyad: string; isten_cikis_tarihi: string | null; pozisyon_id: string | null } | null;
 };
 
 /**
@@ -18,17 +18,17 @@ type TerapistSatir = {
  */
 export async function atanabilirTerapistleriGetir(
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<SecenekSatir[]> {
+): Promise<TerapistSecenekSatir[]> {
   const { data } = await supabase
     .from("terapist")
-    .select("id, personel(ad_soyad, isten_cikis_tarihi)")
+    .select("id, personel(ad_soyad, isten_cikis_tarihi, pozisyon_id)")
     .returns<TerapistSatir[]>();
 
   const bugun = new Date().toISOString().slice(0, 10);
 
   return (data ?? [])
     .filter((t) => !t.personel?.isten_cikis_tarihi || t.personel.isten_cikis_tarihi >= bugun)
-    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—" }))
+    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—", pozisyon_id: t.personel?.pozisyon_id ?? null }))
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
 }
 

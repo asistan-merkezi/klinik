@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Bell } from "lucide-react";
-import type { SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
+import type { SecenekSatir } from "@/types/randevu";
 import type {
   AnketYanitiSatir,
   BekleyenIptalTalebiSatir,
@@ -15,6 +15,7 @@ import { BekleyenRandevuTalepleri } from "../../randevular/bekleyen-randevu-tale
 import { AnketYanitiListesi, SeansDegerlendirmeListesi } from "./geri-bildirim-listesi";
 import { GoruluIsaretleyici } from "./goruldu-isaretleyici";
 import { atanabilirTerapistleriGetir } from "@/lib/personel/atanabilir-terapistler";
+import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
 
 export default async function HastaBildirimleriSayfasi() {
   const supabase = await createClient();
@@ -42,7 +43,7 @@ export default async function HastaBildirimleriSayfasi() {
     terapistler,
     odaSonucu,
     cihazSonucu,
-    tedaviSonucu,
+    tedaviler,
   ] = await Promise.all([
     supabase
       .from("randevu_iptal_talebi")
@@ -72,7 +73,7 @@ export default async function HastaBildirimleriSayfasi() {
     atanabilirTerapistleriGetir(supabase),
     supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
+    tedaviSecenekleriGetir(supabase),
   ]);
 
   const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
@@ -83,11 +84,6 @@ export default async function HastaBildirimleriSayfasi() {
   const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({ id: m.id, ad: m.ad_soyad }));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const tedaviler: TedaviSecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({
-    id: t.id,
-    ad: t.ad,
-    sure_dakika: t.sure_dakika,
-  }));
 
   const hicBirSeyYok =
     bekleyenIptalTalepleri.length === 0 &&

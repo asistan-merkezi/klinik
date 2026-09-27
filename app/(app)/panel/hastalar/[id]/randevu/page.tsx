@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
-import type { RandevuSatir, SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
+import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import { GeriLink } from "../geri-link";
 import { RandevuSeansSekmesi } from "../sekmeler/randevu-seans-sekmesi";
 import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
 import { atanabilirTerapistleriGetir } from "@/lib/personel/atanabilir-terapistler";
+import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
 
 const RANDEVU_ARSIV_SELECT =
   "id, baslangic, bitis, durum, gecikme_dakika, terapist(personel(ad_soyad)), oda(ad), islem_tanimi(id, ad), kaynak";
@@ -31,7 +32,7 @@ export default async function RandevuSeansSayfasi({
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
   const supabase = await createClient();
-  const [periyodikRandevuSonucu, randevuListesiSonucu, islemTanimiSonucu, terapistler, odaSonucu, cihazSonucu] =
+  const [periyodikRandevuSonucu, randevuListesiSonucu, tedaviler, terapistler, odaSonucu, cihazSonucu] =
     await Promise.all([
       supabase
         .from("periyodik_randevu")
@@ -49,7 +50,7 @@ export default async function RandevuSeansSayfasi({
         .order("baslangic", { ascending: false })
         .limit(100)
         .returns<RandevuSatir[]>(),
-      supabase.from("islem_tanimi").select("id, ad, sure_dakika").eq("aktif", true).order("ad"),
+      tedaviSecenekleriGetir(supabase),
       atanabilirTerapistleriGetir(supabase),
       supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
@@ -57,11 +58,6 @@ export default async function RandevuSeansSayfasi({
 
   const periyodikRandevular = periyodikRandevuSonucu.data ?? [];
   const randevuListesi = randevuListesiSonucu.data ?? [];
-  const tedaviler: TedaviSecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({
-    id: i.id,
-    ad: i.ad,
-    sure_dakika: i.sure_dakika,
-  }));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
 

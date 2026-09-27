@@ -36,7 +36,18 @@ export type SecenekSatir = {
   ad: string;
 };
 
-/** Tedavi seçim listesi — Süre alanının otomatik dolması için sure_dakika taşır (bkz. randevu-formu.tsx). */
+/**
+ * Tedavi seçim listesi — Süre alanının otomatik dolması için sure_dakika,
+ * Personel seçiciyi daraltmak için de adımlarında tanımlı "uygulayıcı"
+ * pozisyon id'lerini taşır (bkz. randevu-formu.tsx). Hiçbir adımda pozisyon
+ * tanımlı değilse pozisyon_idleri boş dizi döner = filtre uygulanmaz.
+ */
 export type TedaviSecenekSatir = SecenekSatir & {
   sure_dakika: number | null;
+  pozisyon_idleri: string[];
+};
+
+/** Terapist seçim listesi — Tedavi seçilince Personel seçiciyi o tedavinin gerektirdiği pozisyona daraltmak için pozisyon_id taşır (bkz. randevu-formu.tsx). */
+export type TerapistSecenekSatir = SecenekSatir & {
+  pozisyon_id: string | null;
 };

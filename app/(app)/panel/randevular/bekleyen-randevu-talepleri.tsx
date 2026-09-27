@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/datetime";
-import type { SecenekSatir, TedaviSecenekSatir } from "@/types/randevu";
+import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import type { BekleyenRandevuTalebiSatir } from "@/types/portal";
 import { randevuTalebiReddet } from "./actions";
 import { RandevuFormu } from "./randevu-formu";
@@ -24,7 +24,7 @@ export function BekleyenRandevuTalepleri({
 }: {
   talepler: BekleyenRandevuTalebiSatir[];
   hastalar: SecenekSatir[];
-  terapistler: SecenekSatir[];
+  terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
   tedaviler: TedaviSecenekSatir[];
