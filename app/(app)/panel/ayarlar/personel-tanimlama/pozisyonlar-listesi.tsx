@@ -4,10 +4,14 @@ import { PozisyonSatiri } from "./pozisyon-satiri";
 export function PozisyonlarListesi({
   pozisyonlar,
   duzenlenebilir,
+  calisaniOlanPozisyonIdleri,
 }: {
   pozisyonlar: Pozisyon[];
   duzenlenebilir: boolean;
+  calisaniOlanPozisyonIdleri: string[];
 }) {
+  const aktifPozisyonlar = pozisyonlar.filter((p) => p.aktif);
+  const calisaniOlanlar = new Set(calisaniOlanPozisyonIdleri);
   const gruplar = new Map<string, Pozisyon[]>();
   for (const poz of pozisyonlar) {
     const liste = gruplar.get(poz.grup) ?? [];
@@ -30,7 +34,13 @@ export function PozisyonlarListesi({
             <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{grup}</h2>
             <ul className="flex flex-col divide-y divide-border">
               {satirlar.map((poz) => (
-                <PozisyonSatiri key={poz.id} pozisyon={poz} duzenlenebilir={duzenlenebilir} />
+                <PozisyonSatiri
+                  key={poz.id}
+                  pozisyon={poz}
+                  duzenlenebilir={duzenlenebilir}
+                  calisaniVarMi={calisaniOlanlar.has(poz.id)}
+                  aktifPozisyonlar={aktifPozisyonlar}
+                />
               ))}
             </ul>
           </div>

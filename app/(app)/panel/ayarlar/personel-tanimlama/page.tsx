@@ -21,10 +21,13 @@ export default async function PersonelTanimlamaSayfasi() {
   const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
 
-  const { data: pozisyonSonucu } = await supabase
-    .from("pozisyonlar")
-    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
-    .returns<Pozisyon[]>();
+  const [{ data: pozisyonSonucu }, { data: personelSonucu }] = await Promise.all([
+    supabase
+      .from("pozisyonlar")
+      .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
+      .returns<Pozisyon[]>(),
+    supabase.from("personel").select("pozisyon_id").eq("aktif", true),
+  ]);
 
   const pozisyonlar = pozisyonSonucu ?? [];
 
@@ -37,6 +40,12 @@ export default async function PersonelTanimlamaSayfasi() {
     if (mevcut === undefined || poz.sira < mevcut) departmanSiralari.set(poz.grup, poz.sira);
   }
   const departmanlar = [...departmanSiralari.entries()].sort((a, b) => a[1] - b[1]).map(([grup]) => grup);
+
+  // "Deneme İçin Oluştur" kısayolu sadece aktif ama hiç aktif çalışanı olmayan
+  // pozisyonlarda gösterilir (bkz. pozisyon-satiri.tsx).
+  const calisaniOlanPozisyonIdleri = [
+    ...new Set((personelSonucu ?? []).map((p) => p.pozisyon_id).filter((id): id is string => id !== null)),
+  ];
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -51,7 +60,11 @@ export default async function PersonelTanimlamaSayfasi() {
         {pozisyonlar.length === 0 ? (
           <EmptyState icon={Briefcase} title="Henüz pozisyon tanımlı değil." />
         ) : (
-          <PozisyonlarListesi pozisyonlar={pozisyonlar} duzenlenebilir={duzenlenebilir} />
+          <PozisyonlarListesi
+            pozisyonlar={pozisyonlar}
+            duzenlenebilir={duzenlenebilir}
+            calisaniOlanPozisyonIdleri={calisaniOlanPozisyonIdleri}
+          />
         )}
       </div>
     </div>

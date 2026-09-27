@@ -474,6 +474,7 @@ export async function personelHesabiOlustur(
   );
 
   revalidatePath("/panel/personel");
+  revalidatePath("/panel/ayarlar/personel-tanimlama");
   if (basvuruId) revalidatePath("/panel/personel/basvurular");
   return {
     success: true,

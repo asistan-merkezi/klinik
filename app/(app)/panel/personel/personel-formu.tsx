@@ -30,7 +30,16 @@ import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { personelHesabiOlustur, personelBilgileriGuncelle } from "./actions";
 
 type Props =
-  | { mod: "olustur"; basvuru?: BasvuruPrefill; pozisyonlar: Pozisyon[]; onBasarili?: () => void }
+  | {
+      mod: "olustur";
+      basvuru?: BasvuruPrefill;
+      pozisyonlar: Pozisyon[];
+      // Personel Tanımlama > "Deneme İçin Oluştur" kısayolundan açılırken, o
+      // pozisyonu Pozisyon seçicisinde önceden seçili getirir (aksi halde
+      // listedeki ilk pozisyon seçili gelir).
+      varsayilanPozisyonId?: string;
+      onBasarili?: () => void;
+    }
   | {
       mod: "duzenle";
       personelId: string;
@@ -81,7 +90,9 @@ export function PersonelFormu(props: Props) {
   const [dogumYeri, setDogumYeri] = useState(initialData?.dogum_yeri ?? "");
   const [acilAdSoyad, setAcilAdSoyad] = useState(initialAcilKisi?.ad_soyad ?? "");
   const [acilYakinlik, setAcilYakinlik] = useState(initialAcilKisi?.yakinlik ?? "");
-  const [pozisyonId, setPozisyonId] = useState(initialData?.pozisyon_id ?? props.pozisyonlar[0]?.id ?? "");
+  const [pozisyonId, setPozisyonId] = useState(
+    initialData?.pozisyon_id ?? (duzenleMi ? undefined : props.varsayilanPozisyonId) ?? props.pozisyonlar[0]?.id ?? ""
+  );
   const [departman, setDepartman] = useState(initialData?.departman ?? "");
   const [imzaYetkilisiMi, setImzaYetkilisiMi] = useState(initialData?.imza_yetkilisi_mi ?? false);
   const [egitimSatirlari, setEgitimSatirlari] = useState<EgitimSatiri[]>(
