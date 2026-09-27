@@ -1,17 +1,23 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Receipt } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
-import { DonemSecici } from "./donem-secici";
+import { raporAyDonemi } from "@/lib/raporlar/donem";
 import { EntegrasyonButonlari } from "./entegrasyon-butonlari";
 
 const paraFormat = (tutar: number) =>
   tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
-export default async function SatinAlmaFaturalariSayfasi() {
+export default async function SatinAlmaFaturalariSayfasi({
+  searchParams,
+}: {
+  searchParams: Promise<{ yil?: string; ay?: string }>;
+}) {
+  const { yil: yilParam, ay: ayParam } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -24,7 +30,7 @@ export default async function SatinAlmaFaturalariSayfasi() {
 
   const { data: kullanici } = await supabase
     .from("kullanici")
-    .select("rol")
+    .select("klinik_id, rol")
     .eq("id", user.id)
     .single();
 
@@ -35,7 +41,30 @@ export default async function SatinAlmaFaturalariSayfasi() {
     redirect("/panel");
   }
 
+  const klinikId = kullanici?.klinik_id ?? "";
+
+  const { data: klinik } = await supabase
+    .from("klinik")
+    .select("created_at")
+    .eq("id", klinikId)
+    .maybeSingle<{ created_at: string }>();
+
   const simdi = new Date();
+  const buYil = simdi.getFullYear();
+  const buAy = simdi.getMonth() + 1;
+  const klinikBaslangicYili = klinik?.created_at ? new Date(klinik.created_at).getFullYear() : buYil;
+
+  const yil = Math.min(Math.max(parseInt(yilParam ?? "", 10) || buYil, klinikBaslangicYili), buYil);
+  const ay = Math.min(Math.max(parseInt(ayParam ?? "", 10) || buAy, 1), 12);
+
+  const oncekiAyTarih = new Date(Date.UTC(yil, ay - 2, 1));
+  const sonrakiAyTarih = new Date(Date.UTC(yil, ay, 1));
+  const oncekiAyGosterilebilir =
+    oncekiAyTarih.getUTCFullYear() > klinikBaslangicYili ||
+    oncekiAyTarih.getUTCFullYear() === klinikBaslangicYili;
+  const sonrakiAyGosterilebilir =
+    sonrakiAyTarih.getUTCFullYear() < buYil ||
+    (sonrakiAyTarih.getUTCFullYear() === buYil && sonrakiAyTarih.getUTCMonth() + 1 <= buAy);
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -47,7 +76,33 @@ export default async function SatinAlmaFaturalariSayfasi() {
           actions={<EntegrasyonButonlari />}
         />
 
-        <DonemSecici buAy={simdi.getMonth() + 1} buYil={simdi.getFullYear()} />
+        <div className="flex items-center justify-center gap-2 text-sm">
+          {oncekiAyGosterilebilir ? (
+            <Link
+              className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted/60"
+              href={`?yil=${oncekiAyTarih.getUTCFullYear()}&ay=${oncekiAyTarih.getUTCMonth() + 1}`}
+            >
+              ‹ Önceki
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-border px-3 py-1.5 text-muted-foreground opacity-50">
+              ‹ Önceki
+            </span>
+          )}
+          <span className="min-w-32 text-center font-medium">{raporAyDonemi(yil, ay).etiket}</span>
+          {sonrakiAyGosterilebilir ? (
+            <Link
+              className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted/60"
+              href={`?yil=${sonrakiAyTarih.getUTCFullYear()}&ay=${sonrakiAyTarih.getUTCMonth() + 1}`}
+            >
+              Sonraki ›
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-border px-3 py-1.5 text-muted-foreground opacity-50">
+              Sonraki ›
+            </span>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Card>
