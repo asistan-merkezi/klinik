@@ -10,6 +10,7 @@ import {
   hesaplaDigerGiderler,
   hesaplaFaturaliGiderler,
   hesaplaGelir,
+  hesaplaGunlukDokum,
   hesaplaIsletmeGideri,
   hesaplaMuhasebeGideri,
   hesaplaRandevuDurumOzeti,
@@ -17,6 +18,7 @@ import {
   hesaplaYillikOzet,
 } from "@/lib/raporlar/hesaplamalar";
 import { YillikGrafik } from "@/components/raporlar/yillik-grafik";
+import { GunlukDokumKarti } from "@/components/raporlar/gunluk-dokum-karti";
 import { YazdirButonu } from "@/components/panel/yazdir-butonu";
 import type { GelirOzeti, RandevuDurumOzeti, SabitPersonelMaliyeti } from "@/types/raporlar";
 
@@ -205,7 +207,7 @@ async function AylikGorunum({
 }) {
   const donem = raporAyDonemi(yil, ay);
 
-  const [sabitPersonel, isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu] =
+  const [sabitPersonel, isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu, gunlukDokum] =
     await Promise.all([
       hesaplaSabitPersonelMaliyeti(supabase, klinikId, donem),
       hesaplaIsletmeGideri(supabase, klinikId, donem),
@@ -214,6 +216,7 @@ async function AylikGorunum({
       hesaplaDigerGiderler(supabase, klinikId, donem),
       hesaplaGelir(supabase, klinikId, donem),
       hesaplaRandevuDurumOzeti(supabase, klinikId, donem),
+      hesaplaGunlukDokum(supabase, klinikId, donem),
     ]);
 
   const toplamGider =
@@ -239,6 +242,7 @@ async function AylikGorunum({
         />
       </div>
       <NetKarZararKarti gelir={gelir.netTahsilat} gider={toplamGider} />
+      <GunlukDokumKarti gunler={gunlukDokum} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { maasHesapla } from "@/lib/maas";
 import type { MaasHesaplamaModeli } from "@/types/personel";
 import type {
   GelirOzeti,
+  GunlukOzet,
   RandevuDurumOzeti,
   SabitPersonelMaliyeti,
   TerapistPrimSatiri,
@@ -10,6 +11,9 @@ import type {
 } from "@/types/raporlar";
 import type { RaporDonemi } from "@/lib/raporlar/donem";
 import { raporYilDonemi, yilinAylari } from "@/lib/raporlar/donem";
+import { formatDateForInput, formatTime } from "@/lib/datetime";
+import { HARCAMA_KATEGORI_ETIKET, type HarcamaKategori } from "@/types/klinik-harcama";
+import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
 
 type SupabaseSunucuClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -407,4 +411,170 @@ export async function hesaplaYillikOzet(
 
     return { ay: index + 1, ayEtiketi: ayDonemi.etiket, gelir, gider, seansSayisi };
   });
+}
+
+type RandevuGunlukSatir = {
+  id: string;
+  baslangic: string;
+  durum: string;
+  hasta: { ad_soyad: string } | null;
+  terapist: { personel: { ad_soyad: string } | null } | null;
+  islem_tanimi: { ad: string } | null;
+};
+
+type OdemeGunlukSatir = {
+  id: string;
+  created_at: string;
+  faturali: boolean;
+  iskonto_tutari: number;
+  hasta: { ad_soyad: string } | null;
+  odeme_kalemi: { miktar: number; birim_fiyat: number }[];
+};
+
+type KlinikHarcamaGunlukSatir = {
+  id: string;
+  tarih: string;
+  tutar: number;
+  kategori: HarcamaKategori;
+  aciklama: string | null;
+};
+
+type KamusalOdemeGunlukSatir = {
+  id: string;
+  odeme_tarihi: string | null;
+  tutar: number;
+  odeme_tipi: OdemeTipi;
+};
+
+const TAMAMLANAN_RANDEVU_DURUMLARI = new Set(["geldi", "gecikmeli_geldi", "tamamlandi"]);
+
+/**
+ * Aylık görünümdeki "Günlük Döküm" listesi için: dönem içindeki her günün
+ * gelir/gider toplamı + o güne ait tüm kalemlerin (randevu/gelir/gider/
+ * muhasebe) dökümü. Toplamlar aynı kaynaklardan (odeme, klinik_harcama,
+ * kamusal_odeme) hesaplanır — hesaplaGelir/hesaplaIsletmeGideri/vb. ile
+ * TUTARLI kalması için ayrı bir mantık icat edilmedi, aynı tablolar günlere
+ * bölünerek yeniden gruplanır. Randevu kalemleri kendi başına bir tutar
+ * TAŞIMAZ (yon: "notr") — bilgi amaçlı listelenir, gerçek gelir `odeme`
+ * tablosundan gelir (bkz. hesaplaGelir'deki not: cari borç/ödeme modeli
+ * seans tamamlanmasıyla otomatik gelir yazmıyor).
+ *
+ * BİLİNÇLİ KAPSAM DIŞI: sabit personel maliyeti (maaş) güne dağıtılmaz —
+ * aylık/tek bir tahakkuk, belirli bir güne ait değil (hesaplaYillikOzet'teki
+ * aylık kırılımda da aynı sebeple yok). Bu yüzden bu listedeki günlerin
+ * gider toplamı, üstteki "Toplam Gider" kartından sabitPersonel.toplamMaas
+ * kadar düşük kalır — bilinçli, UI'da ayrıca not düşülür.
+ */
+export async function hesaplaGunlukDokum(
+  supabase: SupabaseSunucuClient,
+  klinikId: string,
+  donem: RaporDonemi
+): Promise<GunlukOzet[]> {
+  const [randevuSonuc, odemeSonuc, harcamaSonuc, kamusalSonuc] = await Promise.all([
+    supabase
+      .from("randevu")
+      .select("id, baslangic, durum, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad)")
+      .eq("klinik_id", klinikId)
+      .gte("baslangic", donem.baslangic)
+      .lt("baslangic", donem.bitis)
+      .order("baslangic")
+      .returns<RandevuGunlukSatir[]>(),
+    supabase
+      .from("odeme")
+      .select("id, created_at, faturali, iskonto_tutari, hasta(ad_soyad), odeme_kalemi(miktar, birim_fiyat)")
+      .eq("klinik_id", klinikId)
+      .gte("created_at", donem.baslangic)
+      .lt("created_at", donem.bitis)
+      .order("created_at")
+      .returns<OdemeGunlukSatir[]>(),
+    supabase
+      .from("klinik_harcama")
+      .select("id, tarih, tutar, kategori, aciklama")
+      .eq("klinik_id", klinikId)
+      .gte("tarih", donem.baslangicTarih)
+      .lt("tarih", donem.bitisTarih)
+      .order("tarih")
+      .returns<KlinikHarcamaGunlukSatir[]>(),
+    supabase
+      .from("kamusal_odeme")
+      .select("id, odeme_tarihi, tutar, odeme_tipi")
+      .eq("klinik_id", klinikId)
+      .not("odeme_tarihi", "is", null)
+      .gte("odeme_tarihi", donem.baslangicTarih)
+      .lt("odeme_tarihi", donem.bitisTarih)
+      .order("odeme_tarihi")
+      .returns<KamusalOdemeGunlukSatir[]>(),
+  ]);
+
+  const gunler = new Map<string, GunlukOzet>();
+  function gunuAl(tarih: string): GunlukOzet {
+    let gun = gunler.get(tarih);
+    if (!gun) {
+      gun = { tarih, gelir: 0, gider: 0, seansSayisi: 0, kalemler: [] };
+      gunler.set(tarih, gun);
+    }
+    return gun;
+  }
+
+  for (const r of randevuSonuc.data ?? []) {
+    const gun = gunuAl(formatDateForInput(r.baslangic));
+    if (TAMAMLANAN_RANDEVU_DURUMLARI.has(r.durum)) gun.seansSayisi += 1;
+    gun.kalemler.push({
+      id: `randevu-${r.id}`,
+      tur: "randevu",
+      saat: formatTime(r.baslangic),
+      baslik: r.hasta?.ad_soyad ?? "Hasta",
+      altBaslik: [r.terapist?.personel?.ad_soyad, r.islem_tanimi?.ad].filter(Boolean).join(" · ") || null,
+      tutar: 0,
+      yon: "notr",
+      durum: r.durum,
+    });
+  }
+
+  for (const o of odemeSonuc.data ?? []) {
+    const gun = gunuAl(formatDateForInput(o.created_at));
+    const brutToplam = o.odeme_kalemi.reduce((acc, kalem) => acc + kalem.miktar * kalem.birim_fiyat, 0);
+    const net = brutToplam - o.iskonto_tutari;
+    gun.gelir += net;
+    gun.kalemler.push({
+      id: `odeme-${o.id}`,
+      tur: "gelir",
+      saat: formatTime(o.created_at),
+      baslik: o.hasta?.ad_soyad ?? "Hasta",
+      altBaslik: o.faturali ? "Faturalı tahsilat" : "Faturasız tahsilat",
+      tutar: net,
+      yon: "gelir",
+    });
+  }
+
+  for (const h of harcamaSonuc.data ?? []) {
+    const gun = gunuAl(h.tarih);
+    gun.gider += h.tutar;
+    gun.kalemler.push({
+      id: `harcama-${h.id}`,
+      tur: "gider",
+      saat: null,
+      baslik: h.aciklama || HARCAMA_KATEGORI_ETIKET[h.kategori],
+      altBaslik: HARCAMA_KATEGORI_ETIKET[h.kategori],
+      tutar: h.tutar,
+      yon: "gider",
+    });
+  }
+
+  for (const k of kamusalSonuc.data ?? []) {
+    if (!k.odeme_tarihi) continue;
+    const gun = gunuAl(k.odeme_tarihi);
+    gun.gider += k.tutar;
+    gun.kalemler.push({
+      id: `kamusal-${k.id}`,
+      tur: "muhasebe",
+      saat: null,
+      baslik: ODEME_TIPI_ETIKET[k.odeme_tipi] ?? k.odeme_tipi,
+      altBaslik: "Muhasebe (Vergi, SGK)",
+      tutar: k.tutar,
+      yon: "gider",
+    });
+  }
+
+  return Array.from(gunler.values()).sort((a, b) => (a.tarih < b.tarih ? 1 : -1));
 }
