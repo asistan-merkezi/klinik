@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ function bitisHesapla(baslangic: string, gunSayisi: number): string {
 }
 
 export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici }) {
+  const router = useRouter();
   const [durum, formAction, isPending] = useActionState(izinTalebiOlustur, null);
   const formRef = useRef<HTMLFormElement>(null);
   const [baslangic, setBaslangic] = useState("");
@@ -88,12 +90,7 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
   }
 
   function vazgec() {
-    setBaslangic("");
-    setGunSayisiSecimi("1");
-    setIsGunuSayisi(null);
-    setDepartman("");
-    setPersonelId("");
-    formRef.current?.reset();
+    router.push("/panel/personel/puantaj-cetveli");
   }
 
   return (
