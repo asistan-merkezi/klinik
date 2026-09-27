@@ -317,6 +317,12 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
     enabled: aktif,
     queryFn: async () => {
       const supabase = createClient();
+      // Sadece baslangic < now() filtresi, resepsiyon randevu saatinden ÖNCE
+      // "Geldi" işaretlerse (erken check-in) o seansı bu listeden tamamen
+      // düşürüyordu — hasta o an tedavideyken Tedavi & Anamnez'de hiçbir kart
+      // görünmüyor, dolayısıyla "Seansı Tamamla" da hiç çıkmıyordu. Zamanı
+      // geçmiş VEYA zaten check-in/sonuçlanmış (planlandı DIŞINDA) her randevu
+      // burada görünmeli.
       const { data, error } = await supabase
         .from("randevu")
         .select(
@@ -324,7 +330,7 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
             "tamamlanma_aciklamasi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad), tamamlanma_tarihi"
         )
         .eq("hasta_id", hastaId)
-        .lt("baslangic", new Date().toISOString())
+        .or(`baslangic.lt.${new Date().toISOString()},durum.neq.planlandi`)
         .order("baslangic", { ascending: false })
         .limit(30)
         .returns<HastaSeansSatir[]>();
