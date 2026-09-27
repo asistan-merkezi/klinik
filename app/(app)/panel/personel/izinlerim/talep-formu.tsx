@@ -16,16 +16,30 @@ export type PersonelSecici =
   | { mod: "kendi"; adSoyad: string }
   | { mod: "sec"; personelListesi: PersonelSecenegi[] };
 
+const GUN_SAYISI_SECENEKLERI = Array.from({ length: 60 }, (_, i) => {
+  const n = i + 1;
+  return { value: String(n), label: `${n} gün` };
+});
+
+/** Başlangıçtan itibaren TAKVİM günü sayar (iş günü/hafta tatili ayrımı yok) — RPC'nin döndürdüğü "iş günü" önizlemesi zaten bunun altında ayrıca gösteriliyor. */
+function bitisHesapla(baslangic: string, gunSayisi: number): string {
+  const d = new Date(`${baslangic}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + (gunSayisi - 1));
+  return d.toISOString().slice(0, 10);
+}
+
 export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici }) {
   const [durum, formAction, isPending] = useActionState(izinTalebiOlustur, null);
   const formRef = useRef<HTMLFormElement>(null);
   const [baslangic, setBaslangic] = useState("");
-  const [bitis, setBitis] = useState("");
-  const [gunSayisi, setGunSayisi] = useState<number | null>(null);
+  const [gunSayisiSecimi, setGunSayisiSecimi] = useState("1");
+  const [isGunuSayisi, setIsGunuSayisi] = useState<number | null>(null);
   const [sayaçYukleniyor, setSayaçYukleniyor] = useState(false);
   const sonIstekRef = useRef(0);
   const [departman, setDepartman] = useState("");
   const [personelId, setPersonelId] = useState("");
+
+  const bitis = baslangic && gunSayisiSecimi ? bitisHesapla(baslangic, Number(gunSayisiSecimi)) : "";
 
   // Render sırasında karşılaştırma — useEffect+setState yerine (bkz. proje
   // konvansiyonu: react-hooks/set-state-in-effect tuzağına düşmemek için
@@ -39,8 +53,8 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
     setSonDurum(durum);
     if (durum?.success) {
       setBaslangic("");
-      setBitis("");
-      setGunSayisi(null);
+      setGunSayisiSecimi("1");
+      setIsGunuSayisi(null);
       setDepartman("");
       setPersonelId("");
       setResetSayaci((n) => n + 1);
@@ -51,12 +65,11 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
     if (resetSayaci > 0) formRef.current?.reset();
   }, [resetSayaci]);
 
-  function tarihDegisti(yeniBaslangic: string, yeniBitis: string) {
-    setBaslangic(yeniBaslangic);
-    setBitis(yeniBitis);
-    setGunSayisi(null);
+  function isGunuHesapla(yeniBaslangic: string, yeniGunSayisiSecimi: string) {
+    setIsGunuSayisi(null);
 
-    if (!yeniBaslangic || !yeniBitis || yeniBitis < yeniBaslangic) return;
+    if (!yeniBaslangic || !yeniGunSayisiSecimi) return;
+    const yeniBitis = bitisHesapla(yeniBaslangic, Number(yeniGunSayisiSecimi));
 
     const istekNo = ++sonIstekRef.current;
     setSayaçYukleniyor(true);
@@ -68,7 +81,7 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
       });
       if (istekNo !== sonIstekRef.current) return; // eskimiş istek, yok say
       setSayaçYukleniyor(false);
-      if (!error) setGunSayisi(data as number);
+      if (!error) setIsGunuSayisi(data as number);
     }, 300);
 
     return () => clearTimeout(zamanlayici);
@@ -175,21 +188,37 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
                 required
                 disabled={isPending}
                 value={baslangic}
-                onChange={(e) => tarihDegisti(e.target.value, bitis)}
+                onChange={(e) => {
+                  setBaslangic(e.target.value);
+                  isGunuHesapla(e.target.value, gunSayisiSecimi);
+                }}
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="bitis_tarih">Bitiş</Label>
-              <Input
-                id="bitis_tarih"
-                name="bitis_tarih"
-                type="date"
-                required
+              <Label htmlFor="gun_sayisi">Gün Sayısı</Label>
+              <Select
+                value={gunSayisiSecimi}
+                onValueChange={(v) => {
+                  const yeni = v ?? "1";
+                  setGunSayisiSecimi(yeni);
+                  isGunuHesapla(baslangic, yeni);
+                }}
                 disabled={isPending}
-                value={bitis}
-                onChange={(e) => tarihDegisti(baslangic, e.target.value)}
-              />
+                items={GUN_SAYISI_SECENEKLERI}
+              >
+                <SelectTrigger id="gun_sayisi" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GUN_SAYISI_SECENEKLERI.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="bitis_tarih" value={bitis} />
             </div>
           </div>
 
@@ -197,11 +226,9 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
             <p className="text-sm text-muted-foreground">
               {sayaçYukleniyor
                 ? "Hesaplanıyor..."
-                : gunSayisi === null
-                  ? bitis < baslangic
-                    ? "Bitiş tarihi başlangıçtan önce olamaz."
-                    : ""
-                  : `${new Date(baslangic).toLocaleDateString("tr-TR")} – ${new Date(bitis).toLocaleDateString("tr-TR")} → ${gunSayisi} iş günü`}
+                : isGunuSayisi === null
+                  ? ""
+                  : `${new Date(baslangic).toLocaleDateString("tr-TR")} – ${new Date(bitis).toLocaleDateString("tr-TR")} → ${isGunuSayisi} iş günü`}
             </p>
           )}
 
@@ -225,7 +252,7 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
 
           <Button
             type="submit"
-            disabled={isPending || gunSayisi === 0 || (personelSecici.mod === "sec" && !personelId)}
+            disabled={isPending || isGunuSayisi === 0 || (personelSecici.mod === "sec" && !personelId)}
             className="w-fit"
           >
             {isPending ? "Gönderiliyor..." : "Talep Gönder"}
