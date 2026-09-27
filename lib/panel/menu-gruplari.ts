@@ -70,18 +70,18 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     icon: Wallet,
     ogeler: [
       { href: "/panel/personel", label: "Personel", icon: UserCog },
-      { href: "/panel/paketler", label: "Paket & Ödeme Yönetimi", icon: Package },
-      { href: "/panel/finans/kasa", label: "Kasa", icon: Banknote },
+      { href: "/panel/finans/giderler", label: "Giderler", icon: TrendingDown },
+      { href: "/panel/finans/gelirler-takibi", label: "Gelirler Takibi ve Faturalandırma", icon: HandCoins },
       { href: "/panel/finans/banka", label: "Banka", icon: Building2 },
+      { href: "/panel/finans/kasa", label: "Kasa", icon: Banknote },
       { href: "/panel/finans/kredi-karti", label: "Kredi Kartı", icon: CreditCard },
       { href: "/panel/finans/raporlar", label: "Raporlar", icon: BarChart3 },
-      { href: "/panel/finans/gelirler-takibi", label: "Gelirler Takibi ve Faturalandırma", icon: HandCoins },
-      { href: "/panel/finans/giderler", label: "Giderler", icon: TrendingDown },
       {
         href: "/panel/finans/kategori-iskonto-oranlari",
         label: "Kategori / İskonto Oranları",
         icon: Percent,
       },
+      { href: "/panel/paketler", label: "Paket & Ödeme Yönetimi", icon: Package },
     ],
   },
   {
