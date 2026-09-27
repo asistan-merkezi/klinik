@@ -27,6 +27,8 @@ function kategoriYuzdesi(kategori: HastaKategori, oranlar: IskontoOranlariYuzde 
   return oranlar?.prime_pct ?? 0;
 }
 
+const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+
 function dosyaAdiGuvenliYap(metin: string): string {
   return metin
     .toLocaleLowerCase("tr-TR")
@@ -70,7 +72,16 @@ export function CariOdemeSekmesi({
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle>Bakiye Hareketleri</CardTitle>
+          <div className="flex flex-wrap items-center gap-3">
+            <CardTitle>Bakiye Hareketleri</CardTitle>
+            <span
+              className={`text-sm font-medium tabular-nums ${
+                guncelBakiye < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              Güncel Bakiye: {paraFormat(guncelBakiye)}
+            </span>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             {duzenlenebilir && (
               <BakiyeHareketiEkleButonu hastaId={hastaId} bankaHesaplari={bankaHesaplari} />
