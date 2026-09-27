@@ -33,3 +33,25 @@ export function useHastaAktifPaketler(hastaId: string) {
     },
   });
 }
+
+/**
+ * Randevu formunda hasta + tedavi ikisi de seçilince o hastanın kategorisine
+ * göre sunucuda hesaplanan tedavi bedelini getirir (bkz. islem_tanimi_etkin_fiyat
+ * RPC'si — fiyat/kademeli iskonto oranları tamamen sunucuda, istemci hesaplamaz).
+ * Formdaki İskonto alanının yanında gösterilir (bkz. randevu-formu.tsx).
+ */
+export function useTedaviEtkinFiyat(islemTanimiId: string, hastaId: string) {
+  return useQuery({
+    queryKey: ["randevu_tedavi_etkin_fiyat", islemTanimiId, hastaId],
+    enabled: islemTanimiId !== "" && hastaId !== "",
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("islem_tanimi_etkin_fiyat", {
+        p_islem_tanimi_id: islemTanimiId,
+        p_hasta_id: hastaId,
+      });
+      if (error) throw error;
+      return data as number | null;
+    },
+  });
+}

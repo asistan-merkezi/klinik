@@ -25,6 +25,12 @@ const randevuSemasi = z.object({
   /** Doluysa (Bekleyen Randevu Talepleri'nden açılan formda) randevu başarıyla
    *  oluşunca ilgili randevu_talebi satırı da onaylanmış olarak işaretlenir. */
   talep_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+  /**
+   * Yalnız randevuOlustur'da gönderilir (randevuGuncelle'de alan yok, optional
+   * olduğu için undefined geçer) — check-in'de (randevu_gelis_isaretle) oluşacak
+   * borç satırına önceden planlanan iskonto, bkz. randevu-formu.tsx.
+   */
+  planlanan_iskonto_tutari: z.coerce.number().min(0, "İskonto negatif olamaz.").optional(),
 });
 
 /**
@@ -72,14 +78,25 @@ export async function randevuOlustur(
     saat: formData.get("saat"),
     sure_dakika: formData.get("sure_dakika"),
     talep_id: formData.get("talep_id") ?? "",
+    planlanan_iskonto_tutari: formData.get("planlanan_iskonto_tutari"),
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { hasta_id, terapist_id, oda_id, islem_tanimi_id, cihaz_id, tarih, saat, sure_dakika, talep_id } =
-    ayristirma.data;
+  const {
+    hasta_id,
+    terapist_id,
+    oda_id,
+    islem_tanimi_id,
+    cihaz_id,
+    tarih,
+    saat,
+    sure_dakika,
+    talep_id,
+    planlanan_iskonto_tutari,
+  } = ayristirma.data;
 
   if (!(await terapistAtanabilirMi(supabase, terapist_id))) {
     return { success: false, message: "Seçilen terapist işten ayrılmış, randevu atanamaz." };
@@ -105,6 +122,7 @@ export async function randevuOlustur(
       baslangic: baslangicIso,
       bitis: bitisIso,
       olusturan_kullanici_id: user.id,
+      planlanan_iskonto_tutari: planlanan_iskonto_tutari ? planlanan_iskonto_tutari : null,
     })
     .select("id")
     .single();

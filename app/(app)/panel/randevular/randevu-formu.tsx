@@ -17,6 +17,9 @@ import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/t
 import { randevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
 import { KayitliPaketler } from "./kayitli-paketler";
+import { useTedaviEtkinFiyat } from "./queries";
+
+const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
 type Props = {
   hastalar: SecenekSatir[];
@@ -56,6 +59,13 @@ export function RandevuFormu({
   const [sureDakika, setSureDakika] = useState(
     tedaviler.find((t) => t.id === talep?.islemTanimiId)?.sure_dakika ?? 30
   );
+  const [iskontoTutari, setIskontoTutari] = useState("");
+
+  // Hasta + tedavi ikisi de seçilince sunucuda hesaplanan tedavi bedeli (bkz.
+  // islem_tanimi_etkin_fiyat RPC'si) formun en alt satırında İskonto alanının
+  // yanında gösterilir — resepsiyon check-in'de oluşacak borç satırı için
+  // önceden bir iskonto planlayabilsin diye (bkz. randevu_gelis_isaretle).
+  const { data: tedaviBedeli, isLoading: tedaviBedeliYukleniyor } = useTedaviEtkinFiyat(islemTanimiId, hastaId);
 
   // Seçili tedavinin adımlarında tanımlı "uygulayıcı" pozisyonu varsa Dr /
   // Terapist listesi o pozisyondaki personelle sınırlanır (bkz.
@@ -85,6 +95,7 @@ export function RandevuFormu({
     if (!yeniUygunlar.some((t) => t.id === terapistId)) {
       setTerapistId("");
     }
+    setIskontoTutari("");
   }
 
   // React 19'da form action'ı başarıyla tamamlanınca native alanlar otomatik
@@ -124,8 +135,14 @@ export function RandevuFormu({
               hastalar={hastalar}
               required
               disabled={isPending}
-              onSecim={(h) => setHastaId(h.id)}
-              onTemizle={() => setHastaId("")}
+              onSecim={(h) => {
+                setHastaId(h.id);
+                setIskontoTutari("");
+              }}
+              onTemizle={() => {
+                setHastaId("");
+                setIskontoTutari("");
+              }}
             />
           )}
         </div>
@@ -266,6 +283,45 @@ export function RandevuFormu({
             disabled={isPending}
           />
         </div>
+
+        {islemTanimiId && hastaId && (
+          <div className="flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border bg-muted/40 px-3 py-2.5 sm:col-span-2">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Tedavi Bedeli</span>
+              <span className="tabular-nums font-medium">
+                {tedaviBedeliYukleniyor ? "Hesaplanıyor…" : tedaviBedeli != null ? paraFormat(tedaviBedeli) : "—"}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="planlanan_iskonto_tutari" className="text-xs text-muted-foreground">
+                İskonto (₺)
+              </Label>
+              <Input
+                id="planlanan_iskonto_tutari"
+                name="planlanan_iskonto_tutari"
+                type="number"
+                min={0}
+                max={tedaviBedeli ?? undefined}
+                step="0.01"
+                placeholder="0"
+                value={iskontoTutari}
+                onChange={(e) => setIskontoTutari(e.target.value)}
+                disabled={isPending || tedaviBedeli == null}
+                className="w-28"
+              />
+            </div>
+
+            {tedaviBedeli != null && (
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="text-xs text-muted-foreground">Net Tutar</span>
+                <span className="tabular-nums font-semibold">
+                  {paraFormat(Math.max(tedaviBedeli - (Number(iskontoTutari) || 0), 0))}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {durum && (
