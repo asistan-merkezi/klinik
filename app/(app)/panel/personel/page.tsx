@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Users, Briefcase, CalendarClock, CalendarCheck2, Table2, Clock } from "lucide-react";
+import { Users, Briefcase, Table2, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -170,66 +170,25 @@ export default async function PersonelSayfasi({
                 icon={Clock}
               />
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Card>
-                  <CardContent className="flex flex-col gap-2">
-                    <span className="text-sm font-medium">İznim</span>
-                    <span className="text-xs text-muted-foreground">Bakiye, yeni izin talebi ve geçmiş taleplerim.</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-fit"
-                      nativeButton={false}
-                      render={
-                        <Link href="/panel/personel/izinlerim">
-                          <CalendarClock /> İznim
-                        </Link>
-                      }
-                    />
-                  </CardContent>
-                </Card>
-
-                {yonetici && (
-                  <Card>
-                    <CardContent className="flex flex-col gap-2">
-                      <span className="text-sm font-medium">İzin / Rapor Takibi</span>
-                      <span className="text-xs text-muted-foreground">
-                        {bekleyenIzinSayisi > 0 ? `${bekleyenIzinSayisi} talep onay bekliyor.` : "Onay bekleyen talep yok."}
-                      </span>
-                      <Button
-                        size="sm"
-                        className="w-fit bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
-                        nativeButton={false}
-                        render={
-                          <Link href="/panel/personel/izinler">
-                            <CalendarCheck2 /> İzin / Rapor Takibini Aç
-                          </Link>
-                        }
-                      />
-                    </CardContent>
-                  </Card>
-                )}
-
-                <Card>
-                  <CardContent className="flex flex-col gap-2">
-                    <span className="text-sm font-medium">Puantaj Cetveli</span>
-                    <span className="text-xs text-muted-foreground">
-                      Tüm personelin aylık devam/izin/fazla mesai çizelgesi, tek tabloda.
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-fit"
-                      nativeButton={false}
-                      render={
-                        <Link href="/panel/personel/puantaj-cetveli">
-                          <Table2 /> Cetveli Aç
-                        </Link>
-                      }
-                    />
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="sm:max-w-sm">
+                <CardContent className="flex flex-col gap-2">
+                  <span className="text-sm font-medium">Puantaj Cetveli</span>
+                  <span className="text-xs text-muted-foreground">
+                    Tüm personelin aylık devam/izin/fazla mesai çizelgesi, tek tabloda.
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    nativeButton={false}
+                    render={
+                      <Link href="/panel/personel/puantaj-cetveli">
+                        <Table2 /> Cetveli Aç
+                      </Link>
+                    }
+                  />
+                </CardContent>
+              </Card>
             </div>
           )}
         </PersonelSekmeCubugu>
