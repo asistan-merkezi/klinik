@@ -29,6 +29,12 @@ const TARIH_SAAT_FORMAT = new Intl.DateTimeFormat("tr-TR", {
 /** "Seansı Tamamla" sadece hastanın gerçekten geldiği bir seans için anlamlı. */
 const TAMAMLANABILIR_DURUMLAR: RandevuDurumu[] = ["geldi", "gecikmeli_geldi"];
 
+/** Bu zaman çizelgesinde "geldi" durumu, hasta artık tedavi gördüğü için "Tedavide" olarak gösterilir. */
+const SEANS_DURUM_ETIKETLERI: Record<RandevuDurumu, string> = {
+  ...RANDEVU_DURUM_ETIKETLERI,
+  geldi: "Tedavide",
+};
+
 export function SeansGecmisiZamanCizelgesi({
   hastaId,
   aktif,
@@ -99,7 +105,7 @@ export function SeansGecmisiZamanCizelgesi({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium">{TARIH_SAAT_FORMAT.format(new Date(seans.baslangic))}</span>
-                <StatusBadge tone={RANDEVU_DURUM_TONLARI[seans.durum]}>{RANDEVU_DURUM_ETIKETLERI[seans.durum]}</StatusBadge>
+                <StatusBadge tone={RANDEVU_DURUM_TONLARI[seans.durum]}>{SEANS_DURUM_ETIKETLERI[seans.durum]}</StatusBadge>
               </div>
 
               <p className="text-xs text-muted-foreground">
