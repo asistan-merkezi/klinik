@@ -22,10 +22,12 @@ const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "cu
 
 export function BakiyeHareketiEkleButonu({
   hastaId,
+  hastaAdSoyad,
   bankaHesaplari,
   guncelBakiye,
 }: {
   hastaId: string;
+  hastaAdSoyad: string;
   bankaHesaplari: KlinikBankaHesabi[];
   guncelBakiye: number;
 }) {
@@ -72,6 +74,7 @@ export function BakiyeHareketiEkleButonu({
           <DialogHeader>
             <DialogTitle>Ödeme Ekle</DialogTitle>
           </DialogHeader>
+          <p className="text-sm font-medium">{hastaAdSoyad}</p>
           <p
             className={`text-sm font-medium tabular-nums ${
               guncelBakiye < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"

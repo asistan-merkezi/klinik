@@ -86,6 +86,7 @@ export function CariOdemeSekmesi({
             {duzenlenebilir && (
               <BakiyeHareketiEkleButonu
                 hastaId={hastaId}
+                hastaAdSoyad={hastaAdSoyad}
                 bankaHesaplari={bankaHesaplari}
                 guncelBakiye={guncelBakiye}
               />
