@@ -32,6 +32,8 @@ export type RandevuSatir = {
   tamamlanma_aciklamasi?: string | null;
   tamamlanma_tarihi?: string | null;
   tamamlayan_kullanici?: { ad_soyad: string } | null;
+  /** Check-in'de bir paketten düşüldüyse dolu (bkz. randevu_gelis_isaretle). */
+  paket_satis_id?: string | null;
 };
 
 export type SecenekSatir = {

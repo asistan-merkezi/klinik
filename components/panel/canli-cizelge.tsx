@@ -50,7 +50,7 @@ const GORUNUM_BUTON_SINIFI =
   "!border-violet-500/30 !bg-violet-500/10 !text-violet-700 hover:!bg-violet-500/20 dark:!border-violet-500/30 dark:!text-violet-400 dark:hover:!bg-violet-500/20";
 
 const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad), tamamlanma_aciklamasi, tamamlanma_tarihi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad)";
+  "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad), tamamlanma_aciklamasi, tamamlanma_tarihi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad), paket_satis_id";
 
 export function CanliCizelge({
   baslangicRandevular,

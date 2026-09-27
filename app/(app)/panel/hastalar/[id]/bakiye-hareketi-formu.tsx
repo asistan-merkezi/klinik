@@ -25,11 +25,14 @@ export function BakiyeHareketiEkleButonu({
   hastaAdSoyad,
   bankaHesaplari,
   guncelBakiye,
+  onBasarili,
 }: {
   hastaId: string;
   hastaAdSoyad: string;
   bankaHesaplari: KlinikBankaHesabi[];
   guncelBakiye: number;
+  /** Ödeme başarıyla kaydedildiğinde çağrılır (örn. randevu tamamlama özetinde "Hesap kapanmıştır" göstermek için). */
+  onBasarili?: () => void;
 }) {
   const idOnEki = useId();
   const [acik, setAcik] = useState(false);
@@ -47,6 +50,7 @@ export function BakiyeHareketiEkleButonu({
       setOdemeTipi("nakit");
       setAciklamaMetni("");
       setBankaHesapId(undefined);
+      onBasarili?.();
     }
   }
 

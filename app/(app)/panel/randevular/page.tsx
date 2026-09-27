@@ -58,7 +58,7 @@ export default async function RandevularSayfasi() {
       supabase
         .from("randevu")
         .select(
-          "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad), tamamlanma_aciklamasi, tamamlanma_tarihi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad)"
+          "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad), tamamlanma_aciklamasi, tamamlanma_tarihi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad), paket_satis_id"
         )
         .gte("baslangic", baslangic)
         .lt("baslangic", bitis)

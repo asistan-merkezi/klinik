@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Wallet } from "lucide-react";
 import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/datetime";
 import { createClient } from "@/lib/supabase/client";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
@@ -33,8 +34,17 @@ function sureDakika(baslangic: string, bitis: string) {
  * Ödeme Ekle diyaloğu güncel bakiyeyi göstermek istiyor, ama bunu tüm günün
  * randevuları için önceden toplu çekmeye değmez (her hasta farklı) — bu yüzden
  * kart yalnız açıldığında, o hastanın bakiyesini tek satır sorguyla çeker.
+ *
+ * "Cariye Ekle" ayrı bir yazma işlemi YAPMAZ: paketsiz check-in'de borç satırı
+ * zaten randevu_gelis_isaretle'de otomatik yazılmıştı (bkz. CLAUDE.md > Cari).
+ * Buradaki iki buton yalnız resepsiyonun "şimdi tahsil ettim" (Ödeme Ekle) mi
+ * yoksa "cari hesapta bıraktım" (Cariye Ekle) mı kararını verdiğini işaretler;
+ * ikisi de bu kartı "Hesap kapanmıştır" özetine çevirir. Bu kapanma durumu
+ * kalıcı DEĞİL (DB'de tutulmaz) — diyalog kapatılıp yeniden açılırsa kart
+ * tekrar görünür, borç kaydının hiç "kapanmayan" append-only defter modeliyle
+ * tutarlı (bkz. CLAUDE.md > Cari — borç/ödeme modeli).
  */
-function OdemeAlKarti({
+function OdemeVeyaCariKarti({
   hastaId,
   hastaAdSoyad,
   bankaHesaplari,
@@ -44,6 +54,7 @@ function OdemeAlKarti({
   bankaHesaplari: KlinikBankaHesabi[];
 }) {
   const [guncelBakiye, setGuncelBakiye] = useState<number | null>(null);
+  const [hesapKapandi, setHesapKapandi] = useState(false);
 
   useEffect(() => {
     let iptalEdildi = false;
@@ -61,17 +72,28 @@ function OdemeAlKarti({
     };
   }, [hastaId]);
 
+  if (hesapKapandi) {
+    return <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Hesap kapanmıştır.</p>;
+  }
+
   if (guncelBakiye === null) {
     return <p className="text-sm text-muted-foreground">Bakiye yükleniyor...</p>;
   }
 
   return (
-    <BakiyeHareketiEkleButonu
-      hastaId={hastaId}
-      hastaAdSoyad={hastaAdSoyad}
-      bankaHesaplari={bankaHesaplari}
-      guncelBakiye={guncelBakiye}
-    />
+    <div className="flex flex-wrap gap-2">
+      <BakiyeHareketiEkleButonu
+        hastaId={hastaId}
+        hastaAdSoyad={hastaAdSoyad}
+        bankaHesaplari={bankaHesaplari}
+        guncelBakiye={guncelBakiye}
+        onBasarili={() => setHesapKapandi(true)}
+      />
+      <Button type="button" size="sm" variant="outline" onClick={() => setHesapKapandi(true)}>
+        <Wallet />
+        Cariye Ekle
+      </Button>
+    </div>
   );
 }
 
@@ -148,12 +170,17 @@ export function RandevuDetayPaneli({
             </div>
           </div>
 
-          {(rol === "klinik_admin" || rol === "resepsiyon") && randevu.hasta_id && (
-            <OdemeAlKarti
-              hastaId={randevu.hasta_id}
-              hastaAdSoyad={randevu.hasta?.ad_soyad ?? ""}
-              bankaHesaplari={bankaHesaplari}
-            />
+          {randevu.paket_satis_id ? (
+            <p className="text-sm font-medium text-muted-foreground">Paketten düşülmüştür.</p>
+          ) : (
+            (rol === "klinik_admin" || rol === "resepsiyon") &&
+            randevu.hasta_id && (
+              <OdemeVeyaCariKarti
+                hastaId={randevu.hasta_id}
+                hastaAdSoyad={randevu.hasta?.ad_soyad ?? ""}
+                bankaHesaplari={bankaHesaplari}
+              />
+            )
           )}
         </DialogContent>
       </Dialog>
