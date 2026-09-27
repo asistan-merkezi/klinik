@@ -84,7 +84,11 @@ export function CariOdemeSekmesi({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {duzenlenebilir && (
-              <BakiyeHareketiEkleButonu hastaId={hastaId} bankaHesaplari={bankaHesaplari} />
+              <BakiyeHareketiEkleButonu
+                hastaId={hastaId}
+                bankaHesaplari={bankaHesaplari}
+                guncelBakiye={guncelBakiye}
+              />
             )}
             <PdfIndirButonu
               endpoint={`/api/hasta-cari-hareketler/pdf?hastaId=${hastaId}`}

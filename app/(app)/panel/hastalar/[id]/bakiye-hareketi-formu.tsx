@@ -18,12 +18,16 @@ import type { KlinikBankaHesabi } from "@/types/klinik";
 import { OdemeTipiSecici, ODEME_TIPI_ETIKETLERI, ODEME_TIPI_SECILI_SINIFI } from "./odeme-tipi-secici";
 import { bakiyeHareketiEkle } from "./actions";
 
+const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+
 export function BakiyeHareketiEkleButonu({
   hastaId,
   bankaHesaplari,
+  guncelBakiye,
 }: {
   hastaId: string;
   bankaHesaplari: KlinikBankaHesabi[];
+  guncelBakiye: number;
 }) {
   const idOnEki = useId();
   const [acik, setAcik] = useState(false);
@@ -68,6 +72,13 @@ export function BakiyeHareketiEkleButonu({
           <DialogHeader>
             <DialogTitle>Ödeme Ekle</DialogTitle>
           </DialogHeader>
+          <p
+            className={`text-sm font-medium tabular-nums ${
+              guncelBakiye < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+            }`}
+          >
+            Güncel Bakiye: {paraFormat(guncelBakiye)}
+          </p>
           <form action={formAction} className="flex flex-col gap-3">
             <input type="hidden" name="tur" value="odeme" />
             <input type="hidden" name="aciklama" value={birlesikAciklama} />
