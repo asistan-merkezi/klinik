@@ -16,6 +16,11 @@ import {
 import type { SecenekSatir } from "@/types/randevu";
 import type { IslemAdimiSablonuSatir, IslemTanimiAdimSatir } from "@/types/islem-tanimi";
 
+// Base UI Select boş string'i "seçim yok" (placeholder) sayıyor, gerçek bir
+// öğe olarak gösteremiyor — "Yok" seçeneğini listenin başında göstermek için
+// bu sentinel değer kullanılıp dışarıya hep "" olarak yansıtılıyor.
+const CIHAZ_YOK_DEGERI = "__yok__";
+
 export type IslemAdimi = {
   anahtar: string;
   id?: string;
@@ -177,15 +182,18 @@ export function IslemAdimSatirlari({
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">Gerekli Cihaz (opsiyonel)</Label>
                 <Select
-                  value={adim.gerekliCihazId}
-                  onValueChange={(deger) => adimGuncelle(adim.anahtar, "gerekliCihazId", deger as string)}
-                  disabled={disabled || cihazlar.length === 0}
-                  items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
+                  value={adim.gerekliCihazId || CIHAZ_YOK_DEGERI}
+                  onValueChange={(deger) =>
+                    adimGuncelle(adim.anahtar, "gerekliCihazId", deger === CIHAZ_YOK_DEGERI ? "" : (deger as string))
+                  }
+                  disabled={disabled}
+                  items={[{ value: CIHAZ_YOK_DEGERI, label: "Yok" }, ...cihazlar.map((c) => ({ value: c.id, label: c.ad }))]}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
+                    <SelectValue placeholder="Cihaz seçin" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={CIHAZ_YOK_DEGERI}>Yok</SelectItem>
                     {cihazlar.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.ad}

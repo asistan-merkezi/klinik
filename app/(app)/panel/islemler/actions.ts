@@ -148,10 +148,17 @@ export async function islemTanimiGuncelle(
   return islemTanimiKaydet(islemId, formData);
 }
 
+// yeni-islem-sablonu-dialog.tsx'teki Select'in "Yok" seçeneği için sentinel —
+// Base UI Select boş string'i gerçek bir öğe olarak seçtiremediğinden.
+const CIHAZ_YOK_DEGERI = "__yok__";
+
 const sablonSemasi = z.object({
   ad: z.string().trim().min(2, "İşlem adı en az 2 karakter olmalı."),
   uygulayici_pozisyon_id: z.union([z.string().uuid(), z.literal("")]).optional(),
-  gerekli_cihaz_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+  gerekli_cihaz_id: z
+    .union([z.string().uuid(), z.literal(""), z.literal(CIHAZ_YOK_DEGERI)])
+    .optional()
+    .transform((deger) => (deger === CIHAZ_YOK_DEGERI ? "" : deger)),
   sure_dakika: z
     .union([z.coerce.number().int().min(1, "Süre 1 dakikadan az olamaz."), z.literal("")])
     .optional()
