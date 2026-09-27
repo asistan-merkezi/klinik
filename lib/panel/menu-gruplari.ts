@@ -1,5 +1,4 @@
 import {
-  Landmark,
   TrendingDown,
   BarChart3,
   Building2,
@@ -14,7 +13,6 @@ import {
   UploadCloud,
   QrCode,
   Percent,
-  ShoppingCart,
   HandCoins,
   LifeBuoy,
   BookOpen,
@@ -73,15 +71,9 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ogeler: [
       { href: "/panel/personel", label: "Personel", icon: UserCog },
       { href: "/panel/paketler", label: "Paket & Ödeme Yönetimi", icon: Package },
-      {
-        href: "/panel/finans/satin-alma-faturalari",
-        label: "Satın Alma Faturaları",
-        icon: ShoppingCart,
-      },
       { href: "/panel/finans/kasa", label: "Kasa", icon: Banknote },
       { href: "/panel/finans/banka", label: "Banka", icon: Building2 },
       { href: "/panel/finans/kredi-karti", label: "Kredi Kartı", icon: CreditCard },
-      { href: "/panel/finans/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
       { href: "/panel/finans/raporlar", label: "Raporlar", icon: BarChart3 },
       { href: "/panel/finans/gelirler-takibi", label: "Gelirler Takibi ve Faturalandırma", icon: HandCoins },
       { href: "/panel/finans/giderler", label: "Giderler", icon: TrendingDown },

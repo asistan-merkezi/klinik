@@ -102,7 +102,7 @@ export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData)
     return { success: false, message: "Ödeme kaydedilemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/finans/kamusal-giderler");
+  revalidatePath("/panel/finans/giderler/kamusal-giderler");
   revalidatePath("/panel/finans/raporlar");
   return { success: true, message: "Ödeme kaydedildi." };
 }
@@ -150,7 +150,7 @@ export async function kamusalOdemeGuncelle(
     return { success: false, message: "Ödeme güncellenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/finans/kamusal-giderler");
+  revalidatePath("/panel/finans/giderler/kamusal-giderler");
   revalidatePath("/panel/finans/raporlar");
   return { success: true, message: "Ödeme güncellendi." };
 }
@@ -168,7 +168,7 @@ export async function kamusalOdemeSil(id: string): Promise<SonucDurumu> {
     return { success: false, message: "Ödeme silinemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/finans/kamusal-giderler");
+  revalidatePath("/panel/finans/giderler/kamusal-giderler");
   revalidatePath("/panel/finans/raporlar");
   return { success: true, message: "Ödeme silindi." };
 }

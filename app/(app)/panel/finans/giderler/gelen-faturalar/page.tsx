@@ -8,11 +8,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
 import { raporAyDonemi } from "@/lib/raporlar/donem";
 import { EntegrasyonButonlari } from "./entegrasyon-butonlari";
+import { GiderlerSekmeCubugu } from "../giderler-sekme-cubugu";
 
 const paraFormat = (tutar: number) =>
   tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
-export default async function SatinAlmaFaturalariSayfasi({
+export default async function GelenFaturalarSayfasi({
   searchParams,
 }: {
   searchParams: Promise<{ yil?: string; ay?: string }>;
@@ -70,11 +71,13 @@ export default async function SatinAlmaFaturalariSayfasi({
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <PageHeader
-          title="Paraşüt Entegrasyonu"
-          description="Satın alma faturaları ve stok fiyat senkronizasyonu."
+          title="Gelen Faturalar"
+          description="Satın alma faturaları ve stok fiyat senkronizasyonu (Paraşüt entegrasyonu)."
           icon={Receipt}
           actions={<EntegrasyonButonlari />}
         />
+
+        <GiderlerSekmeCubugu />
 
         <div className="flex items-center justify-center gap-2 text-sm">
           {oncekiAyGosterilebilir ? (

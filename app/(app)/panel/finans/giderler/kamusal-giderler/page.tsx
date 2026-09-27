@@ -12,6 +12,7 @@ import { kamusalOdemeDurumHesapla, type KamusalOdemeSatir } from "@/types/kamusa
 import type { KlinikArac } from "@/types/klinik";
 import { YeniOdemeButonu } from "./yeni-odeme-butonu";
 import { OdemeTablosu } from "./odeme-tablosu";
+import { GiderlerSekmeCubugu } from "../giderler-sekme-cubugu";
 
 const paraFormat = (tutar: number) =>
   tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
@@ -135,6 +136,8 @@ export default async function KamusalGiderlerSayfasi({
           }
         />
 
+        <GiderlerSekmeCubugu />
+
         <OzetKarti baslik={`${donemYil} Yılı`} odenen={yilOdenen} bekleyen={yilBekleyen} />
 
         <div className="flex items-center justify-between gap-4">
@@ -144,13 +147,13 @@ export default async function KamusalGiderlerSayfasi({
               variant="outline"
               size="sm"
               nativeButton={false}
-              render={<Link href={`/panel/finans/kamusal-giderler?ay=${ay.oncekiParam}`}>‹ Önceki</Link>}
+              render={<Link href={`/panel/finans/giderler/kamusal-giderler?ay=${ay.oncekiParam}`}>‹ Önceki</Link>}
             />
             <Button
               variant="outline"
               size="sm"
               nativeButton={false}
-              render={<Link href={`/panel/finans/kamusal-giderler?ay=${ay.sonrakiParam}`}>Sonraki ›</Link>}
+              render={<Link href={`/panel/finans/giderler/kamusal-giderler?ay=${ay.sonrakiParam}`}>Sonraki ›</Link>}
             />
           </div>
         </div>

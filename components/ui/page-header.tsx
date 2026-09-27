@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /**
  * docs/DESIGN.md tipografi ölçeği: başlık headline-lg/md, alt metin body-md
  * muted. Sağda aksiyon slotu, mobilde sarar (flex-wrap — projede zaten
- * yerleşik desen, bkz. panel/muhasebe/kamusal-giderler/page.tsx).
+ * yerleşik desen, bkz. panel/finans/giderler/kamusal-giderler/page.tsx).
  *
  * `icon`: SADECE Server Component'ten (veya zaten client olan bir üst
  * bileşenden) doğrudan bir `LucideIcon` referansı geçirilmeli — bu bileşenin

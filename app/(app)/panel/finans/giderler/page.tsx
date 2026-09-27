@@ -6,6 +6,7 @@ import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import type { KlinikHarcamaSatir } from "@/types/klinik-harcama";
 import { YeniGiderButonu } from "./yeni-gider-butonu";
 import { GiderListesi } from "./gider-listesi";
+import { GiderlerSekmeCubugu } from "./giderler-sekme-cubugu";
 
 export default async function GiderlerSayfasi() {
   const supabase = await createClient();
@@ -65,6 +66,8 @@ export default async function GiderlerSayfasi() {
           icon={Wallet}
           actions={duzenlenebilir && <YeniGiderButonu araclar={araclar} bankaHesaplari={bankaHesaplari} />}
         />
+
+        <GiderlerSekmeCubugu />
 
         <GiderListesi
           satirlar={giderler}

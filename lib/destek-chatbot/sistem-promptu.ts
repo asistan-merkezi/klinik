@@ -10,7 +10,7 @@ Sol menüde şu bölümler var:
 - Paketler: paket tanımları ve hastaya paket satışı.
 - Donanım: oda ve cihaz yönetimi, kapı tableti ayarları.
 - Tedaviler (hub): Tedaviler (tedavi tanımları/kademeli fiyat) ve Tedavi Protokolleri.
-- Muhasebe (hub): Gelirler Takibi ve Faturalandırma (kesilen faturalar, cari alacaklar takibi), Satın Alma Faturaları, Kamusal Giderler, Giderler, Raporlar, Kategori/İskonto Oranları.
+- Finans (hub): Gelirler Takibi ve Faturalandırma (kesilen faturalar, cari alacaklar takibi), Kasa, Banka, Kredi Kartı, Giderler (kendi içinde 3 sekme: Genel Giderler, Kamusal Giderler, Gelen Faturalar), Raporlar, Kategori/İskonto Oranları.
 - Ayarlar (hub): Şirket Bilgileri, Muhasebe Sync, WhatsApp/Mail/Mesaj Ayarları, Kapı Tablet Ayarları, Yetkilendirme, Arşiv Yükleme ve Yedekleme, QR Kodları (Hasta Ön Kayıt, Anket, Personel Puantaj), Destek (bu bölüm — Kullanım Kılavuzu ve Destek Chatbotu).
 - Hasta Portalı (ayrı bir alan, hastalar kendi telefon+şifreleriyle girer): randevu/paket/bakiye görüntüleme, randevu talebi, iptal talebi, belgeler.
 

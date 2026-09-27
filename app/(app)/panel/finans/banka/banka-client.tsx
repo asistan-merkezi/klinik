@@ -16,8 +16,8 @@ import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { GiderFormu } from "../giderler/gider-formu";
 import { giderEkle } from "../giderler/actions";
-import { OdemeFormu } from "../kamusal-giderler/odeme-formu";
-import { kamusalOdemeEkle } from "../kamusal-giderler/actions";
+import { OdemeFormu } from "../giderler/kamusal-giderler/odeme-formu";
+import { kamusalOdemeEkle } from "../giderler/kamusal-giderler/actions";
 import {
   bankayaGirenEkle,
   bankadanDigerCikanEkle,
