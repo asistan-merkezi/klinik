@@ -81,7 +81,6 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
         label: "Kategori / İskonto Oranları",
         icon: Percent,
       },
-      { href: "/panel/paketler", label: "Paket & Ödeme Yönetimi", icon: Package },
     ],
   },
   {
