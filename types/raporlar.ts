@@ -51,8 +51,8 @@ export type GunlukIsKalemi = {
   /** "notr": randevu kalemi — kendi başına gelir/gider tutarı taşımaz, bilgi amaçlı listelenir. */
   yon: "gelir" | "gider" | "notr";
   durum?: string;
-  /** Hastaya bağlı kalemlerde (randevu/gelir) o hastanın GÜNCEL toplam cari bakiyesi (v_hasta_cari_ozet.kalan_bakiye) — bu işlemin ANINDAKİ bakiyesi değil. Hastasız kalemlerde (gider/muhasebe) yok. */
-  bakiye?: number;
+  /** Hastaya bağlı kalemlerde (randevu/gelir) o hastanın O GÜNE ait borç satırlarının net toplamı (hasta_bakiye_hareket, tur='borc', tutar-iskonto_tutari) — hastanın genel/güncel cari bakiyesi DEĞİL, yalnız o gün oluşan bedel. O gün borç oluşmadıysa undefined (satır hiç gösterilmez). Hastasız kalemlerde (gider/muhasebe) de yok. */
+  gunlukBedel?: number;
 };
 
 /** Bir günün tüm iş dökümü — Raporlar > Aylık görünümdeki gün listesi için. */

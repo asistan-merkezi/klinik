@@ -508,26 +508,30 @@ export async function hesaplaGunlukDokum(
       .returns<KamusalOdemeGunlukSatir[]>(),
   ]);
 
-  // Randevu/gelir kalemlerinin yanında hastanın GÜNCEL toplam cari bakiyesini
-  // (v_hasta_cari_ozet.kalan_bakiye) göstermek için — bu VIEW olduğundan
-  // (PostgREST embed tuzağı, bkz. CLAUDE.md) hasta(...) ile birlikte
-  // EMBED EDİLEMEZ, ayrı çekilip hasta_id ile Map'lenir. View, bakiyesi
-  // sıfır/negatif olan hastaları hiç döndürmez (bkz. migration) — bu yüzden
-  // haritada bulunamayan hasta_id 0 (borcu yok) sayılır.
-  const hastaIdSeti = new Set<string>();
-  for (const r of randevuSonuc.data ?? []) if (r.hasta_id) hastaIdSeti.add(r.hasta_id);
-  for (const o of odemeSonuc.data ?? []) if (o.hasta_id) hastaIdSeti.add(o.hasta_id);
+  // Randevu/gelir kalemlerinin yanında hastanın O GÜNE ait bedelini göstermek
+  // için — önceden burada hastanın GÜNCEL toplam cari bakiyesi (v_hasta_cari_ozet)
+  // gösteriliyordu, bu sorgu anındaki (o işlem anındaki değil) bir rakamdı ve
+  // yanıltıcıydı (kullanıcı kararıyla değiştirildi). Artık yalnız o gün oluşan
+  // borç satırlarının (hasta_bakiye_hareket, tur='borc') net toplamı gösteriliyor
+  // — paket satışı da borç olarak işlendiği için (bkz. CLAUDE.md) o da dahil.
+  const { data: borcSonuc } = await supabase
+    .from("hasta_bakiye_hareket")
+    .select("hasta_id, tutar, iskonto_tutari, created_at")
+    .eq("klinik_id", klinikId)
+    .eq("tur", "borc")
+    .gte("created_at", donem.baslangic)
+    .lt("created_at", donem.bitis)
+    .returns<{ hasta_id: string | null; tutar: number; iskonto_tutari: number; created_at: string }[]>();
 
-  const { data: cariData } = hastaIdSeti.size
-    ? await supabase
-        .from("v_hasta_cari_ozet")
-        .select("hasta_id, kalan_bakiye")
-        .eq("klinik_id", klinikId)
-        .in("hasta_id", Array.from(hastaIdSeti))
-        .returns<{ hasta_id: string; kalan_bakiye: number }[]>()
-    : { data: [] as { hasta_id: string; kalan_bakiye: number }[] };
-  const bakiyeMap = new Map((cariData ?? []).map((c) => [c.hasta_id, c.kalan_bakiye]));
-  const hastaBakiyesi = (hastaId: string | null) => (hastaId ? (bakiyeMap.get(hastaId) ?? 0) : undefined);
+  const gunlukBedelMap = new Map<string, number>();
+  for (const b of borcSonuc ?? []) {
+    if (!b.hasta_id) continue;
+    const anahtar = `${formatDateForInput(b.created_at)}|${b.hasta_id}`;
+    const net = b.tutar - b.iskonto_tutari;
+    gunlukBedelMap.set(anahtar, (gunlukBedelMap.get(anahtar) ?? 0) + net);
+  }
+  const gunlukBedel = (tarih: string, hastaId: string | null) =>
+    hastaId ? gunlukBedelMap.get(`${tarih}|${hastaId}`) : undefined;
 
   const gunler = new Map<string, GunlukOzet>();
   function gunuAl(tarih: string): GunlukOzet {
@@ -540,7 +544,8 @@ export async function hesaplaGunlukDokum(
   }
 
   for (const r of randevuSonuc.data ?? []) {
-    const gun = gunuAl(formatDateForInput(r.baslangic));
+    const tarih = formatDateForInput(r.baslangic);
+    const gun = gunuAl(tarih);
     if (TAMAMLANAN_RANDEVU_DURUMLARI.has(r.durum)) gun.seansSayisi += 1;
     gun.kalemler.push({
       id: `randevu-${r.id}`,
@@ -551,12 +556,13 @@ export async function hesaplaGunlukDokum(
       tutar: 0,
       yon: "notr",
       durum: r.durum,
-      bakiye: hastaBakiyesi(r.hasta_id),
+      gunlukBedel: gunlukBedel(tarih, r.hasta_id),
     });
   }
 
   for (const o of odemeSonuc.data ?? []) {
-    const gun = gunuAl(formatDateForInput(o.created_at));
+    const tarih = formatDateForInput(o.created_at);
+    const gun = gunuAl(tarih);
     const brutToplam = o.odeme_kalemi.reduce((acc, kalem) => acc + kalem.miktar * kalem.birim_fiyat, 0);
     const net = brutToplam - o.iskonto_tutari;
     gun.gelir += net;
@@ -568,7 +574,7 @@ export async function hesaplaGunlukDokum(
       altBaslik: o.faturali ? "Faturalı tahsilat" : "Faturasız tahsilat",
       tutar: net,
       yon: "gelir",
-      bakiye: hastaBakiyesi(o.hasta_id),
+      gunlukBedel: gunlukBedel(tarih, o.hasta_id),
     });
   }
 
