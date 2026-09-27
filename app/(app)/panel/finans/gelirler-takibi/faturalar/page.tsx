@@ -2,26 +2,28 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
 import { Receipt } from "lucide-react";
-import type { FaturaDurumu } from "@/types/odeme";
-import { FaturaDurumHucresi } from "./fatura-satiri";
-import { formatDateTime } from "@/lib/datetime";
+import type { FaturaSatir } from "@/types/odeme";
+import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
+import { FinansBorcSatiriBileseni, type FinansBorcSatiri } from "./borc-satiri";
 
-type FaturaListSatiri = {
+type BorcSorguSatiri = {
   id: string;
-  durum: FaturaDurumu;
-  hata_mesaji: string | null;
-  e_arsiv_pdf_url: string | null;
+  hasta_id: string;
+  tutar: number;
+  iskonto_tutari: number;
+  aciklama: string | null;
   created_at: string;
-  odeme: {
-    aciklama: string | null;
-    hasta: { ad_soyad: string } | null;
-    odeme_satiri: { tutar: number }[];
+  hasta: { ad_soyad: string; eposta: string | null } | null;
+  randevu: {
+    terapist: { personel: { ad_soyad: string } | null } | null;
+    islem_tanimi: { ad: string } | null;
   } | null;
+  odeme: { fatura: FaturaSatir[] } | null;
 };
 
-const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+type HastaHassasSatiri = { hasta_id: string; kimlik_no: string | null; adres: string | null };
 
 export default async function FaturalarSayfasi() {
   const supabase = await createClient();
@@ -46,61 +48,86 @@ export default async function FaturalarSayfasi() {
     redirect("/panel");
   }
 
-  const { data } = await supabase
-    .from("fatura")
-    .select(
-      "id, durum, hata_mesaji, e_arsiv_pdf_url, created_at, odeme(aciklama, hasta(ad_soyad), odeme_satiri(tutar))"
-    )
-    .order("created_at", { ascending: false })
-    .limit(100)
-    .returns<FaturaListSatiri[]>();
+  // Fatura kesme yetkisi RPC'de de ayrıca zorlanıyor (bkz. migration
+  // 20260927160000) — burası sadece dialogu göstermeye karar veriyor.
+  const duzenlenebilir =
+    kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon" || kullanici?.rol === "muhasebe";
 
-  const faturalar = data ?? [];
+  const { data } = await supabase
+    .from("hasta_bakiye_hareket")
+    .select(
+      "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
+        "hasta(ad_soyad, eposta), " +
+        "randevu(terapist(personel(ad_soyad)), islem_tanimi(ad)), " +
+        "odeme(fatura(id, durum, hata_mesaji, e_arsiv_pdf_url))"
+    )
+    .eq("tur", "borc")
+    .order("created_at", { ascending: false })
+    .limit(200)
+    .returns<BorcSorguSatiri[]>();
+
+  const borclar = data ?? [];
+  const hastaIdler = [...new Set(borclar.map((b) => b.hasta_id))];
+
+  const { data: hassasData } = hastaIdler.length
+    ? await supabase
+        .from("hasta_hassas")
+        .select("hasta_id, kimlik_no, adres")
+        .in("hasta_id", hastaIdler)
+        .returns<HastaHassasSatiri[]>()
+    : { data: [] as HastaHassasSatiri[] };
+
+  const hassasMap = new Map((hassasData ?? []).map((h) => [h.hasta_id, h]));
+
+  const satirlar: FinansBorcSatiri[] = borclar.map((b) => {
+    const hassas = hassasMap.get(b.hasta_id);
+    const faturaBilgisi: FaturaBilgisiKontrol = {
+      adSoyad: b.hasta?.ad_soyad ?? null,
+      eposta: b.hasta?.eposta ?? null,
+      adres: hassas?.adres ?? null,
+      kimlikNo: hassas?.kimlik_no ?? null,
+    };
+    return {
+      id: b.id,
+      hastaAdSoyad: b.hasta?.ad_soyad ?? "—",
+      islemAdi: b.randevu?.islem_tanimi?.ad ?? b.aciklama ?? "Borç",
+      terapistAdi: b.randevu?.terapist?.personel?.ad_soyad ?? null,
+      tutar: b.tutar,
+      iskontoTutari: b.iskonto_tutari,
+      createdAt: b.created_at,
+      fatura: b.odeme?.fatura?.[0] ?? null,
+      faturaBilgisi,
+    };
+  });
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
-      <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <PageHeader
           title="Kesilen Faturalar"
-          description="Faturalı işaretlenen ödemelerin ve borç kapatmaların toplu görünümü."
+          description="Tüm seans ve paket bedelleri burada listelenir. Fatura kesmek istediğiniz satıra tıklayın; dokunmadığınız satırlar faturasız kayıt olarak kalır."
           icon={Receipt}
         />
 
-        {faturalar.length === 0 ? (
-          <EmptyState icon={Receipt} title="Henüz fatura kaydı yok." />
+        {satirlar.length === 0 ? (
+          <EmptyState icon={Receipt} title="Henüz borç kaydı yok." />
         ) : (
-          <Table className="min-w-[800px]">
+          <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Tarih</TableHead>
                 <TableHead>Hasta</TableHead>
-                <TableHead>Açıklama</TableHead>
+                <TableHead>İşlem</TableHead>
                 <TableHead className="text-right">Tutar</TableHead>
+                <TableHead className="text-right">İskonto</TableHead>
+                <TableHead className="text-right">Net</TableHead>
                 <TableHead>Durum</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {faturalar.map((f) => {
-                const toplam = (f.odeme?.odeme_satiri ?? []).reduce((acc, s) => acc + s.tutar, 0);
-                return (
-                  <TableRow key={f.id} className="align-top">
-                    <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {formatDateTime(f.created_at)}
-                    </TableCell>
-                    <TableCell className="font-medium">{f.odeme?.hasta?.ad_soyad ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{f.odeme?.aciklama || "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{paraFormat(toplam)}</TableCell>
-                    <TableCell>
-                      <FaturaDurumHucresi
-                        faturaId={f.id}
-                        durum={f.durum}
-                        hataMesaji={f.hata_mesaji}
-                        eArsivPdfUrl={f.e_arsiv_pdf_url}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {satirlar.map((satir) => (
+                <FinansBorcSatiriBileseni key={satir.id} satir={satir} duzenlenebilir={duzenlenebilir} />
+              ))}
             </TableBody>
           </Table>
         )}
