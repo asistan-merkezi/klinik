@@ -62,7 +62,13 @@ export function PozisyonSatiri({
   // Aktif ama o unvanda henüz çalışanı olmayan pozisyonlarda, gerçek bir Personel
   // Ekle akışı (İş Başvurusu onayına gerek kalmadan) kısayolu gösterilir — sadece
   // klinik_admin, gerçek bir personel/kullanıcı kaydı açar (sahte veri üretmez).
-  const denemeIcinOlusturGoster = duzenlenebilir && pozisyon.aktif && !calisaniVarMi;
+  const denemeButonuGoster = duzenlenebilir && pozisyon.aktif && !calisaniVarMi;
+  // Dialog'un mount'u SADECE bu butona bağlı değil (`|| denemeDialogAcik` de) —
+  // aksi halde başarılı oluşturma sonrası revalidate ile calisaniVarMi anında
+  // true'ya döner, buton kaybolur ve onunla birlikte Dialog da unmount olup
+  // içindeki "geçici şifre" mesajı hiç görülmeden kapanırdı (gerçek tarayıcı
+  // testinde bulundu).
+  const denemeDialogGoster = denemeButonuGoster || denemeDialogAcik;
 
   return (
     <li className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
@@ -71,24 +77,24 @@ export function PozisyonSatiri({
           {pozisyon.ad}
         </span>
         {pozisyon.ozel_mi && <StatusBadge tone="sky">Özel</StatusBadge>}
-        {denemeIcinOlusturGoster && (
-          <>
-            <Button type="button" variant="outline" size="sm" onClick={() => setDenemeDialogAcik(true)}>
-              <FlaskConical /> Deneme İçin Oluştur
-            </Button>
-            <Dialog open={denemeDialogAcik} onOpenChange={setDenemeDialogAcik}>
-              <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Personel Ekle — {pozisyon.ad}</DialogTitle>
-                </DialogHeader>
-                <p className="text-xs text-muted-foreground">
-                  Bu pozisyonda henüz çalışan yok — deneme/test amacıyla gerçek bir personel ve giriş
-                  hesabı oluşturmak için formu doldurun.
-                </p>
-                <PersonelFormu mod="olustur" pozisyonlar={aktifPozisyonlar} varsayilanPozisyonId={pozisyon.id} />
-              </DialogContent>
-            </Dialog>
-          </>
+        {denemeButonuGoster && (
+          <Button type="button" variant="outline" size="sm" onClick={() => setDenemeDialogAcik(true)}>
+            <FlaskConical /> Deneme İçin Oluştur
+          </Button>
+        )}
+        {denemeDialogGoster && (
+          <Dialog open={denemeDialogAcik} onOpenChange={setDenemeDialogAcik}>
+            <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Personel Ekle — {pozisyon.ad}</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground">
+                Bu pozisyonda henüz çalışan yok — deneme/test amacıyla gerçek bir personel ve giriş
+                hesabı oluşturmak için formu doldurun.
+              </p>
+              <PersonelFormu mod="olustur" pozisyonlar={aktifPozisyonlar} varsayilanPozisyonId={pozisyon.id} />
+            </DialogContent>
+          </Dialog>
         )}
       </div>
       <div className="flex flex-col items-end gap-1">
