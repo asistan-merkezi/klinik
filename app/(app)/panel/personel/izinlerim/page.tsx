@@ -78,7 +78,7 @@ export default async function IzinlerimSayfasi() {
   return (
     <div className="flex-1 bg-background">
       <div className="mx-auto flex max-w-2xl flex-col gap-5 p-4 pb-24 sm:p-8">
-        <PageHeader title="İznim" description="İzin bakiyeniz, yeni talep ve geçmiş talepleriniz." icon={CalendarClock} />
+        <PageHeader title="İzin Talep Formu" description="Yeni izin talep giriş sayfası." icon={CalendarClock} />
 
         {bakiye && <BakiyeKarti bakiye={bakiye} />}
 
