@@ -50,6 +50,18 @@ function KalemSatiri({ kalem }: { kalem: GunlukIsKalemi }) {
             Bugünkü bedel: {paraFormat(kalem.gunlukBedel)}
           </span>
         )}
+        {kalem.kapanisSekli && (
+          <span
+            className={cn(
+              "truncate",
+              kalem.kapanisSekli.startsWith("Cariye")
+                ? "text-rose-600 dark:text-rose-400"
+                : "text-emerald-600 dark:text-emerald-400"
+            )}
+          >
+            {kalem.kapanisSekli}
+          </span>
+        )}
       </div>
       {kalem.durum && (
         <StatusBadge tone={RANDEVU_DURUM_TONLARI[kalem.durum as RandevuDurumu] ?? "slate"} className="shrink-0">

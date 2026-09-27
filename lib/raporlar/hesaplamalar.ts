@@ -14,6 +14,7 @@ import { raporYilDonemi, yilinAylari } from "@/lib/raporlar/donem";
 import { formatDateForInput, formatTime } from "@/lib/datetime";
 import { HARCAMA_KATEGORI_ETIKET, type HarcamaKategori } from "@/types/klinik-harcama";
 import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
+import { YONTEM_ETIKETLERI } from "@/types/odeme";
 
 type SupabaseSunucuClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -421,6 +422,7 @@ type RandevuGunlukSatir = {
   hasta: { ad_soyad: string } | null;
   terapist: { personel: { ad_soyad: string } | null } | null;
   islem_tanimi: { ad: string } | null;
+  paket_satis_id: string | null;
 };
 
 type OdemeGunlukSatir = {
@@ -475,7 +477,7 @@ export async function hesaplaGunlukDokum(
   const [randevuSonuc, odemeSonuc, harcamaSonuc, kamusalSonuc] = await Promise.all([
     supabase
       .from("randevu")
-      .select("id, baslangic, durum, hasta_id, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad)")
+      .select("id, baslangic, durum, hasta_id, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad), paket_satis_id")
       .eq("klinik_id", klinikId)
       .gte("baslangic", donem.baslangic)
       .lt("baslangic", donem.bitis)
@@ -533,6 +535,41 @@ export async function hesaplaGunlukDokum(
   const gunlukBedel = (tarih: string, hastaId: string | null) =>
     hastaId ? gunlukBedelMap.get(`${tarih}|${hastaId}`) : undefined;
 
+  // Her randevu satırının bedeli NASIL kapandı (Cariye Ekle mi, yoksa Ödeme
+  // Ekle ile hangi yöntemle mi tahsil edildi) — randevu_id ile doğrudan
+  // bağlı hasta_bakiye_hareket satırlarından (bkz. randevu_seans_bedelini_isle,
+  // migration 20260927150000). Tarih filtresi YOK: borç/ödeme randevunun
+  // kendi gününden SONRA da işlenmiş olabilir (ör. ertesi gün kapatılan bir
+  // seans), o yüzden randevu_id'ye göre ayrı ve tarihsiz sorgulanıyor.
+  const randevuIdler = (randevuSonuc.data ?? []).map((r) => r.id);
+  const { data: kapanisSonuc } = randevuIdler.length
+    ? await supabase
+        .from("hasta_bakiye_hareket")
+        .select("randevu_id, tur, odeme_yontemi")
+        .in("randevu_id", randevuIdler)
+        .in("tur", ["borc", "odeme"])
+        .returns<{ randevu_id: string; tur: string; odeme_yontemi: string | null }[]>()
+    : { data: [] as { randevu_id: string; tur: string; odeme_yontemi: string | null }[] };
+
+  const kapanisMap = new Map<string, { borc: boolean; odemeYontemi: string | null }>();
+  for (const k of kapanisSonuc ?? []) {
+    const mevcut = kapanisMap.get(k.randevu_id) ?? { borc: false, odemeYontemi: null };
+    if (k.tur === "borc") mevcut.borc = true;
+    if (k.tur === "odeme" && k.odeme_yontemi) mevcut.odemeYontemi = k.odeme_yontemi;
+    kapanisMap.set(k.randevu_id, mevcut);
+  }
+
+  function kapanisSekliEtiketi(r: RandevuGunlukSatir): string | null {
+    if (r.paket_satis_id) return "Paketten düşüldü";
+    const durum = kapanisMap.get(r.id);
+    if (!durum) return null;
+    if (durum.odemeYontemi) {
+      const yontemEtiketi = YONTEM_ETIKETLERI[durum.odemeYontemi as keyof typeof YONTEM_ETIKETLERI] ?? durum.odemeYontemi;
+      return `${yontemEtiketi} ile tahsil edildi`;
+    }
+    return durum.borc ? "Cariye eklendi (tahsil edilmedi)" : null;
+  }
+
   const gunler = new Map<string, GunlukOzet>();
   function gunuAl(tarih: string): GunlukOzet {
     let gun = gunler.get(tarih);
@@ -557,6 +594,7 @@ export async function hesaplaGunlukDokum(
       yon: "notr",
       durum: r.durum,
       gunlukBedel: gunlukBedel(tarih, r.hasta_id),
+      kapanisSekli: kapanisSekliEtiketi(r),
     });
   }
 

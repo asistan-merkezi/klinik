@@ -53,6 +53,15 @@ export type GunlukIsKalemi = {
   durum?: string;
   /** Hastaya bağlı kalemlerde (randevu/gelir) o hastanın O GÜNE ait borç satırlarının net toplamı (hasta_bakiye_hareket, tur='borc', tutar-iskonto_tutari) — hastanın genel/güncel cari bakiyesi DEĞİL, yalnız o gün oluşan bedel. O gün borç oluşmadıysa undefined (satır hiç gösterilmez). Hastasız kalemlerde (gider/muhasebe) de yok. */
   gunlukBedel?: number;
+  /**
+   * Yalnız randevu kalemlerinde: bu SEANSIN bedeli nasıl kapandı — "Paketten
+   * düşüldü" / "Cariye eklendi (tahsil edilmedi)" / "{Nakit|Kredi Kartı|Banka
+   * Havalesi} ile tahsil edildi" (bkz. Randevu Çizelgesi'ndeki Cariye Ekle/
+   * Ödeme Ekle, randevu_seans_bedelini_isle). Henüz hiç işlenmediyse null —
+   * gunlukBedel'in aksine bu, o hastanın o GÜNKÜ toplamı değil, doğrudan bu
+   * randevu_id'ye bağlı hasta_bakiye_hareket satırından türer.
+   */
+  kapanisSekli?: string | null;
 };
 
 /** Bir günün tüm iş dökümü — Raporlar > Aylık görünümdeki gün listesi için. */
