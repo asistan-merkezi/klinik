@@ -4,6 +4,7 @@ import Hero from "@/components/landing/Hero";
 import Features from "@/components/landing/Features";
 import StatsBand from "@/components/landing/StatsBand";
 import FinalCta from "@/components/landing/FinalCta";
+import Footer from "@/components/landing/Footer";
 
 export default function HomePage() {
   return (
@@ -15,6 +16,7 @@ export default function HomePage() {
         <StatsBand />
         <FinalCta />
       </main>
+      <Footer />
     </>
   );
 }
