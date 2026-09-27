@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Users, Briefcase, Table2, Clock } from "lucide-react";
+import { Users, Briefcase } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type { PersonelSatir } from "@/types/personel";
@@ -41,6 +40,13 @@ export default async function PersonelSayfasi({
   // açık olan "liste"ye sessizce düşülür — ayrı bir redirect'e gerek yok, sekme
   // çubuğu zaten sadece izinli sekmeleri linkliyor.
   const aktifSekme: PersonelSekme = izinliSekmeler.some((s) => s.key === istenenSekme) ? istenenSekme : "liste";
+
+  // Puantaj sekmesinin artık kendi ara sayfası yok — direkt cetvele yönlendirilir
+  // (sekme çubuğu zaten doğrudan cetvele linkliyor, bu sadece elle ?tab=puantaj
+  // yazılması/eski bookmark için güvenlik ağı).
+  if (aktifSekme === "puantaj") {
+    redirect("/panel/personel/puantaj-cetveli");
+  }
 
   let listeIcerigi: ReactNode = null;
   let hesapIcerigi: ReactNode = null;
@@ -162,35 +168,6 @@ export default async function PersonelSayfasi({
         >
           {aktifSekme === "liste" && listeIcerigi}
           {aktifSekme === "hesap" && hesapIcerigi}
-          {aktifSekme === "puantaj" && (
-            <div className="flex flex-col gap-4">
-              <PageHeader
-                title="Puantaj"
-                description="Devam/izin takibi ve çalışma çizelgesi buradan yönetilir."
-                icon={Clock}
-              />
-
-              <Card className="sm:max-w-sm">
-                <CardContent className="flex flex-col gap-2">
-                  <span className="text-sm font-medium">Puantaj Cetveli</span>
-                  <span className="text-xs text-muted-foreground">
-                    Tüm personelin aylık devam/izin/fazla mesai çizelgesi, tek tabloda.
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-fit"
-                    nativeButton={false}
-                    render={
-                      <Link href="/panel/personel/puantaj-cetveli">
-                        <Table2 /> Cetveli Aç
-                      </Link>
-                    }
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </PersonelSekmeCubugu>
       </div>
     </div>

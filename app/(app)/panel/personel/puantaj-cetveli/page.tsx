@@ -195,7 +195,7 @@ export default async function PuantajCetveliSayfasi({
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel?tab=puantaj">‹ Puantaj</Link>} />
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/panel/personel">‹ Personel</Link>} />
         </div>
 
         <PageHeader

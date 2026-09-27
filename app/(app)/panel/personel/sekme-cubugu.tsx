@@ -33,7 +33,12 @@ export function PersonelSekmeCubugu({
       <TabsList>
         {izinliSekmeler.map((sekme) => {
           const Icon = SEKME_IKONLARI[sekme.key];
-          const href = sekme.key === "liste" ? "/panel/personel" : `/panel/personel?tab=${sekme.key}`;
+          const href =
+            sekme.key === "liste"
+              ? "/panel/personel"
+              : sekme.key === "puantaj"
+                ? "/panel/personel/puantaj-cetveli"
+                : `/panel/personel?tab=${sekme.key}`;
           const rozet = rozetler?.[sekme.key];
           return (
             <TabsTrigger
