@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { YeniRandevuDialog } from "./yeni-randevu-dialog";
@@ -52,6 +53,7 @@ export default async function RandevularSayfasi() {
     protokolSonucu,
     iptalTalepleriSonucu,
     randevuTalepleriSonucu,
+    bankaHesabiSonucu,
   ] = await Promise.all([
       supabase
         .from("randevu")
@@ -81,6 +83,11 @@ export default async function RandevularSayfasi() {
         .eq("durum", "bekliyor")
         .order("created_at")
         .returns<BekleyenRandevuTalebiSatir[]>(),
+      supabase
+        .from("klinik_banka_hesaplari")
+        .select("id, banka_adi, sube")
+        .order("sort_order")
+        .returns<KlinikBankaHesabi[]>(),
     ]);
 
   const randevular = randevularSonucu.data ?? [];
@@ -156,6 +163,7 @@ export default async function RandevularSayfasi() {
             tedaviler={tedaviler}
             antrenorler={antrenorler}
             protokoller={protokoller}
+            bankaHesaplari={bankaHesabiSonucu.data ?? []}
             tarihNavigasyonuGoster
             rol={rol}
             kendiTerapistId={kendiTerapistId}

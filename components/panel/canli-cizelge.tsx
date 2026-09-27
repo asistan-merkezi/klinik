@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
 import { startOfDayUTC, formatDateForInput, formatTimeForInput, formatTime } from "@/lib/datetime";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { Activity, ChevronLeft, ChevronRight, LayoutGrid, List, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BildirimButonu } from "@/components/panel/bildirim-butonu";
@@ -49,7 +50,7 @@ const GORUNUM_BUTON_SINIFI =
   "!border-violet-500/30 !bg-violet-500/10 !text-violet-700 hover:!bg-violet-500/20 dark:!border-violet-500/30 dark:!text-violet-400 dark:hover:!bg-violet-500/20";
 
 const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad)";
+  "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad), tamamlanma_aciklamasi, tamamlanma_tarihi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad)";
 
 export function CanliCizelge({
   baslangicRandevular,
@@ -63,6 +64,7 @@ export function CanliCizelge({
   rol = null,
   kendiTerapistId = null,
   bildirimSayisi,
+  bankaHesaplari = [],
 }: {
   baslangicRandevular: RandevuSatir[];
   odalar: SecenekSatir[];
@@ -79,6 +81,8 @@ export function CanliCizelge({
   kendiTerapistId?: string | null;
   /** Verilirse (Ana Ekran'daki "Günün Çizelgesi") Liste/Çizelge geçiş butonunun yanında Bildirimler butonu gösterilir. */
   bildirimSayisi?: number;
+  /** Tamamlanan seans detayındaki "Ödeme Al" kartı için — bkz. randevu-detay-paneli.tsx. */
+  bankaHesaplari?: KlinikBankaHesabi[];
 }) {
   const router = useRouter();
   const [randevular, setRandevular] = useState(baslangicRandevular);
@@ -533,6 +537,8 @@ export function CanliCizelge({
         tedaviler={tedaviler}
         antrenorler={antrenorler}
         protokoller={protokoller}
+        bankaHesaplari={bankaHesaplari}
+        rol={rol}
       />
     </Card>
   );

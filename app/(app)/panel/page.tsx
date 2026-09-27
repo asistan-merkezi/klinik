@@ -5,6 +5,7 @@ import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import type { RandevuSatir, SecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { BekleyenIptalTalepleri } from "@/app/(app)/panel/randevular/bekleyen-iptal-talepleri";
@@ -74,6 +75,7 @@ export default async function PanelSayfasi() {
     iptalTalepleriSonucu,
     randevuTalepleriSonucu,
     aktifTakipSonucu,
+    bankaHesabiSonucu,
   ] = await Promise.all([
     supabase
       .from("randevu")
@@ -131,6 +133,13 @@ export default async function PanelSayfasi() {
           aktif_protokol_ad: string | null;
         }[]
       >(),
+    finansalGorunur
+      ? supabase
+          .from("klinik_banka_hesaplari")
+          .select("id, banka_adi, sube")
+          .order("sort_order")
+          .returns<KlinikBankaHesabi[]>()
+      : Promise.resolve({ data: [] as KlinikBankaHesabi[] }),
   ]);
 
   const { data: randevular, error } = randevularSonucu;
@@ -205,6 +214,7 @@ export default async function PanelSayfasi() {
                 tedaviler={tedaviler}
                 antrenorler={antrenorler}
                 protokoller={protokoller}
+                bankaHesaplari={bankaHesabiSonucu.data ?? []}
                 rol={rol}
                 kendiTerapistId={kendiTerapistId}
               />

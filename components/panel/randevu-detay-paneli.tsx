@@ -18,12 +18,61 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/datetime";
+import { createClient } from "@/lib/supabase/client";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import { randevuGuncelle } from "@/app/(app)/panel/randevular/actions";
 import { DurumButonlari } from "@/app/(app)/panel/randevular/durum-butonlari";
+import { BakiyeHareketiEkleButonu } from "@/app/(app)/panel/hastalar/[id]/bakiye-hareketi-formu";
 
 function sureDakika(baslangic: string, bitis: string) {
   return Math.round((new Date(bitis).getTime() - new Date(baslangic).getTime()) / 60_000);
+}
+
+/**
+ * Ödeme Ekle diyaloğu güncel bakiyeyi göstermek istiyor, ama bunu tüm günün
+ * randevuları için önceden toplu çekmeye değmez (her hasta farklı) — bu yüzden
+ * kart yalnız açıldığında, o hastanın bakiyesini tek satır sorguyla çeker.
+ */
+function OdemeAlKarti({
+  hastaId,
+  hastaAdSoyad,
+  bankaHesaplari,
+}: {
+  hastaId: string;
+  hastaAdSoyad: string;
+  bankaHesaplari: KlinikBankaHesabi[];
+}) {
+  const [guncelBakiye, setGuncelBakiye] = useState<number | null>(null);
+
+  useEffect(() => {
+    let iptalEdildi = false;
+    setGuncelBakiye(null);
+    createClient()
+      .from("v_hasta_ozet")
+      .select("bakiye")
+      .eq("hasta_id", hastaId)
+      .maybeSingle<{ bakiye: number }>()
+      .then(({ data }) => {
+        if (!iptalEdildi) setGuncelBakiye(data?.bakiye ?? 0);
+      });
+    return () => {
+      iptalEdildi = true;
+    };
+  }, [hastaId]);
+
+  if (guncelBakiye === null) {
+    return <p className="text-sm text-muted-foreground">Bakiye yükleniyor...</p>;
+  }
+
+  return (
+    <BakiyeHareketiEkleButonu
+      hastaId={hastaId}
+      hastaAdSoyad={hastaAdSoyad}
+      bankaHesaplari={bankaHesaplari}
+      guncelBakiye={guncelBakiye}
+    />
+  );
 }
 
 export function RandevuDetayPaneli({
@@ -36,6 +85,8 @@ export function RandevuDetayPaneli({
   tedaviler,
   antrenorler,
   protokoller,
+  bankaHesaplari = [],
+  rol = null,
 }: {
   open: boolean;
   onOpenChange: (acik: boolean) => void;
@@ -46,6 +97,10 @@ export function RandevuDetayPaneli({
   tedaviler: SecenekSatir[];
   antrenorler: SecenekSatir[];
   protokoller: SecenekSatir[];
+  /** Tamamlanan seans özetindeki "Ödeme Ekle" kartı için. */
+  bankaHesaplari?: KlinikBankaHesabi[];
+  /** Ödeme Ekle kartı yalnız klinik_admin/resepsiyon'a gösterilir — Cari & Ödeme'yle aynı yetki. */
+  rol?: string | null;
 }) {
   const guncelleAction = randevuGuncelle.bind(null, randevu?.id ?? "");
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
@@ -92,6 +147,14 @@ export function RandevuDetayPaneli({
               <span>{randevu.tamamlanma_aciklamasi ?? "—"}</span>
             </div>
           </div>
+
+          {(rol === "klinik_admin" || rol === "resepsiyon") && randevu.hasta_id && (
+            <OdemeAlKarti
+              hastaId={randevu.hasta_id}
+              hastaAdSoyad={randevu.hasta?.ad_soyad ?? ""}
+              bankaHesaplari={bankaHesaplari}
+            />
+          )}
         </DialogContent>
       </Dialog>
     );
