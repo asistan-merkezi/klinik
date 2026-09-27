@@ -24,6 +24,9 @@ export type PersonelSatir = {
   aktif: boolean;
   kullanici: { telefon: string | null } | null;
   bilgiler_tamam?: boolean;
+  // Personel Tanımlama'daki (Ayarlar) pozisyon kataloğundan — grup/sıra,
+  // Liste'nin departman bazlı gruplama/sıralamasında kullanılır.
+  pozisyon: { ad: string; grup: string; sira: number } | null;
 };
 
 export type BasvuruDurum = "beklemede" | "olumlu" | "olumsuz";

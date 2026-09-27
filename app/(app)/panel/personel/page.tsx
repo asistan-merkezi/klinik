@@ -66,7 +66,7 @@ export default async function PersonelSayfasi({
     const [{ data: personelSonucu, error }, { data: bilgiDurumu }] = await Promise.all([
       supabase
         .from("personel")
-        .select("id, ad_soyad, gorev, maas, aktif, kullanici:kullanici_id(telefon)")
+        .select("id, ad_soyad, gorev, maas, aktif, kullanici:kullanici_id(telefon), pozisyon:pozisyon_id(ad, grup, sira)")
         .order("ad_soyad")
         .returns<PersonelSatir[]>(),
       supabase.from("v_personel_bilgi_durumu").select("personel_id, bilgiler_tamam"),
