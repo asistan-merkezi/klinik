@@ -13,9 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { OdemeYontemi } from "@/types/odeme";
+import type { OdemeYontemi, BelgeTuru } from "@/types/odeme";
+import { BELGE_TURU_ETIKETLERI } from "@/types/odeme";
 import type { KlinikBankaHesabi } from "@/types/klinik";
 import { OdemeTipiSecici, ODEME_TIPI_ETIKETLERI, ODEME_TIPI_SECILI_SINIFI } from "./odeme-tipi-secici";
+import { BelgeTuruSecici } from "./belge-turu-secici";
 import { bakiyeHareketiEkle } from "./actions";
 import { randevuSeansOdemesiEkle } from "@/app/(app)/panel/randevular/actions";
 
@@ -48,6 +50,7 @@ export function BakiyeHareketiEkleButonu({
   const idOnEki = useId();
   const [acik, setAcik] = useState(false);
   const [odemeTipi, setOdemeTipi] = useState<OdemeYontemi>("nakit");
+  const [belgeTuru, setBelgeTuru] = useState<BelgeTuru>("serbest");
   const [aciklamaMetni, setAciklamaMetni] = useState("");
   const [bankaHesapId, setBankaHesapId] = useState<string | undefined>(undefined);
   const eklemeAction = randevuId ? randevuSeansOdemesiEkle.bind(null, randevuId) : bakiyeHareketiEkle.bind(null, hastaId);
@@ -59,6 +62,7 @@ export function BakiyeHareketiEkleButonu({
     if (durum?.success) {
       setAcik(false);
       setOdemeTipi("nakit");
+      setBelgeTuru("serbest");
       setAciklamaMetni("");
       setBankaHesapId(undefined);
     }
@@ -76,12 +80,13 @@ export function BakiyeHareketiEkleButonu({
     }
   }, [durum, onBasarili]);
 
-  // Ödeme yöntemi (nakit/kredi kartı/havale) hem yapılandırılmış odeme_yontemi
-  // kolonuna hem (geriye dönük görünürlük için) açıklama metnine etiket
-  // olarak ekleniyor (bkz. supabase/migrations/20260916091000).
-  const birlesikAciklama = aciklamaMetni.trim()
-    ? `${ODEME_TIPI_ETIKETLERI[odemeTipi]} — ${aciklamaMetni.trim()}`
-    : ODEME_TIPI_ETIKETLERI[odemeTipi];
+  // Ödeme yöntemi (nakit/kredi kartı/havale) ve belgelendirme cinsi
+  // (fatura/fiş/serbest) hem yapılandırılmış kolonlara (odeme_yontemi,
+  // belge_turu) hem (geriye dönük görünürlük için) açıklama metnine etiket
+  // olarak ekleniyor (bkz. supabase/migrations/20260916091000 ve
+  // .../hasta_bakiye_hareket_belge_turu.sql).
+  const etiketOnEki = `${ODEME_TIPI_ETIKETLERI[odemeTipi]} · ${BELGE_TURU_ETIKETLERI[belgeTuru]}`;
+  const birlesikAciklama = aciklamaMetni.trim() ? `${etiketOnEki} — ${aciklamaMetni.trim()}` : etiketOnEki;
 
   return (
     <>
@@ -112,6 +117,7 @@ export function BakiyeHareketiEkleButonu({
             <input type="hidden" name="tur" value="odeme" />
             <input type="hidden" name="aciklama" value={birlesikAciklama} />
             <input type="hidden" name="odeme_yontemi" value={odemeTipi} />
+            <input type="hidden" name="belge_turu" value={belgeTuru} />
             <input
               type="hidden"
               name="banka_hesap_id"
@@ -128,6 +134,11 @@ export function BakiyeHareketiEkleButonu({
                 }}
                 disabled={isPending}
               />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label>Belgelendirme Cinsi</Label>
+              <BelgeTuruSecici value={belgeTuru} onChange={setBelgeTuru} disabled={isPending} />
             </div>
 
             {odemeTipi === "banka_havalesi" && (

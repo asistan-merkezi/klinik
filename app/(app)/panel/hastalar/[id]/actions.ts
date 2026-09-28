@@ -126,6 +126,7 @@ const bakiyeHareketSemasi = z.object({
   aciklama: z.string().trim().optional(),
   odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"]).optional().or(z.literal("")),
   banka_hesap_id: z.string().trim().optional(),
+  belge_turu: z.enum(["fatura", "fis", "serbest"]).optional().or(z.literal("")),
 });
 
 async function yetkiliHastaVeKlinikGetir(hastaId: string) {
@@ -180,19 +181,20 @@ export async function bakiyeHareketiEkle(
     aciklama: formData.get("aciklama") ?? "",
     odeme_yontemi: formData.get("odeme_yontemi") ?? "",
     banka_hesap_id: formData.get("banka_hesap_id") ?? "",
+    belge_turu: formData.get("belge_turu") ?? "",
   });
 
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { tur, tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id } = ayristirma.data;
+  const { tur, tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id, belge_turu } = ayristirma.data;
   const simdi = new Date();
   const olusturmaZamani = new Date(tarih);
   olusturmaZamani.setHours(simdi.getHours(), simdi.getMinutes(), simdi.getSeconds());
 
-  // odeme_yontemi/banka_hesap_id sadece tur='odeme' iken anlamlı (Kasa/Banka
-  // mutabakatı bunları okuyor) — diğer türlerde (iade/kredi/borc) NULL kalır.
+  // odeme_yontemi/banka_hesap_id/belge_turu sadece tur='odeme' iken anlamlı
+  // (Kasa/Banka mutabakatı ilk ikisini okuyor) — diğer türlerde (iade/kredi/borc) NULL kalır.
   const { error } = await supabase.from("hasta_bakiye_hareket").insert({
     klinik_id: klinikId,
     hasta_id: hastaId,
@@ -202,6 +204,7 @@ export async function bakiyeHareketiEkle(
     created_at: olusturmaZamani.toISOString(),
     odeme_yontemi: tur === "odeme" && odeme_yontemi ? odeme_yontemi : null,
     banka_hesap_id: tur === "odeme" && odeme_yontemi === "banka_havalesi" && banka_hesap_id ? banka_hesap_id : null,
+    belge_turu: tur === "odeme" && belge_turu ? belge_turu : null,
   });
 
   if (error) {

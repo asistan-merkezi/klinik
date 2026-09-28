@@ -6,6 +6,15 @@ export const YONTEM_ETIKETLERI: Record<OdemeYontemi, string> = {
   banka_havalesi: "Banka Havalesi",
 };
 
+/** Ödeme Ekle formundaki "Belgelendirme Cinsi" — hastaya o ödeme için hangi belgenin verildiği (bkz. hasta_bakiye_hareket.belge_turu). */
+export type BelgeTuru = "fatura" | "fis" | "serbest";
+
+export const BELGE_TURU_ETIKETLERI: Record<BelgeTuru, string> = {
+  fatura: "Fatura",
+  fis: "Fiş",
+  serbest: "Serbest",
+};
+
 export type SatilabilirUrun = {
   id: string;
   ad: string;

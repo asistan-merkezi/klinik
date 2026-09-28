@@ -336,6 +336,7 @@ const seansBedelOdemeSemasi = z.object({
   aciklama: z.string().trim().optional(),
   odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"]),
   banka_hesap_id: z.string().trim().optional(),
+  belge_turu: z.enum(["fatura", "fis", "serbest"]).optional().or(z.literal("")),
 });
 
 /**
@@ -403,11 +404,12 @@ export async function randevuSeansOdemesiEkle(
     aciklama: formData.get("aciklama") ?? "",
     odeme_yontemi: formData.get("odeme_yontemi"),
     banka_hesap_id: formData.get("banka_hesap_id") ?? "",
+    belge_turu: formData.get("belge_turu") ?? "",
   });
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
-  const { tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id } = ayristirma.data;
+  const { tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id, belge_turu } = ayristirma.data;
 
   const simdi = new Date();
   const odemeTarihi = new Date(tarih);
@@ -420,6 +422,7 @@ export async function randevuSeansOdemesiEkle(
     p_banka_hesap_id: banka_hesap_id || null,
     p_aciklama: aciklama ? aciklama : null,
     p_odeme_tarihi: odemeTarihi.toISOString(),
+    p_belge_turu: belge_turu || null,
   });
 
   if (error) {
