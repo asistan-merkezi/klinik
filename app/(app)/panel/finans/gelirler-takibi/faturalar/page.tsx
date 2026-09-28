@@ -10,6 +10,7 @@ import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import { raporAyDonemi, raporGunDonemi, raporYilDonemi, type RaporDonemi } from "@/lib/raporlar/donem";
 import type { FaturaSatir } from "@/types/odeme";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
+import { kdvAyristir } from "@/lib/fatura/kdv-hesapla";
 import { FinansBorcSatiriBileseni, type FinansBorcSatiri } from "./borc-satiri";
 
 type BorcSorguSatiri = {
@@ -21,7 +22,7 @@ type BorcSorguSatiri = {
   created_at: string;
   hasta: { ad_soyad: string; eposta: string | null } | null;
   randevu: {
-    islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null } | null;
+    islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null; kdv_orani: number } | null;
   } | null;
   odeme: { fatura: FaturaSatir[] } | null;
 };
@@ -131,7 +132,7 @@ export default async function FaturalarSayfasi({
     .select(
       "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
         "hasta(ad_soyad, eposta), " +
-        "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi)), " +
+        "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani)), " +
         "odeme(fatura(id, durum, hata_mesaji, e_arsiv_pdf_url))"
     )
     .eq("tur", "borc")
@@ -162,6 +163,14 @@ export default async function FaturalarSayfasi({
       adres: hassas?.adres ?? null,
       kimlikNo: hassas?.kimlik_no ?? null,
     };
+    // Toplam Tutar = hastadan bu satır için fiilen tahsil edilen (iskonto
+    // sonrası, KDV dahil) net tutar — bkz. hasta_bakiye_hareket_borc_duzenle
+    // RPC'sindeki v_net_toplam. Tutar/KDV bundan geriye doğru ayrıştırılır
+    // (kdvAyristir), tedavinin islem_tanimi.kdv_orani'na göre; randevusuz
+    // (ör. paket) borçlarda oran bilinmediği için 0 kabul edilir.
+    const toplamTutar = Math.max(b.tutar - b.iskonto_tutari, 0);
+    const kdvOrani = b.randevu?.islem_tanimi?.kdv_orani ?? 0;
+    const { matrah, kdvTutari } = kdvAyristir(toplamTutar, kdvOrani);
     return {
       id: b.id,
       hastaAdSoyad: b.hasta?.ad_soyad ?? "—",
@@ -169,6 +178,9 @@ export default async function FaturalarSayfasi({
         b.randevu?.islem_tanimi?.muhasebe_hizmet_ismi ?? b.randevu?.islem_tanimi?.ad ?? b.aciklama ?? "Borç",
       tutar: b.tutar,
       iskontoTutari: b.iskonto_tutari,
+      matrah,
+      kdvTutari,
+      toplamTutar,
       createdAt: b.created_at,
       fatura: b.odeme?.fatura?.[0] ?? null,
       faturaBilgisi,
@@ -298,11 +310,12 @@ export default async function FaturalarSayfasi({
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Tarih</TableHead>
+                <TableHead>Saat</TableHead>
                 <TableHead>Hasta</TableHead>
                 <TableHead>Açıklama</TableHead>
                 <TableHead className="text-right">Tutar</TableHead>
-                <TableHead className="text-right">İskonto</TableHead>
-                <TableHead className="text-right">Net</TableHead>
+                <TableHead className="text-right">KDV</TableHead>
+                <TableHead className="text-right">Toplam Tutar</TableHead>
                 <TableHead>Durum</TableHead>
               </TableRow>
             </TableHeader>
