@@ -20,14 +20,16 @@ type BorcSorguSatiri = {
   iskonto_tutari: number;
   aciklama: string | null;
   created_at: string;
-  hasta: { ad_soyad: string; eposta: string | null } | null;
+  hasta: {
+    ad_soyad: string;
+    eposta: string | null;
+    hasta_hassas: { kimlik_no: string | null; adres: string | null } | null;
+  } | null;
   randevu: {
     islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null; kdv_orani: number } | null;
   } | null;
   odeme: { fatura: FaturaSatir[] } | null;
 };
-
-type HastaHassasSatiri = { hasta_id: string; kimlik_no: string | null; adres: string | null };
 
 /** Saf "YYYY-MM-DD" takvim tarihine gün ekler — raporlar/page.tsx'teki aynı yardımcının birebir aynısı. */
 function gunEkle(tarih: string, delta: number): string {
@@ -131,7 +133,11 @@ export default async function FaturalarSayfasi({
     .from("hasta_bakiye_hareket")
     .select(
       "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
-        "hasta(ad_soyad, eposta), " +
+        // hasta_hassas embed'le aynı sorguda (1-1, PK = hasta_id) — önceden
+        // ayrı bir .in("hasta_id", [...]) sorgusuydu; Yıllık görünümde (limit
+        // yok) yüzlerce id GET URL'sini şişirip sorguyu düşürüyor ve her satır
+        // "eksik bilgi" görünüyordu.
+        "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, adres)), " +
         "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani)), " +
         "odeme(fatura(id, durum, hata_mesaji, e_arsiv_pdf_url))"
     )
@@ -143,20 +149,9 @@ export default async function FaturalarSayfasi({
   const { data } = await sorgu.returns<BorcSorguSatiri[]>();
 
   const borclar = data ?? [];
-  const hastaIdler = [...new Set(borclar.map((b) => b.hasta_id))];
-
-  const { data: hassasData } = hastaIdler.length
-    ? await supabase
-        .from("hasta_hassas")
-        .select("hasta_id, kimlik_no, adres")
-        .in("hasta_id", hastaIdler)
-        .returns<HastaHassasSatiri[]>()
-    : { data: [] as HastaHassasSatiri[] };
-
-  const hassasMap = new Map((hassasData ?? []).map((h) => [h.hasta_id, h]));
 
   const satirlar: FinansBorcSatiri[] = borclar.map((b) => {
-    const hassas = hassasMap.get(b.hasta_id);
+    const hassas = b.hasta?.hasta_hassas;
     const faturaBilgisi: FaturaBilgisiKontrol = {
       adSoyad: b.hasta?.ad_soyad ?? null,
       eposta: b.hasta?.eposta ?? null,

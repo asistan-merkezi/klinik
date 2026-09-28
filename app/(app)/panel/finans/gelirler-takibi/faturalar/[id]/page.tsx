@@ -19,7 +19,11 @@ type BorcDetaySatiri = {
   iskonto_tutari: number;
   aciklama: string | null;
   created_at: string;
-  hasta: { ad_soyad: string; eposta: string | null } | null;
+  hasta: {
+    ad_soyad: string;
+    eposta: string | null;
+    hasta_hassas: { kimlik_no: string | null; adres: string | null } | null;
+  } | null;
   randevu: {
     islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null; kdv_orani: number } | null;
   } | null;
@@ -56,7 +60,7 @@ export default async function FaturaDetaySayfasi({ params }: { params: Promise<{
     .from("hasta_bakiye_hareket")
     .select(
       "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
-        "hasta(ad_soyad, eposta), " +
+        "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, adres)), " +
         "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani))"
     )
     .eq("id", id)
@@ -67,11 +71,7 @@ export default async function FaturaDetaySayfasi({ params }: { params: Promise<{
     notFound();
   }
 
-  const { data: hassas } = await supabase
-    .from("hasta_hassas")
-    .select("kimlik_no, adres")
-    .eq("hasta_id", hareket.hasta_id)
-    .maybeSingle<{ kimlik_no: string | null; adres: string | null }>();
+  const hassas = hareket.hasta?.hasta_hassas ?? null;
 
   const faturaBilgisi: FaturaBilgisiKontrol = {
     adSoyad: hareket.hasta?.ad_soyad ?? null,

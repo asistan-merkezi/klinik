@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { toUTC } from "@/lib/datetime";
+import { tarihiSimdikiSaatleUTC, toUTC } from "@/lib/datetime";
 import { whatsappLinkOlustur } from "@/lib/utils";
 import type { RandevuDurum } from "@/types/randevu";
 import { GUN_ETIKETI, type HaftaninGunu } from "@/types/periyodik-randevu";
@@ -354,7 +354,14 @@ export async function randevuSeansBedeliniCariyeEkle(randevuId: string): Promise
     redirect("/giris");
   }
 
-  const { data, error } = await supabase.rpc("randevu_seans_bedelini_isle", { p_randevu_id: randevuId });
+  // p_belge_turu açıkça gönderiliyor: 20260928091500 fonksiyonun 6 ve 7
+  // parametreli iki overload'unu birlikte bıraktı, yalnız p_randevu_id ile
+  // çağrı PostgREST'te PGRST203 (belirsiz aday) veriyordu. 20260928100000 eski
+  // overload'u siliyor; bu anahtar ondan önce/sonra her iki durumda da doğru.
+  const { data, error } = await supabase.rpc("randevu_seans_bedelini_isle", {
+    p_randevu_id: randevuId,
+    p_belge_turu: null,
+  });
   if (error) {
     console.error("Seans bedeli cariye eklenemedi:", error);
     if (error.message?.includes("seans_tamamlanmamis")) {
@@ -411,9 +418,6 @@ export async function randevuSeansOdemesiEkle(
   }
   const { tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id, belge_turu } = ayristirma.data;
 
-  const simdi = new Date();
-  const odemeTarihi = new Date(tarih);
-  odemeTarihi.setHours(simdi.getHours(), simdi.getMinutes(), simdi.getSeconds());
 
   const { data, error } = await supabase.rpc("randevu_seans_bedelini_isle", {
     p_randevu_id: randevuId,
@@ -421,7 +425,7 @@ export async function randevuSeansOdemesiEkle(
     p_odeme_yontemi: odeme_yontemi,
     p_banka_hesap_id: banka_hesap_id || null,
     p_aciklama: aciklama ? aciklama : null,
-    p_odeme_tarihi: odemeTarihi.toISOString(),
+    p_odeme_tarihi: tarihiSimdikiSaatleUTC(tarih),
     p_belge_turu: belge_turu || null,
   });
 
@@ -441,8 +445,14 @@ export async function randevuSeansOdemesiEkle(
     revalidateHastaDetay(sonuc.hasta_id);
   }
 
+  // RPC zaten işlenmiş bir seansta erken döner ve ödeme satırını da YAZMAZ
+  // (çift tıklamada mükerrer ödeme olmasın diye) — bunu başarı gibi
+  // raporlarsak girilen ödeme sessizce kaybolur.
   if (sonuc?.yontem === "zaten_islendi") {
-    return { success: true, message: "Bu seansın bedeli zaten işlenmişti." };
+    return {
+      success: false,
+      message: "Bu seansın bedeli zaten işlenmiş, ödeme kaydedilmedi. Ödemeyi hastanın Cari & Ödeme sekmesinden ekleyin.",
+    };
   }
 
   return { success: true, message: "Ödeme kaydedildi." };

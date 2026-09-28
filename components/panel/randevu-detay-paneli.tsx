@@ -223,6 +223,7 @@ export function RandevuDetayPaneli({
             (rol === "klinik_admin" || rol === "resepsiyon") &&
             randevu.hasta_id && (
               <OdemeVeyaCariKarti
+                key={randevu.id}
                 randevu={randevu}
                 bankaHesaplari={bankaHesaplari}
                 onSeansBedeliIslendi={onSeansBedeliIslendi}

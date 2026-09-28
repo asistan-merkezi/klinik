@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,11 +74,18 @@ export function BakiyeHareketiEkleButonu({
   // çağrılmalı, aksi halde "Cannot update a component while rendering a
   // different component" örüntüsüne düşer ve prod build'de sessizce
   // uygulanmayabilir (bkz. randevu-detay-paneli.tsx'teki aynı düzeltme).
+  // Çağıranlar onBasarili'yi inline arrow olarak geçiyor (her render'da yeni
+  // kimlik) — deps'e koymak, durum başarılı kaldığı sürece her render'da
+  // yeniden tetiklenmesine yol açardı; ref ile yalnız yeni bir sonuçta çalışır.
+  const onBasariliRef = useRef(onBasarili);
+  useEffect(() => {
+    onBasariliRef.current = onBasarili;
+  });
   useEffect(() => {
     if (durum?.success) {
-      onBasarili?.();
+      onBasariliRef.current?.();
     }
-  }, [durum, onBasarili]);
+  }, [durum]);
 
   // Ödeme yöntemi (nakit/kredi kartı/havale) ve belgelendirme cinsi
   // (fatura/fiş/serbest) hem yapılandırılmış kolonlara (odeme_yontemi,

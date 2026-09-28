@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { tarihiSimdikiSaatleUTC } from "@/lib/datetime";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
@@ -189,9 +190,6 @@ export async function bakiyeHareketiEkle(
   }
 
   const { tur, tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id, belge_turu } = ayristirma.data;
-  const simdi = new Date();
-  const olusturmaZamani = new Date(tarih);
-  olusturmaZamani.setHours(simdi.getHours(), simdi.getMinutes(), simdi.getSeconds());
 
   // odeme_yontemi/banka_hesap_id/belge_turu sadece tur='odeme' iken anlamlı
   // (Kasa/Banka mutabakatı ilk ikisini okuyor) — diğer türlerde (iade/kredi/borc) NULL kalır.
@@ -201,7 +199,7 @@ export async function bakiyeHareketiEkle(
     tur,
     tutar,
     aciklama: aciklama ? aciklama : null,
-    created_at: olusturmaZamani.toISOString(),
+    created_at: tarihiSimdikiSaatleUTC(tarih),
     odeme_yontemi: tur === "odeme" && odeme_yontemi ? odeme_yontemi : null,
     banka_hesap_id: tur === "odeme" && odeme_yontemi === "banka_havalesi" && banka_hesap_id ? banka_hesap_id : null,
     belge_turu: tur === "odeme" && belge_turu ? belge_turu : null,

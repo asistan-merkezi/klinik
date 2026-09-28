@@ -48,6 +48,17 @@ export function bugunIstanbulTarihi(): string {
   return formatInTimeZone(new Date(), CLINIC_TZ, "yyyy-MM-dd");
 }
 
+/**
+ * Formdan gelen "yyyy-MM-dd" takvim tarihini, şu anın İstanbul saatiyle
+ * birleştirip UTC ISO string'e çevirir (ödeme/bakiye hareketi kayıt zamanı).
+ * Çıplak `new Date(tarih).setHours(...)` sunucunun TZ'sine (Vercel'de UTC)
+ * bağlıydı — İstanbul'da 00:00-03:00 arası girilen kayıt ertesi güne kayıyordu.
+ */
+export function tarihiSimdikiSaatleUTC(tarih: string): string {
+  const saat = formatInTimeZone(new Date(), CLINIC_TZ, "HH:mm:ss");
+  return toUTC(`${tarih}T${saat}`);
+}
+
 /** UTC ISO -> `<input type="time">` için İstanbul saatiyle "HH:mm". */
 export function formatTimeForInput(utcIso: string): string {
   return formatTime(utcIso);
