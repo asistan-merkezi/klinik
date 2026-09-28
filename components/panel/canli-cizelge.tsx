@@ -167,6 +167,29 @@ export function CanliCizelge({
 
   const gunBaslangicMs = useMemo(() => gunBaslangiciMs(new Date(seciliTarih)), [seciliTarih]);
 
+  /**
+   * "Cariye Ekle"/"Ödeme Ekle" başarıyla tamamlanınca çağrılır. Realtime
+   * aboneliği yalnız `randevu` tablosunu izliyor (yukarıdaki useEffect) —
+   * bu randevuya bağlı yeni bir `hasta_bakiye_hareket` satırı aynı sekmede
+   * kendiliğinden yansımaz, sayfa yenilenene kadar kutu amber ve dialog
+   * "Cariye Ekle" kartını göstermeye devam eder. Bunun yerine hem listede
+   * hem (dialog açıkken) seçili randevuda `hasta_bakiye_hareket`'e optimistik
+   * bir 'borc' satırı ekleyip gerçek DB durumunu önceden yansıtıyoruz —
+   * bir sonraki `listeyiYenile()` (randevu tablosunda başka bir değişiklik
+   * olduğunda) zaten gerçek veriyle üzerine yazacak.
+   */
+  function randevuBakiyeHareketiOptimistikEkle(randevuId: string) {
+    const guncelle = (r: RandevuSatir): RandevuSatir =>
+      r.id === randevuId
+        ? {
+            ...r,
+            hasta_bakiye_hareket: [...(r.hasta_bakiye_hareket ?? []), { id: `optimistik-${randevuId}`, tur: "borc" }],
+          }
+        : r;
+    setRandevular((prev) => prev.map(guncelle));
+    setSeciliRandevu((prev) => (prev ? guncelle(prev) : prev));
+  }
+
   function gunKaydir(delta: number) {
     const yeni = new Date(seciliTarih);
     yeni.setUTCDate(yeni.getUTCDate() + delta);
@@ -539,6 +562,7 @@ export function CanliCizelge({
         protokoller={protokoller}
         bankaHesaplari={bankaHesaplari}
         rol={rol}
+        onSeansBedeliIslendi={randevuBakiyeHareketiOptimistikEkle}
       />
     </Card>
   );

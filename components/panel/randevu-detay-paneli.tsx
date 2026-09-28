@@ -50,9 +50,19 @@ function sureDakika(baslangic: string, bitis: string) {
 function OdemeVeyaCariKarti({
   randevu,
   bankaHesaplari,
+  onSeansBedeliIslendi,
 }: {
   randevu: RandevuSatir;
   bankaHesaplari: KlinikBankaHesabi[];
+  /**
+   * Cariye Ekle/Ödeme Ekle başarıyla tamamlanınca çağrılır — Randevu
+   * Çizelgesi'nin (CanliCizelge) elindeki randevu listesini ve o an açık
+   * seçili randevuyu, sayfa yenilenmeden ("hasta_bakiye_hareket" değişikliği
+   * realtime'da izlenmediği için, bkz. canli-cizelge.tsx RANDEVU_SELECT
+   * notu) optimistik olarak günceller — aksi halde dialog kapanıp yeniden
+   * açıldığında ya da kutu renginde işlem "yapılmamış" gibi görünür.
+   */
+  onSeansBedeliIslendi?: (randevuId: string) => void;
 }) {
   const hastaId = randevu.hasta_id ?? "";
   const zatenIslendi = (randevu.hasta_bakiye_hareket ?? []).some((h) => h.tur === "borc");
@@ -84,6 +94,7 @@ function OdemeVeyaCariKarti({
       const sonuc = await randevuSeansBedeliniCariyeEkle(randevu.id);
       if (sonuc?.success) {
         setHesapKapandi(true);
+        onSeansBedeliIslendi?.(randevu.id);
       } else {
         setHata(sonuc?.message ?? "İşlem yapılamadı, lütfen tekrar deneyin.");
       }
@@ -110,7 +121,10 @@ function OdemeVeyaCariKarti({
           bankaHesaplari={bankaHesaplari}
           guncelBakiye={guncelBakiye}
           randevuId={randevu.id}
-          onBasarili={() => setHesapKapandi(true)}
+          onBasarili={() => {
+            setHesapKapandi(true);
+            onSeansBedeliIslendi?.(randevu.id);
+          }}
         />
         <Button type="button" size="sm" variant="clinical" disabled={isPending} onClick={cariyeEkle}>
           <Wallet />
@@ -138,6 +152,7 @@ export function RandevuDetayPaneli({
   protokoller,
   bankaHesaplari = [],
   rol = null,
+  onSeansBedeliIslendi,
 }: {
   open: boolean;
   onOpenChange: (acik: boolean) => void;
@@ -152,21 +167,24 @@ export function RandevuDetayPaneli({
   bankaHesaplari?: KlinikBankaHesabi[];
   /** Ödeme Ekle kartı yalnız klinik_admin/resepsiyon'a gösterilir — Cari & Ödeme'yle aynı yetki. */
   rol?: string | null;
+  /** bkz. OdemeVeyaCariKarti'ndeki aynı isimli prop açıklaması. */
+  onSeansBedeliIslendi?: (randevuId: string) => void;
 }) {
   const guncelleAction = randevuGuncelle.bind(null, randevu?.id ?? "");
   const [durum, formAction, isPending] = useActionState(guncelleAction, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
+  // onOpenChange render SIRASINDA değil, durum gerçekten değiştiğinde (yeni
+  // bir submit sonucu) çağrılmalı — render sırasında başka bir bileşenin
+  // (CanliCizelge) state'ini güncellemek React'ta izin verilmeyen bir örüntü
+  // ("Cannot update a component while rendering a different component") ve
+  // prod build'de sessizce diyaloğun hiç kapanmamasına yol açıyordu (dev'de
+  // konsol uyarısı üretiyor ama build'de uyarılar elenip davranış bozuk
+  // kalıyor).
   useEffect(() => {
-    setGorulenDurum(null);
-  }, [randevu?.id]);
-
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
     if (durum?.success) {
       onOpenChange(false);
     }
-  }
+  }, [durum, onOpenChange]);
 
   if (!randevu) {
     return null;
@@ -203,7 +221,13 @@ export function RandevuDetayPaneli({
             <p className="text-sm font-medium text-muted-foreground">Paketten düşülmüştür.</p>
           ) : (
             (rol === "klinik_admin" || rol === "resepsiyon") &&
-            randevu.hasta_id && <OdemeVeyaCariKarti randevu={randevu} bankaHesaplari={bankaHesaplari} />
+            randevu.hasta_id && (
+              <OdemeVeyaCariKarti
+                randevu={randevu}
+                bankaHesaplari={bankaHesaplari}
+                onSeansBedeliIslendi={onSeansBedeliIslendi}
+              />
+            )
           )}
         </DialogContent>
       </Dialog>

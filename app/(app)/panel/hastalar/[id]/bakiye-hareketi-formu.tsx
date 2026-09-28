@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,9 +61,20 @@ export function BakiyeHareketiEkleButonu({
       setOdemeTipi("nakit");
       setAciklamaMetni("");
       setBankaHesapId(undefined);
-      onBasarili?.();
     }
   }
+
+  // onBasarili başka bir bileşenin (ör. bu dialogun açıldığı
+  // OdemeVeyaCariKarti/CanliCizelge, optimistik liste güncellemesi için)
+  // state'ini günceller — render SIRASINDA değil, commit sonrası bir efektte
+  // çağrılmalı, aksi halde "Cannot update a component while rendering a
+  // different component" örüntüsüne düşer ve prod build'de sessizce
+  // uygulanmayabilir (bkz. randevu-detay-paneli.tsx'teki aynı düzeltme).
+  useEffect(() => {
+    if (durum?.success) {
+      onBasarili?.();
+    }
+  }, [durum, onBasarili]);
 
   // Ödeme yöntemi (nakit/kredi kartı/havale) hem yapılandırılmış odeme_yontemi
   // kolonuna hem (geriye dönük görünürlük için) açıklama metnine etiket
