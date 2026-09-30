@@ -122,3 +122,56 @@ export function useDoluKaynaklarCoklu(slotlar: { tarih: string; saat: string }[]
     },
   });
 }
+
+/**
+ * Tedavi tanımındaki cihazlı adımların pencereleri (randevu başlangıcından
+ * itibaren adımlar sırayla dizilir) mevcut cihaz rezervasyonlarıyla çakışıyor mu?
+ * DB'deki asıl kural `randevu_cihaz_rezervasyon` exclusion kısıtıdır (bkz.
+ * 20260930140000 migration'ı); bu yalnız formda erken uyarı içindir. Tablo
+ * henüz yoksa/sorgu hata verirse SESSİZCE boş döner (fail-open) — kayıt zaten
+ * DB'de denetlenir.
+ */
+export function useCihazCakismalari(
+  tarih: string,
+  saat: string,
+  adimlar: { sure_dakika: number | null; cihaz_id: string | null; cihaz_ad: string | null }[],
+  toplamSure: number
+) {
+  const cihazliAdimVar = adimlar.some((a) => a.cihaz_id);
+  const adimAnahtari = adimlar.map((a) => `${a.cihaz_id}:${a.sure_dakika}`).join("|");
+  return useQuery({
+    queryKey: ["randevu_cihaz_cakismalari", tarih, saat, adimAnahtari, toplamSure],
+    enabled: tarih !== "" && saat !== "" && cihazliAdimVar,
+    queryFn: async () => {
+      const baslangic = new Date(toUTC(`${tarih}T${saat}:00`)).getTime();
+      const pencereler: { cihazId: string; ad: string; bas: number; bit: number }[] = [];
+      let imlec = baslangic;
+      for (const a of adimlar) {
+        const bit = a.sure_dakika ? imlec + a.sure_dakika * 60_000 : Math.max(baslangic + toplamSure * 60_000, imlec);
+        if (a.cihaz_id && bit > imlec) pencereler.push({ cihazId: a.cihaz_id, ad: a.cihaz_ad ?? "Cihaz", bas: imlec, bit });
+        imlec = bit;
+      }
+      if (pencereler.length === 0) return [];
+
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("randevu_cihaz_rezervasyon")
+        .select("cihaz_id, baslangic, bitis")
+        .lt("baslangic", new Date(Math.max(...pencereler.map((p) => p.bit))).toISOString())
+        .gt("bitis", new Date(baslangic).toISOString())
+        .returns<{ cihaz_id: string; baslangic: string; bitis: string }[]>();
+      if (error || !data) return [];
+
+      return pencereler
+        .filter((p) =>
+          data.some(
+            (r) =>
+              r.cihaz_id === p.cihazId &&
+              new Date(r.baslangic).getTime() < p.bit &&
+              new Date(r.bitis).getTime() > p.bas
+          )
+        )
+        .map((p) => ({ ad: p.ad, bas: new Date(p.bas).toISOString(), bit: new Date(p.bit).toISOString() }));
+    },
+  });
+}

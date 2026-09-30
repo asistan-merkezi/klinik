@@ -67,6 +67,7 @@ export type SecenekSatir = {
 export type TedaviAdimSatir = {
   ad: string;
   sure_dakika: number | null;
+  cihaz_id: string | null;
   cihaz_ad: string | null;
 };
 

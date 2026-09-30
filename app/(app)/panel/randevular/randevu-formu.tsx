@@ -12,12 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateForInput } from "@/lib/datetime";
+import { formatDateForInput, formatTime } from "@/lib/datetime";
 import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import { randevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
 import { KayitliPaketler } from "./kayitli-paketler";
-import { useDoluKaynaklar, useTedaviEtkinFiyat } from "./queries";
+import { useCihazCakismalari, useDoluKaynaklar, useTedaviEtkinFiyat } from "./queries";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -109,6 +109,9 @@ export function RandevuFormu({
   const musaitOdalar = dolu ? odalar.filter((o) => !dolu.odalar.has(o.id)) : odalar;
   // Seçim, zaman değişince dolu hâle gelirse sessizce sıfırlanır (render sırasında
   // türetilen değer; state'e dokunmadan gönderilen değer buna göre boşalır).
+  // Tedavi tanımındaki cihazlı adımlar (başlangıçtan itibaren sırayla) o saatte doluysa uyarı + kayıt engeli.
+  const { data: cihazCakismalari } = useCihazCakismalari(zamanHazir ? tarih : "", zamanHazir ? saat : "", seciliTedavi?.adimlar ?? [], toplamSure);
+  const cihazCakisiyor = (cihazCakismalari?.length ?? 0) > 0;
   const efektifTerapistId = uygunTerapistler.some((t) => t.id === terapistId) ? terapistId : "";
   const efektifOdaId = musaitOdalar.some((o) => o.id === odaId) ? odaId : "";
 
@@ -350,6 +353,19 @@ export function RandevuFormu({
         )}
       </div>
 
+      {cihazCakisiyor && (
+        <ul
+          role="alert"
+          className="flex flex-col gap-1 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950"
+        >
+          {cihazCakismalari?.map((c, i) => (
+            <li key={i}>
+              <span className="font-medium">{c.ad}</span> {formatTime(c.bas)}–{formatTime(c.bit)} arasında dolu — başka bir saat seçin.
+            </li>
+          ))}
+        </ul>
+      )}
+
       {durum && (
         <p
           role="alert"
@@ -359,7 +375,7 @@ export function RandevuFormu({
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="w-fit">
+      <Button type="submit" disabled={isPending || cihazCakisiyor} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Randevu oluştur"}
       </Button>
     </form>

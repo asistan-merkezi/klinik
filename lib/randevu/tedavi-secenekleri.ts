@@ -11,6 +11,7 @@ type TedaviSatir = {
         sira: number;
         sure_dakika: number | null;
         uygulayici_pozisyon_id: string | null;
+        gerekli_cihaz_id: string | null;
         cihaz: { ad: string } | null;
       }[]
     | null;
@@ -27,7 +28,7 @@ export async function tedaviSecenekleriGetir(
 ): Promise<TedaviSecenekSatir[]> {
   const { data } = await supabase
     .from("islem_tanimi")
-    .select("id, ad, sure_dakika, islem_tanimi_adim(ad, sira, sure_dakika, uygulayici_pozisyon_id, cihaz:gerekli_cihaz_id(ad))")
+    .select("id, ad, sure_dakika, islem_tanimi_adim(ad, sira, sure_dakika, uygulayici_pozisyon_id, gerekli_cihaz_id, cihaz:gerekli_cihaz_id(ad))")
     .eq("aktif", true)
     .order("ad")
     .returns<TedaviSatir[]>();
@@ -45,6 +46,6 @@ export async function tedaviSecenekleriGetir(
     ),
     adimlar: [...(t.islem_tanimi_adim ?? [])]
       .sort((a, b) => a.sira - b.sira)
-      .map((a) => ({ ad: a.ad, sure_dakika: a.sure_dakika, cihaz_ad: a.cihaz?.ad ?? null })),
+      .map((a) => ({ ad: a.ad, sure_dakika: a.sure_dakika, cihaz_id: a.gerekli_cihaz_id, cihaz_ad: a.cihaz?.ad ?? null })),
   }));
 }
