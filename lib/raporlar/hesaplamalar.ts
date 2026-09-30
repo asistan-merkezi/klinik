@@ -14,7 +14,7 @@ import { raporYilDonemi, yilinAylari } from "@/lib/raporlar/donem";
 import { formatDateForInput, formatTime } from "@/lib/datetime";
 import { HARCAMA_KATEGORI_ETIKET, type HarcamaKategori } from "@/types/klinik-harcama";
 import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
-import { YONTEM_ETIKETLERI } from "@/types/odeme";
+import { BELGE_TURU_ETIKETLERI, YONTEM_ETIKETLERI } from "@/types/odeme";
 
 type SupabaseSunucuClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -243,55 +243,88 @@ export async function hesaplaMuhasebeGideri(
   return (data ?? []).reduce((acc, satir) => acc + satir.tutar, 0);
 }
 
-type OdemeGelirSatiri = {
-  faturali: boolean;
-  iskonto_tutari: number;
-  odeme_kalemi: { miktar: number; birim_fiyat: number }[];
+type TahsilatSatiri = {
+  id: string;
+  created_at: string;
+  tur: "odeme" | "iade";
+  tutar: number;
+  odeme_yontemi: string | null;
 };
 
+/** PostgREST/Supabase varsayılan en çok 1000 satır döner; sessiz kesilmemesi için sayfalı çeker. */
+const TAHSILAT_SAYFA_BOYUTU = 1000;
+
 /**
- * Gelir: KDV'li (brüt)/KDV'siz (net) ayrımı artık KDV oranından değil,
- * ödemenin faturalı olup olmadığından geliyor (kullanıcı kararı) — faturalı
- * satışlar KDV'li (brüt) tutarında, faturasız satışlar KDV'siz (net)
- * tutarında toplanıyor. Gerçek KDV tutarı zaten Muhasebe (Vergi, SGK)
- * bölümünde ayrıca raporlandığı için burada tekrar hesaplanmıyor. İskonto
- * tek kalemde (iskontoToplam) ayrıca raporlanır; faturalı ödemelerin
- * `fatura` tablosundaki karşılığı burada tekrar sayılmaz (ayrı bir
- * gelir/gider kalemi değil, aynı gelirin belgesi).
+ * Bir dönemdeki gerçek tahsilat/iade satırları: hasta_bakiye_hareket'te
+ * tur IN ('odeme','iade'). Kasa/Banka/Kredi Kartı ile AYNI kaynak — önceden
+ * Raporlar `odeme` tablosunu okuyordu ama o tabloya yalnız bir borç
+ * "faturalı" işaretlenince satır yazılıyordu (bkz. CLAUDE.md > Raporlar):
+ * faturalı-ama-ödenmemiş borç gelir sayılıyor, faturasız nakit tahsilat hiç
+ * sayılmıyordu. `select` çağıranın ihtiyacına göre genişletilebilir (ek kolon/embed).
+ */
+async function tahsilatSatirlariniGetir<T extends TahsilatSatiri>(
+  supabase: SupabaseSunucuClient,
+  klinikId: string,
+  baslangic: string,
+  bitis: string,
+  select = "id, created_at, tur, tutar, odeme_yontemi"
+): Promise<T[]> {
+  const sonuc: T[] = [];
+  for (let sayfa = 0; ; sayfa += 1) {
+    const { data, error } = await supabase
+      .from("hasta_bakiye_hareket")
+      .select(select)
+      .eq("klinik_id", klinikId)
+      .in("tur", ["odeme", "iade"])
+      .gte("created_at", baslangic)
+      .lt("created_at", bitis)
+      .order("created_at")
+      .order("id")
+      .range(sayfa * TAHSILAT_SAYFA_BOYUTU, (sayfa + 1) * TAHSILAT_SAYFA_BOYUTU - 1)
+      .returns<T[]>();
+    if (error) throw new Error(`Tahsilat satırları alınamadı: ${error.message}`);
+    const satirlar = data ?? [];
+    sonuc.push(...satirlar);
+    if (satirlar.length < TAHSILAT_SAYFA_BOYUTU) break;
+  }
+  return sonuc;
+}
+
+/** Ödeme tutarını, iade ise negatif olarak döner — net tahsilat toplamları için. */
+const netTutar = (s: Pick<TahsilatSatiri, "tur" | "tutar">) => (s.tur === "iade" ? -s.tutar : s.tutar);
+
+/**
+ * Gelir = gerçek net tahsilat: giren ödemeler (yönteme göre) − iadeler. İskonto
+ * ayrı bir kalem DEĞİL: iskonto zaten borç tutarını düşürür, hastadan daha az
+ * para tahsil edilir — tahsilatta kendiliğinden yansır. Faturalı/faturasız ayrımı
+ * da bilinçli olarak kalktı (fatura bir belge bilgisi, para hareketi değil;
+ * ödemedeki `belge_turu` yalnız 2026-09-28'den beri dolu, geçmişte boş).
  */
 export async function hesaplaGelir(
   supabase: SupabaseSunucuClient,
   klinikId: string,
   donem: RaporDonemi
 ): Promise<GelirOzeti> {
-  const { data } = await supabase
-    .from("odeme")
-    .select("faturali, iskonto_tutari, odeme_kalemi(miktar, birim_fiyat)")
-    .eq("klinik_id", klinikId)
-    .gte("created_at", donem.baslangic)
-    .lt("created_at", donem.bitis)
-    .returns<OdemeGelirSatiri[]>();
+  const satirlar = await tahsilatSatirlariniGetir(supabase, klinikId, donem.baslangic, donem.bitis);
 
-  let kdvli = 0;
-  let kdvsiz = 0;
-  let iskontoToplam = 0;
+  const ozet: GelirOzeti = { nakit: 0, krediKarti: 0, bankaHavalesi: 0, belirtilmemis: 0, iade: 0, netTahsilat: 0 };
 
-  for (const odeme of data ?? []) {
-    iskontoToplam += odeme.iskonto_tutari;
-    const brutToplam = odeme.odeme_kalemi.reduce((acc, kalem) => acc + kalem.miktar * kalem.birim_fiyat, 0);
-    if (odeme.faturali) {
-      kdvli += brutToplam;
+  for (const s of satirlar) {
+    if (s.tur === "iade") {
+      ozet.iade += s.tutar;
+    } else if (s.odeme_yontemi === "nakit") {
+      ozet.nakit += s.tutar;
+    } else if (s.odeme_yontemi === "kredi_karti") {
+      ozet.krediKarti += s.tutar;
+    } else if (s.odeme_yontemi === "banka_havalesi") {
+      ozet.bankaHavalesi += s.tutar;
     } else {
-      kdvsiz += brutToplam;
+      ozet.belirtilmemis += s.tutar;
     }
   }
 
-  return {
-    kdvli,
-    kdvsiz,
-    iskontoToplam,
-    netTahsilat: kdvli + kdvsiz - iskontoToplam,
-  };
+  ozet.netTahsilat = ozet.nakit + ozet.krediKarti + ozet.bankaHavalesi + ozet.belirtilmemis - ozet.iade;
+  return ozet;
 }
 
 type RandevuDurumSatir = {
@@ -352,7 +385,7 @@ export async function hesaplaYillikOzet(
   const yilDonemi = raporYilDonemi(yil);
   const aylar = yilinAylari(yil);
 
-  const [harcamaSonuc, kamusalOdemeSonuc, odemeSonuc, randevuSonuc] = await Promise.all([
+  const [harcamaSonuc, kamusalOdemeSonuc, tahsilatlar, randevuSonuc] = await Promise.all([
     supabase
       .from("klinik_harcama")
       .select("tutar, tarih")
@@ -368,13 +401,7 @@ export async function hesaplaYillikOzet(
       .gte("odeme_tarihi", yilDonemi.baslangicTarih)
       .lt("odeme_tarihi", yilDonemi.bitisTarih)
       .returns<{ tutar: number; odeme_tarihi: string }[]>(),
-    supabase
-      .from("odeme")
-      .select("created_at, odeme_kalemi(miktar, birim_fiyat)")
-      .eq("klinik_id", klinikId)
-      .gte("created_at", yilDonemi.baslangic)
-      .lt("created_at", yilDonemi.bitis)
-      .returns<{ created_at: string; odeme_kalemi: { miktar: number; birim_fiyat: number }[] }[]>(),
+    tahsilatSatirlariniGetir(supabase, klinikId, yilDonemi.baslangic, yilDonemi.bitis),
     supabase
       .from("randevu")
       .select("baslangic")
@@ -387,7 +414,6 @@ export async function hesaplaYillikOzet(
 
   const harcamalar = harcamaSonuc.data ?? [];
   const kamusalOdemeler = kamusalOdemeSonuc.data ?? [];
-  const odemeler = odemeSonuc.data ?? [];
   const randevular = randevuSonuc.data ?? [];
 
   return aylar.map((ayDonemi, index) => {
@@ -399,12 +425,10 @@ export async function hesaplaYillikOzet(
         .filter((k) => k.odeme_tarihi >= ayDonemi.baslangicTarih && k.odeme_tarihi < ayDonemi.bitisTarih)
         .reduce((acc, k) => acc + k.tutar, 0);
 
-    const gelir = odemeler
+    // Net tahsilat (giren ödeme − iade) — hesaplaGelir ile aynı kaynak/kural.
+    const gelir = tahsilatlar
       .filter((o) => o.created_at >= ayDonemi.baslangic && o.created_at < ayDonemi.bitis)
-      .reduce(
-        (acc, o) => acc + o.odeme_kalemi.reduce((kAcc, k) => kAcc + k.miktar * k.birim_fiyat, 0),
-        0
-      );
+      .reduce((acc, o) => acc + netTutar(o), 0);
 
     const seansSayisi = randevular.filter(
       (r) => r.baslangic >= ayDonemi.baslangic && r.baslangic < ayDonemi.bitis
@@ -426,14 +450,10 @@ type RandevuGunlukSatir = {
   hasta_bakiye_hareket: { tur: string; odeme_yontemi: string | null }[] | null;
 };
 
-type OdemeGunlukSatir = {
-  id: string;
-  created_at: string;
-  faturali: boolean;
-  iskonto_tutari: number;
+type TahsilatGunlukSatir = TahsilatSatiri & {
+  belge_turu: string | null;
   hasta_id: string | null;
   hasta: { ad_soyad: string } | null;
-  odeme_kalemi: { miktar: number; birim_fiyat: number }[];
 };
 
 type KlinikHarcamaGunlukSatir = {
@@ -456,13 +476,12 @@ const TAMAMLANAN_RANDEVU_DURUMLARI = new Set(["geldi", "gecikmeli_geldi", "tamam
 /**
  * Aylık görünümdeki "Günlük Döküm" listesi için: dönem içindeki her günün
  * gelir/gider toplamı + o güne ait tüm kalemlerin (randevu/gelir/gider/
- * muhasebe) dökümü. Toplamlar aynı kaynaklardan (odeme, klinik_harcama,
- * kamusal_odeme) hesaplanır — hesaplaGelir/hesaplaIsletmeGideri/vb. ile
- * TUTARLI kalması için ayrı bir mantık icat edilmedi, aynı tablolar günlere
- * bölünerek yeniden gruplanır. Randevu kalemleri kendi başına bir tutar
- * TAŞIMAZ (yon: "notr") — bilgi amaçlı listelenir, gerçek gelir `odeme`
- * tablosundan gelir (bkz. hesaplaGelir'deki not: cari borç/ödeme modeli
- * seans tamamlanmasıyla otomatik gelir yazmıyor).
+ * muhasebe) dökümü. Toplamlar aynı kaynaklardan (hasta_bakiye_hareket
+ * ödeme/iade, klinik_harcama, kamusal_odeme) hesaplanır —
+ * hesaplaGelir/hesaplaIsletmeGideri/vb. ile TUTARLI kalması için ayrı bir
+ * mantık icat edilmedi, aynı tablolar günlere bölünerek yeniden gruplanır.
+ * Randevu kalemleri kendi başına bir tutar TAŞIMAZ (yon: "notr") — bilgi
+ * amaçlı listelenir, gerçek gelir hasta ödemelerinden gelir (bkz. hesaplaGelir).
  *
  * BİLİNÇLİ KAPSAM DIŞI: sabit personel maliyeti (maaş) güne dağıtılmaz —
  * aylık/tek bir tahakkuk, belirli bir güne ait değil (hesaplaYillikOzet'teki
@@ -475,7 +494,7 @@ export async function hesaplaGunlukDokum(
   klinikId: string,
   donem: RaporDonemi
 ): Promise<GunlukOzet[]> {
-  const [randevuSonuc, odemeSonuc, harcamaSonuc, kamusalSonuc] = await Promise.all([
+  const [randevuSonuc, tahsilatlar, harcamaSonuc, kamusalSonuc] = await Promise.all([
     supabase
       .from("randevu")
       .select("id, baslangic, durum, hasta_id, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad), paket_satis_id, hasta_bakiye_hareket(tur, odeme_yontemi)")
@@ -484,14 +503,13 @@ export async function hesaplaGunlukDokum(
       .lt("baslangic", donem.bitis)
       .order("baslangic")
       .returns<RandevuGunlukSatir[]>(),
-    supabase
-      .from("odeme")
-      .select("id, created_at, faturali, iskonto_tutari, hasta_id, hasta(ad_soyad), odeme_kalemi(miktar, birim_fiyat)")
-      .eq("klinik_id", klinikId)
-      .gte("created_at", donem.baslangic)
-      .lt("created_at", donem.bitis)
-      .order("created_at")
-      .returns<OdemeGunlukSatir[]>(),
+    tahsilatSatirlariniGetir<TahsilatGunlukSatir>(
+      supabase,
+      klinikId,
+      donem.baslangic,
+      donem.bitis,
+      "id, created_at, tur, tutar, odeme_yontemi, belge_turu, hasta_id, hasta(ad_soyad)"
+    ),
     supabase
       .from("klinik_harcama")
       .select("id, tarih, tutar, kategori, aciklama")
@@ -587,20 +605,27 @@ export async function hesaplaGunlukDokum(
     });
   }
 
-  for (const o of odemeSonuc.data ?? []) {
+  for (const o of tahsilatlar) {
     const tarih = formatDateForInput(o.created_at);
     const gun = gunuAl(tarih);
-    const brutToplam = o.odeme_kalemi.reduce((acc, kalem) => acc + kalem.miktar * kalem.birim_fiyat, 0);
-    const net = brutToplam - o.iskonto_tutari;
-    gun.gelir += net;
+    const iade = o.tur === "iade";
+    const yontem = o.odeme_yontemi
+      ? (YONTEM_ETIKETLERI[o.odeme_yontemi as keyof typeof YONTEM_ETIKETLERI] ?? o.odeme_yontemi)
+      : null;
+    const belge = o.belge_turu ? (BELGE_TURU_ETIKETLERI[o.belge_turu as keyof typeof BELGE_TURU_ETIKETLERI] ?? null) : null;
+    gun.gelir += netTutar(o);
     gun.kalemler.push({
-      id: `odeme-${o.id}`,
+      id: `tahsilat-${o.id}`,
       tur: "gelir",
       saat: formatTime(o.created_at),
       baslik: o.hasta?.ad_soyad ?? "Hasta",
-      altBaslik: o.faturali ? "Faturalı tahsilat" : "Faturasız tahsilat",
-      tutar: net,
-      yon: "gelir",
+      altBaslik: iade
+        ? `${yontem ?? "Yöntem belirtilmemiş"} iadesi`
+        : [yontem ?? "Yöntem belirtilmemiş", belge].filter(Boolean).join(" · ") + " tahsilat",
+      tutar: o.tutar,
+      // İade net gelirden düşer — listede "−" ve kırmızı görünsün (yon: "gider"),
+      // ama tur "gelir" kalır: gunun gelir kolonuna netTutar ile zaten yansıdı.
+      yon: iade ? "gider" : "gelir",
       gunlukBedel: gunlukBedel(tarih, o.hasta_id),
     });
   }

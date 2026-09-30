@@ -127,8 +127,18 @@ export function GunlukDokumKarti({ gunler }: { gunler: GunlukOzet[] }) {
                     </span>
                     <div className="flex items-center gap-4 text-sm tabular-nums">
                       <span className="text-xs text-muted-foreground">{gun.seansSayisi} seans</span>
-                      <span className="text-emerald-600 dark:text-emerald-400">
-                        {gun.gelir > 0 ? `+${paraFormat(gun.gelir)}` : "—"}
+                      <span
+                        className={
+                          gun.gelir < 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-emerald-600 dark:text-emerald-400"
+                        }
+                      >
+                        {gun.gelir > 0
+                          ? `+${paraFormat(gun.gelir)}`
+                          : gun.gelir < 0
+                            ? `−${paraFormat(-gun.gelir)}`
+                            : "—"}
                       </span>
                       <span className="text-rose-600 dark:text-rose-400">
                         {gun.gider > 0 ? `−${paraFormat(gun.gider)}` : "—"}

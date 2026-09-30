@@ -524,10 +524,14 @@ function DurumKalemi({ etiket, deger, sinif }: { etiket: string; deger: number; 
 }
 
 function GelirDetayKarti({ gelir }: { gelir: GelirOzeti }) {
+  // Kasa / Kredi Kartı / Banka ekranlarıyla aynı kaynaktan (hasta_bakiye_hareket)
+  // — buradaki yöntem satırları o üç ekranın "Hasta ödemesi" toplamlarıyla mutabıktır.
   const kalemler = [
-    { etiket: "KDV'li (brüt) — faturalı satışlar", tutar: gelir.kdvli },
-    { etiket: "KDV'siz (net) — faturasız satışlar", tutar: gelir.kdvsiz },
-    { etiket: "İskonto", tutar: -gelir.iskontoToplam },
+    { etiket: "Nakit tahsilat", tutar: gelir.nakit },
+    { etiket: "Kredi kartı tahsilat", tutar: gelir.krediKarti },
+    { etiket: "Banka havalesi tahsilat", tutar: gelir.bankaHavalesi },
+    ...(gelir.belirtilmemis > 0 ? [{ etiket: "Yöntemi belirtilmemiş tahsilat", tutar: gelir.belirtilmemis }] : []),
+    { etiket: "Hasta iadeleri", tutar: -gelir.iade },
   ];
 
   return (

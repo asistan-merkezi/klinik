@@ -23,10 +23,19 @@ export type RandevuDurumOzeti = {
   toplam: number;
 };
 
+/**
+ * Gerçek tahsilat: hasta_bakiye_hareket'teki tur='odeme' (giren) ve
+ * tur='iade' (çıkan) satırlarından — Kasa/Banka/Kredi Kartı ile AYNI kaynak,
+ * bu yüzden nakit + kredi kartı + banka havalesi + belirtilmemiş, o üç
+ * ekranın gelen toplamlarıyla mutabıktır. `netTahsilat` = giren − iade.
+ */
 export type GelirOzeti = {
-  kdvli: number;
-  kdvsiz: number;
-  iskontoToplam: number;
+  nakit: number;
+  krediKarti: number;
+  bankaHavalesi: number;
+  /** odeme_yontemi kolonu boş olan (2026-09-16 öncesi "Ödeme Ekle" / peşin satın alma) ödemeler. */
+  belirtilmemis: number;
+  iade: number;
   netTahsilat: number;
 };
 
