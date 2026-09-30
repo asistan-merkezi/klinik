@@ -48,6 +48,11 @@ export function TabletEkrani({
   // uyuşmazlığı yaratmasın diye, simdi hazır olana kadar iskelet gösterilir.
   const simdi = useMinuteTick();
   const [baglantiDurumu, setBaglantiDurumu] = useState<"online" | "offline">("online");
+  // Tarayıcının kendi ağ bilgisi (window online/offline) — Realtime kanalının
+  // koptuğunu fark etmesi heartbeat'e bağlı ve yavaş olabilir; ağ kesilince
+  // rozet hemen görünsün diye ayrı tutulur ve kanal durumuyla birleştirilir.
+  const [agCevrimdisi, setAgCevrimdisi] = useState(false);
+  const cevrimdisi = agCevrimdisi || baglantiDurumu === "offline";
   const [sonGuncelleme, setSonGuncelleme] = useState(() => new Date());
   const [yenileniyor, setYenileniyor] = useState(false);
   const bosta = useIdle(5 * 60_000);
@@ -59,8 +64,12 @@ export function TabletEkrani({
     let kanal: ReturnType<typeof supabase.channel> | null = null;
     let iptalEdildi = false;
 
-    async function gunlukListeyiYenile() {
-      setYenileniyor(true);
+    // sessiz=true: yeniden bağlanma / periyodik güvenlik ağı yenilemeleri —
+    // iskelet göstermez (odadaki hasta bilgisi bir anlığına kaybolmasın).
+    // Bağlantı yokken sorgu hata döner (data null) ve mevcut liste olduğu gibi
+    // kalır; ekran "son bilinen" durumu göstermeye devam eder.
+    async function gunlukListeyiYenile(sessiz = false) {
+      if (!sessiz) setYenileniyor(true);
       const { baslangic, bitis } = gunAraligi();
       const { data } = await supabase
         .from("randevu")
@@ -75,8 +84,13 @@ export function TabletEkrani({
         setRandevular(data);
         setSonGuncelleme(new Date());
       }
-      setYenileniyor(false);
+      if (!sessiz) setYenileniyor(false);
     }
+
+    // Kesinti sırasında kaçırılan postgres_changes olayları geri gelmez —
+    // bağlantı dönünce liste sunucudan tazelenmezse ekran bayat oda durumunu
+    // (ör. kesintide check-in olan hasta yok) göstermeye devam ederdi.
+    let ilkBaglantiTamam = false;
 
     async function abonelikKur() {
       const {
@@ -97,14 +111,38 @@ export function TabletEkrani({
           }
         )
         .subscribe((status) => {
-          setBaglantiDurumu(status === "SUBSCRIBED" ? "online" : "offline");
+          const bagli = status === "SUBSCRIBED";
+          setBaglantiDurumu(bagli ? "online" : "offline");
+          if (bagli) {
+            // İlk SUBSCRIBED'da liste zaten sunucudan geldi; sonrakiler
+            // yeniden katılma (kopma sonrası) — kaçırılanları telafi et.
+            if (ilkBaglantiTamam) gunlukListeyiYenile(true);
+            ilkBaglantiTamam = true;
+          }
         });
     }
 
     abonelikKur();
 
+    function agDurumuDegisti() {
+      const cevrimdisiMi = !navigator.onLine;
+      setAgCevrimdisi(cevrimdisiMi);
+      // Ağ geri geldi: kanal hiç kopmadıysa yeni SUBSCRIBED gelmez, bu yüzden
+      // yenileme buradan da tetiklenir.
+      if (!cevrimdisiMi) gunlukListeyiYenile(true);
+    }
+    window.addEventListener("online", agDurumuDegisti);
+    window.addEventListener("offline", agDurumuDegisti);
+
+    // Güvenlik ağı: soket sessizce ölmüş ama hiçbir olay/durum değişikliği
+    // gelmemiş olabilir (duvara asılı tablet günlerce açık kalıyor).
+    const periyodikYenileme = setInterval(() => gunlukListeyiYenile(true), 5 * 60_000);
+
     return () => {
       iptalEdildi = true;
+      window.removeEventListener("online", agDurumuDegisti);
+      window.removeEventListener("offline", agDurumuDegisti);
+      clearInterval(periyodikYenileme);
       if (kanal) {
         supabase.removeChannel(kanal);
       }
@@ -202,7 +240,7 @@ export function TabletEkrani({
         </div>
 
         <div className="flex items-center gap-4">
-          {baglantiDurumu === "offline" && (
+          {cevrimdisi && (
             <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-400" />
               Çevrimdışı · son güncelleme {formatTime(sonGuncelleme.toISOString())}
