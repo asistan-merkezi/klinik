@@ -25,6 +25,7 @@ import {
   Boxes,
   CreditCard,
   Briefcase,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -92,6 +93,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
       { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
       { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
       { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
+      { href: "/panel/yonetim/denetim-gecmisi", label: "Denetim Geçmişi", icon: History },
     ],
   },
   {
