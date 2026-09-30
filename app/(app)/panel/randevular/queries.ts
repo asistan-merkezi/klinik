@@ -86,3 +86,39 @@ export function useDoluKaynaklar(tarih: string, saat: string, sureDakika: number
     },
   });
 }
+
+/**
+ * Periyodik randevu için: her gün+saat çiftinin İLK yaklaşan tarihinde dolu olan
+ * terapist/odaların birleşimi. Seri 5 ay sürdüğünden tüm haftaları denetlemek
+ * yerine ilk haftaya bakılır (sonraki dolu haftalar action'da zaten atlanır).
+ */
+export function useDoluKaynaklarCoklu(slotlar: { tarih: string; saat: string }[], sureDakika: number) {
+  const anahtar = slotlar.map((s) => `${s.tarih}T${s.saat}`).join("|");
+  return useQuery({
+    queryKey: ["randevu_dolu_kaynaklar_coklu", anahtar, sureDakika],
+    enabled: slotlar.length > 0 && sureDakika > 0,
+    queryFn: async () => {
+      const supabase = createClient();
+      const sonuclar = await Promise.all(
+        slotlar.map(async ({ tarih, saat }) => {
+          const baslangic = toUTC(`${tarih}T${saat}:00`);
+          const bitis = new Date(new Date(baslangic).getTime() + sureDakika * 60_000).toISOString();
+          const { data, error } = await supabase
+            .from("randevu")
+            .select("terapist_id, oda_id")
+            .lt("baslangic", bitis)
+            .gt("bitis", baslangic)
+            .not("durum", "in", "(iptal,gelmedi)")
+            .returns<{ terapist_id: string; oda_id: string }[]>();
+          if (error) throw error;
+          return data ?? [];
+        })
+      );
+      const tum = sonuclar.flat();
+      return {
+        terapistler: new Set(tum.map((r) => r.terapist_id)),
+        odalar: new Set(tum.map((r) => r.oda_id)),
+      };
+    },
+  });
+}

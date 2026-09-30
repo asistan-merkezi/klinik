@@ -15,13 +15,15 @@ import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/t
 import { HAFTANIN_GUNLERI } from "@/types/periyodik-randevu";
 import { periyodikRandevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
+import { formatDateForInput } from "@/lib/datetime";
+import { useDoluKaynaklarCoklu } from "./queries";
 import { KayitliPaketler } from "./kayitli-paketler";
 
 type Props = {
   hastalar: SecenekSatir[];
   terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
-  cihazlar: SecenekSatir[];
+  cihazlar?: SecenekSatir[];
   tedaviler: TedaviSecenekSatir[];
   /** Randevu başarıyla oluşturulunca çağrılır (örn. dialog'u kapatmak için) */
   onBasarili?: () => void;
@@ -40,7 +42,6 @@ export function PeriyodikRandevuFormu({
   hastalar,
   terapistler,
   odalar,
-  cihazlar,
   tedaviler,
   onBasarili,
   sabitHasta,
@@ -50,37 +51,37 @@ export function PeriyodikRandevuFormu({
   const [hastaId, setHastaId] = useState(sabitHasta?.id ?? "");
   const [islemTanimiId, setIslemTanimiId] = useState("");
   const [terapistId, setTerapistId] = useState("");
-  const [sureDakika, setSureDakika] = useState(30);
+  const [odaId, setOdaId] = useState("");
   const [gunler, setGunler] = useState<GunSaat[]>([{ gun: "1", saat: "" }]);
 
-  // Seçili tedavinin adımlarında tanımlı "uygulayıcı" pozisyonu varsa Dr /
-  // Terapist listesi o pozisyondaki personelle sınırlanır (bkz.
-  // types/randevu.ts > TedaviSecenekSatir.pozisyon_idleri); hiçbir adımda
-  // pozisyon tanımlı değilse tüm terapistler seçilebilir kalır.
   const seciliTedavi = tedaviler.find((t) => t.id === islemTanimiId);
-  const uygunTerapistler =
+  const pozisyonaUygunTerapistler =
     seciliTedavi && seciliTedavi.pozisyon_idleri.length > 0
       ? terapistler.filter((t) => t.pozisyon_id && seciliTedavi.pozisyon_idleri.includes(t.pozisyon_id))
       : terapistler;
 
-  // Tedavi seçilince (Tedavi seçiciden veya Kayıtlı Paketler'den) o tedavinin
-  // Yönetim > Tedavi Tanımları'nda ayarlanmış uygulama süresi varsa Süre alanına
-  // otomatik yansır; süre tanımlı değilse elle girilen/varsayılan değer korunur.
-  // Önceden seçili terapist yeni tedavinin gerektirdiği pozisyona uymuyorsa
-  // seçim sıfırlanır — Terapist alanı Tedavi'den SONRA doldurulur.
+  // Toplam süre tedavi tanımından gelir (bkz. randevu-formu.tsx); kullanıcıdan alınmaz.
+  const adimToplami = (seciliTedavi?.adimlar ?? []).reduce((t, a) => t + (a.sure_dakika ?? 0), 0);
+  const toplamSure = seciliTedavi?.sure_dakika ?? (adimToplami > 0 ? adimToplami : 30);
+
+  // Müsaitlik: her gün+saat çiftinin ilk yaklaşan tarihine göre (bkz. useDoluKaynaklarCoklu).
+  const slotlar = gunler.every((g) => g.saat !== "")
+    ? gunler.map((g) => ({ tarih: sonrakiTarih(Number(g.gun)), saat: g.saat }))
+    : [];
+  const zamanHazir = Boolean(islemTanimiId) && slotlar.length > 0;
+  const { data: dolu, isLoading: musaitlikYukleniyor } = useDoluKaynaklarCoklu(
+    zamanHazir ? slotlar : [],
+    toplamSure
+  );
+  const uygunTerapistler = dolu
+    ? pozisyonaUygunTerapistler.filter((t) => !dolu.terapistler.has(t.id))
+    : pozisyonaUygunTerapistler;
+  const musaitOdalar = dolu ? odalar.filter((o) => !dolu.odalar.has(o.id)) : odalar;
+  const efektifTerapistId = uygunTerapistler.some((t) => t.id === terapistId) ? terapistId : "";
+  const efektifOdaId = musaitOdalar.some((o) => o.id === odaId) ? odaId : "";
+
   function tedaviSec(id: string) {
     setIslemTanimiId(id);
-    const tedavi = tedaviler.find((t) => t.id === id);
-    if (tedavi?.sure_dakika) {
-      setSureDakika(tedavi.sure_dakika);
-    }
-    const yeniUygunlar =
-      tedavi && tedavi.pozisyon_idleri.length > 0
-        ? terapistler.filter((t) => t.pozisyon_id && tedavi.pozisyon_idleri.includes(t.pozisyon_id))
-        : terapistler;
-    if (!yeniUygunlar.some((t) => t.id === terapistId)) {
-      setTerapistId("");
-    }
   }
 
   function gunSayisiDegisti(deger: string) {
@@ -163,77 +164,30 @@ export function PeriyodikRandevuFormu({
           </Select>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="periyodik_terapist_id">Dr / Terapist</Label>
-          <Select
-            name="terapist_id"
-            required
-            disabled={isPending || !islemTanimiId || uygunTerapistler.length === 0}
-            value={terapistId}
-            onValueChange={(v) => setTerapistId(v as string)}
-            items={uygunTerapistler.map((t) => ({ value: t.id, label: t.ad }))}
-          >
-            <SelectTrigger id="periyodik_terapist_id" className="w-full">
-              <SelectValue
-                placeholder={
-                  !islemTanimiId
-                    ? "Önce tedavi seçin"
-                    : uygunTerapistler.length === 0
-                      ? "Bu tedavi için uygun personel yok"
-                      : "Dr / Terapist seçin"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {uygunTerapistler.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.ad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="periyodik_oda_id">Oda</Label>
-          <Select
-            name="oda_id"
-            required
-            disabled={isPending}
-            items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
-          >
-            <SelectTrigger id="periyodik_oda_id" className="w-full">
-              <SelectValue placeholder="Oda seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {odalar.map((o) => (
-                <SelectItem key={o.id} value={o.id}>
-                  {o.ad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="periyodik_cihaz_id">Cihaz (opsiyonel)</Label>
-          <Select
-            name="cihaz_id"
-            disabled={isPending || cihazlar.length === 0}
-            items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
-          >
-            <SelectTrigger id="periyodik_cihaz_id" className="w-full">
-              <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
-            </SelectTrigger>
-            <SelectContent>
-              {cihazlar.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.ad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {seciliTedavi && (
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 px-3 py-2.5 sm:col-span-2">
+            <span className="text-xs font-medium text-muted-foreground">Yapılacak İşlemler</span>
+            {seciliTedavi.adimlar.length > 0 ? (
+              <ul className="flex flex-col divide-y divide-border text-sm">
+                {seciliTedavi.adimlar.map((a, i) => (
+                  <li key={i} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 py-1.5">
+                    <span className="font-medium">{a.ad}</span>
+                    <span className="tabular flex items-center gap-4 text-muted-foreground">
+                      <span>{a.cihaz_ad ?? "Cihaz yok"}</span>
+                      <span>{a.sure_dakika ? `${a.sure_dakika} dk` : "—"}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Bu tedavi için işlem adımı tanımlı değil.</p>
+            )}
+            <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
+              <span className="font-medium">Toplam Süre</span>
+              <span className="tabular font-semibold">{toplamSure} dk</span>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="periyodik_gun_sayisi">Haftada Kaç Gün</Label>
@@ -294,19 +248,74 @@ export function PeriyodikRandevuFormu({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="periyodik_sure_dakika">Süre (dakika)</Label>
-          <Input
-            id="periyodik_sure_dakika"
-            name="sure_dakika"
-            type="number"
-            min={5}
-            max={480}
-            value={sureDakika}
-            onChange={(e) => setSureDakika(Number(e.target.value))}
+          <Label htmlFor="periyodik_terapist_id">Dr / Terapist</Label>
+          <Select
+            name="terapist_id"
             required
-            disabled={isPending}
-          />
+            disabled={isPending || !zamanHazir || uygunTerapistler.length === 0}
+            value={efektifTerapistId}
+            onValueChange={(v) => setTerapistId(v as string)}
+            items={uygunTerapistler.map((t) => ({ value: t.id, label: t.ad }))}
+          >
+            <SelectTrigger id="periyodik_terapist_id" className="w-full">
+              <SelectValue
+                placeholder={
+                  !islemTanimiId
+                    ? "Önce tedavi seçin"
+                    : !zamanHazir
+                      ? "Önce gün ve saat seçin"
+                      : musaitlikYukleniyor
+                        ? "Müsaitlik kontrol ediliyor…"
+                        : uygunTerapistler.length === 0
+                          ? "Bu saatte müsait personel yok"
+                          : "Dr / Terapist seçin"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {uygunTerapistler.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.ad}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="periyodik_oda_id">Oda</Label>
+          <Select
+            name="oda_id"
+            required
+            disabled={isPending || !zamanHazir || musaitOdalar.length === 0}
+            value={efektifOdaId}
+            onValueChange={(v) => setOdaId(v as string)}
+            items={musaitOdalar.map((o) => ({ value: o.id, label: o.ad }))}
+          >
+            <SelectTrigger id="periyodik_oda_id" className="w-full">
+              <SelectValue
+                placeholder={
+                  !zamanHazir
+                    ? "Önce gün ve saat seçin"
+                    : musaitlikYukleniyor
+                      ? "Müsaitlik kontrol ediliyor…"
+                      : musaitOdalar.length === 0
+                        ? "Bu saatte müsait oda yok"
+                        : "Oda seçin"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {musaitOdalar.map((o) => (
+                <SelectItem key={o.id} value={o.id}>
+                  {o.ad}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <input type="hidden" name="sure_dakika" value={toplamSure} />
       </div>
 
       {durum && (
@@ -342,4 +351,13 @@ export function PeriyodikRandevuFormu({
       </Button>
     </form>
   );
+}
+
+/** Bugünden (İstanbul) itibaren verilen haftanın gününe (0=Pazar) denk gelen ilk tarih, "yyyy-MM-dd". */
+function sonrakiTarih(haftaninGunu: number): string {
+  const bugun = formatDateForInput(new Date().toISOString());
+  const d = new Date(`${bugun}T00:00:00Z`);
+  const fark = (haftaninGunu - d.getUTCDay() + 7) % 7;
+  d.setUTCDate(d.getUTCDate() + fark);
+  return d.toISOString().slice(0, 10);
 }
