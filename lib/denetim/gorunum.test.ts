@@ -43,6 +43,28 @@ describe("denetimOzetiOlustur", () => {
     expect(ozet.satirlar.find((s) => s.alan === "odeme_yontemi")?.yeni).toBe("Nakit");
   });
 
+  it("gürültüyü ve ham değerleri temizler: kaynak gizli, 0 iskonto gizli, tur okunur", () => {
+    const ozet = denetimOzetiOlustur({
+      eylem: "insert",
+      hedef_tablo: "hasta_bakiye_hareket",
+      detay: {
+        surum: 2,
+        yeni: { tur: "iade", tutar: 300, kaynak: "uygulama", iskonto_tutari: 0, odeme_yontemi: "nakit" },
+      },
+    });
+    expect(ozet.satirlar.map((s) => s.alan)).toEqual(["tur", "tutar", "odeme_yontemi"]);
+    expect(ozet.satirlar[0].yeni).toBe("İade");
+  });
+
+  it("sıfırdan farklı iskonto gösterilir", () => {
+    const ozet = denetimOzetiOlustur({
+      eylem: "insert",
+      hedef_tablo: "hasta_bakiye_hareket",
+      detay: { surum: 2, yeni: { tur: "borc", tutar: 500, iskonto_tutari: 50 } },
+    });
+    expect(ozet.satirlar.map((s) => s.alan)).toContain("iskonto_tutari");
+  });
+
   it("HASSAS tablo: değer asla dönmez, yalnız değişen alan adları", () => {
     const ozet = denetimOzetiOlustur({
       eylem: "update",

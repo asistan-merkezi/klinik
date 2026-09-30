@@ -105,7 +105,8 @@ const DEGER_GOSTERILEN_TABLOLAR = new Set([
   "hasta",
 ]);
 
-const TEKNIK_ALANLAR = new Set(["id", "klinik_id", "created_at", "updated_at"]);
+// "kaynak" (uygulama|arsiv) kullanıcıya bir şey anlatmayan teknik bir işaret.
+const TEKNIK_ALANLAR = new Set(["id", "klinik_id", "created_at", "updated_at", "kaynak"]);
 
 const ALAN_ETIKETLERI: Record<string, string> = {
   tutar: "Tutar",
@@ -131,11 +132,20 @@ const ALAN_ETIKETLERI: Record<string, string> = {
   kategori_adi: "Kategori",
   aktif: "Aktif",
   risk_bayraklari: "Risk bayrakları",
+  kayit_kanali: "Kayıt kanalı",
+  whatsapp_izin_durumu: "WhatsApp izni",
 };
 
 const YONTEM_DEGERLERI: Record<string, string> = {
   ...YONTEM_ETIKETLERI,
   havale: "Havale",
+};
+
+/** Ham enum değerlerinin okunur karşılığı (alan bazlı). */
+const ENUM_DEGERLERI: Record<string, Record<string, string>> = {
+  tur: { odeme: "Ödeme", iade: "İade", borc: "Borç", kredi: "Kredi" },
+  kayit_kanali: { resepsiyon: "Resepsiyon", qr_self_servis: "QR self servis" },
+  belge_turu: { fatura: "Fatura", fis: "Fiş", serbest: "Serbest" },
 };
 
 export function denetimGrubuBul(tablo: string | null): DenetimGrubu {
@@ -164,10 +174,19 @@ export function degerMetni(alan: string, deger: unknown): string {
   if (typeof deger === "string") {
     if (tutarAlaniMi(alan) && !Number.isNaN(Number(deger))) return paraFormat(Number(deger));
     if ((alan === "odeme_yontemi" || alan === "odeme_tipi") && YONTEM_DEGERLERI[deger]) return YONTEM_DEGERLERI[deger];
+    if (ENUM_DEGERLERI[alan]?.[deger]) return ENUM_DEGERLERI[alan][deger];
     return deger.length > 80 ? `${deger.slice(0, 80)}…` : deger;
   }
   const json = JSON.stringify(deger);
   return json.length > 80 ? `${json.slice(0, 80)}…` : json;
+}
+
+/** INSERT/DELETE özetinde gösterilecek alan mı: teknik, *_id, boş ve 0 tutarlı iskonto gürültüdür. */
+function ozetAlaniMi(alan: string, deger: unknown): boolean {
+  if (TEKNIK_ALANLAR.has(alan) || alan.endsWith("_id")) return false;
+  if (deger === null || deger === "") return false;
+  if (alan === "iskonto_tutari" && Number(deger) === 0) return false;
+  return true;
 }
 
 export type DenetimDetaySatiri = { alan: string; eski?: string; yeni?: string };
@@ -220,7 +239,7 @@ export function denetimOzetiOlustur(kayit: DenetimKaydi): DenetimOzeti {
     // insert / delete: dolu, teknik olmayan, *_id olmayan alanların özeti
     const kaynak = kayit.eylem === "delete" ? eski : yeni;
     const satirlar = Object.entries(kaynak)
-      .filter(([alan, deger]) => !TEKNIK_ALANLAR.has(alan) && !alan.endsWith("_id") && deger !== null && deger !== "")
+      .filter(([alan, deger]) => ozetAlaniMi(alan, deger))
       .slice(0, 8)
       .map(([alan, deger]) => ({ alan, yeni: degerMetni(alan, deger) }));
     return { ...bos, satirlar };
@@ -230,7 +249,7 @@ export function denetimOzetiOlustur(kayit: DenetimKaydi): DenetimOzeti {
   // güncellemede neyin değiştiği bilinmediği için değer listelenmez (yanıltıcı olurdu).
   if (degerGoster && kayit.eylem !== "update") {
     const satirlar = Object.entries(detay)
-      .filter(([alan, deger]) => !TEKNIK_ALANLAR.has(alan) && !alan.endsWith("_id") && deger !== null && deger !== "")
+      .filter(([alan, deger]) => ozetAlaniMi(alan, deger))
       .slice(0, 8)
       .map(([alan, deger]) => ({ alan, yeni: degerMetni(alan, deger) }));
     return { ...bos, satirlar };
