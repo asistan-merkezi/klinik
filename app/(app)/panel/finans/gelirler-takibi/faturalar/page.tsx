@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
@@ -48,37 +48,18 @@ export default async function FaturalarSayfasi({
   searchParams: Promise<{ gorunum?: string; yil?: string; ay?: string; tarih?: string }>;
 }) {
   const { gorunum: gorunumParam, yil: yilParam, ay: ayParam, tarih: tarihParam } = await searchParams;
+  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansFatura);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" ||
-    kullanici?.rol === "resepsiyon" ||
-    kullanici?.rol === "muhasebe" ||
-    kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    redirect("/panel");
-  }
 
   // Fatura kesme yetkisi RPC'de de ayrıca zorlanıyor (bkz. migration
   // 20260927160000) — burası sadece dialogu göstermeye karar veriyor.
-  const duzenlenebilir =
-    kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon" || kullanici?.rol === "muhasebe";
+  // (super_admin sayfaya girer ama fatura kesme butonu görmez — eski davranış.)
+  const duzenlenebilir = (ROL_GRUPLARI.finansFatura as readonly string[]).includes(kullanici.rol);
 
   const { data: klinik } = await supabase
     .from("klinik")
     .select("created_at")
-    .eq("id", kullanici?.klinik_id ?? "")
+    .eq("id", kullanici.klinik_id ?? "")
     .maybeSingle<{ created_at: string }>();
 
   const simdi = new Date();

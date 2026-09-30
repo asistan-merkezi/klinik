@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Landmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -56,31 +56,11 @@ export default async function KamusalGiderlerSayfasi({
   searchParams: Promise<{ ay?: string }>;
 }) {
   const { ay: ayParam } = await searchParams;
+  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" || kullanici?.rol === "muhasebe" || kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    redirect("/panel");
-  }
-
-  const yonetici = kullanici?.rol === "klinik_admin";
-  const klinikId = kullanici?.klinik_id ?? "";
+  const yonetici = kullanici.rol === "klinik_admin";
+  const klinikId = kullanici.klinik_id ?? "";
   const ay = ayAraligi(ayParam);
   const [donemYil, donemAy] = ay.param.split("-").map(Number);
 

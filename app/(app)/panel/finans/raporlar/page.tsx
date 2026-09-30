@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
@@ -48,30 +48,10 @@ export default async function RaporlarSayfasi({
   searchParams: Promise<{ gorunum?: string; yil?: string; ay?: string; tarih?: string }>;
 }) {
   const { gorunum: gorunumParam, yil: yilParam, ay: ayParam, tarih: tarihParam } = await searchParams;
+  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" || kullanici?.rol === "muhasebe" || kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    redirect("/panel");
-  }
-
-  const klinikId = kullanici?.klinik_id ?? "";
+  const klinikId = kullanici.klinik_id ?? "";
 
   const { data: klinik } = await supabase
     .from("klinik")

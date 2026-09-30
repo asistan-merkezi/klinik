@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Receipt } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,30 +19,10 @@ export default async function GelenFaturalarSayfasi({
   searchParams: Promise<{ yil?: string; ay?: string }>;
 }) {
   const { yil: yilParam, ay: ayParam } = await searchParams;
+  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" || kullanici?.rol === "muhasebe" || kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    redirect("/panel");
-  }
-
-  const klinikId = kullanici?.klinik_id ?? "";
+  const klinikId = kullanici.klinik_id ?? "";
 
   const { data: klinik } = await supabase
     .from("klinik")

@@ -1,7 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Receipt } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -31,30 +32,12 @@ type BorcDetaySatiri = {
 
 export default async function FaturaDetaySayfasi({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansFatura);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" ||
-    kullanici?.rol === "resepsiyon" ||
-    kullanici?.rol === "muhasebe" ||
-    kullanici?.rol === "super_admin";
-  if (!yetkili) {
-    redirect("/panel");
-  }
 
   // Fatura kesme yetkisi RPC'de de ayrıca zorlanıyor (bkz. migration
   // 20260927160000) — burası sadece Fatura Kes butonunu göstermeye karar verir.
-  const duzenlenebilir =
-    kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon" || kullanici?.rol === "muhasebe";
+  const duzenlenebilir = (ROL_GRUPLARI.finansFatura as readonly string[]).includes(kullanici.rol);
 
   const { data: hareket } = await supabase
     .from("hasta_bakiye_hareket")

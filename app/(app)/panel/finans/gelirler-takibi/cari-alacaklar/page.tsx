@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { HandCoins } from "lucide-react";
@@ -14,27 +14,8 @@ type CariOzetSatiri = {
 };
 
 export default async function CariAlacaklarTakibiSayfasi() {
+  await sayfaYetkisiIste(ROL_GRUPLARI.finansFatura);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" ||
-    kullanici?.rol === "resepsiyon" ||
-    kullanici?.rol === "muhasebe" ||
-    kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    redirect("/panel");
-  }
 
   const { data } = await supabase
     .from("v_hasta_cari_ozet")

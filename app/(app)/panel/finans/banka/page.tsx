@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import { BankaClient } from "./banka-client";
@@ -55,30 +55,10 @@ export default async function BankaSayfasi({ searchParams }: { searchParams: Pro
   const yilBaslangicTs = `${yilBaslangicTarih}T00:00:00.000Z`;
   const yilBitisTs = `${yilBitisTarih}T00:00:00.000Z`;
 
+  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol, klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" || kullanici?.rol === "muhasebe" || kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    redirect("/panel");
-  }
-
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
+  const duzenlenebilir = kullanici.rol === "klinik_admin";
 
   const [
     bankaHesabiSonucu,

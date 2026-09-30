@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KrediKartiLedger } from "./kredi-karti-ledger";
@@ -28,28 +28,8 @@ export default async function KrediKartiSayfasi({ searchParams }: { searchParams
   const yilBaslangicTs = `${yilBaslangicTarih}T00:00:00.000Z`;
   const yilBitisTs = `${yilBitisTarih}T00:00:00.000Z`;
 
+  await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol, klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" || kullanici?.rol === "muhasebe" || kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    redirect("/panel");
-  }
 
   const [hastaOdemeSonucu, harcamaSonucu, oncekiToplamSonucu] = await Promise.all([
     supabase
