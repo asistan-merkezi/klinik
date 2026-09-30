@@ -20,6 +20,19 @@ const nextConfig: NextConfig = {
     "/api/is-basvuru-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/hasta-cari-hareketler/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
+  async headers() {
+    return [
+      {
+        // Service worker betiği asla CDN/tarayıcı önbelleğinde kalmasın —
+        // güncelleme kontrolü her seferinde sunucuya gitsin.
+        source: "/tablet-sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+        ],
+      },
+    ];
+  },
   experimental: {
     serverActions: {
       // Şirket Bilgileri formu tek istekte 2 logo dosyası gönderebiliyor;

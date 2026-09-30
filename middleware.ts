@@ -6,5 +6,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // tablet-sw.js / tablet-offline.html: oturumsuz, statik — auth yönlendirmesine
+  // takılırlarsa service worker kaydı ve çevrimdışı yedek sayfa bozulur.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|tablet-sw\\.js|tablet-offline\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

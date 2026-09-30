@@ -5,6 +5,7 @@ import type { Klinik } from "@/types/klinik";
 import { gunAraligi } from "@/lib/utils";
 import { VARSAYILAN_TABLET_AYARLARI, type TabletAyarlari } from "@/types/tablet-ayarlari";
 import { TabletEkrani } from "./tablet-ekrani";
+import { TabletOfflineKaydi } from "./tablet-offline-kaydi";
 
 export default async function TabletOdaSayfasi({
   params,
@@ -64,12 +65,15 @@ export default async function TabletOdaSayfasi({
     .returns<RandevuSatir[]>();
 
   return (
-    <TabletEkrani
-      odaId={odaId}
-      odaAdi={oda.ad}
-      klinik={klinik ?? { ad: "Klinik", logo_url: null, logo_url_koyu: null, marka_renkleri: null }}
-      baslangicRandevular={randevular ?? []}
-      ayarlar={tabletAyarlari}
-    />
+    <>
+      <TabletOfflineKaydi />
+      <TabletEkrani
+        odaId={odaId}
+        odaAdi={oda.ad}
+        klinik={klinik ?? { ad: "Klinik", logo_url: null, logo_url_koyu: null, marka_renkleri: null }}
+        baslangicRandevular={randevular ?? []}
+        ayarlar={tabletAyarlari}
+      />
+    </>
   );
 }

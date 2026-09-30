@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Bağlantı Bekleniyor</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      text-align: center;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    main { padding: 2rem; max-width: 32rem; }
+    .halka {
+      width: 4.5rem;
+      height: 4.5rem;
+      margin: 0 auto 2rem;
+      border: 0.3rem solid rgba(148, 163, 184, 0.25);
+      border-top-color: #14b8a6;
+      border-radius: 50%;
+      animation: don 1.2s linear infinite;
+    }
+    h1 { margin: 0 0 0.75rem; font-size: 2rem; font-weight: 600; letter-spacing: -0.01em; }
+    p { margin: 0; font-size: 1.125rem; line-height: 1.5; color: #94a3b8; }
+    @keyframes don { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .halka { animation-duration: 4s; } }
+  </style>
+</head>
+<body>
+  <main role="status" aria-live="polite">
+    <div class="halka" aria-hidden="true"></div>
+    <h1>Bağlantı Bekleniyor…</h1>
+    <p>İnternet bağlantısı geri geldiğinde ekran kendiliğinden yenilenecek.</p>
+  </main>
+  <script>
+    // Ağ dönünce sayfayı yeniden yükle. Sunucuya ulaşılabildiğini HEAD ile
+    // doğruluyoruz (her yanıt yeterli — yönlendirme/401 de "ağ var" demek);
+    // doğrudan reload() çevrimdışıyken bu sayfayı yeniden getirip yanıp sönerdi.
+    var kontrolEdiliyor = false;
+    function dene() {
+      if (kontrolEdiliyor) return;
+      kontrolEdiliyor = true;
+      fetch(location.href, { method: "HEAD", cache: "no-store", redirect: "manual" })
+        .then(function () { location.reload(); })
+        .catch(function () { kontrolEdiliyor = false; });
+    }
+    window.addEventListener("online", dene);
+    setInterval(dene, 5000);
+  </script>
+</body>
+</html>
