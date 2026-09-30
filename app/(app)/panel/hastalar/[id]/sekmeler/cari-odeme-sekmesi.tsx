@@ -11,6 +11,7 @@ import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
 import { hareketleriGorunumeCevir } from "@/lib/hasta/bakiye-hareket-gorunum";
 import { AktifPaketSatiri } from "@/components/hasta/aktif-paket-satiri";
 import { BakiyeHareketiEkleButonu } from "../bakiye-hareketi-formu";
+import { HastaIadesiButonu } from "../iade-formu";
 import { BakiyeHareketSatiri } from "../bakiye-hareket-satiri";
 
 const KATEGORI_ETIKETLERI: Record<HastaKategori, string> = {
@@ -84,12 +85,20 @@ export function CariOdemeSekmesi({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {duzenlenebilir && (
-              <BakiyeHareketiEkleButonu
-                hastaId={hastaId}
-                hastaAdSoyad={hastaAdSoyad}
-                bankaHesaplari={bankaHesaplari}
-                guncelBakiye={guncelBakiye}
-              />
+              <>
+                <BakiyeHareketiEkleButonu
+                  hastaId={hastaId}
+                  hastaAdSoyad={hastaAdSoyad}
+                  bankaHesaplari={bankaHesaplari}
+                  guncelBakiye={guncelBakiye}
+                />
+                <HastaIadesiButonu
+                  hastaId={hastaId}
+                  hastaAdSoyad={hastaAdSoyad}
+                  bankaHesaplari={bankaHesaplari}
+                  guncelBakiye={guncelBakiye}
+                />
+              </>
             )}
             <PdfIndirButonu
               endpoint={`/api/hasta-cari-hareketler/pdf?hastaId=${hastaId}`}

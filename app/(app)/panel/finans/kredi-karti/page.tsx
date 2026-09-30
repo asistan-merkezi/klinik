@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KrediKartiLedger } from "./kredi-karti-ledger";
 
-type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; hasta: { ad_soyad: string } | null };
+// tur='iade' satırları (hasta kart iadesi) aynı sorguyla gelir; burada ÇIKIŞ sayılır.
+type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; tur: string; hasta: { ad_soyad: string } | null };
 type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string };
 
 /**
@@ -53,8 +54,8 @@ export default async function KrediKartiSayfasi({ searchParams }: { searchParams
   const [hastaOdemeSonucu, harcamaSonucu, oncekiToplamSonucu] = await Promise.all([
     supabase
       .from("hasta_bakiye_hareket")
-      .select("id, created_at, tutar, hasta:hasta_id(ad_soyad)")
-      .eq("tur", "odeme")
+      .select("id, created_at, tutar, tur, hasta:hasta_id(ad_soyad)")
+      .in("tur", ["odeme", "iade"])
       .eq("odeme_yontemi", "kredi_karti")
       .gte("created_at", yilBaslangicTs)
       .lt("created_at", yilBitisTs)
@@ -69,19 +70,31 @@ export default async function KrediKartiSayfasi({ searchParams }: { searchParams
     supabase.rpc("kredi_karti_bakiye_once_toplam", { p_once_tarih: yilBaslangicTarih }),
   ]);
 
-  const gelenRows: LedgerSatiri[] = (hastaOdemeSonucu.data ?? []).map((h) => ({
-    tarih: h.created_at.slice(0, 10),
-    tutar: h.tutar,
-    etiket: "Hasta ödemesi",
-    taraf: h.hasta?.ad_soyad ?? "Hasta",
-  }));
+  const gelenRows: LedgerSatiri[] = (hastaOdemeSonucu.data ?? [])
+    .filter((h) => h.tur === "odeme")
+    .map((h) => ({
+      tarih: h.created_at.slice(0, 10),
+      tutar: h.tutar,
+      etiket: "Hasta ödemesi",
+      taraf: h.hasta?.ad_soyad ?? "Hasta",
+    }));
 
-  const gidenRows: LedgerSatiri[] = (harcamaSonucu.data ?? []).map((g) => ({
-    tarih: g.tarih,
-    tutar: g.tutar,
-    etiket: g.tedarikci_adi ?? g.kategori,
-    taraf: g.tedarikci_adi ?? undefined,
-  }));
+  const gidenRows: LedgerSatiri[] = [
+    ...(hastaOdemeSonucu.data ?? [])
+      .filter((h) => h.tur === "iade")
+      .map((h) => ({
+        tarih: h.created_at.slice(0, 10),
+        tutar: h.tutar,
+        etiket: "Hasta iadesi",
+        taraf: h.hasta?.ad_soyad ?? "Hasta",
+      })),
+    ...(harcamaSonucu.data ?? []).map((g) => ({
+      tarih: g.tarih,
+      tutar: g.tutar,
+      etiket: g.tedarikci_adi ?? g.kategori,
+      taraf: g.tedarikci_adi ?? undefined,
+    })),
+  ];
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

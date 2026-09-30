@@ -6,7 +6,8 @@ import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KasaClient } from "./kasa-client";
 
-type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; hasta: { ad_soyad: string } | null };
+// tur='iade' satırları (hasta nakit iadesi) aynı sorguyla gelir; Kasa'da ÇIKIŞ sayılır.
+type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; tur: string; hasta: { ad_soyad: string } | null };
 type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string };
 type PersonelOdemeSatiri = {
   id: string;
@@ -75,8 +76,8 @@ export default async function KasaSayfasi({ searchParams }: { searchParams: Prom
       supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId ?? "").maybeSingle(),
       supabase
         .from("hasta_bakiye_hareket")
-        .select("id, created_at, tutar, hasta:hasta_id(ad_soyad)")
-        .eq("tur", "odeme")
+        .select("id, created_at, tutar, tur, hasta:hasta_id(ad_soyad)")
+        .in("tur", ["odeme", "iade"])
         .eq("odeme_yontemi", "nakit")
         .gte("created_at", yilBaslangicTs)
         .lt("created_at", yilBitisTs)
@@ -129,12 +130,14 @@ export default async function KasaSayfasi({ searchParams }: { searchParams: Prom
   const donemBaslangicBakiyesi = baslangicTutari + (oncekiToplamSonucu.data ?? 0);
 
   const gelenRows: LedgerSatiri[] = [
-    ...(hastaOdemeSonucu.data ?? []).map((h) => ({
-      tarih: h.created_at.slice(0, 10),
-      tutar: h.tutar,
-      etiket: "Hasta ödemesi",
-      taraf: h.hasta?.ad_soyad ?? "Hasta",
-    })),
+    ...(hastaOdemeSonucu.data ?? [])
+      .filter((h) => h.tur === "odeme")
+      .map((h) => ({
+        tarih: h.created_at.slice(0, 10),
+        tutar: h.tutar,
+        etiket: "Hasta ödemesi",
+        taraf: h.hasta?.ad_soyad ?? "Hasta",
+      })),
     ...(nakitBankaSonucu.data ?? [])
       .filter((n) => n.hedef_kasa)
       .map((n) => ({
@@ -146,6 +149,14 @@ export default async function KasaSayfasi({ searchParams }: { searchParams: Prom
   ];
 
   const gidenRows: LedgerSatiri[] = [
+    ...(hastaOdemeSonucu.data ?? [])
+      .filter((h) => h.tur === "iade")
+      .map((h) => ({
+        tarih: h.created_at.slice(0, 10),
+        tutar: h.tutar,
+        etiket: "Hasta iadesi",
+        taraf: h.hasta?.ad_soyad ?? "Hasta",
+      })),
     ...(harcamaSonucu.data ?? []).map((g) => ({
       tarih: g.tarih,
       tutar: g.tutar,

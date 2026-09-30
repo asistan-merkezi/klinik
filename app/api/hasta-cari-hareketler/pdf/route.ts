@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
   const satirlar: CariHareketlerPdfSatir[] = hareketGorunumleri.map(
     ({ hareket, islemAdi, terapistAdi, bakiyeSonrasi, odemeYontemMetni, tutarBrut }) => {
-      const tutarNegatifMi = hareket.tur === "borc";
+      const tutarNegatifMi = hareket.tur === "borc" || hareket.tur === "iade";
       return {
         tarih: formatDate(hareket.created_at),
         saat: formatTime(hareket.created_at),
@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
         // Bağımsız "Ödeme Ekle" kayıtlarında odeme_satiri yok (odemeYontemMetni
         // boş) — ödeme tipi orada aciklama'ya etiket olarak gömülü ("Nakit"
         // veya "Nakit — not"), o yüzden yöntem yoksa aciklama'ya düşülüyor.
-        yontemMetni: hareket.tur === "odeme" ? (odemeYontemMetni || hareket.aciklama) : null,
+        yontemMetni:
+          hareket.tur === "odeme" || hareket.tur === "iade" ? (odemeYontemMetni || hareket.aciklama) : null,
         terapist: terapistAdi,
         tutar: `${tutarNegatifMi ? "-" : "+"}${paraFormat(tutarBrut)}`,
         tutarNegatifMi,

@@ -57,7 +57,9 @@ export function BakiyeHareketSatiri({
   const tikanabilir = duzenlenebilir && hareket.tur === "borc";
 
   const tonu = BAKIYE_HAREKET_TONLARI[hareket.tur];
-  const isaret = hareket.tur === "borc" ? "-" : "+";
+  // Borç ve iade bakiyeyi düşürür (bkz. lib/hasta/bakiye-hareket-gorunum.ts).
+  const bakiyeyiDusurur = hareket.tur === "borc" || hareket.tur === "iade";
+  const isaret = bakiyeyiDusurur ? "-" : "+";
 
   return (
     <>
@@ -84,7 +86,7 @@ export function BakiyeHareketSatiri({
         <td className="px-3 py-2 text-muted-foreground">{terapistAdi ?? "—"}</td>
         <td
           className={`px-3 py-2 text-right tabular-nums font-medium ${
-            hareket.tur === "borc" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+            bakiyeyiDusurur ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
           }`}
         >
           {isaret}

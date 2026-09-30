@@ -29,6 +29,7 @@ export type HareketGorunum = {
 //   kredi                              → +tutar
 //   borc                               → -(tutar - iskonto_tutari)
 //   odeme, odeme_id NULL (Ödeme Ekle)  → +tutar
+//   iade,  odeme_id NULL (İade Ver)    → -tutar (migration 20260930090000)
 //   diğer (odeme_olustur'dan peşin satın alma ödemesi) → 0 (zaten hiç borç
 //     yaratmamıştı)
 export function hareketleriGorunumeCevir(
@@ -86,7 +87,9 @@ export function hareketleriGorunumeCevir(
           ? -(h.tutar - h.iskonto_tutari)
           : h.tur === "odeme" && h.odeme_id === null
             ? h.tutar
-            : 0;
+            : h.tur === "iade" && h.odeme_id === null
+              ? -h.tutar
+              : 0;
     bakiye -= etki;
 
     sonuc.push({

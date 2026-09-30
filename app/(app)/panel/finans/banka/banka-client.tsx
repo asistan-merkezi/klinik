@@ -36,7 +36,7 @@ function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
 }
 
-type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; banka_hesap_id: string | null; hasta: { ad_soyad: string } | null };
+type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; banka_hesap_id: string | null; tur: string; hasta: { ad_soyad: string } | null };
 type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string; banka_hesap_id: string | null };
 type PersonelOdemeSatiri = { id: string; tarih: string; tutar: number; tur: string; banka_hesap_id: string | null; personel: { ad_soyad: string } | null };
 type NakitBankaSatiri = {
@@ -560,11 +560,14 @@ export function BankaClient({
 
     const gelen: LedgerSatiri[] = [
       ...hastaOdemeleri
-        .filter((h) => h.banka_hesap_id === selectedId)
+        .filter((h) => h.banka_hesap_id === selectedId && h.tur === "odeme")
         .map((h) => ({ tarih: h.created_at.slice(0, 10), tutar: h.tutar, etiket: "Hasta ödemesi", taraf: h.hasta?.ad_soyad ?? "Hasta" })),
     ];
 
     const giden: LedgerSatiri[] = [
+      ...hastaOdemeleri
+        .filter((h) => h.banka_hesap_id === selectedId && h.tur === "iade")
+        .map((h) => ({ tarih: h.created_at.slice(0, 10), tutar: h.tutar, etiket: "Hasta iadesi", taraf: h.hasta?.ad_soyad ?? "Hasta" })),
       ...harcamalar
         .filter((g) => g.banka_hesap_id === selectedId)
         .map((g) => ({ tarih: g.tarih, tutar: g.tutar, etiket: g.tedarikci_adi ?? g.kategori, taraf: g.tedarikci_adi ?? undefined })),

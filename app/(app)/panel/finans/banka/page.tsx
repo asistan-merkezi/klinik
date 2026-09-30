@@ -10,6 +10,8 @@ type HastaOdemeSatiri = {
   created_at: string;
   tutar: number;
   banka_hesap_id: string | null;
+  // tur='iade' satırları (hasta havale iadesi) aynı sorguyla gelir; Banka'da ÇIKIŞ sayılır.
+  tur: string;
   hasta: { ad_soyad: string } | null;
 };
 type HarcamaSatiri = {
@@ -91,8 +93,8 @@ export default async function BankaSayfasi({ searchParams }: { searchParams: Pro
     supabase.from("klinik_banka_hesaplari").select("id, banka_adi, sube").order("sort_order").returns<KlinikBankaHesabi[]>(),
     supabase
       .from("hasta_bakiye_hareket")
-      .select("id, created_at, tutar, banka_hesap_id, hasta:hasta_id(ad_soyad)")
-      .eq("tur", "odeme")
+      .select("id, created_at, tutar, banka_hesap_id, tur, hasta:hasta_id(ad_soyad)")
+      .in("tur", ["odeme", "iade"])
       .eq("odeme_yontemi", "banka_havalesi")
       .gte("created_at", yilBaslangicTs)
       .lt("created_at", yilBitisTs)

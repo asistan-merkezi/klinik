@@ -121,7 +121,10 @@ export async function odemeAl(
 }
 
 const bakiyeHareketSemasi = z.object({
-  tur: z.enum(["odeme", "iade", "kredi", "borc"]),
+  // 'iade' bilinçli olarak burada YOK — iade ödeme yöntemi zorunlu ve ayrı
+  // action'dan (hastaIadesiVer) girer, yoksa yöntemsiz bir iade satırı
+  // Kasa/Banka/Kredi Kartı mutabakatına hiç yansımazdı.
+  tur: z.enum(["odeme", "kredi", "borc"]),
   tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
@@ -192,7 +195,8 @@ export async function bakiyeHareketiEkle(
   const { tur, tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id, belge_turu } = ayristirma.data;
 
   // odeme_yontemi/banka_hesap_id/belge_turu sadece tur='odeme' iken anlamlı
-  // (Kasa/Banka mutabakatı ilk ikisini okuyor) — diğer türlerde (iade/kredi/borc) NULL kalır.
+  // (Kasa/Banka mutabakatı ilk ikisini okuyor) — diğer türlerde (kredi/borc) NULL kalır.
+  // İade ayrı action'da (hastaIadesiVer).
   const { error } = await supabase.from("hasta_bakiye_hareket").insert({
     klinik_id: klinikId,
     hasta_id: hastaId,
@@ -212,6 +216,85 @@ export async function bakiyeHareketiEkle(
 
   revalidateHastaDetay(hastaId);
   return { success: true, message: "Ödeme eklendi." };
+}
+
+const iadeSemasi = z
+  .object({
+    tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+    tarih: z.string().min(1, "Tarih seçilmeli."),
+    aciklama: z.string().trim().optional(),
+    odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"], {
+      message: "İade yöntemi seçilmeli.",
+    }),
+    banka_hesap_id: z.string().trim().optional(),
+  })
+  .refine((v) => v.odeme_yontemi !== "banka_havalesi" || !!v.banka_hesap_id, {
+    message: "Havale iadesi için banka hesabı seçilmeli.",
+    path: ["banka_hesap_id"],
+  });
+
+// Hastaya para iadesi: bakiyeyi -tutar düşürür (v_hasta_ozet, migration
+// 20260930090000) ve seçilen yönteme göre Kasa/Banka/Kredi Kartı'nda ÇIKIŞ
+// olarak görünür. Yöntem zorunlu — yöntemsiz iade hiçbir mutabakata
+// yansımazdı (DB'de de CHECK ile zorlanıyor).
+export async function hastaIadesiVer(
+  hastaId: string,
+  _onceki: SonucDurumu,
+  formData: FormData
+): Promise<SonucDurumu> {
+  const { supabase, klinikId, hasta, yetkisiz } = await yetkiliHastaVeKlinikGetir(hastaId);
+  if (yetkisiz) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!hasta || !klinikId) {
+    return { success: false, message: "Hasta bulunamadı." };
+  }
+
+  const ayristirma = iadeSemasi.safeParse({
+    tutar: formData.get("tutar"),
+    tarih: formData.get("tarih"),
+    aciklama: formData.get("aciklama") ?? "",
+    odeme_yontemi: formData.get("odeme_yontemi") ?? "",
+    banka_hesap_id: formData.get("banka_hesap_id") ?? "",
+  });
+
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id } = ayristirma.data;
+
+  // FK tenant'ı doğrulamaz — RLS'e tabi bu sorgu, başka kliniğin banka
+  // hesabının id'siyle iade yazılmasını engeller.
+  if (odeme_yontemi === "banka_havalesi") {
+    const { data: hesap } = await supabase
+      .from("klinik_banka_hesaplari")
+      .select("id")
+      .eq("id", banka_hesap_id ?? "")
+      .maybeSingle();
+    if (!hesap) {
+      return { success: false, message: "Banka hesabı bulunamadı." };
+    }
+  }
+
+  const { error } = await supabase.from("hasta_bakiye_hareket").insert({
+    klinik_id: klinikId,
+    hasta_id: hastaId,
+    tur: "iade",
+    tutar,
+    aciklama: aciklama ? aciklama : null,
+    created_at: tarihiSimdikiSaatleUTC(tarih),
+    odeme_yontemi,
+    banka_hesap_id: odeme_yontemi === "banka_havalesi" ? banka_hesap_id : null,
+  });
+
+  if (error) {
+    console.error("Hasta iadesi eklenemedi:", error);
+    return { success: false, message: "İade kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidateHastaDetay(hastaId);
+  return { success: true, message: "İade kaydedildi." };
 }
 
 const borcDuzenleSemasi = z.object({
