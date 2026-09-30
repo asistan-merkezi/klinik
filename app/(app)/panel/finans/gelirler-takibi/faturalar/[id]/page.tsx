@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/datetime";
 import { faturaEksikAlanlariBul, FATURA_ALAN_ETIKETLERI, type FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
 import { kdvAyristir } from "@/lib/fatura/kdv-hesapla";
 import { FaturaKesFormu } from "./fatura-kes-formu";
+import { EksikBilgiDialog } from "./eksik-bilgi-dialog";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -23,7 +24,7 @@ type BorcDetaySatiri = {
   hasta: {
     ad_soyad: string;
     eposta: string | null;
-    hasta_hassas: { kimlik_no: string | null; adres: string | null } | null;
+    hasta_hassas: { kimlik_no: string | null; kimlik_no_tipi: string | null; adres: string | null } | null;
   } | null;
   randevu: {
     islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null; kdv_orani: number } | null;
@@ -43,7 +44,7 @@ export default async function FaturaDetaySayfasi({ params }: { params: Promise<{
     .from("hasta_bakiye_hareket")
     .select(
       "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
-        "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, adres)), " +
+        "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, kimlik_no_tipi, adres)), " +
         "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani))"
     )
     .eq("id", id)
@@ -63,6 +64,12 @@ export default async function FaturaDetaySayfasi({ params }: { params: Promise<{
     kimlikNo: hassas?.kimlik_no ?? null,
   };
   const eksikAlanlar = faturaEksikAlanlariBul(faturaBilgisi);
+
+  // Kimlik/adres/e-posta yazma yetkisi muhasebe'de YOK (hasta_hassas RLS, bkz.
+  // faturaHastaBilgisiTamamla) — muhasebe yalnız uyarıyı görür. Ad Soyad eksikse
+  // diyalogda düzeltilecek alan olmadığı için buton gösterilmez.
+  const hastaBilgisiDuzenlenebilir = ["klinik_admin", "resepsiyon", "super_admin"].includes(kullanici.rol);
+  const tamamlanabilirEksikVar = eksikAlanlar.some((a) => ["eposta", "kimlik_no", "adres"].includes(a));
 
   const islemAdi =
     hareket.randevu?.islem_tanimi?.muhasebe_hizmet_ismi ?? hareket.randevu?.islem_tanimi?.ad ?? hareket.aciklama ?? "Borç";
@@ -110,10 +117,21 @@ export default async function FaturaDetaySayfasi({ params }: { params: Promise<{
             </div>
 
             {eksikAlanlar.length > 0 && (
-              <p role="alert" className="text-sm text-destructive">
-                Fatura için eksik bilgi: {eksikAlanlar.map((a) => FATURA_ALAN_ETIKETLERI[a]).join(", ")}. Hastanın
-                Kişisel Bilgiler sekmesinden tamamlayın.
-              </p>
+              <div className="flex flex-col gap-3">
+                <p role="alert" className="text-sm text-destructive">
+                  Fatura için eksik bilgi: {eksikAlanlar.map((a) => FATURA_ALAN_ETIKETLERI[a]).join(", ")}.
+                  {hastaBilgisiDuzenlenebilir && tamamlanabilirEksikVar
+                    ? ""
+                    : " Hastanın bilgilerini tamamlaması için klinik yöneticisine/resepsiyona iletin."}
+                </p>
+                {hastaBilgisiDuzenlenebilir && tamamlanabilirEksikVar && hareket.hasta_id && (
+                  <EksikBilgiDialog
+                    hastaId={hareket.hasta_id}
+                    eksikAlanlar={eksikAlanlar}
+                    mevcutKimlikTipi={hassas?.kimlik_no_tipi ?? null}
+                  />
+                )}
+              </div>
             )}
 
             {duzenlenebilir ? (
