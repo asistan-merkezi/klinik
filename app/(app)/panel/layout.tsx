@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import { PanelSidebar } from "@/components/panel/sidebar";
 import { QueryProvider } from "@/components/panel/query-provider";
+import { RandevuBildirimleri } from "@/components/panel/randevu-bildirimleri";
 import { bildirimSayisiGetir } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-sayisi";
 import { SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN, SIDEBAR_GIZLI_BOS } from "@/lib/panel/menu-gruplari";
 
@@ -61,6 +62,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       >
         {children}
       </PanelSidebar>
+      <RandevuBildirimleri kullaniciId={user.id} rol={kullanici?.rol ?? ""} />
     </QueryProvider>
   );
 }
