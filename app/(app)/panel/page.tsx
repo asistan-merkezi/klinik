@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import type { RandevuSatir, SecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
+import { RANDEVU_SELECT } from "@/lib/randevu/queries";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
 import type { KlinikBankaHesabi } from "@/types/klinik";
 import { gunAraligi } from "@/lib/utils";
@@ -79,9 +80,7 @@ export default async function PanelSayfasi() {
   ] = await Promise.all([
     supabase
       .from("randevu")
-      .select(
-        "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad), tamamlanma_aciklamasi, tamamlanma_tarihi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad), paket_satis_id, hasta_bakiye_hareket(id, tur)"
-      )
+      .select(RANDEVU_SELECT)
       .gte("baslangic", baslangic)
       .lt("baslangic", bitis)
       .order("baslangic")

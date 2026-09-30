@@ -58,7 +58,7 @@ function OdemeVeyaCariKarti({
    * Cariye Ekle/Ödeme Ekle başarıyla tamamlanınca çağrılır — Randevu
    * Çizelgesi'nin (CanliCizelge) elindeki randevu listesini ve o an açık
    * seçili randevuyu, sayfa yenilenmeden ("hasta_bakiye_hareket" değişikliği
-   * realtime'da izlenmediği için, bkz. canli-cizelge.tsx RANDEVU_SELECT
+   * realtime'da izlenmediği için, bkz. lib/randevu/queries.ts RANDEVU_SELECT
    * notu) optimistik olarak günceller — aksi halde dialog kapanıp yeniden
    * açıldığında ya da kutu renginde işlem "yapılmamış" gibi görünür.
    */

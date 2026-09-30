@@ -12,6 +12,7 @@ import { BekleyenRandevuTalepleri } from "./bekleyen-randevu-talepleri";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import { atanabilirTerapistleriGetir } from "@/lib/personel/atanabilir-terapistler";
 import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
+import { RANDEVU_SELECT } from "@/lib/randevu/queries";
 
 export default async function RandevularSayfasi() {
   const supabase = await createClient();
@@ -57,9 +58,7 @@ export default async function RandevularSayfasi() {
   ] = await Promise.all([
       supabase
         .from("randevu")
-        .select(
-          "id, baslangic, bitis, durum, gecikme_dakika, hasta_id, terapist_id, oda_id, cihaz_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi_id, islem_tanimi(id, ad), tani, antrenor_id, antrenor:personel(ad_soyad), tedavi_protokolu_id, tedavi_protokolu(id, ad), tamamlanma_aciklamasi, tamamlanma_tarihi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad), paket_satis_id, hasta_bakiye_hareket(id, tur)"
-        )
+        .select(RANDEVU_SELECT)
         .gte("baslangic", baslangic)
         .lt("baslangic", bitis)
         .order("baslangic")

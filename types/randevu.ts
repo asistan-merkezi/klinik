@@ -7,6 +7,8 @@ export type RandevuDurum =
   | "iptal"
   | "tamamlandi";
 
+// Randevu Çizelgesi satırı — select'i lib/randevu/queries.ts > RANDEVU_SELECT'te
+// TEK yerde tanımlı; oraya kolon ekleyince bu tipi de güncelle.
 export type RandevuSatir = {
   id: string;
   baslangic: string;
