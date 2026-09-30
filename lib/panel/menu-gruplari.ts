@@ -91,7 +91,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ogeler: [
       { href: "/panel/paketler", label: "Paketler", icon: Package },
       { href: "/panel/kaynaklar", label: "Donanım", icon: DoorOpen },
-      { href: "/panel/islemler", label: "Tedaviler", icon: ClipboardList },
+      { href: "/panel/islemler", label: "Tedavi Tanımları", icon: ClipboardList },
       { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
       { href: "/panel/yonetim/denetim-gecmisi", label: "Denetim Geçmişi", icon: History },
     ],
