@@ -3,6 +3,13 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import {
+  hizSiniriAsildiMi,
+  hizSiniriKaydet,
+  ipAnahtari,
+  klinikAnahtari,
+  HIZ_SINIRI_MESAJI,
+} from "@/lib/qr/hiz-siniri";
 
 type SonucDurumu = { success: boolean; message: string; adSoyad?: string; saat?: string } | null;
 
@@ -50,6 +57,17 @@ export async function puantajPinIleKaydet(_onceki: SonucDurumu, formData: FormDa
     return { success: false, message: "Bu puantaj bağlantısı artık aktif değil." };
   }
 
+  // 6 haneli PIN tüm klinik havuzuna karşı deneniyor (1M olasılık) → kaba kuvvet
+  // riski. Personel aynı klinik IP'sinden sabah toplu giriş yaptığı için BAŞARILI
+  // kayıtlar sayılmaz; yalnız başarısız (pin_bulunamadi) denemeler sayılır.
+  const basarisizKurallar = [
+    { anahtar: await ipAnahtari("puantaj_basarisiz"), limit: 10, pencereSn: 600 },
+    { anahtar: klinikAnahtari("puantaj_basarisiz", klinik_id), limit: 40, pencereSn: 600 },
+  ];
+  if (await hizSiniriAsildiMi(basarisizKurallar)) {
+    return { success: false, message: HIZ_SINIRI_MESAJI };
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("personel_puantaj_pin_ile_kaydet", {
@@ -60,6 +78,9 @@ export async function puantajPinIleKaydet(_onceki: SonucDurumu, formData: FormDa
 
   if (error) {
     console.error("Puantaj PIN ile kayıt başarısız:", error);
+    if (error.message === "pin_bulunamadi") {
+      await hizSiniriKaydet(basarisizKurallar);
+    }
     return { success: false, message: HATA_MESAJLARI[error.message] ?? "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 

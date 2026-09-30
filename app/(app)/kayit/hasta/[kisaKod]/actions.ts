@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import { hizSiniriTuket, ipAnahtari, klinikAnahtari, HIZ_SINIRI_MESAJI } from "@/lib/qr/hiz-siniri";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -68,6 +69,16 @@ export async function hastaQrKayitOlustur(
   const aktif = await qrKoduAktifMi(klinik_id, "hasta_on_kayit");
   if (!aktif) {
     return { success: false, message: "Bu kayıt bağlantısı artık aktif değil." };
+  }
+
+  // IP: 10 dk'da 10 kayıt (klinik bekleme salonu tek NAT IP'si olabilir);
+  // klinik toplamı: günde 300 — sahte kayıtla DB şişirmeye karşı tavan.
+  const izinli = await hizSiniriTuket([
+    { anahtar: await ipAnahtari("hasta_kayit"), limit: 10, pencereSn: 600 },
+    { anahtar: klinikAnahtari("hasta_kayit", klinik_id), limit: 300, pencereSn: 86400 },
+  ]);
+  if (!izinli) {
+    return { success: false, message: HIZ_SINIRI_MESAJI };
   }
 
   const supabase = await createClient();

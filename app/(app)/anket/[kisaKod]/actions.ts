@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import { hizSiniriTuket, ipAnahtari, klinikAnahtari, HIZ_SINIRI_MESAJI } from "@/lib/qr/hiz-siniri";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -39,6 +40,14 @@ export async function anketYanitiOlustur(_onceki: SonucDurumu, formData: FormDat
   const aktif = await qrKoduAktifMi(klinik_id, "anket");
   if (!aktif) {
     return { success: false, message: "Bu anket bağlantısı artık aktif değil." };
+  }
+
+  const izinli = await hizSiniriTuket([
+    { anahtar: await ipAnahtari("anket"), limit: 10, pencereSn: 600 },
+    { anahtar: klinikAnahtari("anket", klinik_id), limit: 500, pencereSn: 86400 },
+  ]);
+  if (!izinli) {
+    return { success: false, message: HIZ_SINIRI_MESAJI };
   }
 
   const supabase = await createClient();
