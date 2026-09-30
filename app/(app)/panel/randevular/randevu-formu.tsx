@@ -17,7 +17,7 @@ import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/t
 import { randevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
 import { KayitliPaketler } from "./kayitli-paketler";
-import { useTedaviEtkinFiyat } from "./queries";
+import { useDoluKaynaklar, useTedaviEtkinFiyat } from "./queries";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -25,7 +25,7 @@ type Props = {
   hastalar: SecenekSatir[];
   terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
-  cihazlar: SecenekSatir[];
+  cihazlar?: SecenekSatir[];
   tedaviler: TedaviSecenekSatir[];
   /** Randevu başarıyla oluşturulunca çağrılır (örn. dialog'u kapatmak için) */
   onBasarili?: () => void;
@@ -44,7 +44,6 @@ export function RandevuFormu({
   hastalar,
   terapistler,
   odalar,
-  cihazlar,
   tedaviler,
   onBasarili,
   sabitHasta,
@@ -56,10 +55,23 @@ export function RandevuFormu({
   const [hastaId, setHastaId] = useState(efektifSabitHasta?.id ?? "");
   const [islemTanimiId, setIslemTanimiId] = useState(talep?.islemTanimiId ?? "");
   const [terapistId, setTerapistId] = useState("");
-  const [sureDakika, setSureDakika] = useState(
-    tedaviler.find((t) => t.id === talep?.islemTanimiId)?.sure_dakika ?? 30
-  );
+  const [odaId, setOdaId] = useState("");
   const [iskontoTutari, setIskontoTutari] = useState("");
+
+  const searchParams = useSearchParams();
+  const bugun = formatDateForInput(new Date().toISOString());
+  // Günün Çizelgesi'nde boş alana tıklanınca oda/tarih/saat buradan gelir;
+  // talep prop'u varsa (Bekleyen Randevu Talepleri'nden açılan form) hastanın
+  // tercihi öncelikli.
+  const onOdaId = searchParams.get("oda_id") ?? "";
+  const [tarih, setTarih] = useState(talep?.tarih ?? searchParams.get("tarih") ?? bugun);
+  const [saat, setSaat] = useState(talep?.saat ?? searchParams.get("saat") ?? "");
+  // Çizelgeden gelen oda önseçimi — müsaitlik kontrolünden geçemezse aşağıda temizlenir.
+  const [onOdaKullanildi, setOnOdaKullanildi] = useState(false);
+  if (!onOdaKullanildi && onOdaId) {
+    setOnOdaKullanildi(true);
+    setOdaId(onOdaId);
+  }
 
   // Hasta + tedavi ikisi de seçilince sunucuda hesaplanan tedavi bedeli (bkz.
   // islem_tanimi_etkin_fiyat RPC'si) formun en alt satırında İskonto alanının
@@ -72,29 +84,38 @@ export function RandevuFormu({
   // types/randevu.ts > TedaviSecenekSatir.pozisyon_idleri); hiçbir adımda
   // pozisyon tanımlı değilse tüm terapistler seçilebilir kalır.
   const seciliTedavi = tedaviler.find((t) => t.id === islemTanimiId);
-  const uygunTerapistler =
+  const pozisyonaUygunTerapistler =
     seciliTedavi && seciliTedavi.pozisyon_idleri.length > 0
       ? terapistler.filter((t) => t.pozisyon_id && seciliTedavi.pozisyon_idleri.includes(t.pozisyon_id))
       : terapistler;
 
-  // Tedavi seçilince (Tedavi seçiciden veya Kayıtlı Paketler'den) o tedavinin
-  // Yönetim > Tedavi Tanımları'nda ayarlanmış uygulama süresi varsa Süre alanına
-  // otomatik yansır; süre tanımlı değilse elle girilen/varsayılan değer korunur.
-  // Önceden seçili terapist yeni tedavinin gerektirdiği pozisyona uymuyorsa
-  // seçim sıfırlanır — Terapist alanı Tedavi'den SONRA doldurulur.
+  // Toplam süre TEDAVİ TANIMINDAN gelir (adımların toplamı = islem_tanimi.sure_dakika,
+  // bkz. islem_tanimi_adim trigger'ı); süre kullanıcıdan alınmaz. Tanımda süre
+  // yoksa 30 dk varsayılanı — eski form varsayılanıyla aynı.
+  const adimToplami = (seciliTedavi?.adimlar ?? []).reduce((t, a) => t + (a.sure_dakika ?? 0), 0);
+  const toplamSure = seciliTedavi?.sure_dakika ?? (adimToplami > 0 ? adimToplami : 30);
+
+  // Tarih + saat + tedavi belli olunca o zaman dilimindeki dolu terapist/oda
+  // çekilir; listeler yalnız müsait olanları gösterir.
+  const zamanHazir = Boolean(islemTanimiId && tarih && saat);
+  const { data: dolu, isLoading: musaitlikYukleniyor } = useDoluKaynaklar(
+    zamanHazir ? tarih : "",
+    zamanHazir ? saat : "",
+    toplamSure
+  );
+  const uygunTerapistler = dolu
+    ? pozisyonaUygunTerapistler.filter((t) => !dolu.terapistler.has(t.id))
+    : pozisyonaUygunTerapistler;
+  const musaitOdalar = dolu ? odalar.filter((o) => !dolu.odalar.has(o.id)) : odalar;
+  // Seçim, zaman değişince dolu hâle gelirse sessizce sıfırlanır (render sırasında
+  // türetilen değer; state'e dokunmadan gönderilen değer buna göre boşalır).
+  const efektifTerapistId = uygunTerapistler.some((t) => t.id === terapistId) ? terapistId : "";
+  const efektifOdaId = musaitOdalar.some((o) => o.id === odaId) ? odaId : "";
+
+  // Tedavi seçilince (Tedavi seçiciden veya Kayıtlı Paketler'den) iskonto sıfırlanır;
+  // terapist/oda seçimi müsaitlik listesinden efektif olarak yeniden doğrulanır.
   function tedaviSec(id: string) {
     setIslemTanimiId(id);
-    const tedavi = tedaviler.find((t) => t.id === id);
-    if (tedavi?.sure_dakika) {
-      setSureDakika(tedavi.sure_dakika);
-    }
-    const yeniUygunlar =
-      tedavi && tedavi.pozisyon_idleri.length > 0
-        ? terapistler.filter((t) => t.pozisyon_id && tedavi.pozisyon_idleri.includes(t.pozisyon_id))
-        : terapistler;
-    if (!yeniUygunlar.some((t) => t.id === terapistId)) {
-      setTerapistId("");
-    }
     setIskontoTutari("");
   }
 
@@ -108,15 +129,6 @@ export function RandevuFormu({
       onBasarili?.();
     }
   }
-
-  const searchParams = useSearchParams();
-  const bugun = formatDateForInput(new Date().toISOString());
-  // Günün Çizelgesi'nde boş alana tıklanınca oda/tarih/saat buradan gelir;
-  // talep prop'u varsa (Bekleyen Randevu Talepleri'nden açılan form) hastanın
-  // tercihi öncelikli.
-  const onOdaId = searchParams.get("oda_id") ?? undefined;
-  const onTarih = talep?.tarih ?? searchParams.get("tarih") ?? bugun;
-  const onSaat = talep?.saat ?? searchParams.get("saat") ?? undefined;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -177,13 +189,66 @@ export function RandevuFormu({
           </Select>
         </div>
 
+        {seciliTedavi && (
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 px-3 py-2.5 sm:col-span-2">
+            <span className="text-xs font-medium text-muted-foreground">Yapılacak İşlemler</span>
+            {seciliTedavi.adimlar.length > 0 ? (
+              <ul className="flex flex-col divide-y divide-border text-sm">
+                {seciliTedavi.adimlar.map((a, i) => (
+                  <li key={i} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 py-1.5">
+                    <span className="font-medium">{a.ad}</span>
+                    <span className="tabular flex items-center gap-4 text-muted-foreground">
+                      <span>{a.cihaz_ad ?? "Cihaz yok"}</span>
+                      <span>{a.sure_dakika ? `${a.sure_dakika} dk` : "—"}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Bu tedavi için işlem adımı tanımlı değil.</p>
+            )}
+            <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
+              <span className="font-medium">Toplam Süre</span>
+              <span className="tabular font-semibold">{toplamSure} dk</span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="tarih">Tarih</Label>
+          <Input
+            id="tarih"
+            name="tarih"
+            type="date"
+            value={tarih}
+            onChange={(e) => setTarih(e.target.value)}
+            required
+            disabled={isPending}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="saat">Saat</Label>
+          <Input
+            id="saat"
+            name="saat"
+            type="time"
+            value={saat}
+            onChange={(e) => setSaat(e.target.value)}
+            required
+            disabled={isPending}
+          />
+        </div>
+
+        <input type="hidden" name="sure_dakika" value={toplamSure} />
+
         <div className="flex flex-col gap-2">
           <Label htmlFor="terapist_id">Dr / Terapist</Label>
           <Select
             name="terapist_id"
             required
-            disabled={isPending || !islemTanimiId || uygunTerapistler.length === 0}
-            value={terapistId}
+            disabled={isPending || !zamanHazir || uygunTerapistler.length === 0}
+            value={efektifTerapistId}
             onValueChange={(v) => setTerapistId(v as string)}
             items={uygunTerapistler.map((t) => ({ value: t.id, label: t.ad }))}
           >
@@ -192,9 +257,13 @@ export function RandevuFormu({
                 placeholder={
                   !islemTanimiId
                     ? "Önce tedavi seçin"
-                    : uygunTerapistler.length === 0
-                      ? "Bu tedavi için uygun personel yok"
-                      : "Dr / Terapist seçin"
+                    : !zamanHazir
+                      ? "Önce tarih ve saat seçin"
+                      : musaitlikYukleniyor
+                        ? "Müsaitlik kontrol ediliyor…"
+                        : uygunTerapistler.length === 0
+                          ? "Bu saatte müsait personel yok"
+                          : "Dr / Terapist seçin"
                 }
               />
             </SelectTrigger>
@@ -213,75 +282,32 @@ export function RandevuFormu({
           <Select
             name="oda_id"
             required
-            disabled={isPending}
-            defaultValue={onOdaId}
-            items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
+            disabled={isPending || !zamanHazir || musaitOdalar.length === 0}
+            value={efektifOdaId}
+            onValueChange={(v) => setOdaId(v as string)}
+            items={musaitOdalar.map((o) => ({ value: o.id, label: o.ad }))}
           >
             <SelectTrigger id="oda_id" className="w-full">
-              <SelectValue placeholder="Oda seçin" />
+              <SelectValue
+                placeholder={
+                  !zamanHazir
+                    ? "Önce tarih ve saat seçin"
+                    : musaitlikYukleniyor
+                      ? "Müsaitlik kontrol ediliyor…"
+                      : musaitOdalar.length === 0
+                        ? "Bu saatte müsait oda yok"
+                        : "Oda seçin"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
-              {odalar.map((o) => (
+              {musaitOdalar.map((o) => (
                 <SelectItem key={o.id} value={o.id}>
                   {o.ad}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="cihaz_id">Cihaz (opsiyonel)</Label>
-          <Select
-            name="cihaz_id"
-            disabled={isPending || cihazlar.length === 0}
-            items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
-          >
-            <SelectTrigger id="cihaz_id" className="w-full">
-              <SelectValue
-                placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {cihazlar.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.ad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="tarih">Tarih</Label>
-          <Input
-            id="tarih"
-            name="tarih"
-            type="date"
-            defaultValue={onTarih}
-            required
-            disabled={isPending}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="saat">Saat</Label>
-          <Input id="saat" name="saat" type="time" defaultValue={onSaat} required disabled={isPending} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="sure_dakika">Süre (dakika)</Label>
-          <Input
-            id="sure_dakika"
-            name="sure_dakika"
-            type="number"
-            min={5}
-            max={480}
-            value={sureDakika}
-            onChange={(e) => setSureDakika(Number(e.target.value))}
-            required
-            disabled={isPending}
-          />
         </div>
 
         {islemTanimiId && hastaId && (

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { toUTC } from "@/lib/datetime";
 
 export type HastaAktifPaket = {
   id: string;
@@ -52,6 +53,36 @@ export function useTedaviEtkinFiyat(islemTanimiId: string, hastaId: string) {
       });
       if (error) throw error;
       return data as number | null;
+    },
+  });
+}
+
+/**
+ * Seçilen tarih+saat+süre aralığında dolu olan terapist ve odalar — randevu
+ * formunda Dr / Terapist ve Oda listelerini yalnız müsait olanlarla sınırlamak
+ * için. DB'deki exclusion constraint'lerle AYNI kural (iptal/gelmedi hariç,
+ * yarı-açık aralık çakışması); asıl güvence yine constraint, bu yalnız UI kolaylığı.
+ */
+export function useDoluKaynaklar(tarih: string, saat: string, sureDakika: number) {
+  return useQuery({
+    queryKey: ["randevu_dolu_kaynaklar", tarih, saat, sureDakika],
+    enabled: tarih !== "" && saat !== "" && sureDakika > 0,
+    queryFn: async () => {
+      const baslangic = toUTC(`${tarih}T${saat}:00`);
+      const bitis = new Date(new Date(baslangic).getTime() + sureDakika * 60_000).toISOString();
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("randevu")
+        .select("terapist_id, oda_id")
+        .lt("baslangic", bitis)
+        .gt("bitis", baslangic)
+        .not("durum", "in", "(iptal,gelmedi)")
+        .returns<{ terapist_id: string; oda_id: string }[]>();
+      if (error) throw error;
+      return {
+        terapistler: new Set((data ?? []).map((r) => r.terapist_id)),
+        odalar: new Set((data ?? []).map((r) => r.oda_id)),
+      };
     },
   });
 }

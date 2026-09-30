@@ -37,6 +37,12 @@ export type RandevuSatir = {
   /** Check-in'de bir paketten düşüldüyse dolu (bkz. randevu_gelis_isaretle). */
   paket_satis_id?: string | null;
   /**
+   * Bağlı paket satışının güncel kalan hakkı + paket adı — tamamlanan seans
+   * özetinde "paket bitmek üzere" uyarısı için (bkz. lib/paket/yenileme-esigi.ts).
+   * Kalan hak check-in'de düşer, bu yüzden tamamlanma anında zaten güncel.
+   */
+  paket_satis?: { kalan_adet: number; paket: { ad: string } | null } | null;
+  /**
    * Bu randevuya bağlı hasta_bakiye_hareket satırları (yalnız id+tur) — seans
    * tamamlandıktan sonra "Cariye Ekle"/"Ödeme Ekle" ile bir 'borc' satırı
    * yazılıp yazılmadığını anlamak için (bkz. randevu-kutusu.tsx'teki kutu
@@ -58,9 +64,17 @@ export type SecenekSatir = {
  * pozisyon id'lerini taşır (bkz. randevu-formu.tsx). Hiçbir adımda pozisyon
  * tanımlı değilse pozisyon_idleri boş dizi döner = filtre uygulanmaz.
  */
+export type TedaviAdimSatir = {
+  ad: string;
+  sure_dakika: number | null;
+  cihaz_ad: string | null;
+};
+
 export type TedaviSecenekSatir = SecenekSatir & {
   sure_dakika: number | null;
   pozisyon_idleri: string[];
+  /** Tedavi Tanımları'ndaki işlem adımları (sira sırasıyla) — randevu formunda "Yapılacak İşlemler" olarak gösterilir. */
+  adimlar: TedaviAdimSatir[];
 };
 
 /** Terapist seçim listesi — Tedavi seçilince Personel seçiciyi o tedavinin gerektirdiği pozisyona daraltmak için pozisyon_id taşır (bkz. randevu-formu.tsx). */
