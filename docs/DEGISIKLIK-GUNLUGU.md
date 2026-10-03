@@ -3,6 +3,8 @@
 Bu dosya, eski `CLAUDE.md`'nin "İş Modeli Notları" başlığı altında birikmiş tur-tur
 çalışma günlüğüdür. 2026-09-13'te CLAUDE.md sıkıştırılırken buraya taşındı.
 
+**Puantaj PIN'i kaldırıldı, giriş/çıkış kişinin kendi oturumuna bağlandı (2026-10-03, kullanıcı kararı).** Personelin zaten sistem şifresi var; ayrı 6 haneli PIN ikinci parola olduğu için kafa karıştırıyordu. `/puantaj/[kisaKod]/[tur]` oturum ister (yoksa `/giris?donus=` ile döner), `puantajPinIleKaydet` → `puantajKendiKaydet`, `personel_puantaj_kendi_kaydet` RPC'si (auth.uid + sunucu saati + İstanbul günü; izinli/raporlu gün ve kapalı dönem reddi). Personel kartındaki PIN kartı/formu/action'ları, `types/personel.ts` alanları ve QR hız sınırı PIN kuralları silindi. DB temizliği (Adım B) kod canlıda doğrulanınca: `supabase/bekleyen/20261003110000_puantaj_pin_kaldir.sql`. Not: MEVCUT-DURUM.md/MIGRATION-KAPSAM.md'deki PIN anlatımları tarihsel, güncellenmedi.
+
 **Bu dosya Claude tarafından her oturumda okunmaz.** Güncel kararlar, kurallar ve
 tuzaklar CLAUDE.md'ye taşındı; burası yalnızca "o karar neden alınmıştı" sorusunun
 cevabını aramak için, elle açılıp grep'lenecek bir arşivdir. Buraya yeni satır

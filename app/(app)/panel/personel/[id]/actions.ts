@@ -38,10 +38,6 @@ const hesapHareketSemasi = z.object({
   banka_hesap_id: z.string().trim().optional(),
 });
 
-const pinSemasi = z.object({
-  pin: z.string().regex(/^\d{6}$/, "PIN 6 haneli rakamlardan oluşmalı."),
-});
-
 async function yetkiliBaglantiGetir() {
   const supabase = await createClient();
   const {
@@ -182,58 +178,4 @@ export async function hesapHareketiEkle(
 
   revalidatePath(`/panel/personel/${personelId}`);
   return { success: true, message: "Hareket eklendi." };
-}
-
-/**
- * Puantaj PIN'i — personel klinik kapısındaki QR'ı okutup kendi giriş/çıkış
- * saatini kaydedebilsin diye (bkz. app/(app)/puantaj/[klinikId]/[tur]).
- * Bilinçli olarak admin'e kısıtlanmıyor — personelin KENDİSİ de kendi
- * PIN'ini belirleyebilmeli; yetki kontrolü tamamen personel_puantaj_pin_belirle
- * RPC'sinin içinde (is_super_admin OR admin-kendi-kliniginde OR kendisi,
- * COALESCE ile fail-closed).
- */
-export async function personelPuantajPinBelirle(personelId: string, _onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase } = await yetkiliBaglantiGetir();
-
-  const ayristirma = pinSemasi.safeParse({ pin: formData.get("pin") });
-  if (!ayristirma.success) {
-    return { success: false, message: ayristirma.error.issues[0]?.message ?? "PIN geçersiz." };
-  }
-
-  const { error } = await supabase.rpc("personel_puantaj_pin_belirle", {
-    p_personel_id: personelId,
-    p_yeni_pin: ayristirma.data.pin,
-  });
-
-  if (error) {
-    console.error("Puantaj PIN'i belirlenemedi:", error);
-    const mesaj =
-      error.message === "pin_kullanimda"
-        ? "Bu PIN klinikteki başka bir personel tarafından kullanılıyor, farklı bir PIN seçin."
-        : error.message === "yetkisiz"
-          ? "Bu işlem için yetkiniz yok."
-          : "PIN belirlenemedi, lütfen tekrar deneyin.";
-    return { success: false, message: mesaj };
-  }
-
-  revalidatePath(`/panel/personel/${personelId}`);
-  return { success: true, message: "Puantaj PIN'i belirlendi." };
-}
-
-/** Sadece klinik_admin — personel PIN'ini unuttuğunda temizler. */
-export async function personelPuantajPinSifirla(personelId: string): Promise<SonucDurumu> {
-  const { supabase, rol } = await yetkiliBaglantiGetir();
-  if (rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-
-  const { error } = await supabase.rpc("personel_puantaj_pin_sifirla", { p_personel_id: personelId });
-
-  if (error) {
-    console.error("Puantaj PIN'i sıfırlanamadı:", error);
-    return { success: false, message: "PIN sıfırlanamadı, lütfen tekrar deneyin." };
-  }
-
-  revalidatePath(`/panel/personel/${personelId}`);
-  return { success: true, message: "Puantaj PIN'i sıfırlandı." };
 }

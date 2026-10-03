@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { oturumKilidiYenile } from "@/lib/auth/oturum-kilidi";
+import { guvenliDonusAdresi } from "@/lib/auth/donus-adresi";
 
 type GirisSonucu = { success: false; message: string } | never;
 
@@ -12,6 +13,7 @@ export async function girisYap(
 ): Promise<GirisSonucu | null> {
   const girisAdi = String(formData.get("giris_adi") ?? "").trim();
   const sifre = String(formData.get("sifre") ?? "");
+  const donus = guvenliDonusAdresi(formData.get("donus")) ?? "/panel";
 
   if (!girisAdi || !sifre) {
     return { success: false, message: "Telefon/e-posta ve şifre gerekli." };
@@ -46,7 +48,7 @@ export async function girisYap(
     }
 
     await oturumKilidiYenile(supabase);
-    redirect("/panel");
+    redirect(donus);
   }
 
   // Telefon girişi: personel_giris_epostasi RPC'si telefonu kayıtlı e-postaya
@@ -70,5 +72,5 @@ export async function girisYap(
   }
 
   await oturumKilidiYenile(supabase);
-  redirect("/panel");
+  redirect(donus);
 }

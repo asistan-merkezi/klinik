@@ -26,7 +26,6 @@ import { bugunTarih, dakikaSaate, saatEtiket } from "@/lib/puantaj";
 import { MaasFormu } from "./maas-formu";
 import { OdemeEkleButonu } from "./odeme-ekle-butonu";
 import { DuzenlePersonelDialog } from "./duzenle-personel-dialog";
-import { PuantajPinFormu } from "./puantaj-pin-formu";
 
 type Sekme = "kisisel" | "odemeler" | undefined;
 
@@ -75,7 +74,7 @@ export default async function PersonelDetaySayfasi({
     supabase
       .from("personel")
       .select(
-        "id, ad_soyad, gorev, pozisyon_id, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, puantaj_pin_guncelleme_tarihi, kullanici:kullanici_id(telefon, rol)"
+        "id, ad_soyad, gorev, pozisyon_id, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, kullanici:kullanici_id(telefon, rol)"
       )
       .eq("id", id)
       .single<PersonelDetay>(),
@@ -547,22 +546,6 @@ export default async function PersonelDetaySayfasi({
                   </>
                 )}
               </dl>
-            </CardContent>
-          </Card>
-        )}
-
-        {sekme === "kisisel" && (yonetici || kendisi) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Puantaj PIN&apos;i</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PuantajPinFormu
-                personelId={id}
-                guncellemeTarihi={personel.puantaj_pin_guncelleme_tarihi}
-                yonetici={yonetici}
-                kendisi={kendisi}
-              />
             </CardContent>
           </Card>
         )}

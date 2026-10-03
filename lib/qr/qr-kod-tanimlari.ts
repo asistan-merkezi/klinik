@@ -45,7 +45,7 @@ export const QR_KOD_TANIMLARI: QrKodTanimi[] = [
     icon: LogIn,
     baslik: "Personel Puantaj — Giriş",
     aciklama:
-      "Personel bu kodu kapıdan kendi telefonuyla okutur, açılan ekranda sadece 6 haneli Puantaj PIN'ini girer. PIN'i her personel kendi Personel Detay sayfasından belirler.",
+      "Personel bu kodu kapıdan kendi telefonuyla okutur; sistem şifresiyle giriş yapmışsa tek dokunuşla kaydeder, yapmamışsa önce giriş ekranına yönlendirilir. Ayrı bir PIN yoktur.",
     yol: (kisaKod) => `/puantaj/${kisaKod}/giris`,
     dosyaAdi: "personel-puantaj-giris-qr",
   },
@@ -54,7 +54,7 @@ export const QR_KOD_TANIMLARI: QrKodTanimi[] = [
     icon: LogOut,
     baslik: "Personel Puantaj — Çıkış",
     aciklama:
-      "Personel bu kodu kapıdan kendi telefonuyla okutur, açılan ekranda sadece 6 haneli Puantaj PIN'ini girer. PIN'i her personel kendi Personel Detay sayfasından belirler.",
+      "Personel bu kodu kapıdan kendi telefonuyla okutur; sistem şifresiyle giriş yapmışsa tek dokunuşla kaydeder, yapmamışsa önce giriş ekranına yönlendirilir. Ayrı bir PIN yoktur.",
     yol: (kisaKod) => `/puantaj/${kisaKod}/cikis`,
     dosyaAdi: "personel-puantaj-cikis-qr",
   },

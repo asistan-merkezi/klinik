@@ -1,8 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { klinikQrBilgisiGetir } from "@/lib/qr/klinik-bilgisi";
 import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import { KamuFormKarti, KamuFormBulunamadi } from "@/components/panel/kamu-form-karti";
-import { PinFormu } from "./pin-formu";
+import { KayitFormu } from "./kayit-formu";
 
 export default async function PuantajSayfasi({
   params,
@@ -34,9 +35,32 @@ export default async function PuantajSayfasi({
     );
   }
 
+  // Kimlik oturumdan gelir — oturum yoksa giriş sayfasına gidilir, giriş
+  // sonrası aynı QR adresine dönülür (`donus`, bkz. lib/auth/donus-adresi.ts).
+  const oturum = await gecerliKullanici();
+  if (!oturum) {
+    redirect(`/giris?donus=${encodeURIComponent(`/puantaj/${kisaKod}/${tur}`)}`);
+  }
+
+  if (!oturum.kullanici || oturum.kullanici.klinik_id !== klinik.id) {
+    return (
+      <KamuFormKarti klinikAd={klinik.ad} baslik={baslik} aciklama="Bu işlem yapılamıyor.">
+        <p className="text-sm text-muted-foreground">
+          Bu QR kodu yalnızca kliniğin personeli tarafından, kendi hesabıyla kullanılabilir.
+        </p>
+      </KamuFormKarti>
+    );
+  }
+
+  const ad = oturum.kullanici.ad_soyad;
+
   return (
-    <KamuFormKarti klinikAd={klinik.ad} baslik={baslik} aciklama="Puantaj PIN'inizi girin.">
-      <PinFormu klinikId={klinik.id} tur={tur} />
+    <KamuFormKarti
+      klinikAd={klinik.ad}
+      baslik={baslik}
+      aciklama={ad ? `Merhaba, ${ad}` : "Hesabınızla devam edin."}
+    >
+      <KayitFormu klinikId={klinik.id} tur={tur} />
     </KamuFormKarti>
   );
 }

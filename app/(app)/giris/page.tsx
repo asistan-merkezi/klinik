@@ -1,6 +1,7 @@
 import { ShieldCheck, Building2, Lock, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { guvenliDonusAdresi } from "@/lib/auth/donus-adresi";
 import { LoginForm } from "./login-form";
 
 /**
@@ -23,9 +24,9 @@ import { LoginForm } from "./login-form";
 export default async function GirisSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ hata?: string }>;
+  searchParams: Promise<{ hata?: string; donus?: string }>;
 }) {
-  const { hata } = await searchParams;
+  const { hata, donus } = await searchParams;
 
   return (
     <div className="dark flex min-h-svh flex-1 bg-background">
@@ -95,7 +96,7 @@ export default async function GirisSayfasi({
             <CardDescription>Personel telefon numarasıyla, yönetici e-posta ile giriş yapar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <LoginForm oturumSonlandiMi={hata === "baska_cihaz"} />
+            <LoginForm oturumSonlandiMi={hata === "baska_cihaz"} donus={guvenliDonusAdresi(donus)} />
           </CardContent>
         </Card>
       </div>

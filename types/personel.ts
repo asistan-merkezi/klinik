@@ -94,7 +94,6 @@ export type PersonelDetay = {
   isten_cikis_tarihi: string | null;
   ise_baslama_notu: string | null;
   imza_yetkilisi_mi: boolean;
-  puantaj_pin_guncelleme_tarihi: string | null;
   kullanici: { telefon: string | null; rol: KullaniciRol } | null;
 };
 
