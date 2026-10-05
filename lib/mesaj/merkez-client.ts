@@ -38,6 +38,14 @@ import type { MesajKanal } from "@/types/mesajlasma";
  *    merkez KENDİ tarafında ödeme doğrulamasını atlarsa, doğrudan merkez
  *    API'sine erişimi olan başka bir çağıran (başka bir istemci, veya
  *    API anahtarını ele geçiren biri) bu korumayı bypass edebilir.
+ * 5. FİYAT ÇİZELGESİ + ÖDEME OTURUMU — /api/kredi-paketleri kanal başına
+ *    satılabilir paketleri (id, adet, fiyat) döner; /api/odeme-oturumu
+ *    `tenantId + kanal + paketId + donusUrl` alıp merkezin ödeme sayfasının
+ *    adresini (`odemeUrl`) döner. Fiyatı HER ZAMAN merkez paketId'den kendisi
+ *    çözmeli (istemci fiyat/adet göndermez); ödeme tamamlanınca krediyi
+ *    merkez kendi defterine yazar, klinik tarafı bakiyeyi /api/bakiye ile
+ *    senkronlar. `donusUrl` yalnız kliniğin kayıtlı alan adlarına izinli
+ *    olmalı (open redirect).
  * ============================================================================
  *
  * Gerçek merkez base URL/API anahtarı bu ortamda YOK (kullanıcı onayı: "henüz
@@ -73,6 +81,23 @@ export type MerkezKrediYukleGirdi = {
 
 export type MerkezKrediYukleSonucu =
   | { ulasildi: true; basarili: true; kalanBakiye: number; bakiyeVersiyonu: number }
+  | { ulasildi: true; basarili: false; hata: string }
+  | { ulasildi: false; hata: string };
+
+export type MerkezKrediPaketi = {
+  id: string;
+  adet: number;
+  /** Paketin toplam fiyatı — merkez belirler, klinik tarafı fiyat göndermez (yalnız paket id'si). */
+  fiyat: number;
+  paraBirimi: string;
+};
+
+export type MerkezKrediPaketleriSonucu =
+  | { ulasildi: true; paketler: MerkezKrediPaketi[] }
+  | { ulasildi: false; hata: string };
+
+export type MerkezOdemeOturumuSonucu =
+  | { ulasildi: true; basarili: true; odemeUrl: string }
   | { ulasildi: true; basarili: false; hata: string }
   | { ulasildi: false; hata: string };
 
@@ -193,4 +218,39 @@ export async function merkezdenBakiyeCek(klinikId: string, kanal: MesajKanal): P
   }
 
   return { ulasildi: true, bakiye: sonuc.veri.bakiye, bakiyeVersiyonu: sonuc.veri.bakiyeVersiyonu };
+}
+
+export async function merkezdenKrediPaketleriCek(kanal: MesajKanal): Promise<MerkezKrediPaketleriSonucu> {
+  const sonuc = await merkezeIstekAt<{ paketler: MerkezKrediPaketi[] }>("/api/kredi-paketleri", { kanal });
+
+  if (!sonuc.ulasildi) {
+    return { ulasildi: false, hata: sonuc.hata };
+  }
+
+  const paketler = (sonuc.veri.paketler ?? [])
+    .filter((p) => p && typeof p.id === "string" && Number.isFinite(p.adet) && Number.isFinite(p.fiyat))
+    .sort((a, b) => a.adet - b.adet);
+  return { ulasildi: true, paketler };
+}
+
+export async function merkezdenOdemeOturumuOlustur(girdi: {
+  klinikId: string;
+  kanal: MesajKanal;
+  paketId: string;
+  donusUrl: string;
+}): Promise<MerkezOdemeOturumuSonucu> {
+  const sonuc = await merkezeIstekAt<{ basarili: boolean; hata?: string; odemeUrl?: string }>("/api/odeme-oturumu", {
+    tenantId: girdi.klinikId,
+    kanal: girdi.kanal,
+    paketId: girdi.paketId,
+    donusUrl: girdi.donusUrl,
+  });
+
+  if (!sonuc.ulasildi) {
+    return { ulasildi: false, hata: sonuc.hata };
+  }
+  if (sonuc.veri.basarili && sonuc.veri.odemeUrl) {
+    return { ulasildi: true, basarili: true, odemeUrl: sonuc.veri.odemeUrl };
+  }
+  return { ulasildi: true, basarili: false, hata: sonuc.veri.hata ?? "bilinmeyen_hata" };
 }

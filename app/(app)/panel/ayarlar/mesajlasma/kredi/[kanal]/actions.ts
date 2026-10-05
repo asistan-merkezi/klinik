@@ -1,30 +1,28 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { merkezdenKrediYukle } from "@/lib/mesaj/merkez-client";
-import { KANAL_ETIKET, type MesajKanal } from "@/types/mesajlasma";
+import { merkezdenKrediPaketleriCek, merkezdenOdemeOturumuOlustur } from "@/lib/mesaj/merkez-client";
+import type { MesajKanal } from "@/types/mesajlasma";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
+const GECERLI_KANALLAR: MesajKanal[] = ["sms", "whatsapp", "mail"];
+
 /**
- * GÜVENLİK (atlanmayacak, TODO değil gerçek kontrol): serbest bir "ödeme
- * referansı" metin alanıyla kredi yüklemek, doğrulanmadığı sürece klinik
- * yöneticisine sınırsız bedava kredi vermek demektir. Gerçek tahsilat
- * merkez tarafında kararlaşana kadar SADECE super_admin gerçekten kredi
- * yükleyebilir — klinik_admin aynı formu gönderdiğinde krediye hiç
- * dokunulmaz, sadece destek_talebi'ne bir talep kaydı düşer (mevcut
- * Destek > Talep ve Şikayetler akışıyla aynı tablo/RLS, klinik_admin zaten
- * kendi adına buraya insert edebiliyor).
- *
- * Merkez tarafı için de not: /api/kredi-yukle şu an sadece
- * MESAJ_MERKEZ_API_KEY ile korunuyor — bu tek başına yeterli değil, merkez
- * odemeReferansi'nı gerçek bir ödeme kaydına karşı doğrulamak ZORUNDA
- * (bkz. lib/mesaj/merkez-client.ts başındaki "MERKEZ SÖZLEŞMESİ").
+ * "Ödeme Yap": seçilen paketi merkezin ödeme sistemine devreder. Klinik tarafı
+ * ASLA fiyat/adet göndermez, yalnız paket id'si — fiyatı merkez çözer (bkz.
+ * lib/mesaj/merkez-client.ts "MERKEZ SÖZLEŞMESİ" madde 5). Paket id'si ayrıca
+ * merkezin güncel listesine karşı doğrulanır. Kredi bu akışta klinik tarafında
+ * YAZILMAZ: ödeme tamamlanınca merkez kendi defterine ekler, bakiye dönüşte
+ * (ve saatlik cron'da) merkezden senkronlanır.
  */
-export async function krediYukle(kanal: MesajKanal, _onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+export async function krediOdemeBaslat(kanal: MesajKanal, _onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  if (!GECERLI_KANALLAR.includes(kanal)) {
+    return { success: false, message: "Geçersiz kanal." };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,79 +34,52 @@ export async function krediYukle(kanal: MesajKanal, _onceki: SonucDurumu, formDa
 
   const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
 
-  if (!kullanici || !kullanici.klinik_id) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  if (!kullanici?.klinik_id || kullanici.rol !== "klinik_admin") {
+    return { success: false, message: "Kredi satın alma yetkisi yalnız klinik yöneticisine aittir." };
   }
 
-  const miktarRaw = Number(formData.get("miktar"));
-  const odemeReferansi = String(formData.get("odeme_referansi") ?? "").trim();
-
-  if (!Number.isFinite(miktarRaw) || miktarRaw <= 0) {
-    return { success: false, message: "Geçerli bir kredi miktarı girin." };
-  }
-  const miktar = Math.trunc(miktarRaw);
-
-  if (!odemeReferansi) {
-    return { success: false, message: "Ödeme referansı girin." };
+  const paketId = String(formData.get("paket_id") ?? "").trim();
+  if (!paketId) {
+    return { success: false, message: "Bir kredi paketi seçin." };
   }
 
-  // klinik_admin (ve her rol super_admin dışında): gerçek kredi yüklenmez,
-  // sadece talep kaydı oluşur.
-  if (kullanici.rol !== "super_admin") {
-    const { error } = await supabase.from("destek_talebi").insert({
-      klinik_id: kullanici.klinik_id,
-      kullanici_id: user.id,
-      tur: "talep",
-      konu: `Kredi Talebi — ${KANAL_ETIKET[kanal]} — ${miktar} adet`,
-      aciklama: `Ödeme referansı: ${odemeReferansi}`,
-    });
-
-    if (error) {
-      console.error("Kredi talebi oluşturulamadı:", error.message);
-      return { success: false, message: "Talep oluşturulamadı, lütfen tekrar deneyin." };
-    }
-
-    revalidatePath("/panel/destek/talep-sikayetler");
-    return {
-      success: true,
-      message: "Kredi talebiniz oluşturuldu — onaylandığında kliniğinize eklenecek. Kredi henüz yüklenmedi.",
-    };
+  const paketler = await merkezdenKrediPaketleriCek(kanal);
+  if (!paketler.ulasildi) {
+    return { success: false, message: "Asistan Merkezi'ne ulaşılamadı, lütfen daha sonra tekrar deneyin." };
+  }
+  if (!paketler.paketler.some((p) => p.id === paketId)) {
+    return { success: false, message: "Seçilen paket artık geçerli değil, sayfayı yenileyip tekrar seçin." };
   }
 
-  // Sadece super_admin buraya ulaşır.
-  const sonuc = await merkezdenKrediYukle({ klinikId: kullanici.klinik_id, kanal, miktar, odemeReferansi });
-
-  if (!sonuc.ulasildi) {
-    return { success: false, message: `Merkeze ulaşılamadı: ${sonuc.hata}` };
+  const baslik = await headers();
+  const host = baslik.get("x-forwarded-host") ?? baslik.get("host");
+  if (!host) {
+    return { success: false, message: "Dönüş adresi belirlenemedi." };
   }
-  if (!sonuc.basarili) {
-    return { success: false, message: `Kredi yüklenemedi: ${sonuc.hata}` };
-  }
+  const protokol = baslik.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const donusUrl = `${protokol}://${host}/panel/ayarlar/mesajlasma/kredi/${kanal}?sekme=takip&odeme=donuldu`;
 
-  const admin = createAdminClient();
-  const { error: senkronHata } = await admin.rpc("mesaj_kredi_senkronla", {
-    p_klinik_id: kullanici.klinik_id,
-    p_kanal: kanal,
-    p_bakiye: sonuc.kalanBakiye,
-    p_versiyon: sonuc.bakiyeVersiyonu,
-  });
-  if (senkronHata) {
-    console.error("Kredi senkronlanamadı:", senkronHata.message);
+  const oturum = await merkezdenOdemeOturumuOlustur({ klinikId: kullanici.klinik_id, kanal, paketId, donusUrl });
+  if (!oturum.ulasildi) {
+    console.error("Ödeme oturumu için merkeze ulaşılamadı:", oturum.hata);
+    return { success: false, message: "Asistan Merkezi ödeme sistemine ulaşılamadı, lütfen daha sonra tekrar deneyin." };
+  }
+  if (!oturum.basarili) {
+    console.error("Ödeme oturumu açılamadı:", oturum.hata);
+    return { success: false, message: "Ödeme oturumu açılamadı, lütfen tekrar deneyin." };
   }
 
-  const { error: hareketHata } = await admin.from("mesaj_kredi_hareketleri").insert({
-    klinik_id: kullanici.klinik_id,
-    kanal,
-    tip: "yukleme",
-    miktar,
-    aciklama: `Ödeme referansı: ${odemeReferansi}`,
-    olusturan_kullanici_id: user.id,
-  });
-  if (hareketHata) {
-    console.error("Kredi yükleme geçmişi yazılamadı:", hareketHata.message);
+  // Yalnız https (yerelde geliştirme için http://localhost) adreslere yönlendir.
+  let hedef: URL;
+  try {
+    hedef = new URL(oturum.odemeUrl);
+  } catch {
+    return { success: false, message: "Ödeme adresi geçersiz döndü." };
+  }
+  const yerel = hedef.hostname === "localhost";
+  if (hedef.protocol !== "https:" && !(yerel && hedef.protocol === "http:")) {
+    return { success: false, message: "Ödeme adresi güvenli değil, işlem durduruldu." };
   }
 
-  revalidatePath(`/panel/ayarlar/mesajlasma/kredi/${kanal}`);
-  revalidatePath("/panel/ayarlar/mesajlasma");
-  return { success: true, message: `${miktar} kredi eklendi.` };
+  redirect(hedef.toString());
 }
