@@ -1,7 +1,9 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+// Next.js 16: eski `middleware.ts` dosya kuralı "proxy" olarak yeniden adlandırıldı
+// (Node.js runtime'da çalışır). Oturum yenileme + /panel, /portal yönlendirmesi.
+export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
 
