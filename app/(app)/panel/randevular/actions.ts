@@ -30,8 +30,9 @@ const randevuSemasi = z.object({
   talep_id: z.union([z.string().uuid(), z.literal("")]).optional(),
   /**
    * Yalnız randevuOlustur'da gönderilir (randevuGuncelle'de alan yok, optional
-   * olduğu için undefined geçer) — check-in'de (randevu_gelis_isaretle) oluşacak
-   * borç satırına önceden planlanan iskonto, bkz. randevu-formu.tsx.
+   * olduğu için undefined geçer) — seans tamamlanıp "Cariye Ekle"/"Ödeme Ekle"
+   * ile bakiyeye işlenirken (randevu_seans_bedelini_isle) oluşan borç satırına
+   * uygulanan, önceden planlanmış iskonto; bkz. randevu-formu.tsx.
    */
   planlanan_iskonto_tutari: z.coerce.number().min(0, "İskonto negatif olamaz.").optional(),
 });

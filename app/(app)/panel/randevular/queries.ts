@@ -15,7 +15,7 @@ export type HastaAktifPaket = {
  * Randevu formunda hasta seçilince, o hastanın hâlâ hakkı olan (durum='aktif',
  * kalan_adet>0) paketlerini getirir — resepsiyon Tedavi'yi doğru pakete
  * bağlayarak seçebilsin diye (bkz. randevu_gelis_isaretle'nin check-in'de
- * yaptığı otomatik paket/borç eşleştirmesi, burada seçim anında önceden gösteriliyor).
+ * yaptığı otomatik paketten düşme, burada seçim anında önceden gösteriliyor).
  */
 export function useHastaAktifPaketler(hastaId: string) {
   return useQuery({
