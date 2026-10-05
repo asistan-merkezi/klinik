@@ -15,6 +15,7 @@ import { formatDateForInput, formatTime } from "@/lib/datetime";
 import { HARCAMA_KATEGORI_ETIKET, type HarcamaKategori } from "@/types/klinik-harcama";
 import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
 import { BELGE_TURU_ETIKETLERI, YONTEM_ETIKETLERI } from "@/types/odeme";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 
 type SupabaseSunucuClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -66,38 +67,45 @@ export async function hesaplaSabitPersonelMaliyeti(
     // dahil ediliyor, burada tekrar sayılırsa çift sayım olur. avans/kesinti/odeme
     // de dahil edilmiyor — onlar bir maliyet ARTIŞI değil, tahakkuk etmiş
     // hakedişin ödenmesi/kapatılması (bkz. personel_hesap_hareket şeması).
-    supabase
-      .from("personel_hesap_hareket")
-      .select("personel_id, tutar")
-      .eq("klinik_id", klinikId)
-      .in("tur", ["prim", "yol", "yemek", "mesai"])
-      .gte("tarih", donem.baslangicTarih)
-      .lt("tarih", donem.bitisTarih)
-      .returns<{ personel_id: string; tutar: number }[]>(),
+    tumSayfalariOku<{ id: string; personel_id: string; tutar: number }>((bas, son) =>
+      supabase
+        .from("personel_hesap_hareket")
+        .select("id, personel_id, tutar")
+        .eq("klinik_id", klinikId)
+        .in("tur", ["prim", "yol", "yemek", "mesai"])
+        .gte("tarih", donem.baslangicTarih)
+        .lt("tarih", donem.bitisTarih)
+        .order("id")
+        .range(bas, son)
+    ),
   ]);
 
   const terapistler = terapistSonuc.data ?? [];
   const terapistIdler = terapistler.map((t) => t.id);
 
-  const { data: randevuSonuc } = terapistIdler.length
-    ? await supabase
-        .from("randevu")
-        .select("terapist_id")
-        .eq("klinik_id", klinikId)
-        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-        .in("terapist_id", terapistIdler)
-        .gte("baslangic", donem.baslangic)
-        .lt("baslangic", donem.bitis)
-        .returns<{ terapist_id: string }[]>()
-    : { data: [] as { terapist_id: string }[] };
+  // Klinik filtresi yeterli; terapist id listesi URL'ye gömülmez.
+  const randevuSonuc = terapistIdler.length
+    ? await tumSayfalariOku<{ id: string; terapist_id: string }>((bas, son) =>
+        supabase
+          .from("randevu")
+          .select("id, terapist_id")
+          .eq("klinik_id", klinikId)
+          .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
+          .not("terapist_id", "is", null)
+          .gte("baslangic", donem.baslangic)
+          .lt("baslangic", donem.bitis)
+          .order("id")
+          .range(bas, son)
+      )
+    : [];
 
   const seansSayisiMap = new Map<string, number>();
-  for (const r of randevuSonuc ?? []) {
+  for (const r of randevuSonuc) {
     seansSayisiMap.set(r.terapist_id, (seansSayisiMap.get(r.terapist_id) ?? 0) + 1);
   }
 
   const hakedisMap = new Map<string, number>();
-  for (const h of hakedisSonuc.data ?? []) {
+  for (const h of hakedisSonuc) {
     hakedisMap.set(h.personel_id, (hakedisMap.get(h.personel_id) ?? 0) + h.tutar);
   }
 
@@ -149,7 +157,7 @@ export async function hesaplaSabitPersonelMaliyeti(
   };
 }
 
-type KlinikHarcamaSatir = { tutar: number };
+type KlinikHarcamaSatir = { id: string; tutar: number };
 
 /**
  * İşletme gideri: kira/fatura/malzeme kategorisindeki, faturasız
@@ -162,16 +170,19 @@ export async function hesaplaIsletmeGideri(
   klinikId: string,
   donem: RaporDonemi
 ): Promise<number> {
-  const { data } = await supabase
-    .from("klinik_harcama")
-    .select("tutar")
-    .eq("klinik_id", klinikId)
-    .neq("kategori", "diger")
-    .eq("is_faturali", false)
-    .gte("tarih", donem.baslangicTarih)
-    .lt("tarih", donem.bitisTarih)
-    .returns<KlinikHarcamaSatir[]>();
-  return (data ?? []).reduce((acc, satir) => acc + satir.tutar, 0);
+  const data = await tumSayfalariOku<KlinikHarcamaSatir>((bas, son) =>
+    supabase
+      .from("klinik_harcama")
+      .select("id, tutar")
+      .eq("klinik_id", klinikId)
+      .neq("kategori", "diger")
+      .eq("is_faturali", false)
+      .gte("tarih", donem.baslangicTarih)
+      .lt("tarih", donem.bitisTarih)
+      .order("id")
+      .range(bas, son)
+  );
+  return data.reduce((acc, satir) => acc + satir.tutar, 0);
 }
 
 /**
@@ -184,16 +195,19 @@ export async function hesaplaDigerGiderler(
   klinikId: string,
   donem: RaporDonemi
 ): Promise<number> {
-  const { data } = await supabase
-    .from("klinik_harcama")
-    .select("tutar")
-    .eq("klinik_id", klinikId)
-    .eq("kategori", "diger")
-    .eq("is_faturali", false)
-    .gte("tarih", donem.baslangicTarih)
-    .lt("tarih", donem.bitisTarih)
-    .returns<KlinikHarcamaSatir[]>();
-  return (data ?? []).reduce((acc, satir) => acc + satir.tutar, 0);
+  const data = await tumSayfalariOku<KlinikHarcamaSatir>((bas, son) =>
+    supabase
+      .from("klinik_harcama")
+      .select("id, tutar")
+      .eq("klinik_id", klinikId)
+      .eq("kategori", "diger")
+      .eq("is_faturali", false)
+      .gte("tarih", donem.baslangicTarih)
+      .lt("tarih", donem.bitisTarih)
+      .order("id")
+      .range(bas, son)
+  );
+  return data.reduce((acc, satir) => acc + satir.tutar, 0);
 }
 
 /**
@@ -207,15 +221,18 @@ export async function hesaplaFaturaliGiderler(
   klinikId: string,
   donem: RaporDonemi
 ): Promise<number> {
-  const { data } = await supabase
-    .from("klinik_harcama")
-    .select("tutar")
-    .eq("klinik_id", klinikId)
-    .eq("is_faturali", true)
-    .gte("tarih", donem.baslangicTarih)
-    .lt("tarih", donem.bitisTarih)
-    .returns<KlinikHarcamaSatir[]>();
-  return (data ?? []).reduce((acc, satir) => acc + satir.tutar, 0);
+  const data = await tumSayfalariOku<KlinikHarcamaSatir>((bas, son) =>
+    supabase
+      .from("klinik_harcama")
+      .select("id, tutar")
+      .eq("klinik_id", klinikId)
+      .eq("is_faturali", true)
+      .gte("tarih", donem.baslangicTarih)
+      .lt("tarih", donem.bitisTarih)
+      .order("id")
+      .range(bas, son)
+  );
+  return data.reduce((acc, satir) => acc + satir.tutar, 0);
 }
 
 /**
@@ -232,15 +249,18 @@ export async function hesaplaMuhasebeGideri(
   klinikId: string,
   donem: RaporDonemi
 ): Promise<number> {
-  const { data } = await supabase
-    .from("kamusal_odeme")
-    .select("tutar")
-    .eq("klinik_id", klinikId)
-    .not("odeme_tarihi", "is", null)
-    .gte("odeme_tarihi", donem.baslangicTarih)
-    .lt("odeme_tarihi", donem.bitisTarih)
-    .returns<KlinikHarcamaSatir[]>();
-  return (data ?? []).reduce((acc, satir) => acc + satir.tutar, 0);
+  const data = await tumSayfalariOku<KlinikHarcamaSatir>((bas, son) =>
+    supabase
+      .from("kamusal_odeme")
+      .select("id, tutar")
+      .eq("klinik_id", klinikId)
+      .not("odeme_tarihi", "is", null)
+      .gte("odeme_tarihi", donem.baslangicTarih)
+      .lt("odeme_tarihi", donem.bitisTarih)
+      .order("id")
+      .range(bas, son)
+  );
+  return data.reduce((acc, satir) => acc + satir.tutar, 0);
 }
 
 type TahsilatSatiri = {
@@ -250,9 +270,6 @@ type TahsilatSatiri = {
   tutar: number;
   odeme_yontemi: string | null;
 };
-
-/** PostgREST/Supabase varsayılan en çok 1000 satır döner; sessiz kesilmemesi için sayfalı çeker. */
-const TAHSILAT_SAYFA_BOYUTU = 1000;
 
 /**
  * Bir dönemdeki gerçek tahsilat/iade satırları: hasta_bakiye_hareket'te
@@ -269,9 +286,8 @@ async function tahsilatSatirlariniGetir<T extends TahsilatSatiri>(
   bitis: string,
   select = "id, created_at, tur, tutar, odeme_yontemi"
 ): Promise<T[]> {
-  const sonuc: T[] = [];
-  for (let sayfa = 0; ; sayfa += 1) {
-    const { data, error } = await supabase
+  return tumSayfalariOku<T>((bas, son) =>
+    supabase
       .from("hasta_bakiye_hareket")
       .select(select)
       .eq("klinik_id", klinikId)
@@ -280,14 +296,9 @@ async function tahsilatSatirlariniGetir<T extends TahsilatSatiri>(
       .lt("created_at", bitis)
       .order("created_at")
       .order("id")
-      .range(sayfa * TAHSILAT_SAYFA_BOYUTU, (sayfa + 1) * TAHSILAT_SAYFA_BOYUTU - 1)
-      .returns<T[]>();
-    if (error) throw new Error(`Tahsilat satırları alınamadı: ${error.message}`);
-    const satirlar = data ?? [];
-    sonuc.push(...satirlar);
-    if (satirlar.length < TAHSILAT_SAYFA_BOYUTU) break;
-  }
-  return sonuc;
+      .range(bas, son)
+      .returns<T[]>()
+  );
 }
 
 /** Ödeme tutarını, iade ise negatif olarak döner — net tahsilat toplamları için. */
@@ -342,15 +353,17 @@ export async function hesaplaRandevuDurumOzeti(
   klinikId: string,
   donem: RaporDonemi
 ): Promise<RandevuDurumOzeti> {
-  const { data } = await supabase
-    .from("randevu")
-    .select("durum")
-    .eq("klinik_id", klinikId)
-    .gte("baslangic", donem.baslangic)
-    .lt("baslangic", donem.bitis)
-    .returns<RandevuDurumSatir[]>();
-
-  const satirlar = data ?? [];
+  const satirlar = await tumSayfalariOku<RandevuDurumSatir & { id: string }>((bas, son) =>
+    supabase
+      .from("randevu")
+      .select("id, durum")
+      .eq("klinik_id", klinikId)
+      .gte("baslangic", donem.baslangic)
+      .lt("baslangic", donem.bitis)
+      .order("id")
+      .range(bas, son)
+      .returns<(RandevuDurumSatir & { id: string })[]>()
+  );
   let tamamlanan = 0;
   let planlanan = 0;
   let ertelenen = 0;
@@ -382,39 +395,71 @@ export async function hesaplaYillikOzet(
   klinikId: string,
   yil: number
 ): Promise<YillikAy[]> {
-  const yilDonemi = raporYilDonemi(yil);
   const aylar = yilinAylari(yil);
 
+  // Önce Postgres'te gruplanmış 12 satır (rapor_yillik_ozet); RPC yoksa aşağıdaki JS yolu.
+  const { data: rpcSatirlari, error: rpcHata } = await supabase.rpc("rapor_yillik_ozet", { p_yil: yil });
+  if (!rpcHata && rpcSatirlari) {
+    const ayMap = new Map(
+      (rpcSatirlari as { ay: number; gelir: number | string; gider: number | string; seans_sayisi: number }[]).map((r) => [r.ay, r])
+    );
+    return aylar.map((ayDonemi, index) => {
+      const r = ayMap.get(index + 1);
+      return {
+        ay: index + 1,
+        ayEtiketi: ayDonemi.etiket,
+        gelir: Number(r?.gelir ?? 0),
+        gider: Number(r?.gider ?? 0),
+        seansSayisi: Number(r?.seans_sayisi ?? 0),
+      };
+    });
+  }
+  if (rpcHata && !rpcYokMu(rpcHata)) {
+    throw new Error(`Yıllık özet alınamadı: ${rpcHata.message}`);
+  }
+
+  const yilDonemi = raporYilDonemi(yil);
+
   const [harcamaSonuc, kamusalOdemeSonuc, tahsilatlar, randevuSonuc] = await Promise.all([
-    supabase
-      .from("klinik_harcama")
-      .select("tutar, tarih")
-      .eq("klinik_id", klinikId)
-      .gte("tarih", yilDonemi.baslangicTarih)
-      .lt("tarih", yilDonemi.bitisTarih)
-      .returns<{ tutar: number; tarih: string }[]>(),
-    supabase
-      .from("kamusal_odeme")
-      .select("tutar, odeme_tarihi")
-      .eq("klinik_id", klinikId)
-      .not("odeme_tarihi", "is", null)
-      .gte("odeme_tarihi", yilDonemi.baslangicTarih)
-      .lt("odeme_tarihi", yilDonemi.bitisTarih)
-      .returns<{ tutar: number; odeme_tarihi: string }[]>(),
+    tumSayfalariOku<{ id: string; tutar: number; tarih: string }>((bas, son) =>
+      supabase
+        .from("klinik_harcama")
+        .select("id, tutar, tarih")
+        .eq("klinik_id", klinikId)
+        .gte("tarih", yilDonemi.baslangicTarih)
+        .lt("tarih", yilDonemi.bitisTarih)
+        .order("id")
+        .range(bas, son)
+    ),
+    tumSayfalariOku<{ id: string; tutar: number; odeme_tarihi: string }>((bas, son) =>
+      supabase
+        .from("kamusal_odeme")
+        .select("id, tutar, odeme_tarihi")
+        .eq("klinik_id", klinikId)
+        .not("odeme_tarihi", "is", null)
+        .gte("odeme_tarihi", yilDonemi.baslangicTarih)
+        .lt("odeme_tarihi", yilDonemi.bitisTarih)
+        .order("id")
+        .range(bas, son)
+    ),
     tahsilatSatirlariniGetir(supabase, klinikId, yilDonemi.baslangic, yilDonemi.bitis),
-    supabase
-      .from("randevu")
-      .select("baslangic")
-      .eq("klinik_id", klinikId)
-      .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-      .gte("baslangic", yilDonemi.baslangic)
-      .lt("baslangic", yilDonemi.bitis)
-      .returns<{ baslangic: string }[]>(),
+    // Yıllık tamamlanan seans binleri bulur — sayfalı okunmazsa grafik 1000'de kesilir.
+    tumSayfalariOku<{ id: string; baslangic: string }>((bas, son) =>
+      supabase
+        .from("randevu")
+        .select("id, baslangic")
+        .eq("klinik_id", klinikId)
+        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
+        .gte("baslangic", yilDonemi.baslangic)
+        .lt("baslangic", yilDonemi.bitis)
+        .order("id")
+        .range(bas, son)
+    ),
   ]);
 
-  const harcamalar = harcamaSonuc.data ?? [];
-  const kamusalOdemeler = kamusalOdemeSonuc.data ?? [];
-  const randevular = randevuSonuc.data ?? [];
+  const harcamalar = harcamaSonuc;
+  const kamusalOdemeler = kamusalOdemeSonuc;
+  const randevular = randevuSonuc;
 
   return aylar.map((ayDonemi, index) => {
     const gider =
@@ -495,14 +540,18 @@ export async function hesaplaGunlukDokum(
   donem: RaporDonemi
 ): Promise<GunlukOzet[]> {
   const [randevuSonuc, tahsilatlar, harcamaSonuc, kamusalSonuc] = await Promise.all([
-    supabase
-      .from("randevu")
-      .select("id, baslangic, durum, hasta_id, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad), paket_satis_id, hasta_bakiye_hareket(tur, odeme_yontemi)")
-      .eq("klinik_id", klinikId)
-      .gte("baslangic", donem.baslangic)
-      .lt("baslangic", donem.bitis)
-      .order("baslangic")
-      .returns<RandevuGunlukSatir[]>(),
+    tumSayfalariOku<RandevuGunlukSatir>((bas, son) =>
+      supabase
+        .from("randevu")
+        .select("id, baslangic, durum, hasta_id, hasta(ad_soyad), terapist(personel(ad_soyad)), islem_tanimi(ad), paket_satis_id, hasta_bakiye_hareket(tur, odeme_yontemi)")
+        .eq("klinik_id", klinikId)
+        .gte("baslangic", donem.baslangic)
+        .lt("baslangic", donem.bitis)
+        .order("baslangic")
+        .order("id")
+        .range(bas, son)
+        .returns<RandevuGunlukSatir[]>()
+    ),
     tahsilatSatirlariniGetir<TahsilatGunlukSatir>(
       supabase,
       klinikId,
@@ -510,23 +559,31 @@ export async function hesaplaGunlukDokum(
       donem.bitis,
       "id, created_at, tur, tutar, odeme_yontemi, belge_turu, hasta_id, hasta(ad_soyad)"
     ),
-    supabase
-      .from("klinik_harcama")
-      .select("id, tarih, tutar, kategori, aciklama")
-      .eq("klinik_id", klinikId)
-      .gte("tarih", donem.baslangicTarih)
-      .lt("tarih", donem.bitisTarih)
-      .order("tarih")
-      .returns<KlinikHarcamaGunlukSatir[]>(),
-    supabase
-      .from("kamusal_odeme")
-      .select("id, odeme_tarihi, tutar, odeme_tipi")
-      .eq("klinik_id", klinikId)
-      .not("odeme_tarihi", "is", null)
-      .gte("odeme_tarihi", donem.baslangicTarih)
-      .lt("odeme_tarihi", donem.bitisTarih)
-      .order("odeme_tarihi")
-      .returns<KamusalOdemeGunlukSatir[]>(),
+    tumSayfalariOku<KlinikHarcamaGunlukSatir>((bas, son) =>
+      supabase
+        .from("klinik_harcama")
+        .select("id, tarih, tutar, kategori, aciklama")
+        .eq("klinik_id", klinikId)
+        .gte("tarih", donem.baslangicTarih)
+        .lt("tarih", donem.bitisTarih)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<KlinikHarcamaGunlukSatir[]>()
+    ),
+    tumSayfalariOku<KamusalOdemeGunlukSatir>((bas, son) =>
+      supabase
+        .from("kamusal_odeme")
+        .select("id, odeme_tarihi, tutar, odeme_tipi")
+        .eq("klinik_id", klinikId)
+        .not("odeme_tarihi", "is", null)
+        .gte("odeme_tarihi", donem.baslangicTarih)
+        .lt("odeme_tarihi", donem.bitisTarih)
+        .order("odeme_tarihi")
+        .order("id")
+        .range(bas, son)
+        .returns<KamusalOdemeGunlukSatir[]>()
+    ),
   ]);
 
   // Randevu/gelir kalemlerinin yanında hastanın O GÜNE ait bedelini göstermek
@@ -535,17 +592,21 @@ export async function hesaplaGunlukDokum(
   // yanıltıcıydı (kullanıcı kararıyla değiştirildi). Artık yalnız o gün oluşan
   // borç satırlarının (hasta_bakiye_hareket, tur='borc') net toplamı gösteriliyor
   // — paket satışı da borç olarak işlendiği için (bkz. CLAUDE.md) o da dahil.
-  const { data: borcSonuc } = await supabase
-    .from("hasta_bakiye_hareket")
-    .select("hasta_id, tutar, iskonto_tutari, created_at")
-    .eq("klinik_id", klinikId)
-    .eq("tur", "borc")
-    .gte("created_at", donem.baslangic)
-    .lt("created_at", donem.bitis)
-    .returns<{ hasta_id: string | null; tutar: number; iskonto_tutari: number; created_at: string }[]>();
+  const borcSonuc = await tumSayfalariOku<{ id: string; hasta_id: string | null; tutar: number; iskonto_tutari: number; created_at: string }>(
+    (bas, son) =>
+      supabase
+        .from("hasta_bakiye_hareket")
+        .select("id, hasta_id, tutar, iskonto_tutari, created_at")
+        .eq("klinik_id", klinikId)
+        .eq("tur", "borc")
+        .gte("created_at", donem.baslangic)
+        .lt("created_at", donem.bitis)
+        .order("id")
+        .range(bas, son)
+  );
 
   const gunlukBedelMap = new Map<string, number>();
-  for (const b of borcSonuc ?? []) {
+  for (const b of borcSonuc) {
     if (!b.hasta_id) continue;
     const anahtar = `${formatDateForInput(b.created_at)}|${b.hasta_id}`;
     const net = b.tutar - b.iskonto_tutari;
@@ -587,7 +648,7 @@ export async function hesaplaGunlukDokum(
     return gun;
   }
 
-  for (const r of randevuSonuc.data ?? []) {
+  for (const r of randevuSonuc) {
     const tarih = formatDateForInput(r.baslangic);
     const gun = gunuAl(tarih);
     if (TAMAMLANAN_RANDEVU_DURUMLARI.has(r.durum)) gun.seansSayisi += 1;
@@ -630,7 +691,7 @@ export async function hesaplaGunlukDokum(
     });
   }
 
-  for (const h of harcamaSonuc.data ?? []) {
+  for (const h of harcamaSonuc) {
     const gun = gunuAl(h.tarih);
     gun.gider += h.tutar;
     gun.kalemler.push({
@@ -644,7 +705,7 @@ export async function hesaplaGunlukDokum(
     });
   }
 
-  for (const k of kamusalSonuc.data ?? []) {
+  for (const k of kamusalSonuc) {
     if (!k.odeme_tarihi) continue;
     const gun = gunuAl(k.odeme_tarihi);
     gun.gider += k.tutar;
@@ -660,4 +721,88 @@ export async function hesaplaGunlukDokum(
   }
 
   return Array.from(gunler.values()).sort((a, b) => (a.tarih < b.tarih ? 1 : -1));
+}
+
+export type DonemOzeti = {
+  isletmeGideri: number;
+  faturaliGiderler: number;
+  muhasebeGideri: number;
+  digerGiderler: number;
+  gelir: GelirOzeti;
+  randevuDurumu: RandevuDurumOzeti;
+};
+
+/** RPC henüz canlıya uygulanmamışsa (PostgREST "fonksiyon yok") JS yoluna düşmek için. */
+function rpcYokMu(hata: { code?: string } | null): boolean {
+  return hata?.code === "PGRST202" || hata?.code === "42883";
+}
+
+type DonemOzetiRpc = {
+  gelir: { nakit: number; kredi_karti: number; banka_havalesi: number; belirtilmemis: number; iade: number };
+  isletme_gideri: number;
+  diger_giderler: number;
+  faturali_giderler: number;
+  muhasebe_gideri: number;
+  randevu: { tamamlanan: number; planlanan: number; ertelenen: number; iptal_ve_gelmedi: number; toplam: number };
+};
+
+/**
+ * Dönemin tüm toplamları (gelir kırılımı, 4 gider kalemi, randevu durumları) TEK
+ * Postgres çağrısıyla (`rapor_donem_ozeti`, migration 20261005140000) — satırlar
+ * istemciye hiç taşınmaz, veri büyüdükçe sayfa yavaşlamaz. RPC yoksa (migration
+ * uygulanmadan deploy) aynı kurallı JS hesaplarına düşer; diğer hatalarda fırlatır.
+ */
+export async function hesaplaDonemOzeti(
+  supabase: SupabaseSunucuClient,
+  klinikId: string,
+  donem: RaporDonemi
+): Promise<DonemOzeti> {
+  const { data, error } = await supabase.rpc("rapor_donem_ozeti", {
+    p_baslangic: donem.baslangic,
+    p_bitis: donem.bitis,
+    p_baslangic_tarih: donem.baslangicTarih,
+    p_bitis_tarih: donem.bitisTarih,
+  });
+
+  if (!error && data) {
+    const r = data as DonemOzetiRpc;
+    const n = (x: number | string | null | undefined) => Number(x ?? 0);
+    const gelir: GelirOzeti = {
+      nakit: n(r.gelir.nakit),
+      krediKarti: n(r.gelir.kredi_karti),
+      bankaHavalesi: n(r.gelir.banka_havalesi),
+      belirtilmemis: n(r.gelir.belirtilmemis),
+      iade: n(r.gelir.iade),
+      netTahsilat: 0,
+    };
+    gelir.netTahsilat = gelir.nakit + gelir.krediKarti + gelir.bankaHavalesi + gelir.belirtilmemis - gelir.iade;
+    return {
+      isletmeGideri: n(r.isletme_gideri),
+      faturaliGiderler: n(r.faturali_giderler),
+      muhasebeGideri: n(r.muhasebe_gideri),
+      digerGiderler: n(r.diger_giderler),
+      gelir,
+      randevuDurumu: {
+        tamamlanan: n(r.randevu.tamamlanan),
+        planlanan: n(r.randevu.planlanan),
+        ertelenen: n(r.randevu.ertelenen),
+        iptalVeGelmedi: n(r.randevu.iptal_ve_gelmedi),
+        toplam: n(r.randevu.toplam),
+      },
+    };
+  }
+
+  if (error && !rpcYokMu(error)) {
+    throw new Error(`Rapor özeti alınamadı: ${error.message}`);
+  }
+
+  const [isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu] = await Promise.all([
+    hesaplaIsletmeGideri(supabase, klinikId, donem),
+    hesaplaFaturaliGiderler(supabase, klinikId, donem),
+    hesaplaMuhasebeGideri(supabase, klinikId, donem),
+    hesaplaDigerGiderler(supabase, klinikId, donem),
+    hesaplaGelir(supabase, klinikId, donem),
+    hesaplaRandevuDurumOzeti(supabase, klinikId, donem),
+  ]);
+  return { isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu };
 }

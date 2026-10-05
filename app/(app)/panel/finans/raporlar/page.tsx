@@ -8,13 +8,8 @@ import { cn } from "@/lib/utils";
 import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import { raporAyDonemi, raporGunDonemi, raporYilDonemi } from "@/lib/raporlar/donem";
 import {
-  hesaplaDigerGiderler,
-  hesaplaFaturaliGiderler,
-  hesaplaGelir,
+  hesaplaDonemOzeti,
   hesaplaGunlukDokum,
-  hesaplaIsletmeGideri,
-  hesaplaMuhasebeGideri,
-  hesaplaRandevuDurumOzeti,
   hesaplaSabitPersonelMaliyeti,
   hesaplaYillikOzet,
 } from "@/lib/raporlar/hesaplamalar";
@@ -260,17 +255,12 @@ async function AylikGorunum({
 }) {
   const donem = raporAyDonemi(yil, ay);
 
-  const [sabitPersonel, isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu, gunlukDokum] =
-    await Promise.all([
-      hesaplaSabitPersonelMaliyeti(supabase, klinikId, donem),
-      hesaplaIsletmeGideri(supabase, klinikId, donem),
-      hesaplaFaturaliGiderler(supabase, klinikId, donem),
-      hesaplaMuhasebeGideri(supabase, klinikId, donem),
-      hesaplaDigerGiderler(supabase, klinikId, donem),
-      hesaplaGelir(supabase, klinikId, donem),
-      hesaplaRandevuDurumOzeti(supabase, klinikId, donem),
-      hesaplaGunlukDokum(supabase, klinikId, donem),
-    ]);
+  const [sabitPersonel, donemOzeti, gunlukDokum] = await Promise.all([
+    hesaplaSabitPersonelMaliyeti(supabase, klinikId, donem),
+    hesaplaDonemOzeti(supabase, klinikId, donem),
+    hesaplaGunlukDokum(supabase, klinikId, donem),
+  ]);
+  const { isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu } = donemOzeti;
 
   const toplamGider =
     isletmeGideri + faturaliGiderler + muhasebeGideri + digerGiderler + sabitPersonel.toplamMaas;
@@ -311,25 +301,12 @@ async function YillikGorunum({
 }) {
   const donem = raporYilDonemi(yil);
 
-  const [
-    aylar,
-    sabitPersonel,
-    isletmeGideri,
-    faturaliGiderler,
-    muhasebeGideri,
-    digerGiderler,
-    gelir,
-    randevuDurumu,
-  ] = await Promise.all([
+  const [aylar, sabitPersonel, donemOzeti] = await Promise.all([
     hesaplaYillikOzet(supabase, klinikId, yil),
     hesaplaSabitPersonelMaliyeti(supabase, klinikId, donem),
-    hesaplaIsletmeGideri(supabase, klinikId, donem),
-    hesaplaFaturaliGiderler(supabase, klinikId, donem),
-    hesaplaMuhasebeGideri(supabase, klinikId, donem),
-    hesaplaDigerGiderler(supabase, klinikId, donem),
-    hesaplaGelir(supabase, klinikId, donem),
-    hesaplaRandevuDurumOzeti(supabase, klinikId, donem),
+    hesaplaDonemOzeti(supabase, klinikId, donem),
   ]);
+  const { isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu } = donemOzeti;
 
   const toplamGider =
     isletmeGideri + faturaliGiderler + muhasebeGideri + digerGiderler + sabitPersonel.toplamMaas;
@@ -379,16 +356,11 @@ async function GunlukGorunum({
 }) {
   const donem = raporGunDonemi(tarih);
 
-  const [isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu, gunlukDokum] =
-    await Promise.all([
-      hesaplaIsletmeGideri(supabase, klinikId, donem),
-      hesaplaFaturaliGiderler(supabase, klinikId, donem),
-      hesaplaMuhasebeGideri(supabase, klinikId, donem),
-      hesaplaDigerGiderler(supabase, klinikId, donem),
-      hesaplaGelir(supabase, klinikId, donem),
-      hesaplaRandevuDurumOzeti(supabase, klinikId, donem),
-      hesaplaGunlukDokum(supabase, klinikId, donem),
-    ]);
+  const [donemOzeti, gunlukDokum] = await Promise.all([
+    hesaplaDonemOzeti(supabase, klinikId, donem),
+    hesaplaGunlukDokum(supabase, klinikId, donem),
+  ]);
+  const { isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu } = donemOzeti;
 
   // hesaplaGunlukDokum tek günlük bir dönem için en fazla 1 eleman döner —
   // o gün hiç kalem yoksa (gunOzet undefined) sıfır değerlerle devam edilir.

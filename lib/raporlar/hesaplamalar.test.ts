@@ -5,7 +5,7 @@ import { raporAyDonemi } from "./donem";
 type FakeSatir = Record<string, unknown>;
 
 /**
- * klinik_harcama/kamusal_odeme üzerindeki eq/neq/not/gte/lt zincirini
+ * klinik_harcama/kamusal_odeme üzerindeki eq/neq/not/gte/lt/order/range zincirini
  * in-memory filtreleyen minimal sahte Supabase client'ı — tablo adına göre
  * ayrı satır kümeleri tutar (gerçek PostgREST builder'ının tipini taklit
  * etmeye çalışmak yerine sadece bu testlerin kullandığı zinciri karşılar).
@@ -37,6 +37,13 @@ function fakeSupabase(tablolar: Record<string, FakeSatir[]>) {
         lt(kolon: string, deger: unknown) {
           filtreli = filtreli.filter((r) => (r[kolon] as string) < (deger as string));
           return builder;
+        },
+        order() {
+          return builder;
+        },
+        // Sayfalı okuma (tumSayfalariOku): istenen aralığı döner, PromiseLike'tır.
+        range(bas: number, son: number) {
+          return Promise.resolve({ data: filtreli.slice(bas, son + 1), error: null });
         },
         returns<T>() {
           return Promise.resolve({ data: filtreli as unknown as T });
