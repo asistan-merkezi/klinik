@@ -4,7 +4,8 @@ import type { MesajKanal } from "@/types/mesajlasma";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-type AliciAdres = { telefon: string | null; eposta: string | null };
+/** `whatsappIzni` yalnız hasta alıcılarda anlamlı (hasta.whatsapp_izin_durumu); verilmezse izinli sayılır (personel). */
+type AliciAdres = { telefon: string | null; eposta: string | null; whatsappIzni?: boolean };
 
 /**
  * "anlik" tetikleme tipindeki bir olay gerçekleştiğinde mesaj_kuyrugu'na satır
@@ -23,10 +24,17 @@ export async function anlikMesajTetikle(
   params: {
     klinikId: string;
     tetikleyiciKodu: string;
-    aliciTipi: "personel";
+    aliciTipi: "personel" | "hasta";
     aliciId: string;
     adres: AliciAdres;
     degiskenler: Record<string, string>;
+    /**
+     * Verilirse (kanal eki eklenerek) idempotency anahtarı olarak kullanılır —
+     * aynı olay tekrar tetiklense de (örn. aynı seans iki kez "bitirilse") kuyruğa
+     * TEK satır düşer (UNIQUE ihlali sessizce yutulur). Verilmezse eski davranış:
+     * her çağrı benzersiz (Date.now()).
+     */
+    idempotencyTemeli?: string;
   }
 ): Promise<void> {
   const tanim = TETIKLEYICILER.find((t) => t.kod === params.tetikleyiciKodu);
@@ -51,14 +59,20 @@ export async function anlikMesajTetikle(
 
   const kanallar: { kanal: MesajKanal; aktif: boolean; adres: string | null }[] = [
     { kanal: "sms", aktif: kural.sms_aktif, adres: params.adres.telefon },
-    { kanal: "whatsapp", aktif: kural.whatsapp_aktif, adres: params.adres.telefon },
+    {
+      kanal: "whatsapp",
+      aktif: kural.whatsapp_aktif && params.adres.whatsappIzni !== false,
+      adres: params.adres.telefon,
+    },
     { kanal: "mail", aktif: kural.mail_aktif, adres: params.adres.eposta },
   ];
 
   for (const k of kanallar) {
     if (!k.aktif || !k.adres) continue;
 
-    const idempotencyAnahtari = `${params.tetikleyiciKodu}:${params.aliciId}:${k.kanal}:${Date.now()}`;
+    const idempotencyAnahtari = params.idempotencyTemeli
+      ? `${params.idempotencyTemeli}:${k.kanal}`
+      : `${params.tetikleyiciKodu}:${params.aliciId}:${k.kanal}:${Date.now()}`;
 
     const { error } = await admin.from("mesaj_kuyrugu").insert({
       klinik_id: params.klinikId,
@@ -71,7 +85,8 @@ export async function anlikMesajTetikle(
       idempotency_anahtari: idempotencyAnahtari,
     });
 
-    if (error) {
+    // 23505 = aynı idempotency anahtarı zaten kuyrukta: beklenen, hata değil.
+    if (error && error.code !== "23505") {
       console.error(`[mesaj] mesaj_kuyrugu insert hatası (${params.tetikleyiciKodu}/${k.kanal}):`, error.message);
     }
   }

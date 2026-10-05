@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
+import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
 import { tarihiSimdikiSaatleUTC, toUTC } from "@/lib/datetime";
 import { whatsappLinkOlustur } from "@/lib/utils";
 import type { RandevuDurum } from "@/types/randevu";
@@ -606,7 +609,7 @@ export async function randevuSeansiTamamla(randevuId: string, aciklama: string):
       tamamlanma_tarihi: new Date().toISOString(),
     })
     .eq("id", randevuId)
-    .select("hasta_id")
+    .select("hasta_id, paket_satis_id")
     .single();
 
   if (error) {
@@ -620,7 +623,79 @@ export async function randevuSeansiTamamla(randevuId: string, aciklama: string):
     revalidateHastaDetay(data.hasta_id);
   }
 
-  return { success: true, message: "Seans tamamlandı." };
+  const paketUyarisi = data?.paket_satis_id
+    ? await paketYenilemeUyarisiIsle(data.paket_satis_id, randevuId)
+    : null;
+
+  return {
+    success: true,
+    message: paketUyarisi ? `Seans tamamlandı. ${paketUyarisi}` : "Seans tamamlandı.",
+  };
+}
+
+/**
+ * Paketten düşülmüş bir seans bitince kalan hak 1-2 ise (bkz.
+ * lib/paket/yenileme-esigi.ts) hastaya "yenileyin" mesajını kuyruğa yazar ve
+ * çağırana işlem sonucuna eklenecek kısa bir uyarı metni döner. Kalan hak
+ * check-in'de düşmüş olduğundan burada güncel değer okunur.
+ *
+ * Best-effort: mesajlaşma/okuma hatası seansın tamamlanmasını ASLA etkilemez
+ * (seans zaten yazıldı) — hata loglanır, uyarı metni yine de dönmeye çalışır.
+ * Mesaj idempotency anahtarı (paket + kalan hak) sayesinde aynı seviye için
+ * tek kez kuyruğa girer; kural yoksa/pasifse kuyruğa hiç yazılmaz.
+ */
+async function paketYenilemeUyarisiIsle(paketSatisId: string, randevuId: string): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const { data: satis } = await admin
+      .from("paket_satis")
+      .select("kalan_adet, klinik_id, hasta:hasta_id(id, ad_soyad, telefon, eposta, whatsapp_izin_durumu), paket(ad)")
+      .eq("id", paketSatisId)
+      .maybeSingle<{
+        kalan_adet: number;
+        klinik_id: string;
+        hasta: {
+          id: string;
+          ad_soyad: string;
+          telefon: string | null;
+          eposta: string | null;
+          whatsapp_izin_durumu: boolean;
+        } | null;
+        paket: { ad: string } | null;
+      }>();
+
+    if (!satis || !paketYenilemeGerekliMi(satis.kalan_adet)) return null;
+
+    const paketAdi = satis.paket?.ad ?? "Paket";
+    const uyari = `${paketAdi} paketinde ${satis.kalan_adet} seans kaldı — hastaya yenileme hatırlatması yapın.`;
+
+    if (satis.hasta) {
+      const { data: klinik } = await admin.from("klinik").select("ad").eq("id", satis.klinik_id).maybeSingle();
+      await anlikMesajTetikle(admin, {
+        klinikId: satis.klinik_id,
+        tetikleyiciKodu: "hasta_paket_seans_azaldi",
+        aliciTipi: "hasta",
+        aliciId: satis.hasta.id,
+        adres: {
+          telefon: satis.hasta.telefon,
+          eposta: satis.hasta.eposta,
+          whatsappIzni: satis.hasta.whatsapp_izin_durumu,
+        },
+        degiskenler: {
+          hasta_adi: satis.hasta.ad_soyad,
+          paket_adi: paketAdi,
+          kalan_seans: String(satis.kalan_adet),
+          klinik_adi: klinik?.ad ?? "",
+        },
+        idempotencyTemeli: `hasta_paket_seans_azaldi:${paketSatisId}:${satis.kalan_adet}`,
+      });
+    }
+
+    return uyari;
+  } catch (hata) {
+    console.error(`Paket yenileme uyarısı işlenemedi (randevu ${randevuId}):`, hata);
+    return null;
+  }
 }
 
 type SonucDurumu2 = { success: boolean; message: string } | null;

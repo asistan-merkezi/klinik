@@ -67,13 +67,14 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
   {
     kod: "hasta_paket_seans_azaldi",
     bolum: "hasta",
-    ad: "Paket seans hakkı azaldığında uyarı",
+    ad: "Paket bitmek üzere — yenileme hatırlatması",
     icerikTipi: "hizmet",
     tetiklemeTipi: "anlik",
     gecerliDegiskenler: ["hasta_adi", "paket_adi", "kalan_seans", "klinik_adi"],
-    varsayilanMesajMetni: "Merhaba {{hasta_adi}}, {{paket_adi}} paketinizde {{kalan_seans}} seans hakkınız kaldı.",
+    varsayilanMesajMetni:
+      "Merhaba {{hasta_adi}}, {{paket_adi}} paketinizde {{kalan_seans}} seans hakkınız kaldı. Tedavinize ara vermemek için randevunuzu yenileyebilirsiniz. — {{klinik_adi}}",
     baglanmaNotu:
-      "randevu_gelis_isaretle RPC'sinin paket_satis.kalan_adet'i düşürdüğü an — eşik (örn. \"son 2 seans\") ürün kararı gerektirir.",
+      "BAĞLI (2026-09-30): randevuSeansiTamamla, paketten düşülmüş bir seans bitince kalan hak 1-2 ise (lib/paket/yenileme-esigi.ts) kuyruğa yazar. Kalan hak check-in'de düşer (randevu_gelis_isaretle), mesaj seans BİTİNCE gider. mesaj_kurallari'nda satır yoksa/aktif değilse pasif; merkez servisi bağlanana kadar kuyrukta bekler.",
   },
   {
     kod: "hasta_paket_sure_bitiyor",

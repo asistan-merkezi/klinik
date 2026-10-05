@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Toast } from "@base-ui/react/toast";
-import { CalendarClock, UserCheck, X } from "lucide-react";
+import { CalendarClock, PackageOpen, UserCheck, X } from "lucide-react";
+import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { gunAraligi } from "@/lib/utils";
@@ -16,8 +17,12 @@ import { formatTime } from "@/lib/datetime";
  * (/panel/tablet/*) hiç çalışmaz — tablet kiosk, salt-okunur ve kendi akışı var.
  *
  * Kime: `terapist` yalnız KENDİ randevularını, `klinik_admin` hepsini görür.
- * `resepsiyon` bilinçli hariç — eylemi zaten kendisi yapıyor, kendi tıklamasının
- * bildirimi gürültü olurdu (aynı nedenle muhasebe de hariç, ilgisi yok).
+ * `resepsiyon` check-in/erteleme toast'larından bilinçli hariç — eylemi zaten
+ * kendisi yapıyor, kendi tıklamasının bildirimi gürültü olurdu (muhasebe de
+ * hariç, ilgisi yok). TEK istisna "paket bitmek üzere" toast'ı (2026-09-30):
+ * seans terapist tarafından bitirilince, pakette 1-2 hak kalmışsa resepsiyon
+ * (ve klinik_admin) hastayı yenilemeye yönlendirebilsin diye `tamamlandi`
+ * geçişinde yalnız bu iki role gösterilir (terapiste gösterilmez — satış onun işi değil).
  *
  * Geçiş tespiti: `randevu` REPLICA IDENTITY DEFAULT olduğu için UPDATE olayında
  * `old` yalnız PK taşır — önceki durum payload'dan okunamaz. Bu yüzden bugünün
@@ -26,7 +31,7 @@ import { formatTime } from "@/lib/datetime";
  * güncelleme "geldi" satırını yeniden bildirmez). Haritada olmayan randevu
  * (başka günün kaydı) sessizce atlanır. Migration gerektirmez.
  */
-const BILDIRIM_DURUMLARI = ["geldi", "gecikmeli_geldi", "ertelendi"] as const;
+const BILDIRIM_DURUMLARI = ["geldi", "gecikmeli_geldi", "ertelendi", "tamamlandi"] as const;
 type BildirimDurumu = (typeof BILDIRIM_DURUMLARI)[number];
 
 type RandevuSatiriOlay = {
@@ -45,7 +50,7 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
   const toastYoneticisi = Toast.useToastManager<ToastVerisi>();
   const pathname = usePathname();
 
-  const rolGorur = rol === "terapist" || rol === "klinik_admin";
+  const rolGorur = rol === "terapist" || rol === "klinik_admin" || rol === "resepsiyon";
   const tabletteMi = pathname.startsWith("/panel/tablet");
   const aktif = rolGorur && !tabletteMi;
 
@@ -93,14 +98,28 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
     async function bildir(randevuId: string, tur: BildirimDurumu) {
       const { data } = await supabase
         .from("randevu")
-        .select("baslangic, hasta(ad_soyad), oda(ad)")
+        .select("baslangic, hasta(ad_soyad), oda(ad), paket_satis(kalan_adet, paket(ad))")
         .eq("id", randevuId)
         .maybeSingle<{
           baslangic: string;
           hasta: { ad_soyad: string } | null;
           oda: { ad: string } | null;
+          paket_satis: { kalan_adet: number; paket: { ad: string } | null } | null;
         }>();
       if (!data || iptalEdildi) return;
+
+      if (tur === "tamamlandi") {
+        // Yalnız paketten düşülmüş ve hakkı azalmış seanslar toast üretir.
+        const kalan = data.paket_satis?.kalan_adet;
+        if (!paketYenilemeGerekliMi(kalan)) return;
+        toastYoneticisi.add({
+          title: "Paket bitmek üzere",
+          description: `${data.hasta?.ad_soyad ?? "Hasta"} · ${data.paket_satis?.paket?.ad ?? "Paket"} · ${kalan} seans kaldı — yenileme önerin`,
+          timeout: 15000,
+          data: { tur },
+        });
+        return;
+      }
 
       const parcalar = [data.hasta?.ad_soyad ?? "Hasta", data.oda?.ad, formatTime(data.baslangic)].filter(Boolean);
       toastYoneticisi.add({
@@ -128,6 +147,13 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
       if (payload.eventType !== "UPDATE") return;
       if (onceki === undefined || onceki === yeni.durum) return;
       if (!bildirimDurumuMu(yeni.durum)) return;
+      // tamamlandi → yalnız resepsiyon/klinik_admin (paket yenileme); diğer
+      // geçişler → terapist/klinik_admin (resepsiyon eylemi kendisi yapıyor).
+      if (yeni.durum === "tamamlandi") {
+        if (rol !== "resepsiyon" && rol !== "klinik_admin") return;
+      } else if (rol === "resepsiyon") {
+        return;
+      }
       if (rol === "terapist" && (!kendiTerapistId || yeni.terapist_id !== kendiTerapistId)) return;
 
       void bildir(yeni.id, yeni.durum);
@@ -175,7 +201,8 @@ function BildirimListesi() {
   const { toasts } = Toast.useToastManager<ToastVerisi>();
 
   return toasts.map((toast) => {
-    const Ikon = toast.data?.tur === "ertelendi" ? CalendarClock : UserCheck;
+    const Ikon =
+      toast.data?.tur === "ertelendi" ? CalendarClock : toast.data?.tur === "tamamlandi" ? PackageOpen : UserCheck;
     return (
       <Toast.Root
         key={toast.id}
@@ -186,14 +213,16 @@ function BildirimListesi() {
           className={
             toast.data?.tur === "ertelendi"
               ? "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400"
-              : "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400"
+              : toast.data?.tur === "tamamlandi"
+                ? "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400"
+                : "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400"
           }
         >
           <Ikon className="size-4" aria-hidden="true" />
         </span>
         <Toast.Content className="min-w-0 flex-1">
           <Toast.Title className="text-sm font-semibold" />
-          <Toast.Description className="mt-0.5 truncate text-sm text-muted-foreground" />
+          <Toast.Description className="mt-0.5 line-clamp-2 text-sm text-muted-foreground" />
         </Toast.Content>
         <Toast.Close
           aria-label="Bildirimi kapat"

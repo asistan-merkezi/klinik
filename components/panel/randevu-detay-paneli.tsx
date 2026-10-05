@@ -17,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Wallet } from "lucide-react";
+import { PackageOpen, Wallet } from "lucide-react";
+import { DURUM_TONU_SINIFLARI } from "@/lib/ui/durum-tonlari";
+import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
 import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/datetime";
 import { createClient } from "@/lib/supabase/client";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
@@ -218,7 +220,23 @@ export function RandevuDetayPaneli({
           </div>
 
           {randevu.paket_satis_id ? (
-            <p className="text-sm font-medium text-muted-foreground">Paketten düşülmüştür.</p>
+            <>
+              <p className="text-sm font-medium text-muted-foreground">Paketten düşülmüştür.</p>
+              {paketYenilemeGerekliMi(randevu.paket_satis?.kalan_adet) && (
+                <div
+                  role="status"
+                  className={`flex items-start gap-2.5 rounded-xl p-3.5 text-sm ${DURUM_TONU_SINIFLARI.amber}`}
+                >
+                  <PackageOpen className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <p>
+                    <span className="font-semibold">Paket bitmek üzere:</span>{" "}
+                    {randevu.paket_satis?.paket?.ad ?? "Paket"} paketinde{" "}
+                    <span className="tabular font-semibold">{randevu.paket_satis?.kalan_adet}</span> seans kaldı. Hastaya
+                    yeni randevu/paket yenileme önerin.
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             (rol === "klinik_admin" || rol === "resepsiyon") &&
             randevu.hasta_id && (
