@@ -12,12 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateForInput, formatTime } from "@/lib/datetime";
+import { formatDateForInput } from "@/lib/datetime";
+import { gelecekteMi, saatAdaylari, saatMusaitMi } from "@/lib/randevu/musait-saatler";
 import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import { randevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
 import { KayitliPaketler } from "./kayitli-paketler";
-import { useCihazCakismalari, useDoluKaynaklar, useTedaviEtkinFiyat } from "./queries";
+import { useMesgulAraliklar, useTedaviEtkinFiyat } from "./queries";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -95,25 +96,29 @@ export function RandevuFormu({
   const adimToplami = (seciliTedavi?.adimlar ?? []).reduce((t, a) => t + (a.sure_dakika ?? 0), 0);
   const toplamSure = seciliTedavi?.sure_dakika ?? (adimToplami > 0 ? adimToplami : 30);
 
-  // Tarih + saat + tedavi belli olunca o zaman dilimindeki dolu terapist/oda
-  // çekilir; listeler yalnız müsait olanları gösterir.
-  const zamanHazir = Boolean(islemTanimiId && tarih && saat);
-  const { data: dolu, isLoading: musaitlikYukleniyor } = useDoluKaynaklar(
-    zamanHazir ? tarih : "",
-    zamanHazir ? saat : "",
-    toplamSure
+  // Sıra: Tarih → Terapist → Oda → Saat. Terapist/Oda tarih seçilince açılır;
+  // ikisi de seçilince o günün müsait saatleri listelenir — terapist VE oda boş,
+  // tedavinin cihazlı adımları da çakışmıyor (bkz. lib/randevu/musait-saatler.ts).
+  const tarihHazir = Boolean(islemTanimiId && tarih);
+  const efektifTerapistId = pozisyonaUygunTerapistler.some((t) => t.id === terapistId) ? terapistId : "";
+  const efektifOdaId = odalar.some((o) => o.id === odaId) ? odaId : "";
+  const saatlerHazir = Boolean(tarihHazir && efektifTerapistId && efektifOdaId);
+  const adimlar = seciliTedavi?.adimlar ?? [];
+  const { data: mesgul, isLoading: musaitlikYukleniyor } = useMesgulAraliklar(
+    saatlerHazir ? tarih : "",
+    saatlerHazir ? tarih : "",
+    efektifTerapistId,
+    efektifOdaId,
+    adimlar.flatMap((a) => (a.cihaz_id ? [a.cihaz_id] : []))
   );
-  const uygunTerapistler = dolu
-    ? pozisyonaUygunTerapistler.filter((t) => !dolu.terapistler.has(t.id))
-    : pozisyonaUygunTerapistler;
-  const musaitOdalar = dolu ? odalar.filter((o) => !dolu.odalar.has(o.id)) : odalar;
-  // Seçim, zaman değişince dolu hâle gelirse sessizce sıfırlanır (render sırasında
-  // türetilen değer; state'e dokunmadan gönderilen değer buna göre boşalır).
-  // Tedavi tanımındaki cihazlı adımlar (başlangıçtan itibaren sırayla) o saatte doluysa uyarı + kayıt engeli.
-  const { data: cihazCakismalari } = useCihazCakismalari(zamanHazir ? tarih : "", zamanHazir ? saat : "", seciliTedavi?.adimlar ?? [], toplamSure);
-  const cihazCakisiyor = (cihazCakismalari?.length ?? 0) > 0;
-  const efektifTerapistId = uygunTerapistler.some((t) => t.id === terapistId) ? terapistId : "";
-  const efektifOdaId = musaitOdalar.some((o) => o.id === odaId) ? odaId : "";
+  const musaitSaatler =
+    saatlerHazir && mesgul
+      ? saatAdaylari(talep?.saat ?? searchParams.get("saat") ?? "").filter(
+          (s) => gelecekteMi(tarih, s) && saatMusaitMi(tarih, s, toplamSure, adimlar, mesgul)
+        )
+      : [];
+  // Seçili saat, terapist/oda/tarih değişince dolu hâle gelirse sessizce sıfırlanır.
+  const efektifSaat = musaitSaatler.includes(saat) ? saat : "";
 
   // Tedavi seçilince (Tedavi seçiciden veya Kayıtlı Paketler'den) iskonto sıfırlanır;
   // terapist/oda seçimi müsaitlik listesinden efektif olarak yeniden doğrulanır.
@@ -217,29 +222,18 @@ export function RandevuFormu({
           </div>
         )}
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="tarih">Tarih</Label>
           <Input
             id="tarih"
             name="tarih"
             type="date"
             value={tarih}
+            min={bugun}
             onChange={(e) => setTarih(e.target.value)}
             required
             disabled={isPending}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="saat">Saat</Label>
-          <Input
-            id="saat"
-            name="saat"
-            type="time"
-            value={saat}
-            onChange={(e) => setSaat(e.target.value)}
-            required
-            disabled={isPending}
+            className="sm:max-w-[calc(50%-0.5rem)]"
           />
         </div>
 
@@ -250,28 +244,26 @@ export function RandevuFormu({
           <Select
             name="terapist_id"
             required
-            disabled={isPending || !zamanHazir || uygunTerapistler.length === 0}
+            disabled={isPending || !tarihHazir || pozisyonaUygunTerapistler.length === 0}
             value={efektifTerapistId}
             onValueChange={(v) => setTerapistId(v as string)}
-            items={uygunTerapistler.map((t) => ({ value: t.id, label: t.ad }))}
+            items={pozisyonaUygunTerapistler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="terapist_id" className="w-full">
               <SelectValue
                 placeholder={
                   !islemTanimiId
                     ? "Önce tedavi seçin"
-                    : !zamanHazir
-                      ? "Önce tarih ve saat seçin"
-                      : musaitlikYukleniyor
-                        ? "Müsaitlik kontrol ediliyor…"
-                        : uygunTerapistler.length === 0
-                          ? "Bu saatte müsait personel yok"
-                          : "Dr / Terapist seçin"
+                    : !tarih
+                      ? "Önce tarih seçin"
+                      : pozisyonaUygunTerapistler.length === 0
+                        ? "Uygun personel yok"
+                        : "Dr / Terapist seçin"
                 }
               />
             </SelectTrigger>
             <SelectContent>
-              {uygunTerapistler.map((t) => (
+              {pozisyonaUygunTerapistler.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.ad}
                 </SelectItem>
@@ -285,32 +277,52 @@ export function RandevuFormu({
           <Select
             name="oda_id"
             required
-            disabled={isPending || !zamanHazir || musaitOdalar.length === 0}
+            disabled={isPending || !efektifTerapistId || odalar.length === 0}
             value={efektifOdaId}
             onValueChange={(v) => setOdaId(v as string)}
-            items={musaitOdalar.map((o) => ({ value: o.id, label: o.ad }))}
+            items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
           >
             <SelectTrigger id="oda_id" className="w-full">
-              <SelectValue
-                placeholder={
-                  !zamanHazir
-                    ? "Önce tarih ve saat seçin"
-                    : musaitlikYukleniyor
-                      ? "Müsaitlik kontrol ediliyor…"
-                      : musaitOdalar.length === 0
-                        ? "Bu saatte müsait oda yok"
-                        : "Oda seçin"
-                }
-              />
+              <SelectValue placeholder={!efektifTerapistId ? "Önce terapist seçin" : "Oda seçin"} />
             </SelectTrigger>
             <SelectContent>
-              {musaitOdalar.map((o) => (
+              {odalar.map((o) => (
                 <SelectItem key={o.id} value={o.id}>
                   {o.ad}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label>Saat</Label>
+          <input type="hidden" name="saat" value={efektifSaat} />
+          {!saatlerHazir ? (
+            <p className="text-sm text-muted-foreground">Müsait saatleri görmek için tarih, terapist ve oda seçin.</p>
+          ) : musaitlikYukleniyor ? (
+            <p className="text-sm text-muted-foreground">Müsait saatler kontrol ediliyor…</p>
+          ) : musaitSaatler.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Bu gün için müsait saat yok.</p>
+          ) : (
+            <div role="radiogroup" aria-label="Müsait saatler" className="flex flex-wrap gap-2">
+              {musaitSaatler.map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={efektifSaat === s}
+                  variant={efektifSaat === s ? "default" : "outline"}
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => setSaat(s)}
+                  className="tabular"
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         {islemTanimiId && hastaId && (
@@ -353,19 +365,6 @@ export function RandevuFormu({
         )}
       </div>
 
-      {cihazCakisiyor && (
-        <ul
-          role="alert"
-          className="flex flex-col gap-1 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950"
-        >
-          {cihazCakismalari?.map((c, i) => (
-            <li key={i}>
-              <span className="font-medium">{c.ad}</span> {formatTime(c.bas)}–{formatTime(c.bit)} arasında dolu — başka bir saat seçin.
-            </li>
-          ))}
-        </ul>
-      )}
-
       {durum && (
         <p
           role="alert"
@@ -375,7 +374,7 @@ export function RandevuFormu({
         </p>
       )}
 
-      <Button type="submit" disabled={isPending || cihazCakisiyor} className="w-fit">
+      <Button type="submit" disabled={isPending || !efektifSaat} className="w-fit">
         {isPending ? "Kaydediliyor..." : "Randevu oluştur"}
       </Button>
     </form>

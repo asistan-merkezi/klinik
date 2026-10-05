@@ -16,7 +16,8 @@ import { HAFTANIN_GUNLERI } from "@/types/periyodik-randevu";
 import { periyodikRandevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
 import { formatDateForInput } from "@/lib/datetime";
-import { useDoluKaynaklarCoklu } from "./queries";
+import { useMesgulAraliklar } from "./queries";
+import { gelecekteMi, gunEkleStr, saatAdaylari, saatMusaitMi } from "@/lib/randevu/musait-saatler";
 import { KayitliPaketler } from "./kayitli-paketler";
 
 type Props = {
@@ -64,21 +65,43 @@ export function PeriyodikRandevuFormu({
   const adimToplami = (seciliTedavi?.adimlar ?? []).reduce((t, a) => t + (a.sure_dakika ?? 0), 0);
   const toplamSure = seciliTedavi?.sure_dakika ?? (adimToplami > 0 ? adimToplami : 30);
 
-  // Müsaitlik: her gün+saat çiftinin ilk yaklaşan tarihine göre (bkz. useDoluKaynaklarCoklu).
-  const slotlar = gunler.every((g) => g.saat !== "")
-    ? gunler.map((g) => ({ tarih: sonrakiTarih(Number(g.gun)), saat: g.saat }))
-    : [];
-  const zamanHazir = Boolean(islemTanimiId) && slotlar.length > 0;
-  const { data: dolu, isLoading: musaitlikYukleniyor } = useDoluKaynaklarCoklu(
-    zamanHazir ? slotlar : [],
-    toplamSure
+  // Sıra: Gün(ler) → Terapist → Oda → her gün için müsait saat (Tek Randevu ile
+  // aynı akış). Müsaitlik her günün İLK gerçekleşecek tarihine göre hesaplanır:
+  // o haftanın günü bugünse ve saat geçmişse seri gelecek haftadan başlar
+  // (action geçmiş adayları atlar), o tarihe bakılır. Sonraki dolu haftalar
+  // action'da zaten atlanıp WhatsApp linkiyle raporlanır.
+  const gunlerHazir = Boolean(islemTanimiId);
+  const efektifTerapistId = pozisyonaUygunTerapistler.some((t) => t.id === terapistId) ? terapistId : "";
+  const efektifOdaId = odalar.some((o) => o.id === odaId) ? odaId : "";
+  const saatlerHazir = Boolean(gunlerHazir && efektifTerapistId && efektifOdaId);
+  const adimlar = seciliTedavi?.adimlar ?? [];
+  const ilkTarihler = gunler.map((g) => sonrakiTarih(Number(g.gun)));
+  const aralikBas = [...ilkTarihler].sort()[0] ?? "";
+  const aralikBit = aralikBas ? gunEkleStr([...ilkTarihler].sort().at(-1)!, 7) : "";
+  const { data: mesgul, isLoading: musaitlikYukleniyor } = useMesgulAraliklar(
+    saatlerHazir ? aralikBas : "",
+    saatlerHazir ? aralikBit : "",
+    efektifTerapistId,
+    efektifOdaId,
+    adimlar.flatMap((a) => (a.cihaz_id ? [a.cihaz_id] : []))
   );
-  const uygunTerapistler = dolu
-    ? pozisyonaUygunTerapistler.filter((t) => !dolu.terapistler.has(t.id))
-    : pozisyonaUygunTerapistler;
-  const musaitOdalar = dolu ? odalar.filter((o) => !dolu.odalar.has(o.id)) : odalar;
-  const efektifTerapistId = uygunTerapistler.some((t) => t.id === terapistId) ? terapistId : "";
-  const efektifOdaId = musaitOdalar.some((o) => o.id === odaId) ? odaId : "";
+  const satirMusaitSaatleri = gunler.map((g, i) => {
+    if (!saatlerHazir || !mesgul) return [];
+    const ilk = ilkTarihler[i];
+    // Aynı gün başka satırda seçilmiş saat tekrar seçilemez (action da reddeder).
+    const digerSecimler = new Set(gunler.filter((d, j) => j !== i && d.gun === g.gun).map((d) => d.saat));
+    return saatAdaylari().filter((s) => {
+      if (digerSecimler.has(s)) return false;
+      const tarih = gelecekteMi(ilk, s) ? ilk : gunEkleStr(ilk, 7);
+      return saatMusaitMi(tarih, s, toplamSure, adimlar, mesgul);
+    });
+  });
+  // Seçili saat, terapist/oda/gün değişince dolu hâle gelirse sessizce sıfırlanır.
+  const efektifGunler = gunler.map((g, i) => ({
+    gun: g.gun,
+    saat: satirMusaitSaatleri[i].includes(g.saat) ? g.saat : "",
+  }));
+  const tumSaatlerSecili = efektifGunler.every((g) => g.saat !== "");
 
   function tedaviSec(id: string) {
     setIslemTanimiId(id);
@@ -212,39 +235,31 @@ export function PeriyodikRandevuFormu({
         </div>
 
         <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label>Gün ve Saatler</Label>
-          <div className="flex flex-col gap-2">
+          <Label>Günler</Label>
+          <div className="grid gap-2 sm:grid-cols-2">
             {gunler.map((g, i) => (
-              <div key={i} className="grid grid-cols-2 gap-2">
-                <Select
-                  required
-                  disabled={isPending}
-                  value={g.gun}
-                  onValueChange={(v) => gunSatiriGuncelle(i, { gun: v as string })}
-                  items={HAFTANIN_GUNLERI}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HAFTANIN_GUNLERI.map((gg) => (
-                      <SelectItem key={gg.value} value={gg.value}>
-                        {gg.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="time"
-                  required
-                  disabled={isPending}
-                  value={g.saat}
-                  onChange={(e) => gunSatiriGuncelle(i, { saat: e.target.value })}
-                />
-              </div>
+              <Select
+                key={i}
+                required
+                disabled={isPending}
+                value={g.gun}
+                onValueChange={(v) => gunSatiriGuncelle(i, { gun: v as string })}
+                items={HAFTANIN_GUNLERI}
+              >
+                <SelectTrigger className="w-full" aria-label={`${i + 1}. gün`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HAFTANIN_GUNLERI.map((gg) => (
+                    <SelectItem key={gg.value} value={gg.value}>
+                      {gg.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ))}
           </div>
-          <input type="hidden" name="gunler_json" value={JSON.stringify(gunler)} />
+          <input type="hidden" name="gunler_json" value={JSON.stringify(efektifGunler)} />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -252,28 +267,24 @@ export function PeriyodikRandevuFormu({
           <Select
             name="terapist_id"
             required
-            disabled={isPending || !zamanHazir || uygunTerapistler.length === 0}
+            disabled={isPending || !gunlerHazir || pozisyonaUygunTerapistler.length === 0}
             value={efektifTerapistId}
             onValueChange={(v) => setTerapistId(v as string)}
-            items={uygunTerapistler.map((t) => ({ value: t.id, label: t.ad }))}
+            items={pozisyonaUygunTerapistler.map((t) => ({ value: t.id, label: t.ad }))}
           >
             <SelectTrigger id="periyodik_terapist_id" className="w-full">
               <SelectValue
                 placeholder={
                   !islemTanimiId
                     ? "Önce tedavi seçin"
-                    : !zamanHazir
-                      ? "Önce gün ve saat seçin"
-                      : musaitlikYukleniyor
-                        ? "Müsaitlik kontrol ediliyor…"
-                        : uygunTerapistler.length === 0
-                          ? "Bu saatte müsait personel yok"
-                          : "Dr / Terapist seçin"
+                    : pozisyonaUygunTerapistler.length === 0
+                      ? "Uygun personel yok"
+                      : "Dr / Terapist seçin"
                 }
               />
             </SelectTrigger>
             <SelectContent>
-              {uygunTerapistler.map((t) => (
+              {pozisyonaUygunTerapistler.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.ad}
                 </SelectItem>
@@ -287,32 +298,62 @@ export function PeriyodikRandevuFormu({
           <Select
             name="oda_id"
             required
-            disabled={isPending || !zamanHazir || musaitOdalar.length === 0}
+            disabled={isPending || !efektifTerapistId || odalar.length === 0}
             value={efektifOdaId}
             onValueChange={(v) => setOdaId(v as string)}
-            items={musaitOdalar.map((o) => ({ value: o.id, label: o.ad }))}
+            items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
           >
             <SelectTrigger id="periyodik_oda_id" className="w-full">
-              <SelectValue
-                placeholder={
-                  !zamanHazir
-                    ? "Önce gün ve saat seçin"
-                    : musaitlikYukleniyor
-                      ? "Müsaitlik kontrol ediliyor…"
-                      : musaitOdalar.length === 0
-                        ? "Bu saatte müsait oda yok"
-                        : "Oda seçin"
-                }
-              />
+              <SelectValue placeholder={!efektifTerapistId ? "Önce terapist seçin" : "Oda seçin"} />
             </SelectTrigger>
             <SelectContent>
-              {musaitOdalar.map((o) => (
+              {odalar.map((o) => (
                 <SelectItem key={o.id} value={o.id}>
                   {o.ad}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:col-span-2">
+          <Label>Saatler</Label>
+          {!saatlerHazir ? (
+            <p className="text-sm text-muted-foreground">Müsait saatleri görmek için gün, terapist ve oda seçin.</p>
+          ) : musaitlikYukleniyor ? (
+            <p className="text-sm text-muted-foreground">Müsait saatler kontrol ediliyor…</p>
+          ) : (
+            gunler.map((g, i) => {
+              const gunAdi = HAFTANIN_GUNLERI.find((gg) => gg.value === g.gun)?.label ?? "";
+              const saatler = satirMusaitSaatleri[i];
+              return (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">{gunAdi}</span>
+                  {saatler.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Bu gün için müsait saat yok.</p>
+                  ) : (
+                    <div role="radiogroup" aria-label={`${gunAdi} müsait saatler`} className="flex flex-wrap gap-2">
+                      {saatler.map((s) => (
+                        <Button
+                          key={s}
+                          type="button"
+                          role="radio"
+                          aria-checked={efektifGunler[i].saat === s}
+                          variant={efektifGunler[i].saat === s ? "default" : "outline"}
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => gunSatiriGuncelle(i, { saat: s })}
+                          className="tabular"
+                        >
+                          {s}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
 
         <input type="hidden" name="sure_dakika" value={toplamSure} />
@@ -346,7 +387,7 @@ export function PeriyodikRandevuFormu({
         </div>
       )}
 
-      <Button type="submit" disabled={isPending} className="w-fit">
+      <Button type="submit" disabled={isPending || !tumSaatlerSecili} className="w-fit">
         {isPending ? "Oluşturuluyor..." : "Periyodik randevu oluştur"}
       </Button>
     </form>

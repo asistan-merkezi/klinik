@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toUTC } from "@/lib/datetime";
+import type { MesgulAraliklar } from "@/lib/randevu/musait-saatler";
 
 export type HastaAktifPaket = {
   id: string;
@@ -58,120 +59,60 @@ export function useTedaviEtkinFiyat(islemTanimiId: string, hastaId: string) {
 }
 
 /**
- * Seçilen tarih+saat+süre aralığında dolu olan terapist ve odalar — randevu
- * formunda Dr / Terapist ve Oda listelerini yalnız müsait olanlarla sınırlamak
- * için. DB'deki exclusion constraint'lerle AYNI kural (iptal/gelmedi hariç,
- * yarı-açık aralık çakışması); asıl güvence yine constraint, bu yalnız UI kolaylığı.
+ * [basTarih, bitTarih] günleri (İstanbul, iki uç dahil) içinde seçili terapist
+ * VEYA odanın dolu olduğu aralıklar + verilen cihazların rezervasyonları (epoch ms).
+ * Randevu formlarındaki "Saat" seçicisi bunlarla çakışmayan başlangıçları gösterir
+ * (bkz. lib/randevu/musait-saatler.ts). DB'deki exclusion constraint'lerle AYNI
+ * kural (iptal/gelmedi hariç); asıl güvence yine constraint. Cihaz sorgusu hata
+ * verirse SESSİZCE boş sayılır (fail-open) — kayıt zaten DB'de denetlenir.
  */
-export function useDoluKaynaklar(tarih: string, saat: string, sureDakika: number) {
+export function useMesgulAraliklar(
+  basTarih: string,
+  bitTarih: string,
+  terapistId: string,
+  odaId: string,
+  cihazIdleri: string[]
+) {
+  const cihazlar = [...new Set(cihazIdleri)].sort();
   return useQuery({
-    queryKey: ["randevu_dolu_kaynaklar", tarih, saat, sureDakika],
-    enabled: tarih !== "" && saat !== "" && sureDakika > 0,
-    queryFn: async () => {
-      const baslangic = toUTC(`${tarih}T${saat}:00`);
-      const bitis = new Date(new Date(baslangic).getTime() + sureDakika * 60_000).toISOString();
+    queryKey: ["randevu_mesgul_araliklar", basTarih, bitTarih, terapistId, odaId, cihazlar.join(",")],
+    enabled: basTarih !== "" && bitTarih !== "" && terapistId !== "" && odaId !== "",
+    queryFn: async (): Promise<MesgulAraliklar> => {
+      const bas = toUTC(`${basTarih}T00:00:00`);
+      const bit = new Date(new Date(toUTC(`${bitTarih}T00:00:00`)).getTime() + 24 * 60 * 60_000).toISOString();
       const supabase = createClient();
       const { data, error } = await supabase
         .from("randevu")
-        .select("terapist_id, oda_id")
-        .lt("baslangic", bitis)
-        .gt("bitis", baslangic)
+        .select("baslangic, bitis")
+        .or(`terapist_id.eq.${terapistId},oda_id.eq.${odaId}`)
+        .lt("baslangic", bit)
+        .gt("bitis", bas)
         .not("durum", "in", "(iptal,gelmedi)")
-        .returns<{ terapist_id: string; oda_id: string }[]>();
+        .returns<{ baslangic: string; bitis: string }[]>();
       if (error) throw error;
-      return {
-        terapistler: new Set((data ?? []).map((r) => r.terapist_id)),
-        odalar: new Set((data ?? []).map((r) => r.oda_id)),
-      };
-    },
-  });
-}
 
-/**
- * Periyodik randevu için: her gün+saat çiftinin İLK yaklaşan tarihinde dolu olan
- * terapist/odaların birleşimi. Seri 5 ay sürdüğünden tüm haftaları denetlemek
- * yerine ilk haftaya bakılır (sonraki dolu haftalar action'da zaten atlanır).
- */
-export function useDoluKaynaklarCoklu(slotlar: { tarih: string; saat: string }[], sureDakika: number) {
-  const anahtar = slotlar.map((s) => `${s.tarih}T${s.saat}`).join("|");
-  return useQuery({
-    queryKey: ["randevu_dolu_kaynaklar_coklu", anahtar, sureDakika],
-    enabled: slotlar.length > 0 && sureDakika > 0,
-    queryFn: async () => {
-      const supabase = createClient();
-      const sonuclar = await Promise.all(
-        slotlar.map(async ({ tarih, saat }) => {
-          const baslangic = toUTC(`${tarih}T${saat}:00`);
-          const bitis = new Date(new Date(baslangic).getTime() + sureDakika * 60_000).toISOString();
-          const { data, error } = await supabase
-            .from("randevu")
-            .select("terapist_id, oda_id")
-            .lt("baslangic", bitis)
-            .gt("bitis", baslangic)
-            .not("durum", "in", "(iptal,gelmedi)")
-            .returns<{ terapist_id: string; oda_id: string }[]>();
-          if (error) throw error;
-          return data ?? [];
-        })
-      );
-      const tum = sonuclar.flat();
-      return {
-        terapistler: new Set(tum.map((r) => r.terapist_id)),
-        odalar: new Set(tum.map((r) => r.oda_id)),
-      };
-    },
-  });
-}
-
-/**
- * Tedavi tanımındaki cihazlı adımların pencereleri (randevu başlangıcından
- * itibaren adımlar sırayla dizilir) mevcut cihaz rezervasyonlarıyla çakışıyor mu?
- * DB'deki asıl kural `randevu_cihaz_rezervasyon` exclusion kısıtıdır (bkz.
- * 20260930140000 migration'ı); bu yalnız formda erken uyarı içindir. Tablo
- * henüz yoksa/sorgu hata verirse SESSİZCE boş döner (fail-open) — kayıt zaten
- * DB'de denetlenir.
- */
-export function useCihazCakismalari(
-  tarih: string,
-  saat: string,
-  adimlar: { sure_dakika: number | null; cihaz_id: string | null; cihaz_ad: string | null }[],
-  toplamSure: number
-) {
-  const cihazliAdimVar = adimlar.some((a) => a.cihaz_id);
-  const adimAnahtari = adimlar.map((a) => `${a.cihaz_id}:${a.sure_dakika}`).join("|");
-  return useQuery({
-    queryKey: ["randevu_cihaz_cakismalari", tarih, saat, adimAnahtari, toplamSure],
-    enabled: tarih !== "" && saat !== "" && cihazliAdimVar,
-    queryFn: async () => {
-      const baslangic = new Date(toUTC(`${tarih}T${saat}:00`)).getTime();
-      const pencereler: { cihazId: string; ad: string; bas: number; bit: number }[] = [];
-      let imlec = baslangic;
-      for (const a of adimlar) {
-        const bit = a.sure_dakika ? imlec + a.sure_dakika * 60_000 : Math.max(baslangic + toplamSure * 60_000, imlec);
-        if (a.cihaz_id && bit > imlec) pencereler.push({ cihazId: a.cihaz_id, ad: a.cihaz_ad ?? "Cihaz", bas: imlec, bit });
-        imlec = bit;
+      let cihaz: MesgulAraliklar["cihaz"] = [];
+      if (cihazlar.length > 0) {
+        const { data: rez, error: rezHata } = await supabase
+          .from("randevu_cihaz_rezervasyon")
+          .select("cihaz_id, baslangic, bitis")
+          .in("cihaz_id", cihazlar)
+          .lt("baslangic", bit)
+          .gt("bitis", bas)
+          .returns<{ cihaz_id: string; baslangic: string; bitis: string }[]>();
+        if (!rezHata && rez) {
+          cihaz = rez.map((r) => ({
+            cihazId: r.cihaz_id,
+            bas: new Date(r.baslangic).getTime(),
+            bit: new Date(r.bitis).getTime(),
+          }));
+        }
       }
-      if (pencereler.length === 0) return [];
 
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("randevu_cihaz_rezervasyon")
-        .select("cihaz_id, baslangic, bitis")
-        .lt("baslangic", new Date(Math.max(...pencereler.map((p) => p.bit))).toISOString())
-        .gt("bitis", new Date(baslangic).toISOString())
-        .returns<{ cihaz_id: string; baslangic: string; bitis: string }[]>();
-      if (error || !data) return [];
-
-      return pencereler
-        .filter((p) =>
-          data.some(
-            (r) =>
-              r.cihaz_id === p.cihazId &&
-              new Date(r.baslangic).getTime() < p.bit &&
-              new Date(r.bitis).getTime() > p.bas
-          )
-        )
-        .map((p) => ({ ad: p.ad, bas: new Date(p.bas).toISOString(), bit: new Date(p.bit).toISOString() }));
+      return {
+        kaynak: (data ?? []).map((r) => ({ bas: new Date(r.baslangic).getTime(), bit: new Date(r.bitis).getTime() })),
+        cihaz,
+      };
     },
   });
 }
