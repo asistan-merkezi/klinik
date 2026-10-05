@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -176,12 +176,12 @@ export function PanelSidebar({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [menuAcik, setMenuAcik] = useState(false);
+  // Menü hangi rotada açıldıysa yalnız o rotada açık sayılır — sayfa değişince
+  // effect+setState olmadan kendiliğinden kapanır.
+  const [menuAcikRota, setMenuAcikRota] = useState<string | null>(null);
+  const menuAcik = menuAcikRota === pathname;
+  const setMenuAcik = (acik: boolean) => setMenuAcikRota(acik ? pathname : null);
   const dokunmaBaslangici = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    setMenuAcik(false);
-  }, [pathname]);
 
   function dokunmaBasladi(e: React.TouchEvent) {
     if (menuAcik) return;

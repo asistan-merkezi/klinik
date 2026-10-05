@@ -201,7 +201,7 @@ function PeriyodikSatir({ hastaId, periyodik }: { hastaId: string; periyodik: Pe
                         rel="noreferrer"
                         className="font-medium text-emerald-700 underline dark:text-emerald-400"
                       >
-                        WhatsApp'tan Gönder
+                        WhatsApp&apos;tan Gönder
                       </a>
                     </li>
                   ))}

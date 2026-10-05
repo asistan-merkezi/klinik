@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
@@ -17,14 +17,19 @@ import { Button } from "@/components/ui/button";
  * çağrılıyor, bu kontrolden etkilenmez). /tablet-onizleme (auth'suz QA
  * rotası) da tablet ekranının kendi tema seçiciyle yönetildiği için dahil.
  */
+const abonelikYok = () => () => {};
+
 const GIZLI_ROTALAR = ["/giris", "/portal/giris", "/tablet-onizleme"];
 
 export function ThemeToggle({ variant = "fab" }: { variant?: "fab" | "inline" }) {
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  // Sunucuda false, istemcide true — hidrasyon uyuşmazlığı olmadan tema ikonunu seçmek için.
+  const mounted = useSyncExternalStore(
+    abonelikYok,
+    () => true,
+    () => false
+  );
 
   const gizliRotada = GIZLI_ROTALAR.some((rota) => pathname?.startsWith(rota)) || pathname?.includes("/tablet/");
   if (gizliRotada) return null;

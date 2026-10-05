@@ -18,7 +18,8 @@ export function useMinuteTick(): Date | null {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
-    setNow(new Date());
+    // İlk değer de bir callback'te atanır (effect gövdesinde senkron setState yok).
+    const ilkId = setTimeout(() => setNow(new Date()), 0);
 
     // İlk tetiklemeyi dakika başına hizala, sonra 60 sn'de bir devam et.
     let intervalId: ReturnType<typeof setInterval>;
@@ -30,6 +31,7 @@ export function useMinuteTick(): Date | null {
     }, msToNextMinute);
 
     return () => {
+      clearTimeout(ilkId);
       clearTimeout(timeoutId);
       clearInterval(intervalId);
     };

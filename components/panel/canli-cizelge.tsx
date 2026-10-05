@@ -96,9 +96,12 @@ export function CanliCizelge({
   const bugunMu = simdi ? seciliTarih === formatDateForInput(simdi.toISOString()) : true;
 
   useEffect(() => {
-    setSimdi(new Date());
+    const ilkId = setTimeout(() => setSimdi(new Date()), 0);
     const id = setInterval(() => setSimdi(new Date()), 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(ilkId);
+      clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {

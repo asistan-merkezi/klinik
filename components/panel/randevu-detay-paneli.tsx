@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PackageOpen, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { DURUM_TONU_SINIFLARI } from "@/lib/ui/durum-tonlari";
 import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
 import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/datetime";
@@ -68,27 +69,26 @@ function OdemeVeyaCariKarti({
 }) {
   const hastaId = randevu.hasta_id ?? "";
   const zatenIslendi = (randevu.hasta_bakiye_hareket ?? []).some((h) => h.tur === "borc");
-  const [guncelBakiye, setGuncelBakiye] = useState<number | null>(null);
   const [hesapKapandi, setHesapKapandi] = useState(zatenIslendi);
   const [hata, setHata] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { data: tedaviBedeli } = useTedaviEtkinFiyat(randevu.islem_tanimi?.id ?? "", hastaId);
 
-  useEffect(() => {
-    let iptalEdildi = false;
-    setGuncelBakiye(null);
-    createClient()
-      .from("v_hasta_ozet")
-      .select("bakiye")
-      .eq("hasta_id", hastaId)
-      .maybeSingle<{ bakiye: number }>()
-      .then(({ data }) => {
-        if (!iptalEdildi) setGuncelBakiye(data?.bakiye ?? 0);
-      });
-    return () => {
-      iptalEdildi = true;
-    };
-  }, [hastaId]);
+  // Kart açılınca tek satır; önceden toplu çekilmez.
+  const { data: bakiyeVerisi } = useQuery({
+    queryKey: ["hasta-guncel-bakiye", hastaId],
+    queryFn: async () => {
+      const { data } = await createClient()
+        .from("v_hasta_ozet")
+        .select("bakiye")
+        .eq("hasta_id", hastaId)
+        .maybeSingle<{ bakiye: number }>();
+      return data?.bakiye ?? 0;
+    },
+    staleTime: 0,
+    gcTime: 0,
+  });
+  const guncelBakiye = bakiyeVerisi ?? null;
 
   function cariyeEkle() {
     setHata(null);
