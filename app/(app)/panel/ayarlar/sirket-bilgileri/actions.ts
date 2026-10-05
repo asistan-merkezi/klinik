@@ -208,11 +208,33 @@ export async function aracSil(id: string): Promise<SonucDurumu> {
 }
 
 const bankaHesabiSemasi = z.object({
+  hesap_tipi: z.enum(["klinik", "sahis"]),
   banka_adi: z.string().trim().min(1, "Banka adı gerekli."),
   sube: z.string().trim().optional(),
-  hesap_sahibi: z.string().trim().min(1, "Hesap sahibi gerekli."),
-  iban: z.string().trim().min(1, "IBAN gerekli."),
+  hesap_sahibi: z.string().trim().optional(),
+  // IBAN opsiyonel; boşluklar atılıp büyük harfe çevrilir. Girildiyse TR + 24 hane olmalı.
+  iban: z
+    .string()
+    .transform((v) => v.replace(/\s+/g, "").toUpperCase())
+    .refine((v) => v === "" || /^TR\d{24}$/.test(v), "IBAN TR ile başlayan 26 karakter olmalı."),
 });
+
+function bankaHesabiGirdisi(formData: FormData) {
+  return bankaHesabiSemasi.safeParse({
+    hesap_tipi: formData.get("hesap_tipi"),
+    banka_adi: formData.get("banka_adi"),
+    sube: formData.get("sube") ?? "",
+    hesap_sahibi: formData.get("hesap_sahibi") ?? "",
+    iban: formData.get("iban") ?? "",
+  });
+}
+
+function bankaSayfalariniTazele() {
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  revalidatePath("/panel/finans/banka");
+  revalidatePath("/panel/finans/kasa");
+  revalidatePath("/panel/finans/giderler");
+}
 
 /** klinik_banka_hesaplari — Kasa/Banka sayfalarının (ve giderler/personel/hasta ödeme formlarının) "hesap seçin" dropdown'larını besleyen tek kaynak. */
 export async function bankaHesabiEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
@@ -221,13 +243,7 @@ export async function bankaHesabiEkle(_onceki: SonucDurumu, formData: FormData):
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
-  const ayristirma = bankaHesabiSemasi.safeParse({
-    banka_adi: formData.get("banka_adi"),
-    sube: formData.get("sube") ?? "",
-    hesap_sahibi: formData.get("hesap_sahibi"),
-    iban: formData.get("iban"),
-  });
-
+  const ayristirma = bankaHesabiGirdisi(formData);
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
@@ -240,11 +256,13 @@ export async function bankaHesabiEkle(_onceki: SonucDurumu, formData: FormData):
     .limit(1);
   const sonraki_sira = (mevcutHesaplar?.[0]?.sort_order ?? -1) + 1;
 
+  // hesap_sahibi/iban kolonları NOT NULL (migration) — boş girilince "" yazılır, ekranda "—" görünür.
   const { error } = await supabase.from("klinik_banka_hesaplari").insert({
     klinik_id: klinikId,
+    hesap_tipi: ayristirma.data.hesap_tipi,
     banka_adi: ayristirma.data.banka_adi,
     sube: ayristirma.data.sube ? ayristirma.data.sube : null,
-    hesap_sahibi: ayristirma.data.hesap_sahibi,
+    hesap_sahibi: ayristirma.data.hesap_sahibi ?? "",
     iban: ayristirma.data.iban,
     sort_order: sonraki_sira,
   });
@@ -254,10 +272,44 @@ export async function bankaHesabiEkle(_onceki: SonucDurumu, formData: FormData):
     return { success: false, message: "Banka hesabı eklenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/ayarlar/sirket-bilgileri");
-  revalidatePath("/panel/finans/banka");
-  revalidatePath("/panel/finans/giderler");
+  bankaSayfalariniTazele();
   return { success: true, message: "Banka hesabı eklendi." };
+}
+
+export async function bankaHesabiGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const id = formData.get("id");
+  if (typeof id !== "string" || !id) {
+    return { success: false, message: "Hesap bulunamadı." };
+  }
+  const ayristirma = bankaHesabiGirdisi(formData);
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { error } = await supabase
+    .from("klinik_banka_hesaplari")
+    .update({
+      hesap_tipi: ayristirma.data.hesap_tipi,
+      banka_adi: ayristirma.data.banka_adi,
+      sube: ayristirma.data.sube ? ayristirma.data.sube : null,
+      hesap_sahibi: ayristirma.data.hesap_sahibi ?? "",
+      iban: ayristirma.data.iban,
+    })
+    .eq("id", id)
+    .eq("klinik_id", klinikId);
+
+  if (error) {
+    console.error("Banka hesabı güncellenemedi:", error);
+    return { success: false, message: "Banka hesabı güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  bankaSayfalariniTazele();
+  return { success: true, message: "Banka hesabı güncellendi." };
 }
 
 export async function bankaHesabiSil(id: string): Promise<SonucDurumu> {

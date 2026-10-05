@@ -80,7 +80,7 @@ function HesapPilleri({
           className={cn(selectedId === b.id && "!border-primary !bg-primary !text-primary-foreground")}
           onClick={() => setSelectedId(b.id)}
         >
-          {b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi}
+          {[b.banka_adi, b.sube, b.hesap_sahibi].filter(Boolean).join(" — ")}
         </Button>
       ))}
     </div>

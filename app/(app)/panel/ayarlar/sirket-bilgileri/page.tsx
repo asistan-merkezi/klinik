@@ -46,7 +46,7 @@ export default async function SirketBilgileriSayfasi() {
 
   const { data: bankaHesaplariSonuc } = await supabase
     .from("klinik_banka_hesaplari")
-    .select("id, banka_adi, sube, hesap_sahibi, iban")
+    .select("id, banka_adi, sube, hesap_sahibi, iban, hesap_tipi")
     .eq("klinik_id", kullanici?.klinik_id ?? "")
     .order("sort_order", { ascending: true })
     .returns<KlinikBankaHesabiDetay[]>();

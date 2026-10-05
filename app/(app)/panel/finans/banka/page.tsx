@@ -71,7 +71,7 @@ export default async function BankaSayfasi({
     aracSonucu,
     oncekiToplamSonucu,
   ] = await Promise.all([
-    supabase.from("klinik_banka_hesaplari").select("id, banka_adi, sube").order("sort_order").returns<KlinikBankaHesabi[]>(),
+    supabase.from("klinik_banka_hesaplari").select("id, banka_adi, sube, hesap_sahibi").order("sort_order").returns<KlinikBankaHesabi[]>(),
     tumSayfalariOku((bas, son) =>
       supabase
         .from("hasta_bakiye_hareket")

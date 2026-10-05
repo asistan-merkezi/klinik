@@ -42,10 +42,13 @@ export type KlinikBankaHesabi = {
   id: string;
   banka_adi: string;
   sube: string | null;
+  /** Aynı bankada birden çok hesap ayırt edilebilsin diye pill/dropdown etiketlerinde kullanılır. */
+  hesap_sahibi?: string | null;
 };
 
 /** Şirket Bilgileri > Banka Hesapları CRUD'unun kullandığı tam satır — dropdown'larda sadece KlinikBankaHesabi (id+banka_adi+sube) yeterli. */
 export type KlinikBankaHesabiDetay = KlinikBankaHesabi & {
   hesap_sahibi: string;
   iban: string;
+  hesap_tipi: "klinik" | "sahis";
 };
