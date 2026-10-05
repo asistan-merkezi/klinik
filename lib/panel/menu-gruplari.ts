@@ -26,6 +26,7 @@ import {
   CreditCard,
   Briefcase,
   History,
+  UserX,
   type LucideIcon,
 } from "lucide-react";
 
@@ -94,6 +95,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
       { href: "/panel/islemler", label: "Tedavi Tanımları", icon: ClipboardList },
       { href: "/panel/tedavi-protokolleri", label: "Tedavi Protokolleri", icon: ListChecks },
       { href: "/panel/yonetim/denetim-gecmisi", label: "Denetim Geçmişi", icon: History },
+      { href: "/panel/yonetim/gelmeme-analizi", label: "Gelmeme Analizi", icon: UserX },
     ],
   },
   {
