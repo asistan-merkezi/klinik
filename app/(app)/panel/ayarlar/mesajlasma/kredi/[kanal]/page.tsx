@@ -12,7 +12,7 @@ import { KrediYukleme } from "@/components/mesajlasma/KrediYukleme";
 import { KANAL_ETIKET, type MesajKanal, type MesajKrediHareketi } from "@/types/mesajlasma";
 import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
 import { merkezdenBakiyeCek, merkezdenKrediPaketleriCek } from "@/lib/mesaj/merkez-client";
-import { tumSayfalariOku } from "@/lib/finans/donem";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import { raporAyDonemi, raporGunDonemi, raporYilDonemi } from "@/lib/raporlar/donem";
 import { krediOdemeBaslat } from "./actions";

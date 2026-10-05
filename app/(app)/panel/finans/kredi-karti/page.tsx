@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDateForInput } from "@/lib/datetime";
-import { finansDonemiCoz, tumSayfalariOku } from "@/lib/finans/donem";
+import { finansDonemiCoz } from "@/lib/finans/donem";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KrediKartiLedger } from "./kredi-karti-ledger";
 

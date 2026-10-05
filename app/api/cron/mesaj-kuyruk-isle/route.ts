@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cronYetkiliMi } from "@/lib/cron-yetki";
 import { kuyrukSatiriniIsle } from "@/lib/mesaj/kuyruk-isle";
 
 export const runtime = "nodejs";
@@ -17,8 +18,7 @@ const BATCH_BOYUTU = 25;
  * eşleşmezse istek reddedilir (dışarıdan tetiklenip kredi tüketilmesin).
  */
 export async function GET(request: Request) {
-  const yetkiBasligi = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || yetkiBasligi !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronYetkiliMi(request)) {
     return NextResponse.json({ error: "yetkisiz" }, { status: 401 });
   }
 

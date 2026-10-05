@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { finansDonemiCoz, tumSayfalariOku } from "./donem";
+import { finansDonemiCoz } from "./donem";
+import { tumSayfalariOku } from "../supabase/sayfali-okuma";
 
 afterEach(() => {
   vi.useRealTimers();

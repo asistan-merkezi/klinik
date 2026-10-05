@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hakedisHesapla } from "@/lib/personel/hakedis";
 import { ayAraligi } from "@/lib/utils";
+import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { cronYetkiliMi } from "@/lib/cron-yetki";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -53,14 +56,13 @@ async function sinirliEszamanliCalistir<T>(items: T[], limit: number, worker: (i
  * kapatamadıysa, sonraki çalıştırma o ayı da otomatik yakalar (RPC idempotent
  * olduğu için zaten kapalı aylar için tekrar çağrı ucuz bir no-op).
  * Kişi/ay başına ayrı sorgu atmak yerine terapist ayarları ve seans sayıları
- * toplu (IN()) çekilip JS'te gruplanıyor; RPC çağrıları da (kişi başına 2 tane,
+ * toplu (sayfalı, parçalı IN()) çekilip JS'te gruplanıyor; RPC çağrıları da (kişi başına 2 tane,
  * atomik olmaları gerektiği için tek tek) ESZAMANLI_ISLEM_LIMITI kadar
  * paralel yürütülüyor — tam sıralı olsaydı personel sayısı arttıkça
  * maxDuration'a takılma riski oluşuyordu.
  */
 export async function GET(request: Request) {
-  const yetkiBasligi = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || yetkiBasligi !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronYetkiliMi(request)) {
     return NextResponse.json({ error: "yetkisiz" }, { status: 401 });
   }
 
@@ -74,32 +76,43 @@ export async function GET(request: Request) {
     yururkenAy = ayAraligi(yururkenAy.oncekiParam);
   }
 
-  const { data: personelSatirlari, error: personelHata } = await admin
-    .from("personel")
-    .select("id, maas, ise_giris_tarihi, isten_cikis_tarihi, pozisyon:pozisyon_id(puantaj_modu)")
-    .eq("aktif", true)
-    .returns<PersonelSatiri[]>();
-
-  if (personelHata) {
-    console.error("[cron/personel-donem-otomatik-kapat] personel okuma hatası:", personelHata);
+  // Tüm klinikler tek sorguda: PostgREST 1000 satır sınırında sessizce kesilmesin
+  // diye sayfalı okunur; hata olursa hiçbir dönem kapatılmaz.
+  let personelSatirlari: PersonelSatiri[];
+  let terapistSatirlari: TerapistSatiri[];
+  try {
+    [personelSatirlari, terapistSatirlari] = await Promise.all([
+      tumSayfalariOku<PersonelSatiri>((bas, son) =>
+        admin
+          .from("personel")
+          .select("id, maas, ise_giris_tarihi, isten_cikis_tarihi, pozisyon:pozisyon_id(puantaj_modu)")
+          .eq("aktif", true)
+          .order("id")
+          .range(bas, son)
+          .returns<PersonelSatiri[]>()
+      ),
+      tumSayfalariOku<TerapistSatiri>((bas, son) =>
+        admin
+          .from("terapist")
+          .select("id, personel_id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
+          .order("id")
+          .range(bas, son)
+          .returns<TerapistSatiri[]>()
+      ),
+    ]);
+  } catch (hata) {
+    console.error("[cron/personel-donem-otomatik-kapat] personel/terapist okuma hatası:", hata);
     return NextResponse.json({ error: "okuma hatası" }, { status: 500 });
   }
 
-  const takipEdilebilenler = (personelSatirlari ?? []).filter((p) => {
+  const takipEdilebilenler = personelSatirlari.filter((p) => {
     const pozisyon = Array.isArray(p.pozisyon) ? p.pozisyon[0] : p.pozisyon;
     return pozisyon?.puantaj_modu !== "takipsiz";
   });
   const personelById = new Map(takipEdilebilenler.map((p) => [p.id, p]));
-
-  const { data: terapistSatirlari } = await admin
-    .from("terapist")
-    .select("id, personel_id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
-    .in("personel_id", takipEdilebilenler.length > 0 ? takipEdilebilenler.map((p) => p.id) : ["00000000-0000-0000-0000-000000000000"])
-    .returns<TerapistSatiri[]>();
-
-  const terapistByPersonelId = new Map((terapistSatirlari ?? []).map((t) => [t.personel_id, t]));
-  const terapistIdToPersonelId = new Map((terapistSatirlari ?? []).map((t) => [t.id, t.personel_id]));
-  const terapistIdleri = [...terapistIdToPersonelId.keys()];
+  const terapistByPersonelId = new Map(
+    terapistSatirlari.filter((t) => personelById.has(t.personel_id)).map((t) => [t.personel_id, t])
+  );
 
   let toplamKapatildi = 0;
   let toplamZatenKapali = 0;
@@ -111,47 +124,44 @@ export async function GET(request: Request) {
     const yil = Number(yilStr);
     const ay = Number(ayStr);
 
-    const { data: kapaliDonemler, error: donemHata } = await admin
-      .from("personel_puantaj_donem")
-      .select("personel_id")
-      .eq("yil", yil)
-      .eq("ay", ay)
-      .eq("durum", "kapali");
-
-    if (donemHata) {
-      console.error(`[cron/personel-donem-otomatik-kapat] ${hedefAy.param} dönem okuma hatası:`, donemHata);
+    // Seans sayımı dönem kapatılmadan ÖNCE yapılır; okunamazsa bu ay atlanır
+    // (sonraki çalıştırma geriye dönük tarayıp yakalar) — eksik primle kapatılmaz.
+    let zatenKapaliIdler: Set<string>;
+    let seansSayisiMap: Map<string, number>;
+    try {
+      const kapaliDonemler = await tumSayfalariOku<{ personel_id: string }>((bas, son) =>
+        admin
+          .from("personel_puantaj_donem")
+          .select("personel_id")
+          .eq("yil", yil)
+          .eq("ay", ay)
+          .eq("durum", "kapali")
+          .order("personel_id")
+          .range(bas, son)
+      );
+      zatenKapaliIdler = new Set(kapaliDonemler.map((d) => d.personel_id));
+      const sayilacaklar = takipEdilebilenler.filter((p) => !zatenKapaliIdler.has(p.id) && terapistByPersonelId.has(p.id));
+      seansSayisiMap = await seansSayilariniGetir(
+        admin,
+        sayilacaklar.map((p) => ({
+          terapistId: terapistByPersonelId.get(p.id)!.id,
+          personelId: p.id,
+          istenCikisTarihi: p.isten_cikis_tarihi,
+        })),
+        hedefAy.param
+      );
+    } catch (hata) {
+      console.error(`[cron/personel-donem-otomatik-kapat] ${hedefAy.param} okuma hatası, ay atlandı:`, hata);
       toplamHata++;
+      ayOzetleri.push({ donem: hedefAy.param, kapatildi: 0, zatenKapali: 0, hata: 1 });
       continue;
     }
 
-    const zatenKapaliIdler = new Set((kapaliDonemler ?? []).map((d) => d.personel_id));
     const buAyTakipEdilecekler = takipEdilebilenler.filter((p) => !zatenKapaliIdler.has(p.id));
 
     if (buAyTakipEdilecekler.length === 0) {
       ayOzetleri.push({ donem: hedefAy.param, kapatildi: 0, zatenKapali: 0, hata: 0 });
       continue;
-    }
-
-    // Bu ay için tüm terapistlerin seans sayısını TEK sorguda topla (N+1 yerine).
-    // İşten çıkış tarihinden SONRAKİ seanslar prime hiç katılmasın (normal
-    // şartlarda öyle bir randevu oluşamaz — terapistAtanabilirMi kontrolü,
-    // bkz. lib/personel/atanabilir-terapistler.ts — ama ek güvenlik).
-    const seansSayisiMap = new Map<string, number>();
-    if (terapistIdleri.length > 0) {
-      const { data: randevuSonucu } = await admin
-        .from("randevu")
-        .select("terapist_id, baslangic")
-        .in("terapist_id", terapistIdleri)
-        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-        .gte("baslangic", hedefAy.baslangic)
-        .lt("baslangic", hedefAy.bitis);
-      for (const r of randevuSonucu ?? []) {
-        const personelId = terapistIdToPersonelId.get(r.terapist_id);
-        if (!personelId) continue;
-        const cikisTarihi = personelById.get(personelId)?.isten_cikis_tarihi;
-        if (cikisTarihi && r.baslangic.slice(0, 10) > cikisTarihi) continue;
-        seansSayisiMap.set(personelId, (seansSayisiMap.get(personelId) ?? 0) + 1);
-      }
     }
 
     let kapatildi = 0;

@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { toUTC } from "@/lib/datetime";
 import { sonrakiGun } from "@/lib/puantaj";
 import { hakedisHesapla } from "@/lib/personel/hakedis";
+import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
+import { ayAraligi } from "@/lib/utils";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -151,6 +153,34 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
+  // Hakediş girdileri dönem KAPATILMADAN önce okunur: seans sayımı başarısız olursa
+  // dönem kapanıp eksik prim yazılmasın (kapanış geri alınamıyor).
+  const ayParam = `${yil}-${String(ay).padStart(2, "0")}`;
+  const donemAyi = ayAraligi(ayParam);
+  const [{ data: personel }, { data: terapist }] = await Promise.all([
+    supabase.from("personel").select("maas, ise_giris_tarihi, isten_cikis_tarihi").eq("id", personelId).single(),
+    supabase
+      .from("terapist")
+      .select("id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
+      .eq("personel_id", personelId)
+      .maybeSingle(),
+  ]);
+
+  let seansSayisi = 0;
+  if (terapist) {
+    try {
+      const sayilar = await seansSayilariniGetir(
+        supabase,
+        [{ terapistId: terapist.id, personelId, istenCikisTarihi: personel?.isten_cikis_tarihi ?? null }],
+        ayParam
+      );
+      seansSayisi = sayilar.get(personelId) ?? 0;
+    } catch (hata) {
+      console.error("Dönem kapatma: seans sayısı okunamadı:", hata);
+      return { success: false, message: "Seans sayısı okunamadı, dönem kapatılmadı. Lütfen tekrar deneyin." };
+    }
+  }
+
   const { data: donemSonucu, error } = await supabase.rpc("personel_puantaj_donem_kapat", {
     p_personel_id: personelId,
     p_yil: yil,
@@ -169,30 +199,6 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
   // parametre olarak geçiriliyor.
   const donemId = (donemSonucu as { donem_id: string } | null)?.donem_id;
   if (donemId) {
-    const ayBaslangic = new Date(Date.UTC(yil, ay - 1, 1)).toISOString();
-    const ayBitis = new Date(Date.UTC(yil, ay, 1)).toISOString();
-
-    const [{ data: personel }, { data: terapist }] = await Promise.all([
-      supabase.from("personel").select("maas, ise_giris_tarihi, isten_cikis_tarihi").eq("id", personelId).single(),
-      supabase
-        .from("terapist")
-        .select("id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
-        .eq("personel_id", personelId)
-        .maybeSingle(),
-    ]);
-
-    let seansSayisi = 0;
-    if (terapist) {
-      const { count } = await supabase
-        .from("randevu")
-        .select("id", { count: "exact", head: true })
-        .eq("terapist_id", terapist.id)
-        .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-        .gte("baslangic", ayBaslangic)
-        .lt("baslangic", ayBitis);
-      seansSayisi = count ?? 0;
-    }
-
     const hesap = hakedisHesapla({
       personelMaasi: personel?.maas ?? null,
       fmSaatlikUcret: null, // mesai tutarı RPC'nin kendisinde ayrıca (fm_saatlik_ucret ile) hesaplanıyor, burada 0 sayılıyor.
@@ -206,8 +212,8 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
         : null,
       tamamlananSeansSayisi: seansSayisi,
       onayliFmSaat: 0,
-      ayBaslangicTarih: ayBaslangic.slice(0, 10),
-      ayBitisTarihExclusive: ayBitis.slice(0, 10),
+      ayBaslangicTarih: donemAyi.baslangicTarih,
+      ayBitisTarihExclusive: donemAyi.bitisTarih,
       iseGirisTarihi: personel?.ise_giris_tarihi ?? null,
       istenCikisTarihi: personel?.isten_cikis_tarihi ?? null,
     });

@@ -2,7 +2,8 @@ import { Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
-import { finansDonemiCoz, tumSayfalariOku } from "@/lib/finans/donem";
+import { finansDonemiCoz } from "@/lib/finans/donem";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import { BankaClient } from "./banka-client";
 

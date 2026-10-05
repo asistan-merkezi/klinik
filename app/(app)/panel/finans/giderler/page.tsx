@@ -1,5 +1,6 @@
 import { Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
@@ -18,13 +19,18 @@ export default async function GiderlerSayfasi() {
   // yapılıyor — bu yüzden tüm kayıtlar tek seferde çekiliyor, dönem
   // değişince sunucuya round-trip yok.
   const [harcamaSonucu, aracSonucu, bankaSonucu] = await Promise.all([
-    supabase
-      .from("klinik_harcama")
-      .select(
-        "id, tarih, tutar, kategori, aciklama, tedarikci_adi, arac_id, odeme_tipi, banka_hesap_id, is_faturali, fatura_no"
-      )
-      .order("tarih", { ascending: false })
-      .returns<KlinikHarcamaSatir[]>(),
+    // Sayfalı: tek sorgu 1000 kayıtta sessizce kesilir, eski dönemler boş görünürdü.
+    tumSayfalariOku<KlinikHarcamaSatir>((bas, son) =>
+      supabase
+        .from("klinik_harcama")
+        .select(
+          "id, tarih, tutar, kategori, aciklama, tedarikci_adi, arac_id, odeme_tipi, banka_hesap_id, is_faturali, fatura_no"
+        )
+        .order("tarih", { ascending: false })
+        .order("id")
+        .range(bas, son)
+        .returns<KlinikHarcamaSatir[]>()
+    ).then((data) => ({ data })),
     supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
     supabase
       .from("klinik_banka_hesaplari")

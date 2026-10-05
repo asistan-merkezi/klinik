@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cronYetkiliMi } from "@/lib/cron-yetki";
 import { merkezdenBakiyeCek } from "@/lib/mesaj/merkez-client";
 import type { MesajKanal } from "@/types/mesajlasma";
 
@@ -17,8 +18,7 @@ type KrediSatiri = { klinik_id: string; kanal: MesajKanal; bakiye: number; merke
  * bulunursa audit_log'a yazılır (eylem='mesaj_kredi_senkron_farki').
  */
 export async function GET(request: Request) {
-  const yetkiBasligi = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || yetkiBasligi !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronYetkiliMi(request)) {
     return NextResponse.json({ error: "yetkisiz" }, { status: 401 });
   }
 

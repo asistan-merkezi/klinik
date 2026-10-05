@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cronYetkiliMi } from "@/lib/cron-yetki";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,8 +14,7 @@ type BolumSonucu = { olusturulan: string[]; varsayilan_satir: number };
  * pencereyi ileri taşır; bir çalıştırma kaçsa bile marj sürer.
  */
 export async function GET(request: Request) {
-  const yetkiBasligi = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || yetkiBasligi !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronYetkiliMi(request)) {
     return NextResponse.json({ error: "yetkisiz" }, { status: 401 });
   }
 

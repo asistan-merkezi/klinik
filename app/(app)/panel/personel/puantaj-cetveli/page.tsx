@@ -8,6 +8,8 @@ import { ayAraligi } from "@/lib/utils";
 import { ayinGunleri } from "@/lib/puantaj";
 import { hakedisHesapla, hakedisKapaliDonemToplami } from "@/lib/personel/hakedis";
 import { puantajSatirToplamiHesapla } from "@/lib/personel/puantaj-cetveli";
+import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import type { PersonelPuantajSatir } from "@/types/puantaj";
 import { PuantajCetveliIstemci, type PuantajCetveliSatir } from "./puantaj-cetveli-istemci";
 
@@ -64,12 +66,18 @@ export default async function PuantajCetveliSayfasi({
       .select("id, ad_soyad, maas, fm_saatlik_ucret, ise_giris_tarihi, isten_cikis_tarihi, pozisyon:pozisyon_id(ad, puantaj_modu)")
       .eq("aktif", true)
       .order("ad_soyad"),
-    supabase
-      .from("personel_puantaj")
-      .select(PUANTAJ_KOLONLARI)
-      .gte("tarih", ay.baslangicTarih)
-      .lt("tarih", ay.bitisTarih)
-      .returns<(PersonelPuantajSatir & { personel_id: string })[]>(),
+    // Personel × gün: 33+ personelde 1000 satırı aşar, sayfalı okunur.
+    tumSayfalariOku<PersonelPuantajSatir & { personel_id: string }>((bas, son) =>
+      supabase
+        .from("personel_puantaj")
+        .select(PUANTAJ_KOLONLARI)
+        .gte("tarih", ay.baslangicTarih)
+        .lt("tarih", ay.bitisTarih)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<(PersonelPuantajSatir & { personel_id: string })[]>()
+    ).then((data) => ({ data })),
     supabase.from("personel_puantaj_donem").select("personel_id, durum").eq("yil", yil).eq("ay", ayNum),
     supabase.from("resmi_tatil").select("tarih").gte("tarih", ay.baslangicTarih).lt("tarih", ay.bitisTarih),
     supabase
@@ -114,41 +122,16 @@ export default async function PuantajCetveliSayfasi({
     hareketByPersonel.set(h.personel_id, liste);
   }
 
-  // Terapist olan personel için bu ayki tamamlanan seans sayısı (hakediş
-  // tahmini için) — dönem kapalıysa zaten ledger'dan okunacağı için hesaba
-  // gerek yok, sadece açık dönemler için sorgulanıyor. Kişi başına ayrı bir
-  // count sorgusu atmak yerine (N+1) tek IN() sorgusuyla toplanıp JS'te
-  // gruplanıyor.
-  const terapistIdToPersonelId = new Map(
-    gunlukPersonel.filter((p) => terapistMap.has(p.id)).map((p) => [terapistMap.get(p.id)!.id, p.id])
+  // Terapist olan personel için bu ayki prime sayılan seans sayısı (hakediş
+  // tahmini) — kapalı dönem zaten ledger'dan okunur. Sayım kuralı dönem
+  // kapatma ve cron ile ORTAK (lib/personel/seans-sayisi.ts).
+  const seansSayisiMap = await seansSayilariniGetir(
+    supabase,
+    gunlukPersonel
+      .filter((p) => donemMap.get(p.id) !== "kapali" && terapistMap.has(p.id))
+      .map((p) => ({ terapistId: terapistMap.get(p.id)!.id, personelId: p.id, istenCikisTarihi: p.isten_cikis_tarihi })),
+    ay.param
   );
-  const acikDonemTerapistIdleri = gunlukPersonel
-    .filter((p) => donemMap.get(p.id) !== "kapali" && terapistMap.has(p.id))
-    .map((p) => terapistMap.get(p.id)!.id);
-
-  // İşten çıkış tarihinden SONRAKİ seanslar prime hiç katılmasın — normal
-  // şartlarda öyle bir randevu oluşamaz (terapistAtanabilirMi kontrolü,
-  // bkz. lib/personel/atanabilir-terapistler.ts) ama daha önceden atanmış
-  // olabilecek bir randevu için ek güvenlik.
-  const cikisTarihiByPersonelId = new Map(gunlukPersonel.map((p) => [p.id, p.isten_cikis_tarihi]));
-
-  const seansSayisiMap = new Map<string, number>();
-  if (acikDonemTerapistIdleri.length > 0) {
-    const { data: randevuSonucu } = await supabase
-      .from("randevu")
-      .select("terapist_id, baslangic")
-      .in("terapist_id", acikDonemTerapistIdleri)
-      .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-      .gte("baslangic", new Date(Date.UTC(yil, ayNum - 1, 1)).toISOString())
-      .lt("baslangic", new Date(Date.UTC(yil, ayNum, 1)).toISOString());
-    for (const r of randevuSonucu ?? []) {
-      const personelId = terapistIdToPersonelId.get(r.terapist_id);
-      if (!personelId) continue;
-      const cikisTarihi = cikisTarihiByPersonelId.get(personelId);
-      if (cikisTarihi && r.baslangic.slice(0, 10) > cikisTarihi) continue;
-      seansSayisiMap.set(personelId, (seansSayisiMap.get(personelId) ?? 0) + 1);
-    }
-  }
 
   const satirlar: PuantajCetveliSatir[] = gunlukPersonel.map((p) => {
     const kayitlarMap = puantajByPersonel.get(p.id) ?? new Map();
