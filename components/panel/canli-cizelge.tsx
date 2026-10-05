@@ -371,7 +371,7 @@ export function CanliCizelge({
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-primary ring-1 ring-inset ring-primary/30">
             <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
-            <span className="hidden sm:inline">Canlı senkronizasyon</span>
+            <span className="hidden sm:inline">Canlı takip</span>
             <span className="sm:hidden">Canlı</span>
           </span>
           <CanliSaat />
