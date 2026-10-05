@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { HizliIslemKarti } from "@/components/panel/hizli-islem-karti";
 import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import { RandevuFormu } from "./randevu-formu";
 import { PeriyodikRandevuFormu } from "./periyodik-randevu-formu";
@@ -23,6 +24,8 @@ type Props = {
   /** Hasta Detay sayfasından açılınca hasta sabit gelir, arama alanı yerine salt-okunur gösterilir */
   sabitHasta?: { id: string; ad: string };
   buttonLabel?: string;
+  /** Ana ekrandaki "Hızlı Resepsiyon İşlemleri" kartı olarak göster (düğme yerine) */
+  kartGorunumu?: boolean;
 };
 
 type Mod = "tekil" | "periyodik";
@@ -33,7 +36,7 @@ type Mod = "tekil" | "periyodik";
 const SEKME_SECILI_SINIFI =
   "!border-emerald-500 !bg-emerald-500 !text-white hover:!bg-emerald-600 dark:hover:!bg-emerald-500/90";
 
-export function YeniRandevuDialog({ sabitHasta, buttonLabel, ...props }: Props) {
+export function YeniRandevuDialog({ sabitHasta, buttonLabel, kartGorunumu, ...props }: Props) {
   const searchParams = useSearchParams();
   const paramAnahtari = searchParams.toString();
   const [acik, setAcik] = useState(() => searchParams.has("oda_id"));
@@ -60,6 +63,16 @@ export function YeniRandevuDialog({ sabitHasta, buttonLabel, ...props }: Props) 
   const metin = buttonLabel ?? "Yeni Randevu Ekle";
 
   if (eksik) {
+    if (kartGorunumu) {
+      return (
+        <HizliIslemKarti
+          icon={CalendarPlus}
+          etiket={metin}
+          disabled
+          title="Önce hasta, terapist, oda ve tedavi tanımı kaydı gerekli."
+        />
+      );
+    }
     return (
       <Button type="button" disabled title="Önce hasta, terapist, oda ve tedavi tanımı kaydı gerekli.">
         <CalendarPlus /> {metin}
@@ -69,16 +82,27 @@ export function YeniRandevuDialog({ sabitHasta, buttonLabel, ...props }: Props) 
 
   return (
     <>
-      <Button
-        type="button"
-        onClick={() => {
-          setMod("tekil");
-          setAcik(true);
-        }}
-        className="bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
-      >
-        <CalendarPlus /> {metin}
-      </Button>
+      {kartGorunumu ? (
+        <HizliIslemKarti
+          icon={CalendarPlus}
+          etiket={metin}
+          onClick={() => {
+            setMod("tekil");
+            setAcik(true);
+          }}
+        />
+      ) : (
+        <Button
+          type="button"
+          onClick={() => {
+            setMod("tekil");
+            setAcik(true);
+          }}
+          className="bg-emerald-500 text-white hover:bg-emerald-600 dark:hover:bg-emerald-600"
+        >
+          <CalendarPlus /> {metin}
+        </Button>
+      )}
 
       <Dialog open={acik} onOpenChange={setAcik}>
         <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">

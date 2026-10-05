@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
@@ -18,7 +17,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { YeniRandevuDialog } from "@/app/(app)/panel/randevular/yeni-randevu-dialog";
+import { YeniHastaDialog } from "@/app/(app)/panel/hastalar/yeni-hasta-dialog";
 import { CalendarClock, Inbox } from "lucide-react";
 
 const KARSILAMA_TARIH_FORMAT = new Intl.DateTimeFormat("tr-TR", {
@@ -74,7 +74,6 @@ export default async function PanelSayfasi() {
     protokolSonucu,
     iptalTalepleriSonucu,
     randevuTalepleriSonucu,
-    aktifTakipSonucu,
     bankaHesabiSonucu,
   ] = await Promise.all([
     supabase
@@ -111,25 +110,6 @@ export default async function PanelSayfasi() {
           .order("created_at")
           .returns<BekleyenRandevuTalebiSatir[]>()
       : Promise.resolve({ data: [] as BekleyenRandevuTalebiSatir[] }),
-    supabase
-      .from("v_hasta_detay_ozet")
-      // NOT: v_hasta_detay_ozet bir view olduğu için PostgREST'in FK-tabanlı
-      // otomatik embed'i (hasta(ad_soyad)) çalışmıyor ("no relationship
-      // found" hatası, gerçek Playwright doğrulamasında bulundu) — isim
-      // aşağıda bu 8 satırın hasta_id'leriyle ayrı çekilip Map ile eşleniyor.
-      .select("hasta_id, kalan_paket_hakki, son_seans_tarihi, sonraki_randevu_tarihi, aktif_protokol_ad")
-      .or("kalan_paket_hakki.gt.0,sonraki_randevu_tarihi.not.is.null")
-      .order("son_seans_tarihi", { ascending: false, nullsFirst: false })
-      .limit(8)
-      .returns<
-        {
-          hasta_id: string;
-          kalan_paket_hakki: number | null;
-          son_seans_tarihi: string | null;
-          sonraki_randevu_tarihi: string | null;
-          aktif_protokol_ad: string | null;
-        }[]
-      >(),
     finansalGorunur
       ? supabase
           .from("klinik_banka_hesaplari")
@@ -149,19 +129,8 @@ export default async function PanelSayfasi() {
   const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
   const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
   const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
-  const aktifTakip = aktifTakipSonucu.data ?? [];
-  // Yalnız listelenen (en çok 8) hastanın adı — tüm hasta listesini çekmek 1000
-  // satır sınırında isimleri "—" bırakıyordu.
-  const { data: aktifTakipHastalari } = aktifTakip.length
-    ? await supabase.from("hasta").select("id, ad_soyad").in("id", aktifTakip.map((s) => s.hasta_id))
-    : { data: [] as { id: string; ad_soyad: string }[] };
-  const hastaAdHaritasi = new Map((aktifTakipHastalari ?? []).map((h) => [h.id, h.ad_soyad]));
-
   if (error) {
     console.error("Bugünkü randevular çekilemedi:", error);
-  }
-  if (aktifTakipSonucu.error) {
-    console.error("Aktif takipteki hastalar çekilemedi:", aktifTakipSonucu.error);
   }
 
   const bugunkuRandevuSayisi = randevular?.length ?? 0;
@@ -280,51 +249,24 @@ export default async function PanelSayfasi() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Aktif Takipteki Hastalar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {aktifTakip.length === 0 ? (
-              <EmptyState title="Aktif takipte hasta yok" description="Kalan paket hakkı veya planlı randevusu olan hastalar burada listelenir." />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Hasta</TableHead>
-                    <TableHead className="hidden md:table-cell">Aktif Protokol</TableHead>
-                    <TableHead className="hidden sm:table-cell">Son Seans</TableHead>
-                    <TableHead className="hidden md:table-cell">Sonraki Randevu</TableHead>
-                    <TableHead className="text-right">Kalan Hak</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {aktifTakip.map((satir) => {
-                    const hastaAdi = hastaAdHaritasi.get(satir.hasta_id) ?? "—";
-                    return (
-                    <TableRow key={satir.hasta_id}>
-                      <TableCell>
-                        <Link href={`/panel/hastalar/${satir.hasta_id}/tedavi`} className="flex items-center gap-2 hover:underline">
-                          <Avatar name={hastaAdi} size="sm" />
-                          <span className="font-medium">{hastaAdi}</span>
-                        </Link>
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">{satir.aktif_protokol_ad ?? "—"}</TableCell>
-                      <TableCell className="hidden text-muted-foreground tabular-nums sm:table-cell">
-                        {satir.son_seans_tarihi ? new Date(satir.son_seans_tarihi).toLocaleDateString("tr-TR") : "—"}
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground tabular-nums md:table-cell">
-                        {satir.sonraki_randevu_tarihi ? new Date(satir.sonraki_randevu_tarihi).toLocaleDateString("tr-TR") : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{satir.kalan_paket_hakki ?? "—"}</TableCell>
-                    </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        {finansalGorunur && (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Hızlı Resepsiyon İşlemleri
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              <YeniRandevuDialog
+                kartGorunumu
+                buttonLabel="Yeni Randevu"
+                terapistler={terapistler}
+                odalar={odalar}
+                cihazlar={cihazlar}
+                tedaviler={tedaviler}
+              />
+              <YeniHastaDialog kartGorunumu buttonLabel="Yeni Kayıt" />
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
