@@ -21,7 +21,6 @@ import { gelecekteMi, gunEkleStr, saatAdaylari, saatMusaitMi } from "@/lib/rande
 import { KayitliPaketler } from "./kayitli-paketler";
 
 type Props = {
-  hastalar: SecenekSatir[];
   terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar?: SecenekSatir[];
@@ -40,7 +39,6 @@ const GUN_SAYISI_SECENEKLERI = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
 }));
 
 export function PeriyodikRandevuFormu({
-  hastalar,
   terapistler,
   odalar,
   tedaviler,
@@ -148,7 +146,6 @@ export function PeriyodikRandevuFormu({
           ) : (
             <HastaArama
               id="periyodik_hasta_arama"
-              hastalar={hastalar}
               required
               disabled={isPending}
               onSecim={(h) => setHastaId(h.id)}

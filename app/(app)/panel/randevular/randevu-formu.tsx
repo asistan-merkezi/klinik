@@ -23,7 +23,6 @@ import { useMesgulAraliklar, useTedaviEtkinFiyat } from "./queries";
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
 type Props = {
-  hastalar: SecenekSatir[];
   terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar?: SecenekSatir[];
@@ -42,7 +41,6 @@ type Props = {
 };
 
 export function RandevuFormu({
-  hastalar,
   terapistler,
   odalar,
   tedaviler,
@@ -76,8 +74,9 @@ export function RandevuFormu({
 
   // Hasta + tedavi ikisi de seçilince sunucuda hesaplanan tedavi bedeli (bkz.
   // islem_tanimi_etkin_fiyat RPC'si) formun en alt satırında İskonto alanının
-  // yanında gösterilir — resepsiyon check-in'de oluşacak borç satırı için
-  // önceden bir iskonto planlayabilsin diye (bkz. randevu_gelis_isaretle).
+  // yanında gösterilir — resepsiyon, seans sonrası "Cariye Ekle"/"Ödeme Ekle"
+  // ile oluşacak borç satırı için önceden bir iskonto planlayabilsin diye
+  // (bkz. randevu_seans_bedelini_isle).
   const { data: tedaviBedeli, isLoading: tedaviBedeliYukleniyor } = useTedaviEtkinFiyat(islemTanimiId, hastaId);
 
   // Seçili tedavinin adımlarında tanımlı "uygulayıcı" pozisyonu varsa Dr /
@@ -152,7 +151,6 @@ export function RandevuFormu({
           ) : (
             <HastaArama
               id="hasta_arama"
-              hastalar={hastalar}
               required
               disabled={isPending}
               onSecim={(h) => {

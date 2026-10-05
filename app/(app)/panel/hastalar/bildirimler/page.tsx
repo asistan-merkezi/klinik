@@ -39,7 +39,6 @@ export default async function HastaBildirimleriSayfasi() {
     randevuTalepleriSonucu,
     anketSonucu,
     seansDegerlendirmeSonucu,
-    hastaSonucu,
     terapistler,
     odaSonucu,
     cihazSonucu,
@@ -69,7 +68,6 @@ export default async function HastaBildirimleriSayfasi() {
       .order("created_at", { ascending: false })
       .limit(50)
       .returns<SeansDegerlendirmeSatir[]>(),
-    supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
     atanabilirTerapistleriGetir(supabase),
     supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
     supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
@@ -81,7 +79,6 @@ export default async function HastaBildirimleriSayfasi() {
   const anketYanitlari = anketSonucu.data ?? [];
   const seansDegerlendirmeleri = seansDegerlendirmeSonucu.data ?? [];
 
-  const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({ id: m.id, ad: m.ad_soyad }));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
 
@@ -112,7 +109,6 @@ export default async function HastaBildirimleriSayfasi() {
             <CardContent>
               <BekleyenRandevuTalepleri
                 talepler={bekleyenRandevuTalepleri}
-                hastalar={hastalar}
                 terapistler={terapistler}
                 odalar={odalar}
                 cihazlar={cihazlar}

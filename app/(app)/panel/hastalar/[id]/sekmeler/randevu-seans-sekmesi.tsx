@@ -39,7 +39,6 @@ export function RandevuSeansSekmesi({
             <CardTitle>Periyodik Randevular</CardTitle>
             <PeriyodikRandevuDialog
               sabitHasta={{ id: hastaId, ad: hastaAdSoyad }}
-              hastalar={[]}
               terapistler={terapistler}
               odalar={odalar}
               cihazlar={cihazlar}
@@ -58,7 +57,6 @@ export function RandevuSeansSekmesi({
           <YeniRandevuDialog
             buttonLabel="Randevu Ekle"
             sabitHasta={{ id: hastaId, ad: hastaAdSoyad }}
-            hastalar={[]}
             terapistler={terapistler}
             odalar={odalar}
             cihazlar={cihazlar}

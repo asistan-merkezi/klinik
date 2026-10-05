@@ -45,7 +45,6 @@ export default async function RandevularSayfasi() {
 
   const [
     randevularSonucu,
-    hastaSonucu,
     terapistler,
     odaSonucu,
     cihazSonucu,
@@ -63,7 +62,6 @@ export default async function RandevularSayfasi() {
         .lt("baslangic", bitis)
         .order("baslangic")
         .returns<RandevuSatir[]>(),
-      supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
       atanabilirTerapistleriGetir(supabase),
       supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
       supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
@@ -92,10 +90,6 @@ export default async function RandevularSayfasi() {
   const randevular = randevularSonucu.data ?? [];
   const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
   const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
-  const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({
-    id: m.id,
-    ad: m.ad_soyad,
-  }));
   const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
@@ -113,7 +107,6 @@ export default async function RandevularSayfasi() {
           </div>
           <div className="flex shrink-0 gap-2">
             <YeniRandevuDialog
-              hastalar={hastalar}
               terapistler={terapistler}
               odalar={odalar}
               cihazlar={cihazlar}
@@ -141,7 +134,6 @@ export default async function RandevularSayfasi() {
             <CardContent>
               <BekleyenRandevuTalepleri
                 talepler={bekleyenRandevuTalepleri}
-                hastalar={hastalar}
                 terapistler={terapistler}
                 odalar={odalar}
                 cihazlar={cihazlar}

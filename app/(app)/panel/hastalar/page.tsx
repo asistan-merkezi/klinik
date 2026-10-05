@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileText, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { hastaAra } from "@/lib/hasta/arama";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -32,20 +33,16 @@ export default async function HastalarSayfasi({
   const { q } = await searchParams;
   const arama = q?.trim() ?? "";
 
-  let sorgu = supabase
-    .from("hasta")
-    .select(
-      "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, eposta, hasta_hassas(adres)"
-    )
-    .order("ad_soyad")
-    .limit(50);
-
-  if (arama) {
-    const guvenliArama = arama.replace(/[,()%]/g, "");
-    sorgu = sorgu.or(`ad_soyad.ilike.%${guvenliArama}%,telefon.ilike.%${guvenliArama}%`);
-  }
-
-  const { data, error } = await sorgu.returns<Omit<HastaListeSatiri, "bakiye">[]>();
+  const listeKolonlari =
+    "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, eposta, hasta_hassas(adres)";
+  const { data, error } = arama
+    ? await hastaAra<Omit<HastaListeSatiri, "bakiye">>(supabase, arama, listeKolonlari, 50)
+    : await supabase
+        .from("hasta")
+        .select(listeKolonlari)
+        .order("ad_soyad")
+        .limit(50)
+        .returns<Omit<HastaListeSatiri, "bakiye">[]>();
   const hastalarHam = data ?? [];
 
   const hastaIdler = hastalarHam.map((h) => h.id);

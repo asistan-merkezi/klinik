@@ -72,7 +72,6 @@ export default async function PanelSayfasi() {
     tedaviler,
     personelSonucu,
     protokolSonucu,
-    hastaSonucu,
     iptalTalepleriSonucu,
     randevuTalepleriSonucu,
     aktifTakipSonucu,
@@ -94,7 +93,6 @@ export default async function PanelSayfasi() {
     tedaviSecenekleriGetir(supabase),
     supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
     supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("hasta").select("id, ad_soyad").order("ad_soyad"),
     finansalGorunur
       ? supabase
           .from("randevu_iptal_talebi")
@@ -118,7 +116,7 @@ export default async function PanelSayfasi() {
       // NOT: v_hasta_detay_ozet bir view olduğu için PostgREST'in FK-tabanlı
       // otomatik embed'i (hasta(ad_soyad)) çalışmıyor ("no relationship
       // found" hatası, gerçek Playwright doğrulamasında bulundu) — isim
-      // aşağıda ayrı çekilen `hastaSonucu` listesinden Map ile eşleniyor.
+      // aşağıda bu 8 satırın hasta_id'leriyle ayrı çekilip Map ile eşleniyor.
       .select("hasta_id, kalan_paket_hakki, son_seans_tarihi, sonraki_randevu_tarihi, aktif_protokol_ad")
       .or("kalan_paket_hakki.gt.0,sonraki_randevu_tarihi.not.is.null")
       .order("son_seans_tarihi", { ascending: false, nullsFirst: false })
@@ -149,11 +147,15 @@ export default async function PanelSayfasi() {
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
   const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
-  const hastalar: SecenekSatir[] = (hastaSonucu.data ?? []).map((m) => ({ id: m.id, ad: m.ad_soyad }));
-  const hastaAdHaritasi = new Map(hastalar.map((h) => [h.id, h.ad]));
   const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
   const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
   const aktifTakip = aktifTakipSonucu.data ?? [];
+  // Yalnız listelenen (en çok 8) hastanın adı — tüm hasta listesini çekmek 1000
+  // satır sınırında isimleri "—" bırakıyordu.
+  const { data: aktifTakipHastalari } = aktifTakip.length
+    ? await supabase.from("hasta").select("id, ad_soyad").in("id", aktifTakip.map((s) => s.hasta_id))
+    : { data: [] as { id: string; ad_soyad: string }[] };
+  const hastaAdHaritasi = new Map((aktifTakipHastalari ?? []).map((h) => [h.id, h.ad_soyad]));
 
   if (error) {
     console.error("Bugünkü randevular çekilemedi:", error);
@@ -256,7 +258,6 @@ export default async function PanelSayfasi() {
                 <CardContent>
                   <BekleyenRandevuTalepleri
                     talepler={bekleyenRandevuTalepleri}
-                    hastalar={hastalar}
                     terapistler={terapistler}
                     odalar={odalar}
                     cihazlar={cihazlar}

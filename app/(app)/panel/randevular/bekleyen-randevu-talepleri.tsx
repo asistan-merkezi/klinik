@@ -16,14 +16,12 @@ import { RandevuFormu } from "./randevu-formu";
 
 export function BekleyenRandevuTalepleri({
   talepler,
-  hastalar,
   terapistler,
   odalar,
   cihazlar,
   tedaviler,
 }: {
   talepler: BekleyenRandevuTalebiSatir[];
-  hastalar: SecenekSatir[];
   terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
@@ -91,7 +89,6 @@ export function BekleyenRandevuTalepleri({
           {acikTalep && (
             <RandevuFormu
               key={acikTalep.id}
-              hastalar={hastalar}
               terapistler={terapistler}
               odalar={odalar}
               cihazlar={cihazlar}

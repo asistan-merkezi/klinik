@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hastaAra } from "@/lib/hasta/arama";
 
 // Üst bar global aramasının canlı-sonuç ucu. RLS `hasta` tablosunda
 // klinik_id = current_klinik_id() ile sınırlar; burada ekstra bir tenant
@@ -20,19 +21,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ hastalar: [] });
   }
 
-  const guvenliArama = arama.replace(/[,()%]/g, "");
-
-  const { data, error } = await supabase
-    .from("hasta")
-    .select("id, ad_soyad, telefon")
-    .or(`ad_soyad.ilike.%${guvenliArama}%,telefon.ilike.%${guvenliArama}%`)
-    .order("ad_soyad")
-    .limit(8);
+  const { data, error } = await hastaAra(supabase, arama, "id, ad_soyad, telefon, kategori", 8);
 
   if (error) {
     console.error("Hasta arama başarısız:", error);
     return NextResponse.json({ error: "Arama başarısız." }, { status: 500 });
   }
 
-  return NextResponse.json({ hastalar: data ?? [] });
+  return NextResponse.json({ hastalar: data });
 }

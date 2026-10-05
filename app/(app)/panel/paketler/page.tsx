@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type { SecenekSatir } from "@/types/randevu";
-import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
+import type { PaketSatir } from "@/types/paket";
 import { paketArsivdeMi } from "@/lib/paket/satis-suresi";
 import { YeniPaketDialog } from "./yeni-paket-dialog";
 import { PaketSatiri } from "./paket-satiri";
@@ -30,7 +30,7 @@ export default async function PaketlerSayfasi() {
   const duzenlenebilir = kullanici?.rol === "klinik_admin";
   const satisYapabilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
 
-  const [islemTanimiSonucu, paketSonucu, hastaSonucu] = await Promise.all([
+  const [islemTanimiSonucu, paketSonucu] = await Promise.all([
     supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
     supabase
       .from("paket")
@@ -39,7 +39,6 @@ export default async function PaketlerSayfasi() {
       )
       .order("ad")
       .returns<PaketSatir[]>(),
-    supabase.from("hasta").select("id, ad_soyad, kategori").order("ad_soyad"),
   ]);
 
   const islemTanimlari: SecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({
@@ -49,11 +48,6 @@ export default async function PaketlerSayfasi() {
   const paketler = paketSonucu.data ?? [];
   const guncelPaketler = paketler.filter((p) => !paketArsivdeMi(p));
   const arsivPaketler = paketler.filter((p) => paketArsivdeMi(p));
-  const hastalar: SatisHastaSecenegi[] = (hastaSonucu.data ?? []).map((h) => ({
-    id: h.id,
-    ad: h.ad_soyad,
-    kategori: h.kategori,
-  }));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -85,7 +79,6 @@ export default async function PaketlerSayfasi() {
                     islemTanimlari={islemTanimlari}
                     duzenlenebilir={duzenlenebilir}
                     satisYapabilir={satisYapabilir}
-                    hastalar={hastalar}
                     gecikme={i * 40}
                   />
                 ))}
@@ -111,7 +104,6 @@ export default async function PaketlerSayfasi() {
                     islemTanimlari={islemTanimlari}
                     duzenlenebilir={duzenlenebilir}
                     satisYapabilir={satisYapabilir}
-                    hastalar={hastalar}
                     gecikme={i * 40}
                   />
                 ))}

@@ -13,13 +13,11 @@ import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
 
 export function PaketSatisDialog({
   paket,
-  hastalar,
   className,
   varsayilanHasta,
   mod = "satis",
 }: {
   paket: PaketSatir;
-  hastalar?: SatisHastaSecenegi[];
   className?: string;
   /** Doluysa hasta arama gösterilmez, doğrudan bu hastaya satış yapılır (Yenile akışı). */
   varsayilanHasta?: SatisHastaSecenegi;
@@ -91,7 +89,6 @@ export function PaketSatisDialog({
               ) : (
                 <HastaArama
                   id={`${idOnEki}-hasta`}
-                  hastalar={hastalar ?? []}
                   required
                   disabled={isPending}
                   onSecim={(hasta) => setSeciliHasta(hasta)}

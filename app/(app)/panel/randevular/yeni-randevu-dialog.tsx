@@ -16,7 +16,6 @@ import { RandevuFormu } from "./randevu-formu";
 import { PeriyodikRandevuFormu } from "./periyodik-randevu-formu";
 
 type Props = {
-  hastalar: SecenekSatir[];
   terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
@@ -54,7 +53,6 @@ export function YeniRandevuDialog({ sabitHasta, buttonLabel, ...props }: Props) 
   }, [paramAnahtari]);
 
   const eksik =
-    (!sabitHasta && props.hastalar.length === 0) ||
     props.terapistler.length === 0 ||
     props.odalar.length === 0 ||
     props.tedaviler.length === 0;

@@ -16,7 +16,7 @@ import {
 import { cn, isimBasHarfBuyukYap } from "@/lib/utils";
 import { satisSuresiDoldu, satisEngelliMi, paketArsivdeMi } from "@/lib/paket/satis-suresi";
 import type { SecenekSatir } from "@/types/randevu";
-import type { PaketSatir, SatisHastaSecenegi } from "@/types/paket";
+import type { PaketSatir } from "@/types/paket";
 import { paketAktifDurumDegistir, paketGuncelle, paketTekrarla } from "./actions";
 import { PaketSatisDialog } from "./paket-satis-dialog";
 import { PaketKatilimcilarDialog } from "./paket-katilimcilar-dialog";
@@ -35,14 +35,12 @@ export function PaketSatiri({
   islemTanimlari,
   duzenlenebilir,
   satisYapabilir,
-  hastalar,
   gecikme,
 }: {
   paket: PaketSatir;
   islemTanimlari: SecenekSatir[];
   duzenlenebilir: boolean;
   satisYapabilir: boolean;
-  hastalar: SatisHastaSecenegi[];
   gecikme?: number;
 }) {
   const [duzenleniyor, setDuzenleniyor] = useState(false);
@@ -265,7 +263,7 @@ export function PaketSatiri({
                     Satış
                   </Button>
                 ) : (
-                  <PaketSatisDialog paket={paket} hastalar={hastalar} className={SATIS_SINIFI} />
+                  <PaketSatisDialog paket={paket} className={SATIS_SINIFI} />
                 ))}
               {duzenlenebilir && (
                 <>

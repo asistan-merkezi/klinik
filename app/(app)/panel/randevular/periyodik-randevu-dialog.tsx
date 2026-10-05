@@ -13,7 +13,6 @@ import type { SecenekSatir, TedaviSecenekSatir, TerapistSecenekSatir } from "@/t
 import { PeriyodikRandevuFormu } from "./periyodik-randevu-formu";
 
 type Props = {
-  hastalar: SecenekSatir[];
   terapistler: TerapistSecenekSatir[];
   odalar: SecenekSatir[];
   cihazlar: SecenekSatir[];
@@ -26,7 +25,6 @@ export function PeriyodikRandevuDialog({ sabitHasta, ...props }: Props) {
   const [acik, setAcik] = useState(false);
 
   const eksik =
-    (!sabitHasta && props.hastalar.length === 0) ||
     props.terapistler.length === 0 ||
     props.odalar.length === 0 ||
     props.tedaviler.length === 0;
