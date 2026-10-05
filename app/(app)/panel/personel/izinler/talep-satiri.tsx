@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { createClient } from "@/lib/supabase/client";
-import { formatDate, formatDateTime } from "@/lib/datetime";
+import { formatDate, formatDateTime, bugunIstanbulTarihi } from "@/lib/datetime";
 import { IZIN_DURUM_ETIKETLERI, IZIN_DURUM_TONLARI, IZIN_TIP_ETIKETLERI, type IzinCakisan, type IzinTalebiAdminSatir } from "@/types/izin";
 import { izinTalebiOnayla, izinTalebiReddet, izinTalebiYoneticiIptalEt } from "./actions";
 
@@ -33,7 +33,7 @@ export function TalepSatiri({ talep }: { talep: IzinTalebiAdminSatir }) {
   const [redGerekce, setRedGerekce] = useState("");
 
   const beklemede = talep.durum === "beklemede";
-  const gelecekOnaylandi = talep.durum === "onaylandi" && talep.baslangic_tarih > new Date().toISOString().slice(0, 10);
+  const gelecekOnaylandi = talep.durum === "onaylandi" && talep.baslangic_tarih > bugunIstanbulTarihi();
   const { data: cakisanlar } = useCakisanlar(talep.id, beklemede);
 
   function onayla() {

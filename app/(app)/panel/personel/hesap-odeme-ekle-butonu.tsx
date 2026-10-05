@@ -1,5 +1,6 @@
 "use client";
 
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export function HesapOdemeEkleButonu({
   const [kategori, setKategori] = useState<OdemeKategori>("maas");
   const [personelId, setPersonelId] = useState("");
   const [tutar, setTutar] = useState("");
-  const [tarih, setTarih] = useState(() => new Date().toISOString().slice(0, 10));
+  const [tarih, setTarih] = useState(() => bugunIstanbulTarihi());
   const [aciklama, setAciklama] = useState("Maaş");
   const [odemeTipi, setOdemeTipi] = useState<PersonelOdemeTipi | null>(null);
   const [bankaHesapId, setBankaHesapId] = useState("");
@@ -77,7 +78,7 @@ export function HesapOdemeEkleButonu({
     setKategori("maas");
     setPersonelId("");
     setTutar("");
-    setTarih(new Date().toISOString().slice(0, 10));
+    setTarih(bugunIstanbulTarihi());
     setAciklama("Maaş");
     setOdemeTipi(null);
     setBankaHesapId("");

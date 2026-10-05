@@ -1,3 +1,4 @@
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import type { createClient } from "@/lib/supabase/server";
 import type { TerapistSecenekSatir } from "@/types/randevu";
 
@@ -24,7 +25,7 @@ export async function atanabilirTerapistleriGetir(
     .select("id, personel(ad_soyad, isten_cikis_tarihi, pozisyon_id)")
     .returns<TerapistSatir[]>();
 
-  const bugun = new Date().toISOString().slice(0, 10);
+  const bugun = bugunIstanbulTarihi();
 
   return (data ?? [])
     .filter((t) => !t.personel?.isten_cikis_tarihi || t.personel.isten_cikis_tarihi >= bugun)
@@ -51,6 +52,6 @@ export async function terapistAtanabilirMi(
   const cikisTarihi = data?.personel?.isten_cikis_tarihi;
   if (!cikisTarihi) return true;
 
-  const bugun = new Date().toISOString().slice(0, 10);
+  const bugun = bugunIstanbulTarihi();
   return cikisTarihi >= bugun;
 }

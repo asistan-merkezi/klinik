@@ -1,5 +1,6 @@
 "use client";
 
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useId, useState } from "react";
 import { Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -152,7 +153,7 @@ export function HastaIadesiButonu({
                 id={`${idOnEki}-tarih`}
                 name="tarih"
                 type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                defaultValue={bugunIstanbulTarihi()}
                 required
                 disabled={isPending}
               />

@@ -1,5 +1,6 @@
 "use server";
 
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -115,7 +116,7 @@ export async function maasAyarlariGuncelle(
       klinik_id: klinikId,
       personel_id: personelId,
       maas,
-      gecerlilik_tarihi: new Date().toISOString().slice(0, 10),
+      gecerlilik_tarihi: bugunIstanbulTarihi(),
       ekleyen_kullanici_id: user?.id ?? null,
     });
 

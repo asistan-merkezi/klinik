@@ -1,5 +1,6 @@
 "use client";
 
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,7 +70,7 @@ export function GiderFormu({
     }
   }
 
-  const bugun = new Date().toISOString().slice(0, 10);
+  const bugun = bugunIstanbulTarihi();
 
   return (
     <form action={formAction} className="flex flex-col gap-3">

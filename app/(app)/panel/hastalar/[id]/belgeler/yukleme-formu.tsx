@@ -1,5 +1,6 @@
 "use client";
 
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export function YuklemeDialogu({
   const [kategori, setKategori] = useState<BelgeKategori>(varsayilanKategori);
   const [belgeTuru, setBelgeTuru] = useState<BelgeTuru>(BELGE_TURU_SECENEKLERI[varsayilanKategori][0].value);
   const [bolge, setBolge] = useState<string>("");
-  const [cekimTarihi, setCekimTarihi] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [cekimTarihi, setCekimTarihi] = useState<string>(bugunIstanbulTarihi());
   const [cekenKurum, setCekenKurum] = useState("");
   const [not, setNot] = useState("");
   const [asama, setAsama] = useState<BelgeAsama>("tedavi_oncesi");

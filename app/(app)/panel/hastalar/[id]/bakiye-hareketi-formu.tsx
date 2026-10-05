@@ -1,5 +1,6 @@
 "use client";
 
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -199,7 +200,7 @@ export function BakiyeHareketiEkleButonu({
                 id={`${idOnEki}-tarih`}
                 name="tarih"
                 type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                defaultValue={bugunIstanbulTarihi()}
                 required
                 disabled={isPending}
               />

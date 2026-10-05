@@ -1,7 +1,8 @@
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import type { PaketSatir } from "@/types/paket";
 
 export function satisSuresiDoldu(tarih: string): boolean {
-  const bugun = new Date().toISOString().slice(0, 10);
+  const bugun = bugunIstanbulTarihi();
   return tarih < bugun;
 }
 

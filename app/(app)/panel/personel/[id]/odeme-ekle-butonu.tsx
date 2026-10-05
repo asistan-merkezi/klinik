@@ -1,5 +1,6 @@
 "use client";
 
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -179,7 +180,7 @@ export function OdemeEkleButonu({
                 id={`${idOnEki}-tarih`}
                 name="tarih"
                 type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                defaultValue={bugunIstanbulTarihi()}
                 required
                 disabled={isPending}
               />
