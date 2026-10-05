@@ -5,7 +5,6 @@ import { CalendarClock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { gorunumDurumBilgisi, gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
 import { formatTime } from "@/lib/datetime";
@@ -48,10 +47,7 @@ export function BugunkuSeanslarKarti({ randevular }: { randevular: RandevuSatir[
             </DialogDescription>
           </DialogHeader>
 
-          {randevular.length === 0 ? (
-            <EmptyState compact title="Bugün randevu yok" />
-          ) : (
-            <Table>
+          <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Saat</TableHead>
@@ -62,6 +58,13 @@ export function BugunkuSeanslarKarti({ randevular }: { randevular: RandevuSatir[
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {randevular.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                      Bugün randevu yok
+                    </TableCell>
+                  </TableRow>
+                )}
                 {randevular.map((r) => {
                   const durum = gorunumDurumBilgisi(r, gorunumDurumuHesapla(r, simdi));
                   return (
@@ -86,7 +89,6 @@ export function BugunkuSeanslarKarti({ randevular }: { randevular: RandevuSatir[
                 })}
               </TableBody>
             </Table>
-          )}
         </DialogContent>
       </Dialog>
     </>
