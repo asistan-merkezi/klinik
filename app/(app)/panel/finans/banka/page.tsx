@@ -2,6 +2,7 @@ import { Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
+import { finansDonemiCoz, tumSayfalariOku } from "@/lib/finans/donem";
 import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import { BankaClient } from "./banka-client";
 
@@ -46,74 +47,93 @@ type NakitBankaSatiri = {
   karsi_taraf_iban: string | null;
 };
 
-export default async function BankaSayfasi({ searchParams }: { searchParams: Promise<{ yil?: string }> }) {
-  const { yil: yilParam } = await searchParams;
-  const simdikiYil = new Date().getFullYear();
-  const secilenYil = yilParam && /^\d{4}$/.test(yilParam) ? Number(yilParam) : simdikiYil;
-  const yilBaslangicTarih = `${secilenYil}-01-01`;
-  const yilBitisTarih = `${secilenYil + 1}-01-01`;
-  const yilBaslangicTs = `${yilBaslangicTarih}T00:00:00.000Z`;
-  const yilBitisTs = `${yilBitisTarih}T00:00:00.000Z`;
+export default async function BankaSayfasi({
+  searchParams,
+}: {
+  searchParams: Promise<{ mod?: string; yil?: string; ay?: string }>;
+}) {
+  const donem = finansDonemiCoz(await searchParams);
 
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
 
   const duzenlenebilir = kullanici.rol === "klinik_admin";
 
+  // Yalnız SEÇİLİ dönemin satırları, 1000'lik sayfalarla (PostgREST max_rows sessiz kesmesin);
+  // sıralama sabit (tarih + id). Dönem başı bakiye satır çekmeden RPC'den (Postgres SUM) gelir.
   const [
     bankaHesabiSonucu,
-    hastaOdemeSonucu,
-    harcamaSonucu,
-    personelOdemeSonucu,
-    nakitBankaSonucu,
+    hastaOdemeleri,
+    harcamalar,
+    personelOdemeleri,
+    nakitBankaHareketleri,
     personelListesiSonucu,
     aracSonucu,
     oncekiToplamSonucu,
   ] = await Promise.all([
     supabase.from("klinik_banka_hesaplari").select("id, banka_adi, sube").order("sort_order").returns<KlinikBankaHesabi[]>(),
-    supabase
-      .from("hasta_bakiye_hareket")
-      .select("id, created_at, tutar, banka_hesap_id, tur, hasta:hasta_id(ad_soyad)")
-      .in("tur", ["odeme", "iade"])
-      .eq("odeme_yontemi", "banka_havalesi")
-      .gte("created_at", yilBaslangicTs)
-      .lt("created_at", yilBitisTs)
-      .returns<HastaOdemeSatiri[]>(),
-    supabase
-      .from("klinik_harcama")
-      .select("id, tarih, tutar, tedarikci_adi, kategori, banka_hesap_id")
-      .eq("odeme_tipi", "havale")
-      .gte("tarih", yilBaslangicTarih)
-      .lt("tarih", yilBitisTarih)
-      .returns<HarcamaSatiri[]>(),
-    supabase
-      .from("personel_hesap_hareket")
-      .select("id, tarih, tutar, tur, banka_hesap_id, personel:personel_id(ad_soyad)")
-      .eq("odeme_tipi", "havale")
-      .in("tur", ["odeme", "avans"])
-      .gte("tarih", yilBaslangicTarih)
-      .lt("tarih", yilBitisTarih)
-      .returns<PersonelOdemeSatiri[]>(),
-    supabase
-      .from("nakit_banka_hareketi")
-      .select(
-        "id, tip, kaynak_kasa, kaynak_banka_hesap_id, hedef_kasa, hedef_banka_hesap_id, odeme_yontemi, tutar, tarih, aciklama, karsi_taraf_adi, karsi_taraf_banka, karsi_taraf_iban"
-      )
-      .or("kaynak_banka_hesap_id.not.is.null,hedef_banka_hesap_id.not.is.null")
-      .gte("tarih", yilBaslangicTarih)
-      .lt("tarih", yilBitisTarih)
-      .returns<NakitBankaSatiri[]>(),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("hasta_bakiye_hareket")
+        .select("id, created_at, tutar, banka_hesap_id, tur, hasta:hasta_id(ad_soyad)")
+        .in("tur", ["odeme", "iade"])
+        .eq("odeme_yontemi", "banka_havalesi")
+        .gte("created_at", donem.baslangicTs)
+        .lt("created_at", donem.bitisTs)
+        .order("created_at")
+        .order("id")
+        .range(bas, son)
+        .returns<HastaOdemeSatiri[]>()
+    ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("klinik_harcama")
+        .select("id, tarih, tutar, tedarikci_adi, kategori, banka_hesap_id")
+        .eq("odeme_tipi", "havale")
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<HarcamaSatiri[]>()
+    ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("personel_hesap_hareket")
+        .select("id, tarih, tutar, tur, banka_hesap_id, personel:personel_id(ad_soyad)")
+        .eq("odeme_tipi", "havale")
+        .in("tur", ["odeme", "avans"])
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<PersonelOdemeSatiri[]>()
+    ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("nakit_banka_hareketi")
+        .select(
+          "id, tip, kaynak_kasa, kaynak_banka_hesap_id, hedef_kasa, hedef_banka_hesap_id, odeme_yontemi, tutar, tarih, aciklama, karsi_taraf_adi, karsi_taraf_banka, karsi_taraf_iban"
+        )
+        .or("kaynak_banka_hesap_id.not.is.null,hedef_banka_hesap_id.not.is.null")
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<NakitBankaSatiri[]>()
+    ),
     supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad").returns<{ id: string; ad_soyad: string }[]>(),
     supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
-    supabase.rpc("banka_bakiye_once_toplam_tumu", { p_once_tarih: yilBaslangicTarih }),
+    supabase.rpc("banka_bakiye_once_toplam_tumu", { p_once_tarih: donem.baslangic }),
   ]);
+  if (oncekiToplamSonucu.error) throw new Error(oncekiToplamSonucu.error.message);
 
-  // Her banka hesabının seçili yıldan ÖNCEKİ net toplamı — tüm ömür boyu
-  // geçmişi indirip JS'te toplamak yerine tek bir RPC'den (Postgres SUM)
-  // geliyor (bkz. 20260925090000_kasa_banka_bakiye_once_toplam_rpc.sql).
+  // Her banka hesabının DÖNEMDEN önceki net toplamı (hesap bazlı "dönem başı bakiye").
   const oncekiBakiyeMap: Record<string, number> = {};
   for (const satir of oncekiToplamSonucu.data ?? []) {
-    oncekiBakiyeMap[satir.banka_hesap_id] = satir.toplam;
+    oncekiBakiyeMap[satir.banka_hesap_id] = Number(satir.toplam);
   }
 
   return (
@@ -123,15 +143,17 @@ export default async function BankaSayfasi({ searchParams }: { searchParams: Pro
 
         <BankaClient
           bankaHesaplari={bankaHesabiSonucu.data ?? []}
-          hastaOdemeleri={hastaOdemeSonucu.data ?? []}
-          harcamalar={harcamaSonucu.data ?? []}
-          personelOdemeleri={personelOdemeSonucu.data ?? []}
-          nakitBankaHareketleri={nakitBankaSonucu.data ?? []}
+          hastaOdemeleri={hastaOdemeleri}
+          harcamalar={harcamalar}
+          personelOdemeleri={personelOdemeleri}
+          nakitBankaHareketleri={nakitBankaHareketleri}
           personelListesi={personelListesiSonucu.data ?? []}
           araclar={aracSonucu.data ?? []}
           duzenlenebilir={duzenlenebilir}
           oncekiBakiyeMap={oncekiBakiyeMap}
-          yil={secilenYil}
+          mod={donem.mod}
+          yil={donem.yil}
+          ay={donem.ay}
         />
       </div>
     </div>

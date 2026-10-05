@@ -1,16 +1,15 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Pencil, Check, X, Trash2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { useActionState, useState } from "react";
+import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/utils";
+import { bugunIstanbulTarihi, formatDateTime } from "@/lib/datetime";
+import type { DonemModu } from "@/lib/finans/donem";
 import { LedgerView } from "@/components/panel/ledger-view";
 import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
@@ -18,6 +17,8 @@ import { GiderFormu } from "../giderler/gider-formu";
 import { giderEkle } from "../giderler/actions";
 import {
   kasaBaslangicGuncelle,
+  kasaDengelemeEkle,
+  kasaDengelemeSil,
   kasayaGirenEkle,
   kasadanDigerCikanEkle,
   kasadanBankayaTransferEkle,
@@ -25,73 +26,119 @@ import {
   nakitBankaHareketiSil,
 } from "./actions";
 
-const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
-const tarihFormat = (tarih: string) => {
-  const [yil, ay, gun] = tarih.split("-");
-  return `${gun}.${ay}.${yil}`;
-};
-
-type NakitBankaSatiri = {
-  id: string;
-  tip: string;
-  kaynak_kasa: boolean;
-  hedef_kasa: boolean;
-  tutar: number;
-  tarih: string;
-  aciklama: string | null;
-  karsi_taraf_adi: string | null;
-};
-
-function BaslangicTutariKarti({
-  baslangicTutari,
-  duzenlenebilir,
-}: {
+export type KasaKontrolBilgisi = {
   baslangicTutari: number;
-  duzenlenebilir: boolean;
-}) {
-  const [duzenleniyor, setDuzenleniyor] = useState(false);
+  /** Başlangıç tutarının girildiği an (UTC ISO); eski kayıtlarda null. */
+  baslangicZamani: string | null;
+  baslangicGiren: string | null;
+  /** Oturumdaki kullanıcı — Dengeleme'de "Giren Kişi" (salt okunur). */
+  girenKisi: string;
+};
+
+function BaslangicTutariFormu({ kasaKontrol }: { kasaKontrol: KasaKontrolBilgisi }) {
   const [durum, formAction, isPending] = useActionState(kasaBaslangicGuncelle, null);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-2 rounded-2xl border border-border p-3">
+      <Label htmlFor="baslangic_tutari">Kasa Başlangıç Tutarı (₺)</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          id="baslangic_tutari"
+          name="baslangic_tutari"
+          type="number"
+          min={0}
+          step="0.01"
+          defaultValue={kasaKontrol.baslangicTutari}
+          required
+          disabled={isPending}
+          className="w-40"
+        />
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending ? "Kaydediliyor..." : "Kaydet"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {kasaKontrol.baslangicZamani
+          ? `Girildiği tarih: ${formatDateTime(kasaKontrol.baslangicZamani)} · Giren: ${kasaKontrol.baslangicGiren ?? "—"}. Tutar Kasa Hareketleri'ne bu tarihte "Kasa Başlangıç" olarak işlenir; güncellenirse tarih de yenilenir.`
+          : "Henüz tarihli bir başlangıç girişi yok; mevcut tutar tüm dönemlerin açılış bakiyesi sayılır. Kaydedince girildiği tarihten itibaren hareketlere işlenir."}
+      </p>
+      {durum && (
+        <p role={durum.success ? "status" : "alert"} className={cn("text-sm", durum.success ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+          {durum.message}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function DengelemeFormu({ girenKisi, basariliOlunca }: { girenKisi: string; basariliOlunca: () => void }) {
+  const [durum, formAction, isPending] = useActionState(kasaDengelemeEkle, null);
   const [gorulenDurum, setGorulenDurum] = useState(durum);
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
-    if (durum?.success) setDuzenleniyor(false);
+    if (durum?.success) basariliOlunca();
   }
 
   return (
-    <Card>
-      <CardContent className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">Kasa Başlangıç Tutarı</p>
-          {!duzenleniyor && <p className="text-xl font-semibold tabular-nums">{paraFormat(baslangicTutari)}</p>}
-        </div>
-        {duzenlenebilir &&
-          (duzenleniyor ? (
-            <form action={formAction} className="flex items-center gap-2">
-              <Input
-                name="baslangic_tutari"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue={baslangicTutari}
-                required
-                disabled={isPending}
-                className="w-32"
-              />
-              <Button type="submit" size="icon-sm" disabled={isPending} aria-label="Kaydet">
-                <Check />
-              </Button>
-              <Button type="button" variant="outline" size="icon-sm" onClick={() => setDuzenleniyor(false)} aria-label="Vazgeç">
-                <X />
-              </Button>
-            </form>
-          ) : (
-            <Button type="button" variant="outline" size="icon-sm" onClick={() => setDuzenleniyor(true)} aria-label="Düzenle">
-              <Pencil />
-            </Button>
-          ))}
-      </CardContent>
-    </Card>
+    <form action={formAction} className="flex flex-col gap-3 rounded-2xl border border-border p-3">
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="dengeleme_tutar">Kasa Dengeleme Bedeli (₺)</Label>
+        <Input id="dengeleme_tutar" name="tutar" type="number" step="0.01" required disabled={isPending} />
+        <p className="text-xs text-muted-foreground">Artı (+) tutar kasaya ekler, eksi (−) tutar kasadan düşer.</p>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="dengeleme_aciklama">Açıklama</Label>
+        <Input id="dengeleme_aciklama" name="aciklama" disabled={isPending} />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="dengeleme_giren">Giren Kişi</Label>
+        <Input id="dengeleme_giren" value={girenKisi} readOnly disabled />
+      </div>
+      {durum && !durum.success && (
+        <p role="alert" className="text-sm text-destructive">
+          {durum.message}
+        </p>
+      )}
+      <Button type="submit" disabled={isPending} className="w-fit">
+        {isPending ? "Kaydediliyor..." : "Dengelemeyi Kaydet"}
+      </Button>
+    </form>
+  );
+}
+
+function KasaKontrolDialog({ kasaKontrol }: { kasaKontrol: KasaKontrolBilgisi }) {
+  const [acik, setAcik] = useState(false);
+  // Butona tıklama anı (İstanbul); render içinde Date.now() çağırmamak için açılışta yakalanır.
+  const [tiklamaZamani, setTiklamaZamani] = useState("");
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          setTiklamaZamani(formatDateTime(new Date().toISOString()));
+          setAcik(true);
+        }}
+      >
+        <ClipboardCheck />
+        Kasa Kontrol
+      </Button>
+      <Dialog open={acik} onOpenChange={setAcik}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kasa Kontrol</DialogTitle>
+            <p className="text-sm text-muted-foreground">{tiklamaZamani}</p>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <BaslangicTutariFormu kasaKontrol={kasaKontrol} />
+            <DengelemeFormu girenKisi={kasaKontrol.girenKisi} basariliOlunca={() => setAcik(false)} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -131,7 +178,7 @@ function KasayaGirenDialog() {
                 id="giren_tarih"
                 name="tarih"
                 type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                defaultValue={bugunIstanbulTarihi()}
                 required
                 disabled={isPending}
               />
@@ -216,7 +263,7 @@ function PersonelOdemeFormu({
           id="personel_tarih"
           name="tarih"
           type="date"
-          defaultValue={new Date().toISOString().slice(0, 10)}
+          defaultValue={bugunIstanbulTarihi()}
           required
           disabled={isPending}
         />
@@ -292,7 +339,7 @@ function HesaplarArasiFormu({
           id="transfer_tarih"
           name="tarih"
           type="date"
-          defaultValue={new Date().toISOString().slice(0, 10)}
+          defaultValue={bugunIstanbulTarihi()}
           required
           disabled={isPending}
         />
@@ -338,7 +385,7 @@ function DigerCikanFormu({ basariliOlunca }: { basariliOlunca: () => void }) {
           id="diger_tarih"
           name="tarih"
           type="date"
-          defaultValue={new Date().toISOString().slice(0, 10)}
+          defaultValue={bugunIstanbulTarihi()}
           required
           disabled={isPending}
         />
@@ -432,103 +479,36 @@ function KasadanCikanDialog({
   );
 }
 
-function KasaHareketleriTablosu({
-  hareketler,
-  duzenlenebilir,
-}: {
-  hareketler: NakitBankaSatiri[];
-  duzenlenebilir: boolean;
-}) {
-  const [silinecekId, setSilinecekId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  if (hareketler.length === 0) {
-    return <EmptyState icon={ArrowDownToLine} title="Manuel kasa hareketi yok." compact />;
-  }
-
-  return (
-    <Table className="min-w-[640px]">
-      <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead>Tarih</TableHead>
-          <TableHead>Tür</TableHead>
-          <TableHead>Açıklama</TableHead>
-          <TableHead className="text-right">Tutar</TableHead>
-          {duzenlenebilir && <TableHead />}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {hareketler.map((h) => (
-          <TableRow key={h.id}>
-            <TableCell className="text-muted-foreground">{tarihFormat(h.tarih)}</TableCell>
-            <TableCell>{h.hedef_kasa ? "Giren" : "Çıkan"}</TableCell>
-            <TableCell className="text-muted-foreground">{h.karsi_taraf_adi ?? h.aciklama ?? "—"}</TableCell>
-            <TableCell className="text-right tabular-nums">{paraFormat(h.tutar)}</TableCell>
-            {duzenlenebilir && (
-              <TableCell className="text-right">
-                {silinecekId === h.id ? (
-                  <div className="flex items-center justify-end gap-1.5 text-xs">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      disabled={isPending}
-                      onClick={() => startTransition(async () => {
-                        await nakitBankaHareketiSil(h.id);
-                        setSilinecekId(null);
-                      })}
-                    >
-                      Sil
-                    </Button>
-                    <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={() => setSilinecekId(null)}>
-                      Vazgeç
-                    </Button>
-                  </div>
-                ) : (
-                  <Button type="button" size="icon-sm" variant="ghost" aria-label="Sil" onClick={() => setSilinecekId(h.id)}>
-                    <Trash2 />
-                  </Button>
-                )}
-              </TableCell>
-            )}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
 export function KasaClient({
-  baslangicTutari,
+  kasaKontrol,
   donemBaslangicBakiyesi,
+  mod,
   yil,
+  ay,
   gelenRows,
   gidenRows,
   bankaHesaplari,
-  nakitBankaHareketleri,
   personelListesi,
   araclar,
   duzenlenebilir,
 }: {
-  baslangicTutari: number;
+  kasaKontrol: KasaKontrolBilgisi;
   donemBaslangicBakiyesi: number;
+  mod: DonemModu;
   yil: number;
+  ay: number;
   gelenRows: LedgerSatiri[];
   gidenRows: LedgerSatiri[];
   bankaHesaplari: KlinikBankaHesabi[];
-  nakitBankaHareketleri: NakitBankaSatiri[];
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
   duzenlenebilir: boolean;
 }) {
-  const router = useRouter();
-
   return (
     <div className="flex flex-col gap-6">
-      <BaslangicTutariKarti baslangicTutari={baslangicTutari} duzenlenebilir={duzenlenebilir} />
-
       {duzenlenebilir && (
         <div className="flex flex-wrap gap-2">
+          <KasaKontrolDialog kasaKontrol={kasaKontrol} />
           <KasayaGirenDialog />
           <KasadanCikanDialog bankaHesaplari={bankaHesaplari} personelListesi={personelListesi} araclar={araclar} />
         </div>
@@ -538,14 +518,17 @@ export function KasaClient({
         gelenRows={gelenRows}
         gidenRows={gidenRows}
         openingBalance={donemBaslangicBakiyesi}
+        mod={mod}
         yil={yil}
-        onYilDegistir={(yeniYil) => router.push(`/panel/finans/kasa?yil=${yeniYil}`)}
+        ay={ay}
+        yol="/panel/finans/kasa"
+        onEk="Nakit"
+        onSil={
+          duzenlenebilir
+            ? (sil) => (sil.hedef === "kasa_dengeleme" ? kasaDengelemeSil(sil.id) : nakitBankaHareketiSil(sil.id))
+            : undefined
+        }
       />
-
-      <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-muted-foreground">Kasa Hareketleri</h3>
-        <KasaHareketleriTablosu hareketler={nakitBankaHareketleri} duzenlenebilir={duzenlenebilir} />
-      </div>
     </div>
   );
 }

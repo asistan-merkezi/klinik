@@ -22,10 +22,20 @@ export type NakitBankaHareketi = {
   created_at: string;
 };
 
-/** LedgerView'ın beklediği normalize satır şekli — Kasa/Banka sayfaları tüm kaynakları buna dönüştürür. */
+/**
+ * LedgerView'ın beklediği normalize satır şekli — Kasa/Banka/Kredi Kartı sayfaları tüm
+ * kaynakları buna dönüştürür. `tarih` HER ZAMAN İstanbul takvim günü ("YYYY-MM-DD").
+ */
 export type LedgerSatiri = {
+  /** React key + silme hedefi (kaynak tablodaki id) */
+  id: string;
   tarih: string;
   tutar: number;
+  /** "Tür" sütunu: Hasta ödemesi, Gider, Personel avansı, Kasa Dengeleme, ... */
   etiket: string;
+  /** "Karşı Taraf" sütunu */
   taraf?: string;
+  aciklama?: string;
+  /** Doluysa satırda silme ikonu çıkar — yalnız manuel kayıtlar (nakit_banka_hareketi / kasa_dengeleme). */
+  sil?: { hedef: "nakit_banka_hareketi" | "kasa_dengeleme"; id: string };
 };

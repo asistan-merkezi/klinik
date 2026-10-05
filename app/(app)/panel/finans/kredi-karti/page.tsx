@@ -2,6 +2,8 @@ import { CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatDateForInput } from "@/lib/datetime";
+import { finansDonemiCoz, tumSayfalariOku } from "@/lib/finans/donem";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KrediKartiLedger } from "./kredi-karti-ledger";
 
@@ -19,60 +21,74 @@ type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: 
  * hareket girişi YOK: nakit_banka_hareketi şeması kart bacağı taşımıyor,
  * kart için "elden" bir kasa kavramı da yok — salt okunur mutabakat yeterli.
  */
-export default async function KrediKartiSayfasi({ searchParams }: { searchParams: Promise<{ yil?: string }> }) {
-  const { yil: yilParam } = await searchParams;
-  const simdikiYil = new Date().getFullYear();
-  const secilenYil = yilParam && /^\d{4}$/.test(yilParam) ? Number(yilParam) : simdikiYil;
-  const yilBaslangicTarih = `${secilenYil}-01-01`;
-  const yilBitisTarih = `${secilenYil + 1}-01-01`;
-  const yilBaslangicTs = `${yilBaslangicTarih}T00:00:00.000Z`;
-  const yilBitisTs = `${yilBitisTarih}T00:00:00.000Z`;
+export default async function KrediKartiSayfasi({
+  searchParams,
+}: {
+  searchParams: Promise<{ mod?: string; yil?: string; ay?: string }>;
+}) {
+  const donem = finansDonemiCoz(await searchParams);
 
   await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
 
-  const [hastaOdemeSonucu, harcamaSonucu, oncekiToplamSonucu] = await Promise.all([
-    supabase
-      .from("hasta_bakiye_hareket")
-      .select("id, created_at, tutar, tur, hasta:hasta_id(ad_soyad)")
-      .in("tur", ["odeme", "iade"])
-      .eq("odeme_yontemi", "kredi_karti")
-      .gte("created_at", yilBaslangicTs)
-      .lt("created_at", yilBitisTs)
-      .returns<HastaOdemeSatiri[]>(),
-    supabase
-      .from("klinik_harcama")
-      .select("id, tarih, tutar, tedarikci_adi, kategori")
-      .eq("odeme_tipi", "kredi_karti")
-      .gte("tarih", yilBaslangicTarih)
-      .lt("tarih", yilBitisTarih)
-      .returns<HarcamaSatiri[]>(),
-    supabase.rpc("kredi_karti_bakiye_once_toplam", { p_once_tarih: yilBaslangicTarih }),
+  // Her liste 1000'lik sayfalarla okunur (PostgREST max_rows sessiz kesmesin); sıralama sabit (tarih + id).
+  const [hastaOdemeleri, harcamalar, oncekiToplamSonucu] = await Promise.all([
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("hasta_bakiye_hareket")
+        .select("id, created_at, tutar, tur, hasta:hasta_id(ad_soyad)")
+        .in("tur", ["odeme", "iade"])
+        .eq("odeme_yontemi", "kredi_karti")
+        .gte("created_at", donem.baslangicTs)
+        .lt("created_at", donem.bitisTs)
+        .order("created_at")
+        .order("id")
+        .range(bas, son)
+        .returns<HastaOdemeSatiri[]>()
+    ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("klinik_harcama")
+        .select("id, tarih, tutar, tedarikci_adi, kategori")
+        .eq("odeme_tipi", "kredi_karti")
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<HarcamaSatiri[]>()
+    ),
+    supabase.rpc("kredi_karti_bakiye_once_toplam", { p_once_tarih: donem.baslangic }),
   ]);
+  if (oncekiToplamSonucu.error) throw new Error(oncekiToplamSonucu.error.message);
 
-  const gelenRows: LedgerSatiri[] = (hastaOdemeSonucu.data ?? [])
+  const gelenRows: LedgerSatiri[] = hastaOdemeleri
     .filter((h) => h.tur === "odeme")
     .map((h) => ({
-      tarih: h.created_at.slice(0, 10),
+      id: h.id,
+      tarih: formatDateForInput(h.created_at),
       tutar: h.tutar,
       etiket: "Hasta ödemesi",
       taraf: h.hasta?.ad_soyad ?? "Hasta",
     }));
 
   const gidenRows: LedgerSatiri[] = [
-    ...(hastaOdemeSonucu.data ?? [])
+    ...hastaOdemeleri
       .filter((h) => h.tur === "iade")
       .map((h) => ({
-        tarih: h.created_at.slice(0, 10),
+        id: h.id,
+        tarih: formatDateForInput(h.created_at),
         tutar: h.tutar,
         etiket: "Hasta iadesi",
         taraf: h.hasta?.ad_soyad ?? "Hasta",
       })),
-    ...(harcamaSonucu.data ?? []).map((g) => ({
+    ...harcamalar.map((g) => ({
+      id: g.id,
       tarih: g.tarih,
       tutar: g.tutar,
-      etiket: g.tedarikci_adi ?? g.kategori,
+      etiket: "Gider",
       taraf: g.tedarikci_adi ?? undefined,
+      aciklama: g.tedarikci_adi ? g.kategori : undefined,
     })),
   ];
 
@@ -88,8 +104,10 @@ export default async function KrediKartiSayfasi({ searchParams }: { searchParams
         <KrediKartiLedger
           gelenRows={gelenRows}
           gidenRows={gidenRows}
-          openingBalance={oncekiToplamSonucu.data ?? 0}
-          yil={secilenYil}
+          openingBalance={Number(oncekiToplamSonucu.data ?? 0)}
+          mod={donem.mod}
+          yil={donem.yil}
+          ay={donem.ay}
         />
       </div>
     </div>

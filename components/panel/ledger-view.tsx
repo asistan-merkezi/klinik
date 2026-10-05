@@ -1,103 +1,89 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { Fragment, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronLeft, ChevronRight, Trash2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DONEM_AY_SECENEKLERI } from "@/types/kamusal-odeme";
+import type { DonemModu } from "@/lib/finans/donem";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 const ayEtiket = (ay: number) => DONEM_AY_SECENEKLERI.find((s) => s.value === ay)?.label ?? String(ay);
 
 /**
- * `tarih` alanları burada HER ZAMAN saf "YYYY-MM-DD" takvim tarihi (çağıran
- * sayfalar timestamptz kaynaklarını da bu şekle normalize ediyor) — bu yüzden
- * lib/datetime.ts'teki formatDate KULLANILMAZ (o, UTC ISO bekleyip
- * İstanbul'a çeviriyor; saf bir tarihe uygulanırsa `new Date(...)` UTC
- * gece yarısı varsayıp yanlış güne kayabilir). Düz string parçalama tek
- * doğru/timezone'suz yöntem.
+ * `tarih` alanları HER ZAMAN saf "YYYY-MM-DD" İstanbul takvim günü (sayfalar timestamptz
+ * kaynaklarını da bu şekle normalize ediyor) — bu yüzden lib/datetime.ts'teki formatDate
+ * KULLANILMAZ; düz string parçalama tek doğru/timezone'suz yöntem.
  */
 function tarihEtiketi(gununTarihi: string): string {
   const [yil, ay, gun] = gununTarihi.split("-");
   return `${gun}.${ay}.${yil}`;
 }
 
-type DonemModu = "aylik" | "yillik";
+type YonluSatir = LedgerSatiri & { yon: "gelen" | "giden" };
 
-type SatirOzet = {
+type Grup = {
   anahtar: string;
   etiket: string;
   gelen: number;
   giden: number;
   bakiye: number;
-  kalemler: (LedgerSatiri & { yon: "gelen" | "giden" })[];
+  kalemler: YonluSatir[];
 };
 
-function gruplaVeTopla(rows: (LedgerSatiri & { yon: "gelen" | "giden" })[], anahtarUret: (tarih: string) => string) {
-  const map = new Map<string, SatirOzet>();
-  for (const r of rows) {
-    const anahtar = anahtarUret(r.tarih);
-    if (!map.has(anahtar)) {
-      map.set(anahtar, { anahtar, etiket: anahtar, gelen: 0, giden: 0, bakiye: 0, kalemler: [] });
-    }
-    const grup = map.get(anahtar)!;
-    if (r.yon === "gelen") grup.gelen += r.tutar;
-    else grup.giden += r.tutar;
-    grup.kalemler.push(r);
-  }
-  return map;
-}
-
-function partiOzeti(kalemler: LedgerSatiri[]): string | null {
-  if (kalemler.length === 0) return null;
-  const sayac = new Map<string, number>();
-  for (const k of kalemler) {
-    const isim = k.taraf ?? k.etiket;
-    sayac.set(isim, (sayac.get(isim) ?? 0) + 1);
-  }
-  return Array.from(sayac.entries())
-    .map(([isim, adet]) => (adet > 1 ? `${isim} (${adet})` : isim))
-    .join(", ");
-}
-
+/**
+ * Kasa / Banka / Kredi Kartı için ortak dönem görünümü.
+ *
+ * Dönem (mod/yıl/ay) URL'de ve sunucuda çözülür; `gelenRows`/`gidenRows` yalnızca SEÇİLİ
+ * dönemin satırlarıdır, `openingBalance` ise dönemden ÖNCEKİ her şeyin veritabanında (SUM)
+ * hesaplanmış net toplamıdır. Burada hiçbir şey tarihe göre süzülmez/ön bakiyeye eklenmez.
+ * Dönem değişince `router.push` ile sunucudan yeniden çekilir.
+ */
 export function LedgerView({
   gelenRows,
   gidenRows,
   openingBalance,
+  mod,
   yil,
-  onYilDegistir,
+  ay,
+  yol,
+  gelenEtiket = "Tahsilat",
+  gidenEtiket = "Ödenen Gider",
+  onEk,
+  onSil,
 }: {
   gelenRows: LedgerSatiri[];
   gidenRows: LedgerSatiri[];
   openingBalance: number;
-  /**
-   * Gösterilen yıl artık burada değil, çağıran server component'te (bkz.
-   * kasa/page.tsx, banka/page.tsx ?yil= parametresi) belirleniyor — gelenRows/
-   * gidenRows sadece BU yılın detayını içeriyor (tüm ömür boyu geçmiş yerine),
-   * "dönem başı bakiye" ise `openingBalance` üzerinden zaten bu yıldan ÖNCEKİ
-   * her şeyi kapsayacak şekilde hesaplanmış geliyor. Yıl değiştiğinde veri
-   * yeniden sunucudan çekilmesi gerektiği için bu artık local state değil,
-   * kontrollü bir prop.
-   */
+  mod: DonemModu;
   yil: number;
-  onYilDegistir: (yeniYil: number) => void;
+  /** 1-12 */
+  ay: number;
+  /** Sayfa yolu, örn. "/panel/finans/kasa" — dönem değişiminde `?mod=&yil=&ay=` eklenir. */
+  yol: string;
+  gelenEtiket?: string;
+  gidenEtiket?: string;
+  /** Kart başlıklarına ön ek: "Nakit" → "Toplam Nakit Tahsilat" */
+  onEk?: string;
+  /** Verilirse, `sil` alanı dolu satırlarda silme ikonu çıkar (yalnız yetkili kullanıcıya verilmeli). */
+  onSil?: (sil: NonNullable<LedgerSatiri["sil"]>) => Promise<unknown>;
 }) {
-  const simdi = new Date();
-  const [donemModu, setDonemModu] = useState<DonemModu>("aylik");
-  const [ay, setAy] = useState(simdi.getMonth() + 1);
+  const router = useRouter();
+  const [yukleniyor, startGecis] = useTransition();
   const [acikSatirlar, setAcikSatirlar] = useState<Set<string>>(new Set());
+  const [silinecekId, setSilinecekId] = useState<string | null>(null);
+  const [siliniyor, startSilme] = useTransition();
 
-  const tumKalemler = useMemo<(LedgerSatiri & { yon: "gelen" | "giden" })[]>(
-    () => [
-      ...gelenRows.map((r) => ({ ...r, yon: "gelen" as const })),
-      ...gidenRows.map((r) => ({ ...r, yon: "giden" as const })),
-    ],
-    [gelenRows, gidenRows]
-  );
+  function git(yeniMod: DonemModu, yeniYil: number, yeniAy: number) {
+    setAcikSatirlar(new Set());
+    startGecis(() => router.push(`${yol}?mod=${yeniMod}&yil=${yeniYil}&ay=${yeniAy}`));
+  }
 
   function ayDegistir(delta: number) {
     let yeniAy = ay + delta;
@@ -109,67 +95,53 @@ export function LedgerView({
       yeniAy = 12;
       yeniYil -= 1;
     }
-    setAy(yeniAy);
-    if (yeniYil !== yil) onYilDegistir(yeniYil);
+    git("aylik", yeniYil, yeniAy);
   }
 
-  const { donemBasiBakiye, satirOzetleri, donemGelenToplam, donemGidenToplam } = useMemo(() => {
-    const donemBaslangic =
-      donemModu === "aylik" ? `${yil}-${String(ay).padStart(2, "0")}-01` : `${yil}-01-01`;
-    const donemBitis =
-      donemModu === "aylik"
-        ? ay === 12
-          ? `${yil + 1}-01-01`
-          : `${yil}-${String(ay + 1).padStart(2, "0")}-01`
-        : `${yil + 1}-01-01`;
-
-    let oncekiToplam = openingBalance;
-    const donemIcindekiler: (LedgerSatiri & { yon: "gelen" | "giden" })[] = [];
-    for (const k of tumKalemler) {
-      if (k.tarih < donemBaslangic) {
-        oncekiToplam += k.yon === "gelen" ? k.tutar : -k.tutar;
-      } else if (k.tarih < donemBitis) {
-        donemIcindekiler.push(k);
+  const { gruplar, gelenToplam, gidenToplam } = useMemo(() => {
+    const map = new Map<string, Grup>();
+    const kalemler: YonluSatir[] = [
+      ...gelenRows.map((r) => ({ ...r, yon: "gelen" as const })),
+      ...gidenRows.map((r) => ({ ...r, yon: "giden" as const })),
+    ];
+    for (const k of kalemler) {
+      const anahtar = mod === "aylik" ? k.tarih : k.tarih.slice(0, 7);
+      let grup = map.get(anahtar);
+      if (!grup) {
+        grup = {
+          anahtar,
+          etiket: mod === "aylik" ? tarihEtiketi(anahtar) : `${ayEtiket(Number(anahtar.slice(5, 7)))} ${anahtar.slice(0, 4)}`,
+          gelen: 0,
+          giden: 0,
+          bakiye: 0,
+          kalemler: [],
+        };
+        map.set(anahtar, grup);
       }
+      if (k.yon === "gelen") grup.gelen += k.tutar;
+      else grup.giden += k.tutar;
+      grup.kalemler.push(k);
     }
 
-    const gruplar =
-      donemModu === "aylik"
-        ? gruplaVeTopla(donemIcindekiler, (t) => t)
-        : gruplaVeTopla(donemIcindekiler, (t) => t.slice(0, 7));
-
-    const siraliAnahtarlar = Array.from(gruplar.keys()).sort();
-    let kosanBakiye = oncekiToplam;
-    let gelenToplam = 0;
-    let gidenToplam = 0;
-    // .map() yerine for-of: React'ın render-saflığı kontrolü, kapanmış bir
-    // değişkeni (kosanBakiye) her iterasyonda yeniden atayan bir .map()
-    // callback'ini "saf değil" sayıp reddediyor (react-hooks/immutability).
-    const ozetler: SatirOzet[] = [];
-    for (const anahtar of siraliAnahtarlar) {
-      const grup = gruplar.get(anahtar)!;
-      kosanBakiye = kosanBakiye + grup.gelen - grup.giden;
-      gelenToplam += grup.gelen;
-      gidenToplam += grup.giden;
-      ozetler.push({
-        ...grup,
-        etiket:
-          donemModu === "aylik"
-            ? tarihEtiketi(anahtar)
-            : ayEtiket(Number(anahtar.slice(5, 7))),
-        bakiye: kosanBakiye,
-      });
+    const sirali = Array.from(map.values()).sort((a, b) => a.anahtar.localeCompare(b.anahtar));
+    let kosan = openingBalance;
+    let gelen = 0;
+    let giden = 0;
+    // .map() yerine for-of: kapanmış değişkeni her iterasyonda yeniden atayan .map()
+    // callback'i react-hooks/immutability kuralına takılıyor.
+    for (const g of sirali) {
+      kosan += g.gelen - g.giden;
+      g.bakiye = kosan;
+      g.kalemler.sort((a, b) => a.tarih.localeCompare(b.tarih));
+      gelen += g.gelen;
+      giden += g.giden;
     }
+    return { gruplar: sirali, gelenToplam: gelen, gidenToplam: giden };
+  }, [gelenRows, gidenRows, mod, openingBalance]);
 
-    return {
-      donemBasiBakiye: oncekiToplam,
-      satirOzetleri: ozetler,
-      donemGelenToplam: gelenToplam,
-      donemGidenToplam: gidenToplam,
-    };
-  }, [tumKalemler, donemModu, yil, ay, openingBalance]);
-
-  const donemSonuBakiye = donemBasiBakiye + donemGelenToplam - donemGidenToplam;
+  const donemSonuBakiye = openingBalance + gelenToplam - gidenToplam;
+  const onEkMetni = onEk ? `${onEk} ` : "";
+  const silmeSutunu = Boolean(onSil) && gruplar.some((g) => g.kalemler.some((k) => k.sil));
 
   function satirAcKapa(anahtar: string) {
     setAcikSatirlar((onceki) => {
@@ -180,10 +152,18 @@ export function LedgerView({
     });
   }
 
+  function sil(hedef: NonNullable<LedgerSatiri["sil"]>) {
+    startSilme(async () => {
+      await onSil?.(hedef);
+      setSilinecekId(null);
+      router.refresh();
+    });
+  }
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cn("flex flex-col gap-4 transition-opacity", yukleniyor && "opacity-60")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={donemModu} onValueChange={(v) => setDonemModu(v as DonemModu)}>
+        <Tabs value={mod} onValueChange={(v) => git(v as DonemModu, yil, ay)}>
           <TabsList>
             <TabsTrigger value="aylik">Aylık</TabsTrigger>
             <TabsTrigger value="yillik">Yıllık</TabsTrigger>
@@ -191,7 +171,7 @@ export function LedgerView({
         </Tabs>
 
         <div className="flex items-center gap-2">
-          {donemModu === "aylik" ? (
+          {mod === "aylik" ? (
             <>
               <Button type="button" variant="outline" size="icon-sm" onClick={() => ayDegistir(-1)} aria-label="Önceki ay">
                 <ChevronLeft />
@@ -205,11 +185,11 @@ export function LedgerView({
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" size="icon-sm" onClick={() => onYilDegistir(yil - 1)} aria-label="Önceki yıl">
+              <Button type="button" variant="outline" size="icon-sm" onClick={() => git("yillik", yil - 1, ay)} aria-label="Önceki yıl">
                 <ChevronLeft />
               </Button>
               <span className="min-w-16 text-center text-sm font-medium">{yil}</span>
-              <Button type="button" variant="outline" size="icon-sm" onClick={() => onYilDegistir(yil + 1)} aria-label="Sonraki yıl">
+              <Button type="button" variant="outline" size="icon-sm" onClick={() => git("yillik", yil + 1, ay)} aria-label="Sonraki yıl">
                 <ChevronRight />
               </Button>
             </>
@@ -221,23 +201,19 @@ export function LedgerView({
         <Card>
           <CardContent className="flex flex-col gap-1">
             <p className="text-xs text-muted-foreground">Dönem Başı Bakiye</p>
-            <p className="text-lg font-semibold tabular-nums">{paraFormat(donemBasiBakiye)}</p>
+            <p className="text-lg font-semibold tabular-nums">{paraFormat(openingBalance)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1">
-            <p className="text-xs text-muted-foreground">Gelen</p>
-            <p className="text-lg font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-              {paraFormat(donemGelenToplam)}
-            </p>
+            <p className="text-xs text-muted-foreground">Toplam {onEkMetni}{gelenEtiket}</p>
+            <p className="text-lg font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{paraFormat(gelenToplam)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1">
-            <p className="text-xs text-muted-foreground">Giden</p>
-            <p className="text-lg font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-              {paraFormat(donemGidenToplam)}
-            </p>
+            <p className="text-xs text-muted-foreground">Toplam {onEkMetni}{gidenEtiket}</p>
+            <p className="text-lg font-semibold tabular-nums text-rose-600 dark:text-rose-400">{paraFormat(gidenToplam)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -248,56 +224,101 @@ export function LedgerView({
         </Card>
       </div>
 
-      {satirOzetleri.length === 0 ? (
+      {gruplar.length === 0 ? (
         <EmptyState icon={Wallet} title="Bu dönemde hareket yok." compact />
       ) : (
-        <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
-          {satirOzetleri.map((satir) => {
-            const acik = acikSatirlar.has(satir.anahtar);
-            const ozet = partiOzeti(satir.kalemler);
-            return (
-              <div key={satir.anahtar}>
-                <button
-                  type="button"
-                  onClick={() => satirAcKapa(satir.anahtar)}
-                  className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-muted/40"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-1.5 text-sm font-medium">
-                      <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", acik && "rotate-180")} />
-                      {satir.etiket}
-                    </span>
-                    <div className="flex items-center gap-4 text-sm tabular-nums">
-                      <span className="text-emerald-600 dark:text-emerald-400">
-                        {satir.gelen > 0 ? `+${paraFormat(satir.gelen)}` : "—"}
+        <div className="overflow-x-auto rounded-2xl border border-border">
+          <div className="min-w-[520px]">
+            <div className="grid grid-cols-[1fr_7rem_7rem_8rem] gap-3 border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+              <span>Tarih</span>
+              <span className="text-right">{gelenEtiket}</span>
+              <span className="text-right">{gidenEtiket}</span>
+              <span className="text-right">Bakiye</span>
+            </div>
+            <div className="flex flex-col divide-y divide-border">
+              {gruplar.map((grup) => {
+                const acik = acikSatirlar.has(grup.anahtar);
+                return (
+                  <Fragment key={grup.anahtar}>
+                    <button
+                      type="button"
+                      onClick={() => satirAcKapa(grup.anahtar)}
+                      aria-expanded={acik}
+                      className="grid w-full grid-cols-[1fr_7rem_7rem_8rem] items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/40"
+                    >
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !acik && "-rotate-90")} />
+                        {grup.etiket}
                       </span>
-                      <span className="text-rose-600 dark:text-rose-400">
-                        {satir.giden > 0 ? `−${paraFormat(satir.giden)}` : "—"}
+                      <span className="text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                        {grup.gelen > 0 ? `+${paraFormat(grup.gelen)}` : "—"}
                       </span>
-                      <span className="w-28 text-right font-semibold">{paraFormat(satir.bakiye)}</span>
-                    </div>
-                  </div>
-                  {ozet && <p className="pl-5.5 text-xs text-muted-foreground">{ozet}</p>}
-                </button>
-                {acik && (
-                  <div className="flex flex-col gap-1 border-t border-border bg-muted/20 px-3 py-2 pl-8">
-                    {satir.kalemler.map((k, i) => (
-                      <div key={i} className="flex items-center justify-between gap-3 text-xs">
-                        <span className="text-muted-foreground">
-                          {donemModu === "yillik" && `${tarihEtiketi(k.tarih)} — `}
-                          {k.etiket}
-                        </span>
-                        <span className={cn("tabular-nums", k.yon === "gelen" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                          {k.yon === "gelen" ? "+" : "−"}
-                          {paraFormat(k.tutar)}
-                        </span>
+                      <span className="text-right tabular-nums text-rose-600 dark:text-rose-400">
+                        {grup.giden > 0 ? `−${paraFormat(grup.giden)}` : "—"}
+                      </span>
+                      <span className="text-right font-semibold tabular-nums">{paraFormat(grup.bakiye)}</span>
+                    </button>
+                    {acik && (
+                      <div className="border-t border-border bg-muted/20 px-2 py-2 sm:px-3">
+                        <Table className="min-w-[560px]">
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                              <TableHead>Tarih</TableHead>
+                              <TableHead>Tür</TableHead>
+                              <TableHead>Karşı Taraf</TableHead>
+                              <TableHead>Açıklama</TableHead>
+                              <TableHead className="text-right">Tutar</TableHead>
+                              {silmeSutunu && <TableHead />}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {grup.kalemler.map((k) => (
+                              <TableRow key={`${k.yon}-${k.id}`}>
+                                <TableCell className="text-muted-foreground">{tarihEtiketi(k.tarih)}</TableCell>
+                                <TableCell>{k.etiket}</TableCell>
+                                <TableCell className="text-muted-foreground">{k.taraf ?? "—"}</TableCell>
+                                <TableCell className="max-w-56 truncate text-muted-foreground" title={k.aciklama}>
+                                  {k.aciklama ?? "—"}
+                                </TableCell>
+                                <TableCell
+                                  className={cn(
+                                    "text-right tabular-nums",
+                                    k.yon === "gelen" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                                  )}
+                                >
+                                  {k.yon === "gelen" ? "+" : "−"}
+                                  {paraFormat(k.tutar)}
+                                </TableCell>
+                                {silmeSutunu && (
+                                  <TableCell className="text-right">
+                                    {k.sil &&
+                                      (silinecekId === k.sil.id ? (
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <Button type="button" size="sm" variant="destructive" disabled={siliniyor} onClick={() => sil(k.sil!)}>
+                                            Sil
+                                          </Button>
+                                          <Button type="button" size="sm" variant="outline" disabled={siliniyor} onClick={() => setSilinecekId(null)}>
+                                            Vazgeç
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <Button type="button" size="icon-sm" variant="ghost" aria-label="Sil" onClick={() => setSilinecekId(k.sil!.id)}>
+                                          <Trash2 />
+                                        </Button>
+                                      ))}
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                    )}
+                  </Fragment>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>

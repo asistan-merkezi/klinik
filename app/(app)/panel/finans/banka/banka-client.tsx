@@ -1,17 +1,17 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Trash2, ArrowDownToLine, ArrowUpFromLine, Landmark } from "lucide-react";
+import { useActionState, useMemo, useState } from "react";
+import { ArrowDownToLine, ArrowUpFromLine, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LedgerView } from "@/components/panel/ledger-view";
+import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
+import type { DonemModu } from "@/lib/finans/donem";
 import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { GiderFormu } from "../giderler/gider-formu";
@@ -25,12 +25,6 @@ import {
   bankaPersonelOdemesiEkle,
   nakitBankaHareketiSil,
 } from "./actions";
-
-const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
-const tarihFormat = (tarih: string) => {
-  const [yil, ay, gun] = tarih.split("-");
-  return `${gun}.${ay}.${yil}`;
-};
 
 function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
@@ -54,6 +48,17 @@ type NakitBankaSatiri = {
   karsi_taraf_banka: string | null;
   karsi_taraf_iban: string | null;
 };
+
+/** Transferin "karşı tarafı": hesaplar arası ise diğer hesap (veya Kasa), değilse girilen ad/banka. */
+function karsiTarafEtiketi(h: NakitBankaSatiri, selectedId: string, bankaHesaplari: KlinikBankaHesabi[]): string | undefined {
+  if (h.tip !== "hesaplar_arasi") return h.karsi_taraf_adi ?? h.karsi_taraf_banka ?? undefined;
+  if (h.kaynak_banka_hesap_id === selectedId) {
+    if (h.hedef_kasa) return "Kasa";
+    return bankaHesaplari.find((b) => b.id === h.hedef_banka_hesap_id)?.banka_adi;
+  }
+  if (h.kaynak_kasa) return "Kasa";
+  return bankaHesaplari.find((b) => b.id === h.kaynak_banka_hesap_id)?.banka_adi;
+}
 
 function HesapPilleri({
   bankaHesaplari,
@@ -154,7 +159,7 @@ function BankayaGirenDialog({ selectedId }: { selectedId: string }) {
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="giren_tarih">Tarih</Label>
-              <Input id="giren_tarih" name="tarih" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required disabled={isPending} />
+              <Input id="giren_tarih" name="tarih" type="date" defaultValue={bugunIstanbulTarihi()} required disabled={isPending} />
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="giren_aciklama">Açıklama (opsiyonel)</Label>
@@ -228,7 +233,7 @@ function PersonelOdemeFormu({
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_personel_tarih">Tarih</Label>
-        <Input id="b_personel_tarih" name="tarih" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required disabled={isPending} />
+        <Input id="b_personel_tarih" name="tarih" type="date" defaultValue={bugunIstanbulTarihi()} required disabled={isPending} />
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_personel_aciklama">Açıklama (opsiyonel)</Label>
@@ -295,7 +300,7 @@ function HesaplarArasiFormu({
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_transfer_tarih">Tarih</Label>
-        <Input id="b_transfer_tarih" name="tarih" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required disabled={isPending} />
+        <Input id="b_transfer_tarih" name="tarih" type="date" defaultValue={bugunIstanbulTarihi()} required disabled={isPending} />
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_transfer_aciklama">Açıklama (opsiyonel)</Label>
@@ -343,7 +348,7 @@ function DigerCikanFormu({ selectedId, basariliOlunca }: { selectedId: string; b
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_diger_tarih">Tarih</Label>
-        <Input id="b_diger_tarih" name="tarih" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required disabled={isPending} />
+        <Input id="b_diger_tarih" name="tarih" type="date" defaultValue={bugunIstanbulTarihi()} required disabled={isPending} />
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_diger_aciklama">Açıklama (opsiyonel)</Label>
@@ -437,95 +442,6 @@ function BankadanCikanDialog({
   );
 }
 
-function HavaleKayitlariTablosu({
-  hareketler,
-  bankaHesaplari,
-  selectedId,
-  duzenlenebilir,
-}: {
-  hareketler: NakitBankaSatiri[];
-  bankaHesaplari: KlinikBankaHesabi[];
-  selectedId: string;
-  duzenlenebilir: boolean;
-}) {
-  const [silinecekId, setSilinecekId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function otherAccountLabel(h: NakitBankaSatiri): string {
-    if (h.tip !== "hesaplar_arasi") return h.karsi_taraf_adi ?? h.karsi_taraf_banka ?? "—";
-    if (h.kaynak_banka_hesap_id === selectedId) {
-      if (h.hedef_kasa) return "Kasa";
-      const hesap = bankaHesaplari.find((b) => b.id === h.hedef_banka_hesap_id);
-      return hesap ? hesap.banka_adi : "—";
-    }
-    if (h.kaynak_kasa) return "Kasa";
-    const hesap = bankaHesaplari.find((b) => b.id === h.kaynak_banka_hesap_id);
-    return hesap ? hesap.banka_adi : "—";
-  }
-
-  if (hareketler.length === 0) {
-    return <EmptyState icon={Landmark} title="Bu hesapta manuel hareket yok." compact />;
-  }
-
-  return (
-    <Table className="min-w-[720px]">
-      <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead>Tarih</TableHead>
-          <TableHead>Yön</TableHead>
-          <TableHead>Karşı Taraf</TableHead>
-          <TableHead>IBAN</TableHead>
-          <TableHead className="text-right">Tutar</TableHead>
-          {duzenlenebilir && <TableHead />}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {hareketler.map((h) => {
-          const gelenMi = h.hedef_banka_hesap_id === selectedId;
-          return (
-            <TableRow key={h.id}>
-              <TableCell className="text-muted-foreground">{tarihFormat(h.tarih)}</TableCell>
-              <TableCell>{gelenMi ? "Giren" : "Çıkan"}</TableCell>
-              <TableCell className="text-muted-foreground">{otherAccountLabel(h)}</TableCell>
-              <TableCell className="font-mono text-xs tracking-wide text-muted-foreground">
-                {h.karsi_taraf_iban ? formatIban(h.karsi_taraf_iban) : "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{paraFormat(h.tutar)}</TableCell>
-              {duzenlenebilir && (
-                <TableCell className="text-right">
-                  {silinecekId === h.id ? (
-                    <div className="flex items-center justify-end gap-1.5 text-xs">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        disabled={isPending}
-                        onClick={() => startTransition(async () => {
-                          await nakitBankaHareketiSil(h.id);
-                          setSilinecekId(null);
-                        })}
-                      >
-                        Sil
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={() => setSilinecekId(null)}>
-                        Vazgeç
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button type="button" size="icon-sm" variant="ghost" aria-label="Sil" onClick={() => setSilinecekId(h.id)}>
-                      <Trash2 />
-                    </Button>
-                  )}
-                </TableCell>
-              )}
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
-}
-
 export function BankaClient({
   bankaHesaplari,
   hastaOdemeleri,
@@ -536,7 +452,9 @@ export function BankaClient({
   araclar,
   duzenlenebilir,
   oncekiBakiyeMap,
+  mod,
   yil,
+  ay,
 }: {
   bankaHesaplari: KlinikBankaHesabi[];
   hastaOdemeleri: HastaOdemeSatiri[];
@@ -546,34 +464,41 @@ export function BankaClient({
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
   duzenlenebilir: boolean;
-  /** Her hesabın seçili yıldan ÖNCEKİ net toplamı (bkz. banka/page.tsx) — hesap bazlı "dönem başı bakiye". */
+  /** Her hesabın seçili dönemden ÖNCEKİ net toplamı (bkz. banka/page.tsx) — hesap bazlı "dönem başı bakiye". */
   oncekiBakiyeMap: Record<string, number>;
+  mod: DonemModu;
   yil: number;
+  ay: number;
 }) {
-  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string>(bankaHesaplari[0]?.id ?? "");
 
-  const { gelenRows, gidenRows, hesabiIlgilendirenTransferler } = useMemo(() => {
+  const { gelenRows, gidenRows } = useMemo(() => {
     if (!selectedId) {
-      return { gelenRows: [] as LedgerSatiri[], gidenRows: [] as LedgerSatiri[], hesabiIlgilendirenTransferler: [] as NakitBankaSatiri[] };
+      return { gelenRows: [] as LedgerSatiri[], gidenRows: [] as LedgerSatiri[] };
     }
 
-    const gelen: LedgerSatiri[] = [
-      ...hastaOdemeleri
-        .filter((h) => h.banka_hesap_id === selectedId && h.tur === "odeme")
-        .map((h) => ({ tarih: h.created_at.slice(0, 10), tutar: h.tutar, etiket: "Hasta ödemesi", taraf: h.hasta?.ad_soyad ?? "Hasta" })),
-    ];
+    const gelen: LedgerSatiri[] = hastaOdemeleri
+      .filter((h) => h.banka_hesap_id === selectedId && h.tur === "odeme")
+      .map((h) => ({ id: h.id, tarih: formatDateForInput(h.created_at), tutar: h.tutar, etiket: "Hasta ödemesi", taraf: h.hasta?.ad_soyad ?? "Hasta" }));
 
     const giden: LedgerSatiri[] = [
       ...hastaOdemeleri
         .filter((h) => h.banka_hesap_id === selectedId && h.tur === "iade")
-        .map((h) => ({ tarih: h.created_at.slice(0, 10), tutar: h.tutar, etiket: "Hasta iadesi", taraf: h.hasta?.ad_soyad ?? "Hasta" })),
+        .map((h) => ({ id: h.id, tarih: formatDateForInput(h.created_at), tutar: h.tutar, etiket: "Hasta iadesi", taraf: h.hasta?.ad_soyad ?? "Hasta" })),
       ...harcamalar
         .filter((g) => g.banka_hesap_id === selectedId)
-        .map((g) => ({ tarih: g.tarih, tutar: g.tutar, etiket: g.tedarikci_adi ?? g.kategori, taraf: g.tedarikci_adi ?? undefined })),
+        .map((g) => ({
+          id: g.id,
+          tarih: g.tarih,
+          tutar: g.tutar,
+          etiket: "Gider",
+          taraf: g.tedarikci_adi ?? undefined,
+          aciklama: g.tedarikci_adi ? g.kategori : undefined,
+        })),
       ...personelOdemeleri
         .filter((p) => p.banka_hesap_id === selectedId)
         .map((p) => ({
+          id: p.id,
           tarih: p.tarih,
           tutar: p.tutar,
           etiket: p.tur === "avans" ? "Personel avansı" : "Personel ödemesi",
@@ -581,21 +506,38 @@ export function BankaClient({
         })),
     ];
 
-    const transferler: NakitBankaSatiri[] = [];
+    // Transfer yönü HER ZAMAN hedef/kaynak hesap kimliğine göre belirlenir, `tip`'e göre DEĞİL:
+    // tip='gelen' kayıtta para giren hesap hedef_*'tadır (kaynak harici/boş) — tip'e bakan bir
+    // hesap bunu çıkış sayardı. SQL tarafı (banka_bakiye_once_toplam_tumu) de aynı kuralı kullanır.
     for (const t of nakitBankaHareketleri) {
       const buHesapKaynak = t.kaynak_banka_hesap_id === selectedId;
       const buHesapHedef = t.hedef_banka_hesap_id === selectedId;
       if (!buHesapKaynak && !buHesapHedef) continue;
-      transferler.push(t);
 
-      const etiket = t.tip === "hesaplar_arasi" ? (buHesapHedef ? "Hesaptan transfer" : "Hesaba transfer") : buHesapHedef ? "Bankaya giren" : "Bankadan çıkan";
-      const satir: LedgerSatiri = { tarih: t.tarih, tutar: t.tutar, etiket, taraf: t.karsi_taraf_adi ?? t.aciklama ?? undefined };
+      const etiket =
+        t.tip === "hesaplar_arasi"
+          ? buHesapHedef
+            ? "Hesaptan transfer"
+            : "Hesaba transfer"
+          : buHesapHedef
+            ? "Bankaya giren"
+            : "Bankadan çıkan";
+      const aciklama = [t.aciklama, t.karsi_taraf_iban ? `IBAN ${formatIban(t.karsi_taraf_iban)}` : null].filter(Boolean).join(" · ");
+      const satir: LedgerSatiri = {
+        id: t.id,
+        tarih: t.tarih,
+        tutar: t.tutar,
+        etiket,
+        taraf: karsiTarafEtiketi(t, selectedId, bankaHesaplari),
+        aciklama: aciklama || undefined,
+        sil: { hedef: "nakit_banka_hareketi", id: t.id },
+      };
       if (buHesapHedef) gelen.push(satir);
       else giden.push(satir);
     }
 
-    return { gelenRows: gelen, gidenRows: giden, hesabiIlgilendirenTransferler: transferler };
-  }, [selectedId, hastaOdemeleri, harcamalar, personelOdemeleri, nakitBankaHareketleri]);
+    return { gelenRows: gelen, gidenRows: giden };
+  }, [selectedId, hastaOdemeleri, harcamalar, personelOdemeleri, nakitBankaHareketleri, bankaHesaplari]);
 
   if (bankaHesaplari.length === 0) {
     return (
@@ -622,19 +564,13 @@ export function BankaClient({
         gelenRows={gelenRows}
         gidenRows={gidenRows}
         openingBalance={selectedId ? (oncekiBakiyeMap[selectedId] ?? 0) : 0}
+        mod={mod}
         yil={yil}
-        onYilDegistir={(yeniYil) => router.push(`/panel/finans/banka?yil=${yeniYil}`)}
+        ay={ay}
+        yol="/panel/finans/banka"
+        onEk="Havale"
+        onSil={duzenlenebilir ? (sil) => nakitBankaHareketiSil(sil.id) : undefined}
       />
-
-      <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-muted-foreground">Havale Kayıtları</h3>
-        <HavaleKayitlariTablosu
-          hareketler={hesabiIlgilendirenTransferler}
-          bankaHesaplari={bankaHesaplari}
-          selectedId={selectedId}
-          duzenlenebilir={duzenlenebilir}
-        />
-      </div>
     </div>
   );
 }

@@ -1,29 +1,34 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { LedgerView } from "@/components/panel/ledger-view";
+import type { DonemModu } from "@/lib/finans/donem";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 
 export function KrediKartiLedger({
   gelenRows,
   gidenRows,
   openingBalance,
+  mod,
   yil,
+  ay,
 }: {
   gelenRows: LedgerSatiri[];
   gidenRows: LedgerSatiri[];
   openingBalance: number;
+  mod: DonemModu;
   yil: number;
+  ay: number;
 }) {
-  const router = useRouter();
-
   return (
     <LedgerView
       gelenRows={gelenRows}
       gidenRows={gidenRows}
       openingBalance={openingBalance}
+      mod={mod}
       yil={yil}
-      onYilDegistir={(yeniYil) => router.push(`/panel/finans/kredi-karti?yil=${yeniYil}`)}
+      ay={ay}
+      yol="/panel/finans/kredi-karti"
+      onEk="Kredi Kartı"
     />
   );
 }

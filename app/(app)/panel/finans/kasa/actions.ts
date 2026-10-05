@@ -20,11 +20,17 @@ async function yetkiliBaglantiGetir() {
 
   const { data: kullanici } = await supabase
     .from("kullanici")
-    .select("klinik_id, rol")
+    .select("klinik_id, rol, ad_soyad")
     .eq("id", user.id)
     .single();
 
-  return { supabase, user, klinikId: kullanici?.klinik_id ?? null, rol: kullanici?.rol ?? null };
+  return {
+    supabase,
+    user,
+    klinikId: kullanici?.klinik_id ?? null,
+    rol: kullanici?.rol ?? null,
+    adSoyad: (kullanici?.ad_soyad as string | null) ?? null,
+  };
 }
 
 const baslangicSemasi = z.object({
@@ -32,7 +38,7 @@ const baslangicSemasi = z.object({
 });
 
 export async function kasaBaslangicGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
+  const { supabase, klinikId, rol, adSoyad } = await yetkiliBaglantiGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
   }
@@ -56,7 +62,13 @@ export async function kasaBaslangicGuncelle(_onceki: SonucDurumu, formData: Form
 
   const guncelAyarlar = {
     ...(mevcutSatir?.ayarlar as Record<string, unknown> | null),
-    kasa: { baslangic_tutari: ayristirma.data.baslangic_tutari },
+    // Başlangıç tutarı girildiği an + giren kişi de saklanır: tutar, Kasa Hareketleri'ne
+    // "Kasa Başlangıç" olarak BU tarihte işlenir (bkz. kasa/page.tsx). Her güncelleme zamanı yeniler.
+    kasa: {
+      baslangic_tutari: ayristirma.data.baslangic_tutari,
+      baslangic_zamani: new Date().toISOString(),
+      baslangic_giren: adSoyad ?? "—",
+    },
   };
 
   const { error } = await supabase
@@ -262,4 +274,53 @@ export async function kasaPersonelOdemesiEkle(_onceki: SonucDurumu, formData: Fo
 
   revalidatePath("/panel/finans/kasa");
   return { success: true, message: "Personel ödemesi kaydedildi." };
+}
+
+const dengelemeSemasi = z.object({
+  tutar: z.coerce.number().refine((n) => Number.isFinite(n) && n !== 0, "Dengeleme bedeli 0 olamaz."),
+  aciklama: z.string().trim().optional(),
+});
+
+/** Kasa Kontrol > Kasa Dengeleme: işaretli tutar (+ kasaya ekler, − kasadan düşer). */
+export async function kasaDengelemeEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, user, klinikId, rol, adSoyad } = await yetkiliBaglantiGetir();
+  if (!klinikId) return { success: false, message: "Klinik bilgisi bulunamadı." };
+  if (rol !== "klinik_admin") return { success: false, message: "Bu işlem için yetkiniz yok." };
+
+  const ayristirma = dengelemeSemasi.safeParse({
+    tutar: formData.get("tutar"),
+    aciklama: formData.get("aciklama") ?? "",
+  });
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { error } = await supabase.from("kasa_dengeleme").insert({
+    klinik_id: klinikId,
+    tutar: ayristirma.data.tutar,
+    aciklama: ayristirma.data.aciklama ? ayristirma.data.aciklama : null,
+    ekleyen_kullanici_id: user.id,
+    ekleyen_ad: adSoyad ?? "—",
+  });
+  if (error) {
+    console.error("Kasa dengelemesi eklenemedi:", error);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/finans/kasa");
+  return { success: true, message: "Kasa dengelemesi kaydedildi." };
+}
+
+export async function kasaDengelemeSil(id: string): Promise<SonucDurumu> {
+  const { supabase, rol } = await yetkiliBaglantiGetir();
+  if (rol !== "klinik_admin") return { success: false, message: "Bu işlem için yetkiniz yok." };
+
+  const { error } = await supabase.from("kasa_dengeleme").delete().eq("id", id);
+  if (error) {
+    console.error("Kasa dengelemesi silinemedi:", error);
+    return { success: false, message: "Silinemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/finans/kasa");
+  return { success: true, message: "Dengeleme silindi." };
 }
