@@ -17,6 +17,10 @@
     {
       "path": "/api/cron/personel-donem-otomatik-kapat",
       "schedule": "0 3 1 * *"
+    },
+    {
+      "path": "/api/cron/audit-log-bolum-olustur",
+      "schedule": "0 2 1 * *"
     }
   ]
 }
