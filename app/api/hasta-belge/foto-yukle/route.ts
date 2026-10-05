@@ -7,6 +7,13 @@ import { MAX_DOSYA_BOYUTU_BYTE, type BelgeAsama, type BelgeKategori, type BelgeT
 // sharp native binary gerektirdiği için Node runtime zorunlu (Edge'de çalışmaz).
 export const runtime = "nodejs";
 
+const UZANTI_BY_MIME: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+};
+
 function bosIseNull(deger: FormDataEntryValue | null): string | null {
   if (deger == null) return null;
   const s = String(deger).trim();
@@ -47,6 +54,12 @@ export async function POST(req: Request) {
   if (file.size > MAX_DOSYA_BOYUTU_BYTE) {
     return NextResponse.json({ error: "Dosya boyutu çok büyük." }, { status: 400 });
   }
+  // İstemci görselleri WebP'ye çevirir; sunucu yine de türü zorlar ve uzantıyı
+  // dosya adından değil türden türetir (adı "x.html" olan bir dosya yüklenmesin).
+  const uzanti = UZANTI_BY_MIME[file.type];
+  if (!uzanti) {
+    return NextResponse.json({ error: "Desteklenmeyen dosya türü." }, { status: 400 });
+  }
 
   // RLS klinik_id = current_klinik_id() ile sınırlar; satır dönerse kendi kliniğindendir.
   const { data: hasta } = await supabase.from("hasta").select("id, klinik_id").eq("id", hastaId).single();
@@ -62,7 +75,6 @@ export async function POST(req: Request) {
   const cekenKurum = bosIseNull(formData.get("cekenKurum"));
 
   const belgeId = randomUUID();
-  const uzanti = file.name.split(".").pop()?.toLowerCase() || (file.type === "application/pdf" ? "pdf" : "webp");
   const path = `${hasta.klinik_id}/${hastaId}/${kategori}/${belgeId}.${uzanti}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -102,6 +114,8 @@ export async function POST(req: Request) {
 
   if (kayitHatasi || !belge) {
     console.error("Belge kaydedilemedi:", kayitHatasi);
+    // Satırı olmayan dosya Storage'da sahipsiz kalmasın.
+    await supabase.storage.from("hasta-belge").remove([path]);
     return NextResponse.json({ error: "Belge kaydedilemedi, lütfen tekrar deneyin." }, { status: 500 });
   }
 

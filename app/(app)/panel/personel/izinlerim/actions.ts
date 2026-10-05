@@ -9,6 +9,13 @@ import { anlikMesajTetikle, klinikAdminleriniGetir } from "@/lib/mesaj/anlik-tet
 import { IZIN_TIP_ETIKETLERI, type IzinTip } from "@/types/izin";
 import { formatDate } from "@/lib/datetime";
 
+const IZIN_BELGE_TURLERI: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+const IZIN_BELGE_MAX_BYTE = 10 * 1024 * 1024;
+
 type SonucDurumu = { success: boolean; message: string } | null;
 
 const talepSemasi = z.object({
@@ -102,8 +109,16 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
   let belgeUrl: string | null = null;
   const belgeDosyasi = formData.get("belge");
   if (belgeDosyasi instanceof File && belgeDosyasi.size > 0) {
+    // Yükleme service-role ile yapıldığı için tür/boyut sunucuda da zorlanır
+    // (formdaki `accept` yalnız tarayıcı ipucu); uzantı kullanıcı adından değil türden.
+    const uzanti = IZIN_BELGE_TURLERI[belgeDosyasi.type];
+    if (!uzanti) {
+      return { success: false, message: "Belge yalnız PDF, JPG veya PNG olabilir." };
+    }
+    if (belgeDosyasi.size > IZIN_BELGE_MAX_BYTE) {
+      return { success: false, message: "Belge en fazla 10 MB olabilir." };
+    }
     const adminClient = createAdminClient();
-    const uzanti = belgeDosyasi.name.split(".").pop() || "pdf";
     const yol = `${personel.klinik_id}/izin/${personel.id}/${Date.now()}.${uzanti}`;
     const { error: yuklemeHatasi } = await adminClient.storage
       .from("personel-belge")
