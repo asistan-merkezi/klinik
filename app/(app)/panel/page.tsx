@@ -4,22 +4,18 @@ import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import type { RandevuSatir, SecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
 import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
 import { RANDEVU_SELECT } from "@/lib/randevu/queries";
-import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
 import type { KlinikBankaHesabi } from "@/types/klinik";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
-import { BekleyenIptalTalepleri } from "@/app/(app)/panel/randevular/bekleyen-iptal-talepleri";
-import { BekleyenRandevuTalepleri } from "@/app/(app)/panel/randevular/bekleyen-randevu-talepleri";
 import { gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
 import { PageHeader } from "@/components/ui/page-header";
-import { KpiCard } from "@/components/ui/kpi-card";
+import { BugunkuSeanslarKarti } from "@/components/panel/bugunku-seanslar-karti";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { YeniRandevuDialog } from "@/app/(app)/panel/randevular/yeni-randevu-dialog";
 import { YeniHastaDialog } from "@/app/(app)/panel/hastalar/yeni-hasta-dialog";
-import { CalendarClock, Inbox } from "lucide-react";
 
 const KARSILAMA_TARIH_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   weekday: "long",
@@ -72,8 +68,6 @@ export default async function PanelSayfasi() {
     tedaviler,
     personelSonucu,
     protokolSonucu,
-    iptalTalepleriSonucu,
-    randevuTalepleriSonucu,
     bankaHesabiSonucu,
   ] = await Promise.all([
     supabase
@@ -94,24 +88,6 @@ export default async function PanelSayfasi() {
     supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
     finansalGorunur
       ? supabase
-          .from("randevu_iptal_talebi")
-          .select("id, durum, created_at, randevu(id, baslangic, durum, hasta(ad_soyad))")
-          .eq("durum", "bekliyor")
-          .order("created_at")
-          .returns<BekleyenIptalTalebiSatir[]>()
-      : Promise.resolve({ data: [] as BekleyenIptalTalebiSatir[] }),
-    finansalGorunur
-      ? supabase
-          .from("randevu_talebi")
-          .select(
-            "id, hasta_id, islem_tanimi_id, tercih_tarih, tercih_saat, not_metni, created_at, hasta(ad_soyad), islem_tanimi(ad)"
-          )
-          .eq("durum", "bekliyor")
-          .order("created_at")
-          .returns<BekleyenRandevuTalebiSatir[]>()
-      : Promise.resolve({ data: [] as BekleyenRandevuTalebiSatir[] }),
-    finansalGorunur
-      ? supabase
           .from("klinik_banka_hesaplari")
           .select("id, banka_adi, sube")
           .order("sort_order")
@@ -127,17 +103,11 @@ export default async function PanelSayfasi() {
   const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
   const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
   const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
-  const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
-  const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
   if (error) {
     console.error("Bugünkü randevular çekilemedi:", error);
   }
 
   const bugunkuRandevuSayisi = randevular?.length ?? 0;
-  const bugunkuTamamlanan = (randevular ?? []).filter((r) =>
-    ["geldi", "gecikmeli_geldi", "tamamlandi"].includes(r.durum)
-  ).length;
-  const bekleyenTalepSayisi = bekleyenIptalTalepleri.length + bekleyenRandevuTalepleri.length;
 
   // Terapist Durumları — bugünkü randevulardan (zaten sunucuda çekildi, ayrı
   // sorgu gerekmedi) o an "seansta" olan terapistler türetiliyor. CanliCizelge
@@ -160,15 +130,7 @@ export default async function PanelSayfasi() {
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Bugünkü Seanslar"
-            value={`${bugunkuTamamlanan} / ${bugunkuRandevuSayisi}`}
-            icon={CalendarClock}
-            iconTone="emerald"
-          />
-          {finansalGorunur && (
-            <KpiCard label="Bekleyen Talepler" value={bekleyenTalepSayisi} icon={Inbox} iconTone="amber" />
-          )}
+          <BugunkuSeanslarKarti randevular={randevular ?? []} />
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -218,34 +180,6 @@ export default async function PanelSayfasi() {
                 )}
               </CardContent>
             </Card>
-
-            {finansalGorunur && bekleyenRandevuTalepleri.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bekleyen Randevu Talepleri</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <BekleyenRandevuTalepleri
-                    talepler={bekleyenRandevuTalepleri}
-                    terapistler={terapistler}
-                    odalar={odalar}
-                    cihazlar={cihazlar}
-                    tedaviler={tedaviler}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {finansalGorunur && bekleyenIptalTalepleri.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bekleyen İptal Talepleri</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <BekleyenIptalTalepleri talepler={bekleyenIptalTalepleri} />
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
 
