@@ -14,6 +14,16 @@ export function BekleyenIptalTalepleri({ talepler }: { talepler: BekleyenIptalTa
     return null;
   }
 
+  // Bedelli: uygun pakette 1 hak düşer, paketsizse seans bedeli bakiyeye işlenir; bedelsiz: hiçbir şeye dokunulmaz.
+  function onayla(talep: BekleyenIptalTalebiSatir, bedelli: boolean) {
+    startTransition(async () => {
+      const r = await iptalTalebiOnayla(talep.id, talep.randevu!.id, bedelli);
+      if (r?.success) {
+        setIslenenler((s) => new Set(s).add(talep.id));
+      }
+    });
+  }
+
   return (
     <ul className="flex flex-col divide-y divide-border">
       {talepler.map((talep) => {
@@ -31,25 +41,27 @@ export function BekleyenIptalTalepleri({ talepler }: { talepler: BekleyenIptalTa
               {talep.aciklama && <span className="text-muted-foreground">Açıklama: {talep.aciklama}</span>}
               {talep.gec_iptal && (
                 <span className="font-medium text-amber-700 dark:text-amber-400">
-                  Geç iptal (18 saatten az kala) — onaylanırsa seans sayılır, uygun pakette 1 hak düşer.
+                  Randevuya 18 saatten az kala talep edildi (geç iptal).
                 </span>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 size="sm"
                 disabled={pending}
-                onClick={() =>
-                  startTransition(async () => {
-                    const r = await iptalTalebiOnayla(talep.id, talep.randevu!.id);
-                    if (r?.success) {
-                      setIslenenler((s) => new Set(s).add(talep.id));
-                    }
-                  })
-                }
+                onClick={() => onayla(talep, true)}
               >
-                Onayla (iptal et)
+                Bedelli iptal
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => onayla(talep, false)}
+              >
+                Bedelsiz iptal
               </Button>
               <Button
                 type="button"

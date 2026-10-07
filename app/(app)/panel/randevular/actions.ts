@@ -494,22 +494,27 @@ export async function randevuDurumGuncelle(
 
 function iptalHatasiMesaji(mesaj: string | undefined): string | null {
   if (!mesaj) return null;
-  if (mesaj.includes("gec_iptal_onay_gerekli")) return "Geç iptal için onay gerekli.";
-  if (mesaj.includes("gec_iptal_aciklama_gerekli")) return "Geç iptalde açıklama yazmalısınız.";
   if (mesaj.includes("tamamlanmis_randevu_iptal_edilemez")) return "Tamamlanmış seans iptal edilemez.";
-  if (mesaj.includes("yetkisiz")) return "Bu işlem için yetkiniz yok.";
+  if (mesaj.includes("yetkisiz")) return "Bu işlem için yetkiniz yok (bedelli iptal yalnızca yönetici/resepsiyon).";
   return null;
 }
 
+function iptalSonucMesaji(sonuc: { bedelli?: boolean; paket_dusuldu?: boolean; borc_yazildi?: boolean } | null): string {
+  if (!sonuc?.bedelli) return "Randevu bedelsiz iptal edildi.";
+  if (sonuc.paket_dusuldu) return "Randevu bedelli iptal edildi; paketten 1 seans düşüldü.";
+  if (sonuc.borc_yazildi) return "Randevu bedelli iptal edildi; seans bedeli bakiyeye işlendi.";
+  return "Randevu bedelli iptal edildi.";
+}
+
 /**
- * Randevuyu iptal eder (açıklamalı). Başlangıca 18 saatten az kala iptal "geç
- * iptal"dir: seans sayılır (uygun pakette 1 hak düşer) ve istemcinin uyarıyı
- * onayladığını gösteren `gecOnay` şarttır — sunucu da RPC'de zorlar.
+ * Randevuyu iptal eder (açıklamalı). `bedelli`: personelin seçimi — bedelli iptalde
+ * hastanın uygun paketinden 1 hak düşer, paket yoksa seans bedeli bakiyeye borç
+ * yazılır ve açıklamaya "(geç iptal)" eklenir; bedelsiz iptal hiçbir şeye dokunmaz.
  */
 export async function randevuIptalEt(
   randevuId: string,
   aciklama: string,
-  gecOnay: boolean
+  bedelli: boolean
 ): Promise<SonucDurumu> {
   const supabase = await createClient();
   const {
@@ -522,7 +527,7 @@ export async function randevuIptalEt(
   const { data, error } = await supabase.rpc("randevu_iptal_et", {
     p_randevu_id: randevuId,
     p_aciklama: aciklama.trim() || null,
-    p_gec_onay: gecOnay,
+    p_bedelli: bedelli,
     p_gec_iptal: null,
   });
 
@@ -531,20 +536,13 @@ export async function randevuIptalEt(
     return { success: false, message: iptalHatasiMesaji(error.message) ?? "Randevu iptal edilemedi, lütfen tekrar deneyin." };
   }
 
-  const sonuc = data as { hasta_id?: string; gec_iptal?: boolean; paket_dusuldu?: boolean } | null;
+  const sonuc = data as { hasta_id?: string; bedelli?: boolean; paket_dusuldu?: boolean; borc_yazildi?: boolean } | null;
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   if (sonuc?.hasta_id) {
     revalidateHastaDetay(sonuc.hasta_id);
   }
-  return {
-    success: true,
-    message: sonuc?.paket_dusuldu
-      ? "Randevu iptal edildi; geç iptal olduğu için paketten 1 seans düşüldü."
-      : sonuc?.gec_iptal
-        ? "Randevu geç iptal olarak kaydedildi (seans sayıldı)."
-        : "Randevu iptal edildi.",
-  };
+  return { success: true, message: iptalSonucMesaji(sonuc) };
 }
 
 /** Yönetici: mantıklı bir sebeple iptal edilen randevuyu geri alır (düşülen paket hakkı iade edilir). */
@@ -567,10 +565,13 @@ export async function randevuIptalGeriAl(randevuId: string): Promise<SonucDurumu
     if (error.message?.includes("yetkisiz")) {
       return { success: false, message: "İptali yalnızca yönetici geri alabilir." };
     }
+    if (error.message?.includes("borc_faturali_geri_alinamaz")) {
+      return { success: false, message: "İptalde yazılan borç faturalanmış, geri alınamaz. Önce faturayı/borcu düzeltin." };
+    }
     return { success: false, message: "İptal geri alınamadı, lütfen tekrar deneyin." };
   }
 
-  const sonuc = data as { hasta_id?: string; paket_iade?: boolean } | null;
+  const sonuc = data as { hasta_id?: string; paket_iade?: boolean; borc_silindi?: boolean } | null;
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   if (sonuc?.hasta_id) {
@@ -578,7 +579,11 @@ export async function randevuIptalGeriAl(randevuId: string): Promise<SonucDurumu
   }
   return {
     success: true,
-    message: sonuc?.paket_iade ? "İptal geri alındı; düşülen paket hakkı iade edildi." : "İptal geri alındı.",
+    message: sonuc?.paket_iade
+      ? "İptal geri alındı; düşülen paket hakkı iade edildi."
+      : sonuc?.borc_silindi
+        ? "İptal geri alındı; iptalde yazılan seans bedeli bakiyeden silindi."
+        : "İptal geri alındı.",
   };
 }
 
@@ -785,7 +790,7 @@ async function paketYenilemeUyarisiIsle(paketSatisId: string, randevuId: string)
 
 type SonucDurumu2 = { success: boolean; message: string } | null;
 
-export async function iptalTalebiOnayla(talepId: string, randevuId: string): Promise<SonucDurumu2> {
+export async function iptalTalebiOnayla(talepId: string, randevuId: string, bedelli: boolean): Promise<SonucDurumu2> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -801,12 +806,11 @@ export async function iptalTalebiOnayla(talepId: string, randevuId: string): Pro
     .eq("id", talepId)
     .single<{ aciklama: string | null; gec_iptal: boolean }>();
 
-  // Talebin kendi (talep anındaki) geç iptal bilgisiyle iptal edilir; onaylayan
-  // personel arayüzde zaten "seans sayılacak" uyarısını görmüştür.
+  // Bedelli/bedelsiz kararı onaylayan personelden gelir; talebin geç iptal bilgisi yalnız kayıt içindir.
   const { error: iptalHatasi } = await supabase.rpc("randevu_iptal_et", {
     p_randevu_id: randevuId,
-    p_aciklama: talep?.aciklama ?? (talep?.gec_iptal ? "Hasta portalı iptal talebi" : null),
-    p_gec_onay: true,
+    p_aciklama: talep?.aciklama ?? "Hasta portalı iptal talebi",
+    p_bedelli: bedelli,
     p_gec_iptal: talep?.gec_iptal ?? null,
   });
   const { error: talepHatasi } = iptalHatasi

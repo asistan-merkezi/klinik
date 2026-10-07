@@ -302,12 +302,15 @@ function IptalBilgisiKarti({ randevu, yoneticiMi }: { randevu: RandevuSatir; yon
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 text-sm">
       <p className="font-semibold text-destructive">Bu randevu iptal edilmiştir.</p>
-      {randevu.gec_iptal && (
-        <p className="text-amber-700 dark:text-amber-400">
-          Geç iptal (18 saatten az kala) — seans sayıldı
-          {randevu.iptal_paket_dusuldu ? "; paketten 1 hak düşüldü." : "."}
-        </p>
-      )}
+      <p className={randevu.bedelli_iptal ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}>
+        {randevu.bedelli_iptal
+          ? randevu.iptal_paket_dusuldu
+            ? "Bedelli iptal — paketten 1 hak düşüldü."
+            : randevu.iptal_borc_yazildi
+              ? "Bedelli iptal — seans bedeli bakiyeye işlendi."
+              : "Bedelli iptal."
+          : "Bedelsiz iptal."}
+      </p>
       <div className="grid grid-cols-[110px_1fr] gap-2">
         <span className="font-medium text-muted-foreground">Açıklama:</span>
         <span>{randevu.iptal_aciklamasi ?? "—"}</span>

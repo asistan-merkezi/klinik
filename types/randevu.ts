@@ -37,6 +37,9 @@ export type RandevuSatir = {
   iptal_tarihi?: string | null;
   gec_iptal?: boolean;
   iptal_paket_dusuldu?: boolean;
+  /** Personelin seçtiği bedelli iptal (paketten düşer / paketsizse bakiyeye borç). */
+  bedelli_iptal?: boolean;
+  iptal_borc_yazildi?: boolean;
   tamamlanma_tarihi?: string | null;
   tamamlayan_kullanici?: { ad_soyad: string } | null;
   /** Check-in'de bir paketten düşüldüyse dolu (bkz. randevu_gelis_isaretle). */

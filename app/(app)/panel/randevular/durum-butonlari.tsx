@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateForInput, formatTimeForInput } from "@/lib/datetime";
-import { gecIptalMi, GEC_IPTAL_UYARISI } from "@/lib/randevu/gec-iptal";
+import { gecIptalMi } from "@/lib/randevu/gec-iptal";
 import type { RandevuDurum, RandevuSatir } from "@/types/randevu";
 import {
   randevuGelisIsaretle,
@@ -55,16 +55,14 @@ const TEXTAREA_SINIFI =
  * ne olursa olsun hepsi seçilebilir (yanlış işaretlemeler düzeltilsin).
  * Başarıyla uygulanan seçenek çizelge kutucuğuyla aynı renge boyanır.
  *
- * İptal: başlangıca 18 saatten az kala ise "seansınız sayılacaktır" uyarısı,
- * zorunlu açıklama ve ek bir "Emin misiniz?" onayı çıkar (bkz. lib/randevu/gec-iptal.ts;
- * sunucu RPC'si de aynı eşiği ve onayı zorlar).
+ * İptal: "Kaydet" yerine "Bedelli İptal" / "Bedelsiz İptal" seçilir (2026-10-07).
+ * Bedelli: paket varsa 1 hak düşer, yoksa seans bedeli bakiyeye borç yazılır.
  */
 export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
   const [isPending, startTransition] = useTransition();
   const [sonuc, setSonuc] = useState<Sonuc>(null);
   const [secim, setSecim] = useState<RandevuDurum | null>(null);
   const [uygulanan, setUygulanan] = useState<RandevuDurum | null>(null);
-  const [gecOnayiBekliyor, setGecOnayiBekliyor] = useState(false);
   const [gecikmeDakika, setGecikmeDakika] = useState("15");
   const [ertelemeTarih, setErtelemeTarih] = useState(() => formatDateForInput(randevu.baslangic));
   const [ertelemeSaat, setErtelemeSaat] = useState(() => formatTimeForInput(randevu.baslangic));
@@ -76,7 +74,6 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
 
   function sec(durum: RandevuDurum) {
     setSecim((s) => (s === durum ? null : durum));
-    setGecOnayiBekliyor(false);
     setSonuc(null);
   }
 
@@ -94,14 +91,12 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
         return !!ertelemeTarih && !!ertelemeSaat;
       case "tamamlandi":
         return !!tamamlaAciklama.trim();
-      case "iptal":
-        return !gecIptal || !!iptalAciklama.trim();
       default:
         return secim !== null;
     }
   }
 
-  function uygula(gecOnay: boolean) {
+  function uygula(bedelli = false) {
     if (!secim) return;
     const hedef = secim;
     let eylem: () => Promise<Sonuc>;
@@ -124,7 +119,7 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
         };
         break;
       case "iptal":
-        eylem = () => randevuIptalEt(randevu.id, iptalAciklama, gecOnay);
+        eylem = () => randevuIptalEt(randevu.id, iptalAciklama, bedelli);
         break;
       case "tamamlandi":
         eylem = () => randevuSeansiTamamla(randevu.id, tamamlaAciklama.trim());
@@ -135,20 +130,11 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
     startTransition(async () => {
       const r = await eylem();
       setSonuc(r);
-      setGecOnayiBekliyor(false);
       if (r?.success) {
         setUygulanan(hedef);
         setSecim(null);
       }
     });
-  }
-
-  function kaydetTiklandi() {
-    if (secim === "iptal" && gecIptal) {
-      setGecOnayiBekliyor(true);
-      return;
-    }
-    uygula(false);
   }
 
   return (
@@ -232,10 +218,10 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
         <div className="flex flex-col gap-2 rounded-lg border border-border p-2.5">
           {gecIptal && (
             <p role="status" className="rounded-lg bg-amber-500/10 px-2.5 py-2 text-sm text-amber-700 dark:text-amber-400">
-              {GEC_IPTAL_UYARISI}
+              Randevuya 18 saatten az kaldı (ya da saati geçti).
             </p>
           )}
-          <Label htmlFor="iptal_aciklama">Açıklama{gecIptal ? "" : " (opsiyonel)"}</Label>
+          <Label htmlFor="iptal_aciklama">Açıklama (opsiyonel)</Label>
           <textarea
             id="iptal_aciklama"
             value={iptalAciklama}
@@ -245,33 +231,25 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
             placeholder="İptal sebebini yazın..."
             className={TEXTAREA_SINIFI}
           />
-        </div>
-      )}
-
-      {secim && !gecOnayiBekliyor && (
-        <Button type="button" size="sm" className="w-fit" disabled={isPending || !kaydetGecerli()} onClick={kaydetTiklandi}>
-          {isPending ? "Kaydediliyor..." : "Kaydet"}
-        </Button>
-      )}
-
-      {gecOnayiBekliyor && (
-        <div role="alertdialog" className="flex flex-col gap-2 rounded-lg border border-destructive/40 p-2.5 text-sm">
-          <p className="font-medium">{GEC_IPTAL_UYARISI} Emin misiniz?</p>
-          <div className="flex gap-2">
+          <p className="text-xs text-muted-foreground">
+            Bedelli iptal: paket varsa paketten 1 seans düşer, yoksa seans bedeli bakiyeye işlenir (açıklamaya
+            &quot;(geç iptal)&quot; eklenir). Bedelsiz iptal hiçbir şeye dokunmaz.
+          </p>
+          <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="destructive" disabled={isPending} onClick={() => uygula(true)}>
-              {isPending ? "İptal ediliyor..." : "Evet, iptal et"}
+              {isPending ? "İptal ediliyor..." : "Bedelli İptal"}
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => setGecOnayiBekliyor(false)}
-            >
-              Vazgeç
+            <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={() => uygula(false)}>
+              Bedelsiz İptal
             </Button>
           </div>
         </div>
+      )}
+
+      {secim && secim !== "iptal" && (
+        <Button type="button" size="sm" className="w-fit" disabled={isPending || !kaydetGecerli()} onClick={() => uygula()}>
+          {isPending ? "Kaydediliyor..." : "Kaydet"}
+        </Button>
       )}
 
       {sonuc && (
