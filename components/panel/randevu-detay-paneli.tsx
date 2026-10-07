@@ -142,13 +142,55 @@ function OdemeVeyaCariKarti({
   );
 }
 
+type TedaviAdimi = { id: string; ad: string; sure_dakika: number | null; cihaz: { ad: string } | null };
+
+/** Randevudaki tedavinin yapılacak işlem adımları (sırayla) — salt-okunur. */
+function TedaviAdimlari({ islemTanimiId }: { islemTanimiId: string }) {
+  const { data: adimlar, isLoading } = useQuery({
+    queryKey: ["randevu-tedavi-adimlari", islemTanimiId],
+    enabled: !!islemTanimiId,
+    queryFn: async () => {
+      const { data, error } = await createClient()
+        .from("islem_tanimi_adim")
+        .select("id, ad, sure_dakika, cihaz:gerekli_cihaz_id(ad)")
+        .eq("islem_tanimi_id", islemTanimiId)
+        .order("sira", { ascending: true })
+        .returns<TedaviAdimi[]>();
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return (
+    <div className="mt-1 border-t border-border pt-2">
+      <p className="mb-1 font-medium text-muted-foreground">Tedavi Bilgileri</p>
+      {isLoading ? (
+        <p className="text-muted-foreground">Yükleniyor...</p>
+      ) : !adimlar || adimlar.length === 0 ? (
+        <p className="text-muted-foreground">Tanımlı işlem adımı yok.</p>
+      ) : (
+        <ol className="flex list-decimal flex-col gap-0.5 pl-5">
+          {adimlar.map((a) => (
+            <li key={a.id}>
+              {a.ad}
+              <span className="tabular text-muted-foreground">
+                {a.sure_dakika ? ` · ${a.sure_dakika} dk` : ""}
+                {a.cihaz?.ad ? ` · ${a.cihaz.ad}` : ""}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export function RandevuDetayPaneli({
   open,
   onOpenChange,
   randevu,
   terapistler,
   odalar,
-  cihazlar,
   tedaviler,
   antrenorler,
   protokoller,
@@ -266,91 +308,25 @@ export function RandevuDetayPaneli({
           <input type="hidden" name="hasta_id" value={randevu.hasta_id ?? ""} />
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="detay_terapist_id">Dr / Terapist</Label>
-              <Select
-                name="terapist_id"
-                required
-                disabled={isPending}
-                defaultValue={randevu.terapist_id}
-                items={terapistler.map((t) => ({ value: t.id, label: t.ad }))}
-              >
-                <SelectTrigger id="detay_terapist_id" className="w-full">
-                  <SelectValue placeholder="Dr / Terapist seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {terapistler.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.ad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <input type="hidden" name="terapist_id" value={randevu.terapist_id} />
+            <input type="hidden" name="oda_id" value={randevu.oda_id} />
+            <input type="hidden" name="islem_tanimi_id" value={randevu.islem_tanimi?.id ?? ""} />
+            <input type="hidden" name="cihaz_id" value={randevu.cihaz_id ?? ""} />
 
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="detay_oda_id">Oda</Label>
-              <Select
-                name="oda_id"
-                required
-                disabled={isPending}
-                defaultValue={randevu.oda_id}
-                items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
-              >
-                <SelectTrigger id="detay_oda_id" className="w-full">
-                  <SelectValue placeholder="Oda seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {odalar.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.ad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="detay_islem_tanimi_id">Tedavi</Label>
-              <Select
-                name="islem_tanimi_id"
-                required
-                disabled={isPending}
-                defaultValue={randevu.islem_tanimi?.id}
-                items={tedaviler.map((t) => ({ value: t.id, label: t.ad }))}
-              >
-                <SelectTrigger id="detay_islem_tanimi_id" className="w-full">
-                  <SelectValue placeholder="Tedavi seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tedaviler.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.ad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="detay_cihaz_id">Cihaz (opsiyonel)</Label>
-              <Select
-                name="cihaz_id"
-                disabled={isPending || cihazlar.length === 0}
-                defaultValue={randevu.cihaz_id ?? undefined}
-                items={cihazlar.map((c) => ({ value: c.id, label: c.ad }))}
-              >
-                <SelectTrigger id="detay_cihaz_id" className="w-full">
-                  <SelectValue placeholder={cihazlar.length === 0 ? "Kayıtlı cihaz yok" : "Cihaz seçin"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {cihazlar.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.ad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5 text-sm sm:col-span-2">
+              <div className="grid grid-cols-[110px_1fr] gap-2">
+                <span className="font-medium text-muted-foreground">Dr / Terapist:</span>
+                <span>{terapistler.find((t) => t.id === randevu.terapist_id)?.ad ?? "—"}</span>
+              </div>
+              <div className="grid grid-cols-[110px_1fr] gap-2">
+                <span className="font-medium text-muted-foreground">Oda:</span>
+                <span>{odalar.find((o) => o.id === randevu.oda_id)?.ad ?? "—"}</span>
+              </div>
+              <div className="grid grid-cols-[110px_1fr] gap-2">
+                <span className="font-medium text-muted-foreground">Tedavi:</span>
+                <span>{tedaviler.find((t) => t.id === randevu.islem_tanimi?.id)?.ad ?? randevu.islem_tanimi?.ad ?? "—"}</span>
+              </div>
+              <TedaviAdimlari islemTanimiId={randevu.islem_tanimi?.id ?? ""} />
             </div>
 
             <div className="flex flex-col gap-1">
