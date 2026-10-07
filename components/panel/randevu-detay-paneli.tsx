@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PackageOpen, Wallet } from "lucide-react";
+import { PackageOpen, Pencil, Wallet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { DURUM_TONU_SINIFLARI } from "@/lib/ui/durum-tonlari";
 import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
@@ -185,6 +185,116 @@ function TedaviAdimlari({ islemTanimiId }: { islemTanimiId: string }) {
   );
 }
 
+/**
+ * Seans bilgisi: tedavi/cihaz sabit (randevu o bilgilerle oluştu), ama anlık
+ * terapist ya da oda değişimi olabilir — düzenle ikonuyla yalnız bu ikisi açılır.
+ */
+function SeansBilgisiKutusu({
+  randevu,
+  terapistler,
+  odalar,
+  tedaviler,
+  disabled,
+}: {
+  randevu: RandevuSatir;
+  terapistler: SecenekSatir[];
+  odalar: SecenekSatir[];
+  tedaviler: SecenekSatir[];
+  disabled: boolean;
+}) {
+  const [duzenle, setDuzenle] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5 text-sm sm:col-span-2">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold">Seans Bilgisi</p>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label={duzenle ? "Düzenlemeyi kapat" : "Terapist/oda düzenle"}
+          aria-pressed={duzenle}
+          onClick={() => setDuzenle((d) => !d)}
+        >
+          <Pencil />
+        </Button>
+      </div>
+
+      {duzenle ? (
+        <>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="detay_terapist_id">Dr / Terapist</Label>
+            <Select
+              name="terapist_id"
+              required
+              disabled={disabled}
+              defaultValue={randevu.terapist_id}
+              items={terapistler.map((t) => ({ value: t.id, label: t.ad }))}
+            >
+              <SelectTrigger id="detay_terapist_id" className="w-full">
+                <SelectValue placeholder="Dr / Terapist seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {terapistler.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.ad}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="detay_oda_id">Oda</Label>
+            <Select
+              name="oda_id"
+              required
+              disabled={disabled}
+              defaultValue={randevu.oda_id}
+              items={odalar.map((o) => ({ value: o.id, label: o.ad }))}
+            >
+              <SelectTrigger id="detay_oda_id" className="w-full">
+                <SelectValue placeholder="Oda seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {odalar.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.ad}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      ) : (
+        <>
+          <input type="hidden" name="terapist_id" value={randevu.terapist_id} />
+          <input type="hidden" name="oda_id" value={randevu.oda_id} />
+          <div className="grid grid-cols-[110px_1fr] gap-2">
+            <span className="font-medium text-muted-foreground">Dr / Terapist:</span>
+            <span>{terapistler.find((t) => t.id === randevu.terapist_id)?.ad ?? "—"}</span>
+          </div>
+          <div className="grid grid-cols-[110px_1fr] gap-2">
+            <span className="font-medium text-muted-foreground">Oda:</span>
+            <span>{odalar.find((o) => o.id === randevu.oda_id)?.ad ?? "—"}</span>
+          </div>
+        </>
+      )}
+
+      <div className="grid grid-cols-[110px_1fr] gap-2">
+        <span className="font-medium text-muted-foreground">Tarih / Saat:</span>
+        <span className="tabular">
+          {formatDateForInput(randevu.baslangic).split("-").reverse().join(".")} · {formatTimeForInput(randevu.baslangic)}
+        </span>
+      </div>
+      <div className="grid grid-cols-[110px_1fr] gap-2">
+        <span className="font-medium text-muted-foreground">Tedavi:</span>
+        <span>{tedaviler.find((t) => t.id === randevu.islem_tanimi?.id)?.ad ?? randevu.islem_tanimi?.ad ?? "—"}</span>
+      </div>
+      <TedaviAdimlari islemTanimiId={randevu.islem_tanimi?.id ?? ""} />
+    </div>
+  );
+}
+
 export function RandevuDetayPaneli({
   open,
   onOpenChange,
@@ -308,64 +418,13 @@ export function RandevuDetayPaneli({
           <input type="hidden" name="hasta_id" value={randevu.hasta_id ?? ""} />
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <input type="hidden" name="terapist_id" value={randevu.terapist_id} />
-            <input type="hidden" name="oda_id" value={randevu.oda_id} />
             <input type="hidden" name="islem_tanimi_id" value={randevu.islem_tanimi?.id ?? ""} />
             <input type="hidden" name="cihaz_id" value={randevu.cihaz_id ?? ""} />
+            <SeansBilgisiKutusu randevu={randevu} terapistler={terapistler} odalar={odalar} tedaviler={tedaviler} disabled={isPending} />
 
-            <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/30 p-3.5 text-sm sm:col-span-2">
-              <div className="grid grid-cols-[110px_1fr] gap-2">
-                <span className="font-medium text-muted-foreground">Dr / Terapist:</span>
-                <span>{terapistler.find((t) => t.id === randevu.terapist_id)?.ad ?? "—"}</span>
-              </div>
-              <div className="grid grid-cols-[110px_1fr] gap-2">
-                <span className="font-medium text-muted-foreground">Oda:</span>
-                <span>{odalar.find((o) => o.id === randevu.oda_id)?.ad ?? "—"}</span>
-              </div>
-              <div className="grid grid-cols-[110px_1fr] gap-2">
-                <span className="font-medium text-muted-foreground">Tedavi:</span>
-                <span>{tedaviler.find((t) => t.id === randevu.islem_tanimi?.id)?.ad ?? randevu.islem_tanimi?.ad ?? "—"}</span>
-              </div>
-              <TedaviAdimlari islemTanimiId={randevu.islem_tanimi?.id ?? ""} />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="detay_tarih">Tarih</Label>
-              <Input
-                id="detay_tarih"
-                name="tarih"
-                type="date"
-                defaultValue={formatDateForInput(randevu.baslangic)}
-                required
-                disabled={isPending}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="detay_saat">Saat</Label>
-              <Input
-                id="detay_saat"
-                name="saat"
-                type="time"
-                defaultValue={formatTimeForInput(randevu.baslangic)}
-                required
-                disabled={isPending}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="detay_sure_dakika">Süre (dakika)</Label>
-              <Input
-                id="detay_sure_dakika"
-                name="sure_dakika"
-                type="number"
-                min={5}
-                max={480}
-                defaultValue={sureDakika(randevu.baslangic, randevu.bitis)}
-                required
-                disabled={isPending}
-              />
-            </div>
+            <input type="hidden" name="tarih" value={formatDateForInput(randevu.baslangic)} />
+            <input type="hidden" name="saat" value={formatTimeForInput(randevu.baslangic)} />
+            <input type="hidden" name="sure_dakika" value={sureDakika(randevu.baslangic, randevu.bitis)} />
           </div>
 
           <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
