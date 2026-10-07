@@ -301,16 +301,19 @@ function IptalBilgisiKarti({ randevu, yoneticiMi }: { randevu: RandevuSatir; yon
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 text-sm">
-      <p className="font-semibold text-destructive">Bu randevu iptal edilmiştir.</p>
-      <p className={randevu.bedelli_iptal ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}>
-        {randevu.bedelli_iptal
-          ? randevu.iptal_paket_dusuldu
-            ? "Bedelli iptal — paketten 1 hak düşüldü."
-            : randevu.iptal_borc_yazildi
-              ? "Bedelli iptal — seans bedeli bakiyeye işlendi."
-              : "Bedelli iptal."
-          : "Bedelsiz iptal."}
+      <p className="font-semibold text-destructive">
+        {randevu.bedelli_iptal ? "Bedelli iptal olmuştur." : "Bedelsiz iptal olmuştur."}
       </p>
+      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">İşlem kapanmıştır.</p>
+      {randevu.bedelli_iptal && (
+        <p className="text-amber-700 dark:text-amber-400">
+          {randevu.iptal_paket_dusuldu
+            ? "Paketten 1 hak düşüldü."
+            : randevu.iptal_borc_yazildi
+              ? "Seans bedeli bakiyeye işlendi."
+              : "Seans bedeli işlenmedi."}
+        </p>
+      )}
       <div className="grid grid-cols-[110px_1fr] gap-2">
         <span className="font-medium text-muted-foreground">Açıklama:</span>
         <span>{randevu.iptal_aciklamasi ?? "—"}</span>
@@ -455,16 +458,27 @@ export function RandevuDetayPaneli({
     );
   }
 
+  // İptal edilmiş randevu: tamamlanan seans gibi kapanmış, salt-okunur özet
+  // (yalnız yönetici "İptali Geri Al" ile açabilir).
+  if (randevu.durum === "iptal") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
+          </DialogHeader>
+          <IptalBilgisiKarti key={randevu.id} randevu={randevu} yoneticiMi={rol === "klinik_admin"} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
         </DialogHeader>
-
-        {randevu.durum === "iptal" && (
-          <IptalBilgisiKarti key={randevu.id} randevu={randevu} yoneticiMi={rol === "klinik_admin"} />
-        )}
 
         <DurumButonlari randevu={randevu} />
 
