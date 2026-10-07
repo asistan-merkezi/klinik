@@ -1,5 +1,6 @@
 "use client";
 
+import { CikanSecimListesi } from "@/components/panel/cikan-secim-listesi";
 import { useActionState, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -449,13 +450,15 @@ function KasadanCikanDialog({
           </DialogHeader>
 
           {adim === null && (
-            <div className="grid grid-cols-2 gap-2">
-              {(Object.keys(CIKAN_ADIM_ETIKET) as Exclude<CikanAdimi, null>[]).map((a) => (
-                <Button key={a} type="button" variant="outline" onClick={() => setAdim(a)}>
-                  {CIKAN_ADIM_ETIKET[a]}
-                </Button>
-              ))}
-            </div>
+            <CikanSecimListesi
+              aciklamalar={{
+                tedarikci: "Kayıtlı bir tedarikçiye nakit ödeme",
+                personel: "Sabit personele nakit maaş / avans / prim ödemesi",
+                hesaplar_arasi: "Kasadan bir banka hesabına transfer",
+                diger: "Kayıtlı olmayan kişi / firmaya elden ödeme",
+              }}
+              onSec={(secim) => secim !== "kamusal" && setAdim(secim)}
+            />
           )}
 
           {adim === "tedarikci" && (
