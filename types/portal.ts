@@ -16,6 +16,9 @@ export type BekleyenIptalTalebiSatir = {
   id: string;
   durum: IptalTalebiDurum;
   created_at: string;
+  aciklama: string | null;
+  /** Talep anında sunucuda hesaplanır: başlangıca 18 saatten az kala → onaylanırsa seans sayılır. */
+  gec_iptal: boolean;
   randevu: {
     id: string;
     baslangic: string;

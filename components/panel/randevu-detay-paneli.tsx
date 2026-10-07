@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PackageOpen, Pencil, Wallet } from "lucide-react";
+import { PackageOpen, Pencil, Undo2, Wallet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { DURUM_TONU_SINIFLARI } from "@/lib/ui/durum-tonlari";
 import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
@@ -24,7 +24,7 @@ import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/da
 import { createClient } from "@/lib/supabase/client";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { KlinikBankaHesabi } from "@/types/klinik";
-import { randevuGuncelle, randevuSeansBedeliniCariyeEkle } from "@/app/(app)/panel/randevular/actions";
+import { randevuGuncelle, randevuIptalGeriAl, randevuSeansBedeliniCariyeEkle } from "@/app/(app)/panel/randevular/actions";
 import { DurumButonlari } from "@/app/(app)/panel/randevular/durum-butonlari";
 import { BakiyeHareketiEkleButonu } from "@/app/(app)/panel/hastalar/[id]/bakiye-hareketi-formu";
 import { useTedaviEtkinFiyat } from "@/app/(app)/panel/randevular/queries";
@@ -294,6 +294,56 @@ function SeansBilgisiKutusu({
   );
 }
 
+/** İptal edilmiş randevunun sebebi + geç iptal bilgisi; yönetici mantıklı bir sebep varsa geri alabilir. */
+function IptalBilgisiKarti({ randevu, yoneticiMi }: { randevu: RandevuSatir; yoneticiMi: boolean }) {
+  const [isPending, startTransition] = useTransition();
+  const [sonuc, setSonuc] = useState<{ success: boolean; message: string } | null>(null);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 text-sm">
+      <p className="font-semibold text-destructive">Bu randevu iptal edilmiştir.</p>
+      {randevu.gec_iptal && (
+        <p className="text-amber-700 dark:text-amber-400">
+          Geç iptal (18 saatten az kala) — seans sayıldı
+          {randevu.iptal_paket_dusuldu ? "; paketten 1 hak düşüldü." : "."}
+        </p>
+      )}
+      <div className="grid grid-cols-[110px_1fr] gap-2">
+        <span className="font-medium text-muted-foreground">Açıklama:</span>
+        <span>{randevu.iptal_aciklamasi ?? "—"}</span>
+      </div>
+      {randevu.iptal_tarihi && (
+        <div className="grid grid-cols-[110px_1fr] gap-2">
+          <span className="font-medium text-muted-foreground">İptal zamanı:</span>
+          <span>{formatDateTime(randevu.iptal_tarihi)}</span>
+        </div>
+      )}
+      {yoneticiMi && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-fit"
+          disabled={isPending || sonuc?.success === true}
+          onClick={() =>
+            startTransition(async () => {
+              setSonuc(await randevuIptalGeriAl(randevu.id));
+            })
+          }
+        >
+          <Undo2 />
+          {isPending ? "Geri alınıyor..." : "İptali Geri Al"}
+        </Button>
+      )}
+      {sonuc && (
+        <p role="alert" className={sonuc.success ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+          {sonuc.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function RandevuDetayPaneli({
   open,
   onOpenChange,
@@ -408,6 +458,10 @@ export function RandevuDetayPaneli({
         <DialogHeader>
           <DialogTitle>{randevu.hasta?.ad_soyad ?? "—"}</DialogTitle>
         </DialogHeader>
+
+        {randevu.durum === "iptal" && (
+          <IptalBilgisiKarti key={randevu.id} randevu={randevu} yoneticiMi={rol === "klinik_admin"} />
+        )}
 
         <DurumButonlari randevu={randevu} />
 

@@ -462,15 +462,12 @@ export async function randevuSeansOdemesiEkle(
   return { success: true, message: "Ödeme kaydedildi." };
 }
 
-const durumSemasi = z.enum(["gelmedi", "iptal"]);
-
-/** "Gelmedi" / "İptal" — düz durum güncellemesi (paket/bakiyeye dokunmaz). */
+/** "Gelmedi" — düz durum güncellemesi (paket/bakiyeye dokunmaz). İptal için bkz. randevuIptalEt. */
 export async function randevuDurumGuncelle(
   randevuId: string,
-  yeniDurum: Extract<RandevuDurum, "gelmedi" | "iptal">
+  yeniDurum: Extract<RandevuDurum, "gelmedi">
 ): Promise<SonucDurumu> {
-  const gecerliDurum = durumSemasi.safeParse(yeniDurum);
-  if (!gecerliDurum.success) {
+  if (yeniDurum !== "gelmedi") {
     return null;
   }
 
@@ -483,10 +480,7 @@ export async function randevuDurumGuncelle(
     redirect("/giris");
   }
 
-  const { error } = await supabase
-    .from("randevu")
-    .update({ durum: gecerliDurum.data })
-    .eq("id", randevuId);
+  const { error } = await supabase.from("randevu").update({ durum: yeniDurum }).eq("id", randevuId);
 
   if (error) {
     console.error("Randevu durumu güncellenemedi:", error);
@@ -496,6 +490,96 @@ export async function randevuDurumGuncelle(
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   return { success: true, message: "Randevu durumu güncellendi." };
+}
+
+function iptalHatasiMesaji(mesaj: string | undefined): string | null {
+  if (!mesaj) return null;
+  if (mesaj.includes("gec_iptal_onay_gerekli")) return "Geç iptal için onay gerekli.";
+  if (mesaj.includes("gec_iptal_aciklama_gerekli")) return "Geç iptalde açıklama yazmalısınız.";
+  if (mesaj.includes("tamamlanmis_randevu_iptal_edilemez")) return "Tamamlanmış seans iptal edilemez.";
+  if (mesaj.includes("yetkisiz")) return "Bu işlem için yetkiniz yok.";
+  return null;
+}
+
+/**
+ * Randevuyu iptal eder (açıklamalı). Başlangıca 18 saatten az kala iptal "geç
+ * iptal"dir: seans sayılır (uygun pakette 1 hak düşer) ve istemcinin uyarıyı
+ * onayladığını gösteren `gecOnay` şarttır — sunucu da RPC'de zorlar.
+ */
+export async function randevuIptalEt(
+  randevuId: string,
+  aciklama: string,
+  gecOnay: boolean
+): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data, error } = await supabase.rpc("randevu_iptal_et", {
+    p_randevu_id: randevuId,
+    p_aciklama: aciklama.trim() || null,
+    p_gec_onay: gecOnay,
+    p_gec_iptal: null,
+  });
+
+  if (error) {
+    console.error("Randevu iptal edilemedi:", error);
+    return { success: false, message: iptalHatasiMesaji(error.message) ?? "Randevu iptal edilemedi, lütfen tekrar deneyin." };
+  }
+
+  const sonuc = data as { hasta_id?: string; gec_iptal?: boolean; paket_dusuldu?: boolean } | null;
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  if (sonuc?.hasta_id) {
+    revalidateHastaDetay(sonuc.hasta_id);
+  }
+  return {
+    success: true,
+    message: sonuc?.paket_dusuldu
+      ? "Randevu iptal edildi; geç iptal olduğu için paketten 1 seans düşüldü."
+      : sonuc?.gec_iptal
+        ? "Randevu geç iptal olarak kaydedildi (seans sayıldı)."
+        : "Randevu iptal edildi.",
+  };
+}
+
+/** Yönetici: mantıklı bir sebeple iptal edilen randevuyu geri alır (düşülen paket hakkı iade edilir). */
+export async function randevuIptalGeriAl(randevuId: string): Promise<SonucDurumu> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/giris");
+  }
+
+  const { data, error } = await supabase.rpc("randevu_iptal_geri_al", { p_randevu_id: randevuId });
+
+  if (error) {
+    console.error("Randevu iptali geri alınamadı:", error);
+    if (error.code === "23P01") {
+      return { success: false, message: "Bu saatte terapist, oda veya cihaz başka bir randevuya ayrılmış, geri alınamadı." };
+    }
+    if (error.message?.includes("yetkisiz")) {
+      return { success: false, message: "İptali yalnızca yönetici geri alabilir." };
+    }
+    return { success: false, message: "İptal geri alınamadı, lütfen tekrar deneyin." };
+  }
+
+  const sonuc = data as { hasta_id?: string; paket_iade?: boolean } | null;
+  revalidatePath("/panel/randevular");
+  revalidatePath("/panel");
+  if (sonuc?.hasta_id) {
+    revalidateHastaDetay(sonuc.hasta_id);
+  }
+  return {
+    success: true,
+    message: sonuc?.paket_iade ? "İptal geri alındı; düşülen paket hakkı iade edildi." : "İptal geri alındı.",
+  };
 }
 
 const ertelemeSemasi = z.object({
@@ -711,16 +795,29 @@ export async function iptalTalebiOnayla(talepId: string, randevuId: string): Pro
     redirect("/giris");
   }
 
-  const [randevuSonucu, talepSonucu] = await Promise.all([
-    supabase.from("randevu").update({ durum: "iptal" }).eq("id", randevuId),
-    supabase
-      .from("randevu_iptal_talebi")
-      .update({ durum: "onaylandi", yanit_kullanici_id: user.id, yanit_tarihi: new Date().toISOString() })
-      .eq("id", talepId),
-  ]);
+  const { data: talep } = await supabase
+    .from("randevu_iptal_talebi")
+    .select("aciklama, gec_iptal")
+    .eq("id", talepId)
+    .single<{ aciklama: string | null; gec_iptal: boolean }>();
 
-  if (randevuSonucu.error || talepSonucu.error) {
-    console.error("İptal talebi onaylanamadı:", randevuSonucu.error, talepSonucu.error);
+  // Talebin kendi (talep anındaki) geç iptal bilgisiyle iptal edilir; onaylayan
+  // personel arayüzde zaten "seans sayılacak" uyarısını görmüştür.
+  const { error: iptalHatasi } = await supabase.rpc("randevu_iptal_et", {
+    p_randevu_id: randevuId,
+    p_aciklama: talep?.aciklama ?? (talep?.gec_iptal ? "Hasta portalı iptal talebi" : null),
+    p_gec_onay: true,
+    p_gec_iptal: talep?.gec_iptal ?? null,
+  });
+  const { error: talepHatasi } = iptalHatasi
+    ? { error: null }
+    : await supabase
+        .from("randevu_iptal_talebi")
+        .update({ durum: "onaylandi", yanit_kullanici_id: user.id, yanit_tarihi: new Date().toISOString() })
+        .eq("id", talepId);
+
+  if (iptalHatasi || talepHatasi) {
+    console.error("İptal talebi onaylanamadı:", iptalHatasi, talepHatasi);
     return { success: false, message: "İptal talebi onaylanamadı, lütfen tekrar deneyin." };
   }
 

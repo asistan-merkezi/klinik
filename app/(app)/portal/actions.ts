@@ -195,7 +195,7 @@ export async function portalCikisYap() {
   redirect("/portal/giris");
 }
 
-export async function iptalTalebiOlustur(randevuId: string): Promise<SonucDurumu> {
+export async function iptalTalebiOlustur(randevuId: string, aciklama: string = ""): Promise<SonucDurumu> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -218,6 +218,7 @@ export async function iptalTalebiOlustur(randevuId: string): Promise<SonucDurumu
   const { error } = await supabase.from("randevu_iptal_talebi").insert({
     randevu_id: randevuId,
     hasta_id: mk.hasta_id,
+    aciklama: aciklama.trim() ? aciklama.trim().slice(0, 1000) : null,
   });
 
   if (error) {

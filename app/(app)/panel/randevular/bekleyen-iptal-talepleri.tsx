@@ -28,6 +28,12 @@ export function BekleyenIptalTalepleri({ talepler }: { talepler: BekleyenIptalTa
             <div className="flex flex-col">
               <span className="font-medium">{talep.randevu.hasta?.ad_soyad ?? "—"}</span>
               <span className="text-muted-foreground">{formatDateTime(talep.randevu.baslangic)}</span>
+              {talep.aciklama && <span className="text-muted-foreground">Açıklama: {talep.aciklama}</span>}
+              {talep.gec_iptal && (
+                <span className="font-medium text-amber-700 dark:text-amber-400">
+                  Geç iptal (18 saatten az kala) — onaylanırsa seans sayılır, uygun pakette 1 hak düşer.
+                </span>
+              )}
             </div>
             <div className="flex gap-2">
               <Button

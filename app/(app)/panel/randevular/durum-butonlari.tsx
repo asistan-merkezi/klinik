@@ -6,11 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateForInput, formatTimeForInput } from "@/lib/datetime";
+import { gecIptalMi, GEC_IPTAL_UYARISI } from "@/lib/randevu/gec-iptal";
 import type { RandevuDurum, RandevuSatir } from "@/types/randevu";
-import { randevuGelisIsaretle, randevuDurumGuncelle, randevuErtele, randevuSeansiTamamla } from "./actions";
+import {
+  randevuGelisIsaretle,
+  randevuDurumGuncelle,
+  randevuErtele,
+  randevuIptalEt,
+  randevuSeansiTamamla,
+} from "./actions";
 
 type Sonuc = { success: boolean; message: string } | null;
-type AcikForm = "gecikmeli" | "ertelendi" | "tamamla" | null;
 
 // Çizelgedeki kutucuk renkleriyle aynı (bkz. randevu-kutusu.tsx): geldi/gecikmeli
 // yeşil, gelmedi/iptal kırmızı, ertelendi açık mavi.
@@ -29,106 +35,142 @@ const AKTIF_SINIFI: Partial<Record<RandevuDurum, string>> = {
   tamamlandi: "!border-violet-500 !bg-violet-500 !text-white hover:!bg-violet-600 dark:hover:!bg-violet-500/90",
 };
 
+const SECENEKLER: { durum: RandevuDurum; etiket: string }[] = [
+  { durum: "geldi", etiket: "Geldi" },
+  { durum: "gecikmeli_geldi", etiket: "Gecikmeli Geldi" },
+  { durum: "gelmedi", etiket: "Gelmedi" },
+  { durum: "ertelendi", etiket: "Ertelendi" },
+  { durum: "iptal", etiket: "İptal" },
+  { durum: "tamamlandi", etiket: "Seansı Bitir" },
+];
+
+const TEXTAREA_SINIFI =
+  "rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
 /**
- * Randevu sonucu için 5 seçenek (Geldi/Gecikmeli Geldi/Gelmedi/Ertelendi/
- * İptal) — kullanıcı kararıyla randevunun MEVCUT durumu ne olursa olsun
- * hepsi her zaman tıklanabilir (yanlış işaretlemeler serbestçe düzeltilsin).
- * Panel açıldığında hiçbiri "seçili" görünmez (bilinçli — mevcut durumu
- * vurgulayan bir varsayılan yok); ama bir seçenek tıklanıp işlem BAŞARIYLA
- * uygulandığında o buton, tıklandığı belli olsun diye çizelgedeki kutucukla
- * aynı renge boyanıyor (yeşil/kırmızı/açık mavi) — kullanıcı isteği.
+ * Randevu sonucu seçenekleri (Geldi/Gecikmeli Geldi/Gelmedi/Ertelendi/İptal/
+ * Seansı Bitir) — kullanıcı kararıyla (2026-10-07) bir seçenek tıklanınca
+ * İŞLENMEZ, yalnız seçilir; işlem ancak "Kaydet"e basılınca uygulanır (önceden
+ * İptal/Gelmedi tıklanır tıklanmaz kaydediliyordu). Randevunun MEVCUT durumu
+ * ne olursa olsun hepsi seçilebilir (yanlış işaretlemeler düzeltilsin).
+ * Başarıyla uygulanan seçenek çizelge kutucuğuyla aynı renge boyanır.
+ *
+ * İptal: başlangıca 18 saatten az kala ise "seansınız sayılacaktır" uyarısı,
+ * zorunlu açıklama ve ek bir "Emin misiniz?" onayı çıkar (bkz. lib/randevu/gec-iptal.ts;
+ * sunucu RPC'si de aynı eşiği ve onayı zorlar).
  */
 export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
   const [isPending, startTransition] = useTransition();
   const [sonuc, setSonuc] = useState<Sonuc>(null);
-  const [acikForm, setAcikForm] = useState<AcikForm>(null);
-  const [secilenDurum, setSecilenDurum] = useState<RandevuDurum | null>(null);
+  const [secim, setSecim] = useState<RandevuDurum | null>(null);
+  const [uygulanan, setUygulanan] = useState<RandevuDurum | null>(null);
+  const [gecOnayiBekliyor, setGecOnayiBekliyor] = useState(false);
   const [gecikmeDakika, setGecikmeDakika] = useState("15");
   const [ertelemeTarih, setErtelemeTarih] = useState(() => formatDateForInput(randevu.baslangic));
   const [ertelemeSaat, setErtelemeSaat] = useState(() => formatTimeForInput(randevu.baslangic));
   const [tamamlaAciklama, setTamamlaAciklama] = useState("");
+  const [iptalAciklama, setIptalAciklama] = useState("");
 
-  function calistir(hedefDurum: RandevuDurum, eylem: () => Promise<Sonuc>) {
+  // Panel açıldığı andaki saate göre; "Kaydet"te sunucu zaten yeniden hesaplar.
+  const [gecIptal] = useState(() => gecIptalMi(randevu.baslangic));
+
+  function sec(durum: RandevuDurum) {
+    setSecim((s) => (s === durum ? null : durum));
+    setGecOnayiBekliyor(false);
+    setSonuc(null);
+  }
+
+  function butonSinifi(durum: RandevuDurum) {
+    if (secim === durum) return "ring-2 ring-primary";
+    if (uygulanan === durum && secim === null) return AKTIF_SINIFI[durum];
+    return undefined;
+  }
+
+  function kaydetGecerli(): boolean {
+    switch (secim) {
+      case "gecikmeli_geldi":
+        return Number(gecikmeDakika) > 0;
+      case "ertelendi":
+        return !!ertelemeTarih && !!ertelemeSaat;
+      case "tamamlandi":
+        return !!tamamlaAciklama.trim();
+      case "iptal":
+        return !gecIptal || !!iptalAciklama.trim();
+      default:
+        return secim !== null;
+    }
+  }
+
+  function uygula(gecOnay: boolean) {
+    if (!secim) return;
+    const hedef = secim;
+    let eylem: () => Promise<Sonuc>;
+    switch (hedef) {
+      case "geldi":
+        eylem = () => randevuGelisIsaretle(randevu.id, null);
+        break;
+      case "gecikmeli_geldi":
+        eylem = () => randevuGelisIsaretle(randevu.id, Number(gecikmeDakika));
+        break;
+      case "gelmedi":
+        eylem = () => randevuDurumGuncelle(randevu.id, "gelmedi");
+        break;
+      case "ertelendi":
+        eylem = () => {
+          const formData = new FormData();
+          formData.set("tarih", ertelemeTarih);
+          formData.set("saat", ertelemeSaat);
+          return randevuErtele(randevu.id, formData);
+        };
+        break;
+      case "iptal":
+        eylem = () => randevuIptalEt(randevu.id, iptalAciklama, gecOnay);
+        break;
+      case "tamamlandi":
+        eylem = () => randevuSeansiTamamla(randevu.id, tamamlaAciklama.trim());
+        break;
+      default:
+        return;
+    }
     startTransition(async () => {
       const r = await eylem();
       setSonuc(r);
-      setAcikForm(null);
+      setGecOnayiBekliyor(false);
       if (r?.success) {
-        setSecilenDurum(hedefDurum);
+        setUygulanan(hedef);
+        setSecim(null);
       }
     });
   }
 
-  function butonSinifi(durum: RandevuDurum) {
-    return secilenDurum === durum ? AKTIF_SINIFI[durum] : undefined;
+  function kaydetTiklandi() {
+    if (secim === "iptal" && gecIptal) {
+      setGecOnayiBekliyor(true);
+      return;
+    }
+    uygula(false);
   }
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isPending}
-          className={cn(butonSinifi("geldi"))}
-          onClick={() => calistir("geldi", () => randevuGelisIsaretle(randevu.id, null))}
-        >
-          Geldi
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isPending}
-          className={cn(butonSinifi("gecikmeli_geldi"))}
-          onClick={() => setAcikForm((f) => (f === "gecikmeli" ? null : "gecikmeli"))}
-        >
-          Gecikmeli Geldi
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isPending}
-          className={cn(butonSinifi("gelmedi"))}
-          onClick={() => calistir("gelmedi", () => randevuDurumGuncelle(randevu.id, "gelmedi"))}
-        >
-          Gelmedi
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isPending}
-          className={cn(butonSinifi("ertelendi"))}
-          onClick={() => setAcikForm((f) => (f === "ertelendi" ? null : "ertelendi"))}
-        >
-          Ertelendi
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isPending}
-          className={cn(butonSinifi("iptal"))}
-          onClick={() => calistir("iptal", () => randevuDurumGuncelle(randevu.id, "iptal"))}
-        >
-          İptal
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isPending}
-          className={cn(butonSinifi("tamamlandi"))}
-          onClick={() => setAcikForm((f) => (f === "tamamla" ? null : "tamamla"))}
-        >
-          Seansı Bitir
-        </Button>
+        {SECENEKLER.map(({ durum, etiket }) => (
+          <Button
+            key={durum}
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isPending}
+            aria-pressed={secim === durum}
+            className={cn(butonSinifi(durum))}
+            onClick={() => sec(durum)}
+          >
+            {etiket}
+          </Button>
+        ))}
       </div>
 
-      {acikForm === "gecikmeli" && (
+      {secim === "gecikmeli_geldi" && (
         <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border p-2.5">
           <div className="flex flex-col gap-1">
             <Label htmlFor="gecikme_dakika">Gecikme (dk)</Label>
@@ -142,20 +184,10 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
               disabled={isPending}
             />
           </div>
-          <Button
-            type="button"
-            size="sm"
-            disabled={isPending || !gecikmeDakika || Number(gecikmeDakika) <= 0}
-            onClick={() =>
-              calistir("gecikmeli_geldi", () => randevuGelisIsaretle(randevu.id, Number(gecikmeDakika)))
-            }
-          >
-            Kaydet
-          </Button>
         </div>
       )}
 
-      {acikForm === "ertelendi" && (
+      {secim === "ertelendi" && (
         <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border p-2.5">
           <div className="flex flex-col gap-1">
             <Label htmlFor="erteleme_tarih">Yeni tarih</Label>
@@ -177,25 +209,10 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
               disabled={isPending}
             />
           </div>
-          <Button
-            type="button"
-            size="sm"
-            disabled={isPending || !ertelemeTarih || !ertelemeSaat}
-            onClick={() =>
-              calistir("ertelendi", () => {
-                const formData = new FormData();
-                formData.set("tarih", ertelemeTarih);
-                formData.set("saat", ertelemeSaat);
-                return randevuErtele(randevu.id, formData);
-              })
-            }
-          >
-            Kaydet
-          </Button>
         </div>
       )}
 
-      {acikForm === "tamamla" && (
+      {secim === "tamamlandi" && (
         <div className="flex flex-col gap-2 rounded-lg border border-border p-2.5">
           <Label htmlFor="tamamla_aciklama">İşlem Açıklaması</Label>
           <textarea
@@ -206,19 +223,54 @@ export function DurumButonlari({ randevu }: { randevu: RandevuSatir }) {
             required
             disabled={isPending}
             placeholder="Bu seansta yapılan işlemi kısaca açıklayın..."
-            className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className={TEXTAREA_SINIFI}
           />
-          <Button
-            type="button"
-            size="sm"
-            className="w-fit"
-            disabled={isPending || !tamamlaAciklama.trim()}
-            onClick={() =>
-              calistir("tamamlandi", () => randevuSeansiTamamla(randevu.id, tamamlaAciklama.trim()))
-            }
-          >
-            Kaydet
-          </Button>
+        </div>
+      )}
+
+      {secim === "iptal" && (
+        <div className="flex flex-col gap-2 rounded-lg border border-border p-2.5">
+          {gecIptal && (
+            <p role="status" className="rounded-lg bg-amber-500/10 px-2.5 py-2 text-sm text-amber-700 dark:text-amber-400">
+              {GEC_IPTAL_UYARISI}
+            </p>
+          )}
+          <Label htmlFor="iptal_aciklama">Açıklama{gecIptal ? "" : " (opsiyonel)"}</Label>
+          <textarea
+            id="iptal_aciklama"
+            value={iptalAciklama}
+            onChange={(e) => setIptalAciklama(e.target.value)}
+            rows={2}
+            disabled={isPending}
+            placeholder="İptal sebebini yazın..."
+            className={TEXTAREA_SINIFI}
+          />
+        </div>
+      )}
+
+      {secim && !gecOnayiBekliyor && (
+        <Button type="button" size="sm" className="w-fit" disabled={isPending || !kaydetGecerli()} onClick={kaydetTiklandi}>
+          {isPending ? "Kaydediliyor..." : "Kaydet"}
+        </Button>
+      )}
+
+      {gecOnayiBekliyor && (
+        <div role="alertdialog" className="flex flex-col gap-2 rounded-lg border border-destructive/40 p-2.5 text-sm">
+          <p className="font-medium">{GEC_IPTAL_UYARISI} Emin misiniz?</p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="destructive" disabled={isPending} onClick={() => uygula(true)}>
+              {isPending ? "İptal ediliyor..." : "Evet, iptal et"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => setGecOnayiBekliyor(false)}
+            >
+              Vazgeç
+            </Button>
+          </div>
         </div>
       )}
 

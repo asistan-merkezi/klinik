@@ -32,6 +32,11 @@ export type RandevuSatir = {
   tedavi_protokolu?: { id: string; ad: string } | null;
   kaynak?: "uygulama" | "arsiv";
   tamamlanma_aciklamasi?: string | null;
+  /** İptal bilgisi (bkz. randevu_iptal_et): sebep, geç iptal (18 saatten az kala → seans sayıldı), paketten düşüldü mü. */
+  iptal_aciklamasi?: string | null;
+  iptal_tarihi?: string | null;
+  gec_iptal?: boolean;
+  iptal_paket_dusuldu?: boolean;
   tamamlanma_tarihi?: string | null;
   tamamlayan_kullanici?: { ad_soyad: string } | null;
   /** Check-in'de bir paketten düşüldüyse dolu (bkz. randevu_gelis_isaretle). */

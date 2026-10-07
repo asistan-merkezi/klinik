@@ -159,7 +159,7 @@ export default async function PortalSayfasi() {
                             {talep.durum === "reddedildi" && "İptal talebiniz reddedildi."}
                           </p>
                         ) : (
-                          <IptalTalepButonu randevuId={r.id} />
+                          <IptalTalepButonu randevuId={r.id} baslangic={r.baslangic} />
                         ))}
                     </li>
                   );

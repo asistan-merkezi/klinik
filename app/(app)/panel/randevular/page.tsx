@@ -70,7 +70,7 @@ export default async function RandevularSayfasi() {
       supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
       supabase
         .from("randevu_iptal_talebi")
-        .select("id, durum, created_at, randevu(id, baslangic, durum, hasta(ad_soyad))")
+        .select("id, durum, created_at, aciklama, gec_iptal, randevu(id, baslangic, durum, hasta(ad_soyad))")
         .eq("durum", "bekliyor")
         .order("created_at")
         .returns<BekleyenIptalTalebiSatir[]>(),
