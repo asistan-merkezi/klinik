@@ -312,6 +312,120 @@ export async function bankaHesabiGuncelle(_onceki: SonucDurumu, formData: FormDa
   return { success: true, message: "Banka hesabı güncellendi." };
 }
 
+const krediKartiSemasi = z.object({
+  kart_tipi: z.enum(["klinik", "sahis"]),
+  kart_adi: z.string().trim().min(1, "Kart adı gerekli."),
+  banka_adi: z.string().trim().min(1, "Banka adı gerekli."),
+  kart_sahibi: z.string().trim(),
+  // Yalnız son 4 hane saklanır; tam numara girilirse sessizce kırpmak yerine reddedilir.
+  son_dort_hane: z
+    .string()
+    .transform((v) => v.replace(/\s+/g, ""))
+    .refine((v) => v === "" || /^\d{4}$/.test(v), "Yalnızca kartın son 4 hanesini girin (tam kart numarası saklanmaz)."),
+});
+
+function krediKartiGirdisi(formData: FormData) {
+  return krediKartiSemasi.safeParse({
+    kart_tipi: formData.get("kart_tipi"),
+    kart_adi: formData.get("kart_adi"),
+    banka_adi: formData.get("banka_adi"),
+    kart_sahibi: formData.get("kart_sahibi") ?? "",
+    son_dort_hane: formData.get("son_dort_hane") ?? "",
+  });
+}
+
+/** klinik_kredi_kartlari — yalnız tanımlayıcı bilgi (ad/banka/sahip/son 4 hane); tam kart no ve CVV saklanmaz. */
+export async function krediKartiEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const ayristirma = krediKartiGirdisi(formData);
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { data: mevcutKartlar } = await supabase
+    .from("klinik_kredi_kartlari")
+    .select("sort_order")
+    .eq("klinik_id", klinikId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const sonrakiSira = (mevcutKartlar?.[0]?.sort_order ?? -1) + 1;
+
+  const { error } = await supabase.from("klinik_kredi_kartlari").insert({
+    klinik_id: klinikId,
+    kart_tipi: ayristirma.data.kart_tipi,
+    kart_adi: ayristirma.data.kart_adi,
+    banka_adi: ayristirma.data.banka_adi,
+    kart_sahibi: ayristirma.data.kart_sahibi,
+    son_dort_hane: ayristirma.data.son_dort_hane || null,
+    sort_order: sonrakiSira,
+  });
+
+  if (error) {
+    console.error("Kredi kartı eklenemedi:", error);
+    return { success: false, message: "Kredi kartı eklenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  return { success: true, message: "Kredi kartı eklendi." };
+}
+
+export async function krediKartiGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const id = formData.get("id");
+  if (typeof id !== "string" || !id) {
+    return { success: false, message: "Kart bulunamadı." };
+  }
+  const ayristirma = krediKartiGirdisi(formData);
+  if (!ayristirma.success) {
+    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  }
+
+  const { error } = await supabase
+    .from("klinik_kredi_kartlari")
+    .update({
+      kart_tipi: ayristirma.data.kart_tipi,
+      kart_adi: ayristirma.data.kart_adi,
+      banka_adi: ayristirma.data.banka_adi,
+      kart_sahibi: ayristirma.data.kart_sahibi,
+      son_dort_hane: ayristirma.data.son_dort_hane || null,
+    })
+    .eq("id", id)
+    .eq("klinik_id", klinikId);
+
+  if (error) {
+    console.error("Kredi kartı güncellenemedi:", error);
+    return { success: false, message: "Kredi kartı güncellenemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  return { success: true, message: "Kredi kartı güncellendi." };
+}
+
+export async function krediKartiSil(id: string): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const { error } = await supabase.from("klinik_kredi_kartlari").delete().eq("id", id).eq("klinik_id", klinikId);
+
+  if (error) {
+    console.error("Kredi kartı silinemedi:", error);
+    return { success: false, message: "Kredi kartı silinemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  return { success: true, message: "Kredi kartı silindi." };
+}
+
 export async function bankaHesabiSil(id: string): Promise<SonucDurumu> {
   const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
   if (yetkisiz || !klinikId) {

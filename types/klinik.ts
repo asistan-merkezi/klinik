@@ -52,3 +52,13 @@ export type KlinikBankaHesabiDetay = KlinikBankaHesabi & {
   iban: string;
   hesap_tipi: "klinik" | "sahis";
 };
+
+/** Şirket Bilgileri > Kredi Kartları satırı. Tam kart no/CVV BİLİNÇLİ olarak tutulmaz (bkz. migration). */
+export type KlinikKrediKarti = {
+  id: string;
+  kart_tipi: "klinik" | "sahis";
+  kart_adi: string;
+  banka_adi: string;
+  kart_sahibi: string;
+  son_dort_hane: string | null;
+};

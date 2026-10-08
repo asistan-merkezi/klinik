@@ -3,10 +3,11 @@ import { Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import type { KlinikArac, KlinikBankaHesabiDetay, SirketBilgileri } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabiDetay, KlinikKrediKarti, SirketBilgileri } from "@/types/klinik";
 import { SirketBilgileriFormu } from "./sirket-bilgileri-formu";
 import { AraclarKarti } from "./araclar-karti";
 import { BankaHesaplariKarti } from "./banka-hesaplari-karti";
+import { KrediKartlariKarti } from "./kredi-kartlari-karti";
 
 export default async function SirketBilgileriSayfasi() {
   const supabase = await createClient();
@@ -53,6 +54,16 @@ export default async function SirketBilgileriSayfasi() {
 
   const bankaHesaplari = bankaHesaplariSonuc ?? [];
 
+  // Tablo yoksa (migration uygulanmadan deploy) hata yutulur, liste boş görünür.
+  const { data: krediKartlariSonuc } = await supabase
+    .from("klinik_kredi_kartlari")
+    .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
+    .eq("klinik_id", kullanici?.klinik_id ?? "")
+    .order("sort_order", { ascending: true })
+    .returns<KlinikKrediKarti[]>();
+
+  const krediKartlari = krediKartlariSonuc ?? [];
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -88,6 +99,15 @@ export default async function SirketBilgileriSayfasi() {
           </CardHeader>
           <CardContent>
             <BankaHesaplariKarti bankaHesaplari={bankaHesaplari} duzenlenebilir={duzenlenebilir} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Kredi Kartları</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <KrediKartlariKarti krediKartlari={krediKartlari} duzenlenebilir={duzenlenebilir} />
           </CardContent>
         </Card>
       </div>
