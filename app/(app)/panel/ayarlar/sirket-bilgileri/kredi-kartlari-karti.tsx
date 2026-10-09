@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { KlinikKrediKarti } from "@/types/klinik";
-import { krediKartiEkle, krediKartiGuncelle, krediKartiSil } from "./actions";
+import type { KlinikBankaHesabiDetay, KlinikKrediKarti, KrediKartiTahsilatAyari } from "@/types/klinik";
+import { krediKartiEkle, krediKartiGuncelle, krediKartiSil, krediKartiTahsilatAyariKaydet } from "./actions";
 
 type KartTipi = KlinikKrediKarti["kart_tipi"];
 
@@ -141,11 +141,99 @@ function SilmeDugmesi({ id }: { id: string }) {
   );
 }
 
+/** Tahsilat Bilgisi: kartla alınan hasta tahsilatı komisyon düşülerek bu hesaba işlenir (klinik başına tek ayar). */
+function TahsilatBilgisi({
+  bankaHesaplari,
+  ayar,
+  duzenlenebilir,
+}: {
+  bankaHesaplari: KlinikBankaHesabiDetay[];
+  ayar: KrediKartiTahsilatAyari | null;
+  duzenlenebilir: boolean;
+}) {
+  const [sonuc, formAction, isPending] = useActionState(krediKartiTahsilatAyariKaydet, null);
+  const hesapId = ayar?.kredi_karti_tahsilat_banka_hesap_id ?? "";
+  const oran = ayar?.kredi_karti_komisyon_orani ?? 0;
+  const hesap = bankaHesaplari.find((h) => h.id === hesapId);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+      <div>
+        <h3 className="text-base font-semibold">Tahsilat Bilgisi</h3>
+        <p className="text-sm text-muted-foreground">
+          Hasta tahsilatında (Ödeme Ekle) “Kredi Kartı” seçilince tutar, komisyon düşülerek bu hesaba işlenir.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="kk-banka_hesap_id">Bağlı Olduğu Hesap</Label>
+          {duzenlenebilir ? (
+            <select
+              id="kk-banka_hesap_id"
+              name="banka_hesap_id"
+              defaultValue={hesapId}
+              disabled={isPending}
+              className="h-9 rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Seçilmedi</option>
+              {bankaHesaplari.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.banka_adi}
+                  {h.hesap_sahibi ? ` — ${h.hesap_sahibi}` : ""}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-sm">{hesap ? hesap.banka_adi : "—"}</p>
+          )}
+          {bankaHesaplari.length === 0 && (
+            <p className="text-xs text-muted-foreground">Önce yukarıdan bir banka hesabı ekleyin.</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="kk-komisyon_orani">Komisyon Bedeli (%)</Label>
+          {duzenlenebilir ? (
+            <Input
+              id="kk-komisyon_orani"
+              name="komisyon_orani"
+              inputMode="decimal"
+              defaultValue={String(oran).replace(".", ",")}
+              placeholder="0,00"
+              disabled={isPending}
+              className="tabular"
+            />
+          ) : (
+            <p className="tabular text-sm">%{String(oran).replace(".", ",")}</p>
+          )}
+          <p className="text-xs text-muted-foreground">En fazla %3,5.</p>
+        </div>
+      </div>
+
+      {sonuc && (
+        <p role={sonuc.success ? "status" : "alert"} className={sonuc.success ? "text-sm text-muted-foreground" : "text-sm text-destructive"}>
+          {sonuc.message}
+        </p>
+      )}
+
+      {duzenlenebilir && (
+        <Button type="submit" className="w-fit" disabled={isPending}>
+          {isPending ? "Kaydediliyor..." : "Kaydet"}
+        </Button>
+      )}
+    </form>
+  );
+}
+
 export function KrediKartlariKarti({
   krediKartlari,
+  bankaHesaplari,
+  tahsilatAyari,
   duzenlenebilir,
 }: {
   krediKartlari: KlinikKrediKarti[];
+  bankaHesaplari: KlinikBankaHesabiDetay[];
+  tahsilatAyari: KrediKartiTahsilatAyari | null;
   duzenlenebilir: boolean;
 }) {
   const [ekleniyor, setEkleniyor] = useState(false);
@@ -153,7 +241,39 @@ export function KrediKartlariKarti({
   const duzenlenen = krediKartlari.find((k) => k.id === duzenlenenId);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      <TahsilatBilgisi bankaHesaplari={bankaHesaplari} ayar={tahsilatAyari} duzenlenebilir={duzenlenebilir} />
+      <KrediKartiHarcamaBilgisi
+        krediKartlari={krediKartlari}
+        duzenlenebilir={duzenlenebilir}
+        ekleniyor={ekleniyor}
+        setEkleniyor={setEkleniyor}
+        duzenlenen={duzenlenen}
+        setDuzenlenenId={setDuzenlenenId}
+      />
+    </div>
+  );
+}
+
+/** Harcama Bilgisi: gider ödemelerinde kullanılan kartların kaydı (tam kart no/CVV saklanmaz). */
+function KrediKartiHarcamaBilgisi({
+  krediKartlari,
+  duzenlenebilir,
+  ekleniyor,
+  setEkleniyor,
+  duzenlenen,
+  setDuzenlenenId,
+}: {
+  krediKartlari: KlinikKrediKarti[];
+  duzenlenebilir: boolean;
+  ekleniyor: boolean;
+  setEkleniyor: (v: boolean) => void;
+  duzenlenen: KlinikKrediKarti | undefined;
+  setDuzenlenenId: (id: string | null) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+      <h3 className="text-base font-semibold">Harcama Bilgisi</h3>
       {duzenlenebilir && !ekleniyor && !duzenlenen && (
         <Button type="button" className="w-fit" onClick={() => setEkleniyor(true)}>
           <CirclePlus /> Kredi Kartı Ekle

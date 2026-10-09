@@ -12,6 +12,9 @@ type HastaOdemeSatiri = {
   created_at: string;
   tutar: number;
   banka_hesap_id: string | null;
+  // 'kredi_karti' satırları Şirket Bilgileri'ndeki tahsilat hesabına NET (tutar - komisyon) yazılır.
+  odeme_yontemi: string | null;
+  komisyon_orani: number | null;
   // tur='iade' satırları (hasta havale iadesi) aynı sorguyla gelir; Banka'da ÇIKIŞ sayılır.
   tur: string;
   hasta: { ad_soyad: string } | null;
@@ -76,9 +79,9 @@ export default async function BankaSayfasi({
     tumSayfalariOku((bas, son) =>
       supabase
         .from("hasta_bakiye_hareket")
-        .select("id, created_at, tutar, banka_hesap_id, tur, hasta:hasta_id(ad_soyad)")
+        .select("id, created_at, tutar, banka_hesap_id, odeme_yontemi, komisyon_orani, tur, hasta:hasta_id(ad_soyad)")
         .in("tur", ["odeme", "iade"])
-        .eq("odeme_yontemi", "banka_havalesi")
+        .in("odeme_yontemi", ["banka_havalesi", "kredi_karti"])
         .gte("created_at", donem.baslangicTs)
         .lt("created_at", donem.bitisTs)
         .order("created_at")

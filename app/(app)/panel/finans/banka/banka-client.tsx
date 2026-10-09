@@ -31,7 +31,7 @@ function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
 }
 
-type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; banka_hesap_id: string | null; tur: string; hasta: { ad_soyad: string } | null };
+type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; banka_hesap_id: string | null; odeme_yontemi: string | null; komisyon_orani: number | null; tur: string; hasta: { ad_soyad: string } | null };
 type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string; banka_hesap_id: string | null };
 type PersonelOdemeSatiri = { id: string; tarih: string; tutar: number; tur: string; banka_hesap_id: string | null; personel: { ad_soyad: string } | null };
 type NakitBankaSatiri = {
@@ -483,7 +483,23 @@ export function BankaClient({
 
     const gelen: LedgerSatiri[] = hastaOdemeleri
       .filter((h) => h.banka_hesap_id === selectedId && h.tur === "odeme")
-      .map((h) => ({ id: h.id, tarih: formatDateForInput(h.created_at), tutar: h.tutar, etiket: "Hasta ödemesi", taraf: h.hasta?.ad_soyad ?? "Hasta" }));
+      .map((h) => {
+        if (h.odeme_yontemi !== "kredi_karti") {
+          return { id: h.id, tarih: formatDateForInput(h.created_at), tutar: h.tutar, etiket: "Hasta ödemesi", taraf: h.hasta?.ad_soyad ?? "Hasta" };
+        }
+        // Kredi kartı tahsilatı: hesaba komisyon düşülmüş NET tutar yatar (SQL'deki round(tutar*oran/100, 2) ile aynı kural).
+        const oran = h.komisyon_orani ?? 0;
+        const komisyon = Math.round(h.tutar * oran) / 100;
+        const para = (n: number) => n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return {
+          id: h.id,
+          tarih: formatDateForInput(h.created_at),
+          tutar: Math.round((h.tutar - komisyon) * 100) / 100,
+          etiket: "Hasta ödemesi (Kredi Kartı)",
+          taraf: h.hasta?.ad_soyad ?? "Hasta",
+          aciklama: `Brüt ${para(h.tutar)} ₺ − komisyon ${para(komisyon)} ₺ (%${oran.toLocaleString("tr-TR")})`,
+        };
+      });
 
     const giden: LedgerSatiri[] = [
       ...hastaOdemeleri

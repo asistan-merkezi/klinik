@@ -3,7 +3,7 @@ import { Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import type { KlinikArac, KlinikBankaHesabiDetay, KlinikKrediKarti, SirketBilgileri } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabiDetay, KlinikKrediKarti, KrediKartiTahsilatAyari, SirketBilgileri } from "@/types/klinik";
 import { SirketBilgileriFormu } from "./sirket-bilgileri-formu";
 import { AraclarKarti } from "./araclar-karti";
 import { BankaHesaplariKarti } from "./banka-hesaplari-karti";
@@ -64,6 +64,12 @@ export default async function SirketBilgileriSayfasi() {
 
   const krediKartlari = krediKartlariSonuc ?? [];
 
+  const { data: tahsilatAyariSonuc } = await supabase
+    .from("klinik")
+    .select("kredi_karti_tahsilat_banka_hesap_id, kredi_karti_komisyon_orani")
+    .eq("id", kullanici?.klinik_id ?? "")
+    .maybeSingle<KrediKartiTahsilatAyari>();
+
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -107,7 +113,12 @@ export default async function SirketBilgileriSayfasi() {
             <CardTitle>Kredi Kartları</CardTitle>
           </CardHeader>
           <CardContent>
-            <KrediKartlariKarti krediKartlari={krediKartlari} duzenlenebilir={duzenlenebilir} />
+            <KrediKartlariKarti
+              krediKartlari={krediKartlari}
+              bankaHesaplari={bankaHesaplari}
+              tahsilatAyari={tahsilatAyariSonuc}
+              duzenlenebilir={duzenlenebilir}
+            />
           </CardContent>
         </Card>
       </div>

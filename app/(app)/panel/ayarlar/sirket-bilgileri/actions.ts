@@ -312,6 +312,49 @@ export async function bankaHesabiGuncelle(_onceki: SonucDurumu, formData: FormDa
   return { success: true, message: "Banka hesabı güncellendi." };
 }
 
+const MAKS_KOMISYON_ORANI = 3.5;
+
+/** Tahsilat Bilgisi: kartla alınan hasta tahsilatının yatacağı banka hesabı + komisyon oranı (klinik başına tek ayar). */
+export async function krediKartiTahsilatAyariKaydet(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
+  if (yetkisiz || !klinikId) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const hesapId = bosIseNull(formData.get("banka_hesap_id"));
+  const oran = Number(String(formData.get("komisyon_orani") ?? "").trim().replace(",", ".") || "0");
+  if (!Number.isFinite(oran) || oran < 0 || oran > MAKS_KOMISYON_ORANI) {
+    return { success: false, message: "Komisyon oranı 0 ile %3,5 arasında olmalı." };
+  }
+  const oranYuvarlak = Math.round(oran * 100) / 100;
+
+  if (hesapId) {
+    const { data: hesap } = await supabase
+      .from("klinik_banka_hesaplari")
+      .select("id")
+      .eq("id", hesapId)
+      .eq("klinik_id", klinikId)
+      .maybeSingle();
+    if (!hesap) {
+      return { success: false, message: "Seçilen banka hesabı bulunamadı." };
+    }
+  }
+
+  const { error } = await supabase
+    .from("klinik")
+    .update({ kredi_karti_tahsilat_banka_hesap_id: hesapId, kredi_karti_komisyon_orani: oranYuvarlak })
+    .eq("id", klinikId);
+
+  if (error) {
+    console.error("Kredi kartı tahsilat ayarı kaydedilemedi:", error);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/sirket-bilgileri");
+  revalidatePath("/panel/finans/banka");
+  return { success: true, message: "Tahsilat bilgisi kaydedildi." };
+}
+
 const krediKartiSemasi = z.object({
   kart_tipi: z.enum(["klinik", "sahis"]),
   kart_adi: z.string().trim().min(1, "Kart adı gerekli."),
