@@ -1,27 +1,14 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { RandevularSihirbazi } from "./sihirbaz";
 
 export default async function RandevularArsivIceAktarmaSayfasi() {
+  await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar/arsiv-ice-aktarma" });
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin") {
-    redirect("/panel/ayarlar/arsiv-ice-aktarma");
-  }
 
   const [terapistSonucu, odaSonucu, islemSonucu] = await Promise.all([
     supabase.from("terapist").select("id, personel(ad_soyad)").returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),

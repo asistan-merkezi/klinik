@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import { Star, MessageSquareHeart } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { formatDateTime } from "@/lib/datetime";
 import { cn, telefonGoster } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,21 +10,8 @@ import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 const LISTE_LIMITI = 200;
 
 export default async function AnketYanitlariSayfasi() {
+  const { kullanici } = await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin") {
-    redirect("/panel/ayarlar");
-  }
 
   // Liste son 200 yanıtla sınırlı; ortalama ise TÜM puanlardan (yalnız puan kolonu, sayfalı) —
   // tek sorgu yıllar içinde 1000. yanıtta sessizce kesilir, ortalama da yanlış çıkardı.

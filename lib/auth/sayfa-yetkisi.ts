@@ -33,7 +33,10 @@ export const ROL_GRUPLARI = {
  * Dönen `kullanici.rol` daraltılmıştır; `duzenlenebilir` gibi ek bayrakları
  * çağıran sayfa `kullanici.rol === "klinik_admin"` ile türetmeye devam eder.
  */
-export async function sayfaYetkisiIste(izinliRoller: readonly KullaniciRolu[]) {
+export async function sayfaYetkisiIste(
+  izinliRoller: readonly KullaniciRolu[],
+  secenekler: { /** Yetkisiz kullanıcının gideceği sayfa (varsayılan /panel; Ayarlar alt sayfaları kendi üst sayfasına döner). */ yetkisizHedef?: string } = {}
+) {
   const oturum = await gecerliKullanici();
 
   if (!oturum) {
@@ -42,7 +45,7 @@ export async function sayfaYetkisiIste(izinliRoller: readonly KullaniciRolu[]) {
 
   const { kullanici } = oturum;
   if (!kullanici?.rol || (kullanici.rol !== "super_admin" && !izinliRoller.includes(kullanici.rol))) {
-    redirect("/panel");
+    redirect(secenekler.yetkisizHedef ?? "/panel");
   }
 
   return { authUser: oturum.authUser, kullanici: { ...kullanici, rol: kullanici.rol } };

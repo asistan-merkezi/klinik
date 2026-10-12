@@ -1,27 +1,14 @@
-import { redirect } from "next/navigation";
 import { Smartphone, QrCode } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { QrKart } from "@/components/panel/qr-kart";
 import { QrKartYonetilebilir } from "@/components/panel/qr-kart-yonetilebilir";
 import { PageHeader } from "@/components/ui/page-header";
 import { QR_KOD_TANIMLARI, type QrKodTipi } from "@/lib/qr/qr-kod-tanimlari";
 
 export default async function QrKodlariSayfasi() {
+  const { kullanici } = await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin") {
-    redirect("/panel/ayarlar");
-  }
 
   const klinikId = kullanici.klinik_id;
 

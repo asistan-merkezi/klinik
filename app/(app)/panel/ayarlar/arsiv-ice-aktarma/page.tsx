@@ -1,25 +1,10 @@
-import { redirect } from "next/navigation";
 import { Users, CalendarClock, Wallet, DatabaseBackup, UploadCloud } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { ModuleCard } from "@/components/panel/module-card";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default async function ArsivIceAktarmaSayfasi() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin") {
-    redirect("/panel/ayarlar");
-  }
+  await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

@@ -1,9 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { eylemYetkisiGetir, YETKISIZ_MESAJI } from "@/lib/auth/eylem-yetkisi";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -38,22 +37,7 @@ const islemSemasi = z.object({
 });
 
 async function klinikIdGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  return { supabase, klinikId: kullanici?.klinik_id ?? null };
+  return eylemYetkisiGetir(["klinik_admin"]);
 }
 
 function ayristir(formData: FormData) {
@@ -77,9 +61,12 @@ function ayristir(formData: FormData) {
 }
 
 async function islemTanimiKaydet(islemId: string | null, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const ayristirma = ayristir(formData);
@@ -169,9 +156,12 @@ export async function islemAdimiSablonuOlustur(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const ayristirma = sablonSemasi.safeParse({
@@ -227,9 +217,12 @@ export async function islemAdimiSablonuGuncelle(
     sure_dakika: number | null;
   }
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const ayristirma = sablonGuncelleSemasi.safeParse(veri);
@@ -261,8 +254,8 @@ export async function islemAdimiSablonuGuncelle(
 }
 
 export async function islemAdimiSablonuAktifDurumDegistir(sablonId: string, yeniDurum: boolean) {
-  const { supabase, klinikId } = await klinikIdGetir();
-  if (!klinikId) {
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
+  if (!klinikId || !yetkili) {
     return;
   }
 
@@ -281,8 +274,8 @@ export async function islemAdimiSablonuAktifDurumDegistir(sablonId: string, yeni
 }
 
 export async function islemTanimiAktifDurumDegistir(islemId: string, yeniDurum: boolean) {
-  const { supabase, klinikId } = await klinikIdGetir();
-  if (!klinikId) {
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
+  if (!klinikId || !yetkili) {
     return;
   }
 

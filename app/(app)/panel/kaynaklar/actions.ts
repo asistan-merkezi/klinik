@@ -1,9 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { eylemYetkisiGetir, YETKISIZ_MESAJI } from "@/lib/auth/eylem-yetkisi";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -17,22 +16,7 @@ const ETIKET: Record<KaynakTablosu, string> = {
 };
 
 async function klinikIdGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  return { supabase, klinikId: kullanici?.klinik_id ?? null };
+  return eylemYetkisiGetir(["klinik_admin", "resepsiyon"]);
 }
 
 export async function kaynakOlustur(
@@ -45,9 +29,12 @@ export async function kaynakOlustur(
     return { success: false, message: "Geçersiz kaynak türü." };
   }
 
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const adSemasi = z.string().trim().min(2, "Ad en az 2 karakter olmalı.");
@@ -101,9 +88,12 @@ export async function kaynakAdGuncelle(
     return { success: false, message: "Geçersiz kaynak türü." };
   }
 
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const adSemasi = z.string().trim().min(2, "Ad en az 2 karakter olmalı.");
@@ -128,8 +118,8 @@ export async function kaynakAdGuncelle(
 }
 
 export async function kaynakAdetGuncelle(kaynakId: string, yeniAdet: number) {
-  const { supabase, klinikId } = await klinikIdGetir();
-  if (!klinikId) {
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
+  if (!klinikId || !yetkili) {
     return;
   }
 
@@ -151,8 +141,8 @@ export async function kaynakAdetGuncelle(kaynakId: string, yeniAdet: number) {
 }
 
 export async function kaynakKapasiteGuncelle(kaynakId: string, yeniKapasite: number) {
-  const { supabase, klinikId } = await klinikIdGetir();
-  if (!klinikId) {
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
+  if (!klinikId || !yetkili) {
     return;
   }
 
@@ -183,9 +173,12 @@ export async function kaynakAktifDurumDegistir(
     return null;
   }
 
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   // Randevu Çizelgesi yalnız AKTİF odaları/cihazları gösterir: gelecek randevusu olan bir kaynak

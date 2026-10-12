@@ -1,9 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { eylemYetkisiGetir, YETKISIZ_MESAJI } from "@/lib/auth/eylem-yetkisi";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -19,22 +18,7 @@ const protokolSemasi = z.object({
 });
 
 async function klinikIdGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  return { supabase, klinikId: kullanici?.klinik_id ?? null };
+  return eylemYetkisiGetir(["klinik_admin"]);
 }
 
 function ayristir(formData: FormData) {
@@ -56,9 +40,12 @@ export async function tedaviProtokoluOlustur(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const ayristirma = ayristir(formData);
@@ -110,9 +97,12 @@ export async function tedaviProtokoluGuncelle(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
   if (!klinikId) {
     return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (!yetkili) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const ayristirma = ayristir(formData);
@@ -164,8 +154,8 @@ export async function tedaviProtokoluGuncelle(
 }
 
 export async function tedaviProtokoluAktifDurumDegistir(protokolId: string, yeniDurum: boolean) {
-  const { supabase, klinikId } = await klinikIdGetir();
-  if (!klinikId) {
+  const { supabase, klinikId, yetkili } = await klinikIdGetir();
+  if (!klinikId || !yetkili) {
     return;
   }
 
