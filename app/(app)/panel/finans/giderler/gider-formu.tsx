@@ -2,6 +2,7 @@
 
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useId, useState } from "react";
+import { cariBakiyeGetir, type CariBakiyeBilgisi } from "./tedarikciler/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import {
   HARCAMA_KATEGORI_SECENEKLERI,
   ARAC_GOSTERILEN_KATEGORILER,
   ODEME_TIPI_SECENEKLERI,
   type HarcamaKategori,
+  type HarcamaOdemeTipi,
   type KlinikHarcamaSatir,
   type OdemeTipi,
 } from "@/types/klinik-harcama";
@@ -41,6 +43,9 @@ export function GiderFormu({
   basariliOlunca,
   sabitOdemeTipi,
   sabitBankaHesapId,
+  kartlar = [],
+  tedarikciAdlari = [],
+  cariDusSecenegi = false,
 }: {
   action: GiderAction;
   gonderButonEtiketi: string;
@@ -52,14 +57,33 @@ export function GiderFormu({
   sabitOdemeTipi?: OdemeTipi;
   /** sabitOdemeTipi="havale" ile birlikte kullanılır — banka hesabı seçimini de sabitler (Banka sayfasının seçili hesabı). */
   sabitBankaHesapId?: string;
+  /** Kredi Kartı seçilince kart seçtirmek için (Şirket Bilgileri > Kredi Kartları). Boşsa seçici gösterilmez. */
+  kartlar?: KlinikKrediKarti[];
+  /** Tedarikçi alanı için öneri listesi — aynı tedarikçi farklı yazılıp cariyi bölmesin. */
+  tedarikciAdlari?: string[];
+  /** Kasa/Banka "Tedarikçi" akışı: cari bakiyesi olan tedarikçide "cari borçtan düşsün" kutusu. */
+  cariDusSecenegi?: boolean;
 }) {
   const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(action, null);
   const [gorulenDurum, setGorulenDurum] = useState<SonucDurumu>(null);
   const [kategori, setKategori] = useState<HarcamaKategori | undefined>(duzenlenecek?.kategori);
-  const [odemeTipi, setOdemeTipi] = useState<OdemeTipi | null>(
+  const [odemeTipi, setOdemeTipi] = useState<HarcamaOdemeTipi | null>(
     sabitOdemeTipi ?? duzenlenecek?.odeme_tipi ?? null
   );
+  const [cariBilgisi, setCariBilgisi] = useState<CariBakiyeBilgisi | null>(null);
+  const [carideDus, setCarideDus] = useState(true);
+  const cariDusGoster = cariDusSecenegi && cariBilgisi != null && cariBilgisi.bakiye > 0;
+  const cariDusuluyor = cariDusGoster && carideDus;
+
+  function tedarikciYazildi(ad: string) {
+    if (!cariDusSecenegi) return;
+    if (!ad.trim()) {
+      setCariBilgisi(null);
+      return;
+    }
+    void cariBakiyeGetir(ad).then(setCariBilgisi);
+  }
   const [faturali, setFaturali] = useState(duzenlenecek?.is_faturali ?? false);
   const aracGosterilir = kategori != null && ARAC_GOSTERILEN_KATEGORILER.includes(kategori);
 
@@ -92,7 +116,7 @@ export function GiderFormu({
         <Label htmlFor={`${idOnEki}-kategori`}>Kategori</Label>
         <Select
           name="kategori"
-          required
+          required={!cariDusuluyor}
           disabled={isPending}
           value={kategori}
           onValueChange={(v) => setKategori(v as HarcamaKategori)}
@@ -141,14 +165,54 @@ export function GiderFormu({
       )}
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor={`${idOnEki}-tedarikci_adi`}>Tedarikçi (opsiyonel)</Label>
+        <Label htmlFor={`${idOnEki}-tedarikci_adi`}>
+          {odemeTipi === "cari" ? "Tedarikçi" : "Tedarikçi (opsiyonel)"}
+        </Label>
         <Input
           id={`${idOnEki}-tedarikci_adi`}
           name="tedarikci_adi"
           placeholder="Tedarikçi/satıcı adı"
           defaultValue={duzenlenecek?.tedarikci_adi ?? ""}
           disabled={isPending}
+          required={odemeTipi === "cari"}
+          list={tedarikciAdlari.length > 0 ? `${idOnEki}-tedarikci-onerileri` : undefined}
+          autoComplete="off"
+          onBlur={(e) => tedarikciYazildi(e.target.value)}
         />
+        {tedarikciAdlari.length > 0 && (
+          <datalist id={`${idOnEki}-tedarikci-onerileri`}>
+            {tedarikciAdlari.map((ad) => (
+              <option key={ad} value={ad} />
+            ))}
+          </datalist>
+        )}
+        {cariDusGoster && cariBilgisi && (
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/40 p-2.5 text-sm">
+            <p className="text-muted-foreground">
+              Cari bakiye:{" "}
+              <span className="tabular font-medium text-foreground">
+                {cariBilgisi.bakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
+              </span>{" "}
+              (Borç {cariBilgisi.borc.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })} − Ödenen{" "}
+              {cariBilgisi.odenen.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })})
+            </p>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="cariden_dus"
+                checked={carideDus}
+                onChange={(e) => setCarideDus(e.target.checked)}
+                disabled={isPending}
+                className="h-4 w-4 rounded border-input"
+              />
+              Bu ödeme cari borçtan düşsün
+            </label>
+            <p className="text-xs text-muted-foreground">
+              İşaretliyken ödeme yeni bir gider değil, cari ödemesi olarak kaydedilir (Raporlar&apos;da çift gider
+              sayılmaz) ve tutar bakiyeyi aşamaz.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">
@@ -187,6 +251,44 @@ export function GiderFormu({
               </Button>
             ))}
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isPending}
+            className={cn(odemeTipi === "cari" && ODEME_TIPI_SECILI_SINIFI)}
+            onClick={() => setOdemeTipi((onceki) => (onceki === "cari" ? null : "cari"))}
+          >
+            Cariye Ekle
+          </Button>
+          {odemeTipi === "cari" && (
+            <p className="text-xs text-muted-foreground">
+              Henüz ödenmedi: gider tedarikçinin carisine borç yazılır, ödeme sonra Tedarikçiler&apos;den yapılır.
+              Raporlar&apos;da gider olarak sayılır; Kasa/Banka&apos;ya ödeme yapılınca girer.
+            </p>
+          )}
+        </div>
+      )}
+
+      {odemeTipi === "kredi_karti" && kartlar.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`${idOnEki}-kredi_karti_id`}>Kredi Kartı (opsiyonel)</Label>
+          <select
+            id={`${idOnEki}-kredi_karti_id`}
+            name="kredi_karti_id"
+            defaultValue={duzenlenecek?.kredi_karti_id ?? ""}
+            disabled={isPending}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">Kart seçilmedi</option>
+            {kartlar.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.kart_adi} — {k.banka_adi}
+                {k.son_dort_hane ? ` •••• ${k.son_dort_hane}` : ""}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">Seçilen kartın borcuna yazılır (Finans &gt; Kredi Kartı).</p>
         </div>
       )}
 

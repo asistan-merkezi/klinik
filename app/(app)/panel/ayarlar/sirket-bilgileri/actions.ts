@@ -458,6 +458,20 @@ export async function krediKartiSil(id: string): Promise<SonucDurumu> {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
+  // Karta bağlı kayıt varsa silme: harcama/cari ödemesindeki bağ SET NULL olup kart borcundan sessizce
+  // "kart seçilmedi"ye kayardı, kart ödemeleri ise FK'ya takılırdı. Önce bağlı kayıtları say.
+  const bagliSayilari = await Promise.all(
+    ["klinik_harcama", "klinik_cari_odeme", "klinik_kredi_karti_odeme"].map((tablo) =>
+      supabase.from(tablo).select("id", { count: "exact", head: true }).eq("kredi_karti_id", id)
+    )
+  );
+  if (bagliSayilari.some((s) => (s.count ?? 0) > 0)) {
+    return {
+      success: false,
+      message: "Bu karta bağlı gider, cari ödemesi veya kart ödemesi kayıtları var; kart silinemez.",
+    };
+  }
+
   const { error } = await supabase.from("klinik_kredi_kartlari").delete().eq("id", id).eq("klinik_id", klinikId);
 
   if (error) {

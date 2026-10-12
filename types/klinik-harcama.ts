@@ -27,6 +27,16 @@ export const ODEME_TIPI_ETIKET = Object.fromEntries(
   ODEME_TIPI_SECENEKLERI.map((s) => [s.value, s.label])
 ) as Record<OdemeTipi, string>;
 
+/**
+ * Giderde ayrıca "Cariye Ekle" (henüz ödenmedi, tedarikçinin carisine borç yazılır) seçilebilir.
+ * Kasa/Banka/Kredi Kartı yalnız nakit/havale/kredi_karti satırlarını okur — 'cari' hiçbirine girmez.
+ */
+export type HarcamaOdemeTipi = OdemeTipi | "cari";
+export const HARCAMA_ODEME_TIPI_ETIKET: Record<HarcamaOdemeTipi, string> = {
+  ...ODEME_TIPI_ETIKET,
+  cari: "Cariye eklendi",
+};
+
 export type KlinikHarcamaSatir = {
   id: string;
   tarih: string;
@@ -35,8 +45,9 @@ export type KlinikHarcamaSatir = {
   aciklama: string | null;
   tedarikci_adi: string | null;
   arac_id: string | null;
-  odeme_tipi: OdemeTipi | null;
+  odeme_tipi: HarcamaOdemeTipi | null;
   banka_hesap_id: string | null;
+  kredi_karti_id: string | null;
   is_faturali: boolean;
   fatura_no: string | null;
 };

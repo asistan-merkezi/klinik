@@ -4,7 +4,7 @@ import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import { finansDonemiCoz } from "@/lib/finans/donem";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import { BankaClient } from "./banka-client";
 
 type HastaOdemeSatiri = {
@@ -26,6 +26,22 @@ type HarcamaSatiri = {
   tedarikci_adi: string | null;
   kategori: string;
   banka_hesap_id: string | null;
+};
+type CariOdemeSatiri = {
+  id: string;
+  tarih: string;
+  tutar: number;
+  tedarikci_adi: string;
+  aciklama: string | null;
+  banka_hesap_id: string | null;
+};
+type KartOdemeSatiri = {
+  id: string;
+  tarih: string;
+  tutar: number;
+  aciklama: string | null;
+  banka_hesap_id: string | null;
+  kart: { kart_adi: string } | null;
 };
 type PersonelOdemeSatiri = {
   id: string;
@@ -69,10 +85,13 @@ export default async function BankaSayfasi({
     bankaHesabiSonucu,
     hastaOdemeleri,
     harcamalar,
+    cariOdemeleri,
+    kartOdemeleri,
     personelOdemeleri,
     nakitBankaHareketleri,
     personelListesiSonucu,
     aracSonucu,
+    kartSonucu,
     oncekiToplamSonucu,
   ] = await Promise.all([
     supabase.from("klinik_banka_hesaplari").select("id, banka_adi, sube, hesap_sahibi").order("sort_order").returns<KlinikBankaHesabi[]>(),
@@ -100,6 +119,31 @@ export default async function BankaSayfasi({
         .order("id")
         .range(bas, son)
         .returns<HarcamaSatiri[]>()
+    ),
+    // Tedarikçi cari ödemesi (havale) ve karta yapılan havale ödemesi bankadan ÇIKIŞ olur.
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("klinik_cari_odeme")
+        .select("id, tarih, tutar, tedarikci_adi, aciklama, banka_hesap_id")
+        .eq("odeme_tipi", "havale")
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<CariOdemeSatiri[]>()
+    ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("klinik_kredi_karti_odeme")
+        .select("id, tarih, tutar, aciklama, banka_hesap_id, kart:kredi_karti_id(kart_adi)")
+        .eq("odeme_tipi", "havale")
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<KartOdemeSatiri[]>()
     ),
     tumSayfalariOku((bas, son) =>
       supabase
@@ -130,6 +174,11 @@ export default async function BankaSayfasi({
     ),
     supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad").returns<{ id: string; ad_soyad: string }[]>(),
     supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
+    supabase
+      .from("klinik_kredi_kartlari")
+      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
+      .order("sort_order")
+      .returns<KlinikKrediKarti[]>(),
     supabase.rpc("banka_bakiye_once_toplam_tumu", { p_once_tarih: donem.baslangic }),
   ]);
   if (oncekiToplamSonucu.error) throw new Error(oncekiToplamSonucu.error.message);
@@ -149,10 +198,13 @@ export default async function BankaSayfasi({
           bankaHesaplari={bankaHesabiSonucu.data ?? []}
           hastaOdemeleri={hastaOdemeleri}
           harcamalar={harcamalar}
+          cariOdemeleri={cariOdemeleri}
+          kartOdemeleri={kartOdemeleri}
           personelOdemeleri={personelOdemeleri}
           nakitBankaHareketleri={nakitBankaHareketleri}
           personelListesi={personelListesiSonucu.data ?? []}
           araclar={aracSonucu.data ?? []}
+          kartlar={kartSonucu.data ?? []}
           duzenlenebilir={duzenlenebilir}
           oncekiBakiyeMap={oncekiBakiyeMap}
           mod={donem.mod}

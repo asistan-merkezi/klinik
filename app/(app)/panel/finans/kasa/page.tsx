@@ -5,13 +5,21 @@ import { formatDateForInput } from "@/lib/datetime";
 import { finansDonemiCoz } from "@/lib/finans/donem";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { PageHeader } from "@/components/ui/page-header";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KasaClient, type KasaKontrolBilgisi } from "./kasa-client";
 
 // tur='iade' satırları (hasta nakit iadesi) aynı sorguyla gelir; Kasa'da ÇIKIŞ sayılır.
 type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; tur: string; hasta: { ad_soyad: string } | null };
 type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string };
+type CariOdemeSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string; aciklama: string | null };
+type KartOdemeSatiri = {
+  id: string;
+  tarih: string;
+  tutar: number;
+  aciklama: string | null;
+  kart: { kart_adi: string } | null;
+};
 type PersonelOdemeSatiri = {
   id: string;
   tarih: string;
@@ -52,12 +60,15 @@ export default async function KasaSayfasi({
     ayarSonucu,
     hastaOdemeleri,
     harcamalar,
+    cariOdemeleri,
+    kartOdemeleri,
     personelOdemeleri,
     nakitBankaHareketleri,
     dengelemeler,
     bankaHesabiSonucu,
     personelListesiSonucu,
     aracSonucu,
+    kartSonucu,
     oncekiToplamSonucu,
   ] = await Promise.all([
     supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId ?? "").maybeSingle(),
@@ -85,6 +96,31 @@ export default async function KasaSayfasi({
         .order("id")
         .range(bas, son)
         .returns<HarcamaSatiri[]>()
+    ),
+    // Tedarikçi cari ödemesi (nakit) ve karta yapılan nakit ödeme kasadan ÇIKIŞ olur.
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("klinik_cari_odeme")
+        .select("id, tarih, tutar, tedarikci_adi, aciklama")
+        .eq("odeme_tipi", "nakit")
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<CariOdemeSatiri[]>()
+    ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("klinik_kredi_karti_odeme")
+        .select("id, tarih, tutar, aciklama, kart:kredi_karti_id(kart_adi)")
+        .eq("odeme_tipi", "nakit")
+        .gte("tarih", donem.baslangic)
+        .lt("tarih", donem.bitis)
+        .order("tarih")
+        .order("id")
+        .range(bas, son)
+        .returns<KartOdemeSatiri[]>()
     ),
     tumSayfalariOku((bas, son) =>
       supabase
@@ -124,6 +160,11 @@ export default async function KasaSayfasi({
       .order("ad_soyad")
       .returns<{ id: string; ad_soyad: string }[]>(),
     supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
+    supabase
+      .from("klinik_kredi_kartlari")
+      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
+      .order("sort_order")
+      .returns<KlinikKrediKarti[]>(),
     supabase.rpc("kasa_bakiye_once_toplam", { p_once_tarih: donem.baslangic }),
   ]);
   if (oncekiToplamSonucu.error) throw new Error(oncekiToplamSonucu.error.message);
@@ -199,6 +240,22 @@ export default async function KasaSayfasi({
       taraf: g.tedarikci_adi ?? undefined,
       aciklama: g.tedarikci_adi ? g.kategori : undefined,
     })),
+    ...cariOdemeleri.map((c) => ({
+      id: c.id,
+      tarih: c.tarih,
+      tutar: c.tutar,
+      etiket: "Tedarikçi ödemesi",
+      taraf: c.tedarikci_adi,
+      aciklama: c.aciklama ?? undefined,
+    })),
+    ...kartOdemeleri.map((k) => ({
+      id: k.id,
+      tarih: k.tarih,
+      tutar: k.tutar,
+      etiket: "Kredi kartı ödemesi",
+      taraf: k.kart?.kart_adi ?? "Kredi kartı",
+      aciklama: k.aciklama ?? undefined,
+    })),
     ...personelOdemeleri.map((p) => ({
       id: p.id,
       tarih: p.tarih,
@@ -249,6 +306,7 @@ export default async function KasaSayfasi({
           bankaHesaplari={bankaHesabiSonucu.data ?? []}
           personelListesi={personelListesiSonucu.data ?? []}
           araclar={aracSonucu.data ?? []}
+          kartlar={kartSonucu.data ?? []}
           duzenlenebilir={duzenlenebilir}
         />
       </div>

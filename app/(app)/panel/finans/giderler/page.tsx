@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { KlinikHarcamaSatir } from "@/types/klinik-harcama";
 import { YeniGiderButonu } from "./yeni-gider-butonu";
 import { GiderListesi } from "./gider-listesi";
@@ -18,13 +18,13 @@ export default async function GiderlerSayfasi() {
   // Dönem filtresi (Aylık/Yıllık) GiderListesi içinde tamamen client-side
   // yapılıyor — bu yüzden tüm kayıtlar tek seferde çekiliyor, dönem
   // değişince sunucuya round-trip yok.
-  const [harcamaSonucu, aracSonucu, bankaSonucu] = await Promise.all([
+  const [harcamaSonucu, aracSonucu, bankaSonucu, kartSonucu] = await Promise.all([
     // Sayfalı: tek sorgu 1000 kayıtta sessizce kesilir, eski dönemler boş görünürdü.
     tumSayfalariOku<KlinikHarcamaSatir>((bas, son) =>
       supabase
         .from("klinik_harcama")
         .select(
-          "id, tarih, tutar, kategori, aciklama, tedarikci_adi, arac_id, odeme_tipi, banka_hesap_id, is_faturali, fatura_no"
+          "id, tarih, tutar, kategori, aciklama, tedarikci_adi, arac_id, odeme_tipi, banka_hesap_id, kredi_karti_id, is_faturali, fatura_no"
         )
         .order("tarih", { ascending: false })
         .order("id")
@@ -37,11 +37,26 @@ export default async function GiderlerSayfasi() {
       .select("id, banka_adi, sube")
       .order("sort_order")
       .returns<KlinikBankaHesabi[]>(),
+    supabase
+      .from("klinik_kredi_kartlari")
+      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
+      .order("sort_order")
+      .returns<KlinikKrediKarti[]>(),
   ]);
 
   const giderler = harcamaSonucu.data ?? [];
   const araclar = aracSonucu.data ?? [];
   const bankaHesaplari = bankaSonucu.data ?? [];
+  const kartlar = kartSonucu.data ?? [];
+  // Tedarikçi önerileri: aynı tedarikçi farklı yazılıp cariyi bölmesin (anahtar: Türkçe küçük harf, tek boşluk).
+  const tedarikciAdlari = [
+    ...new Map(
+      giderler
+        .map((g) => (g.tedarikci_adi ?? "").trim().replace(/\s+/g, " "))
+        .filter(Boolean)
+        .map((ad) => [ad.toLocaleLowerCase("tr-TR"), ad] as const)
+    ).values(),
+  ].sort((a, b) => a.localeCompare(b, "tr-TR"));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -50,7 +65,12 @@ export default async function GiderlerSayfasi() {
           title="Giderler"
           description="Kira, sarf malzeme, fatura gibi genel işletme giderleri."
           icon={Wallet}
-          actions={duzenlenebilir && <YeniGiderButonu araclar={araclar} bankaHesaplari={bankaHesaplari} />}
+          actions={duzenlenebilir && <YeniGiderButonu
+              araclar={araclar}
+              bankaHesaplari={bankaHesaplari}
+              kartlar={kartlar}
+              tedarikciAdlari={tedarikciAdlari}
+            />}
         />
 
         <GiderlerSekmeCubugu />
@@ -60,6 +80,8 @@ export default async function GiderlerSayfasi() {
           duzenlenebilir={duzenlenebilir}
           araclar={araclar}
           bankaHesaplari={bankaHesaplari}
+          kartlar={kartlar}
+          tedarikciAdlari={tedarikciAdlari}
         />
       </div>
     </div>

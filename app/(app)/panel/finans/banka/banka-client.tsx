@@ -13,10 +13,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LedgerView } from "@/components/panel/ledger-view";
 import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import type { DonemModu } from "@/lib/finans/donem";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { GiderFormu } from "../giderler/gider-formu";
-import { giderEkle } from "../giderler/actions";
+import { tedarikciOdemesiEkle } from "../giderler/tedarikciler/actions";
+import { KrediKartiOdemeFormu } from "@/components/panel/kredi-karti-odeme-formu";
 import { OdemeFormu } from "../giderler/kamusal-giderler/odeme-formu";
 import { kamusalOdemeEkle } from "../giderler/kamusal-giderler/actions";
 import {
@@ -32,6 +33,22 @@ function formatIban(iban: string): string {
 }
 
 type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; banka_hesap_id: string | null; odeme_yontemi: string | null; komisyon_orani: number | null; tur: string; hasta: { ad_soyad: string } | null };
+type CariOdemeSatiri = {
+  id: string;
+  tarih: string;
+  tutar: number;
+  tedarikci_adi: string;
+  aciklama: string | null;
+  banka_hesap_id: string | null;
+};
+type KartOdemeSatiri = {
+  id: string;
+  tarih: string;
+  tutar: number;
+  aciklama: string | null;
+  banka_hesap_id: string | null;
+  kart: { kart_adi: string } | null;
+};
 type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string; banka_hesap_id: string | null };
 type PersonelOdemeSatiri = { id: string; tarih: string; tutar: number; tur: string; banka_hesap_id: string | null; personel: { ad_soyad: string } | null };
 type NakitBankaSatiri = {
@@ -367,13 +384,14 @@ function DigerCikanFormu({ selectedId, basariliOlunca }: { selectedId: string; b
   );
 }
 
-type CikanAdimi = "tedarikci" | "personel" | "hesaplar_arasi" | "kamusal" | "diger" | null;
+type CikanAdimi = "tedarikci" | "personel" | "hesaplar_arasi" | "kamusal" | "kredi_karti" | "diger" | null;
 
 const CIKAN_ADIM_ETIKET: Record<Exclude<CikanAdimi, null>, string> = {
   tedarikci: "Tedarikçi",
   personel: "Personel",
   hesaplar_arasi: "Hesaplar Arası Transfer",
   kamusal: "Kamusal Ödeme",
+  kredi_karti: "Kredi Kartı Ödemesi",
   diger: "Diğer",
 };
 
@@ -382,11 +400,13 @@ function BankadanCikanDialog({
   bankaHesaplari,
   personelListesi,
   araclar,
+  kartlar,
 }: {
   selectedId: string;
   bankaHesaplari: KlinikBankaHesabi[];
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
+  kartlar: KlinikKrediKarti[];
 }) {
   const [acik, setAcik] = useState(false);
   const [adim, setAdim] = useState<CikanAdimi>(null);
@@ -415,6 +435,7 @@ function BankadanCikanDialog({
                 personel: "Sabit personele maaş / avans / prim ödemesi",
                 hesaplar_arasi: "Başka bir banka hesabına veya Kasa'ya transfer",
                 kamusal: "KDV, SGK, vergi vb. ödemeler",
+                kredi_karti: "Şirket kredi kartı borcuna havale ile ödeme",
                 diger: "Kayıtlı olmayan kişi / firmaya havale",
               }}
               onSec={(secim) => setAdim(secim)}
@@ -423,11 +444,21 @@ function BankadanCikanDialog({
 
           {adim === "tedarikci" && (
             <GiderFormu
-              action={giderEkle}
+              action={tedarikciOdemesiEkle}
               gonderButonEtiketi="Ekle"
               araclar={araclar}
               bankaHesaplari={bankaHesaplari}
               sabitOdemeTipi="havale"
+              sabitBankaHesapId={selectedId}
+              cariDusSecenegi
+              basariliOlunca={kapat}
+            />
+          )}
+          {adim === "kredi_karti" && (
+            <KrediKartiOdemeFormu
+              kartlar={kartlar}
+              bankaHesaplari={bankaHesaplari}
+              sabitYontem="havale"
               sabitBankaHesapId={selectedId}
               basariliOlunca={kapat}
             />
@@ -450,10 +481,13 @@ export function BankaClient({
   bankaHesaplari,
   hastaOdemeleri,
   harcamalar,
+  cariOdemeleri,
+  kartOdemeleri,
   personelOdemeleri,
   nakitBankaHareketleri,
   personelListesi,
   araclar,
+  kartlar,
   duzenlenebilir,
   oncekiBakiyeMap,
   mod,
@@ -463,10 +497,13 @@ export function BankaClient({
   bankaHesaplari: KlinikBankaHesabi[];
   hastaOdemeleri: HastaOdemeSatiri[];
   harcamalar: HarcamaSatiri[];
+  cariOdemeleri: CariOdemeSatiri[];
+  kartOdemeleri: KartOdemeSatiri[];
   personelOdemeleri: PersonelOdemeSatiri[];
   nakitBankaHareketleri: NakitBankaSatiri[];
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
+  kartlar: KlinikKrediKarti[];
   duzenlenebilir: boolean;
   /** Her hesabın seçili dönemden ÖNCEKİ net toplamı (bkz. banka/page.tsx) — hesap bazlı "dönem başı bakiye". */
   oncekiBakiyeMap: Record<string, number>;
@@ -515,6 +552,26 @@ export function BankaClient({
           taraf: g.tedarikci_adi ?? undefined,
           aciklama: g.tedarikci_adi ? g.kategori : undefined,
         })),
+      ...cariOdemeleri
+        .filter((c) => c.banka_hesap_id === selectedId)
+        .map((c) => ({
+          id: c.id,
+          tarih: c.tarih,
+          tutar: c.tutar,
+          etiket: "Tedarikçi ödemesi",
+          taraf: c.tedarikci_adi,
+          aciklama: c.aciklama ?? undefined,
+        })),
+      ...kartOdemeleri
+        .filter((k) => k.banka_hesap_id === selectedId)
+        .map((k) => ({
+          id: k.id,
+          tarih: k.tarih,
+          tutar: k.tutar,
+          etiket: "Kredi kartı ödemesi",
+          taraf: k.kart?.kart_adi ?? "Kredi kartı",
+          aciklama: k.aciklama ?? undefined,
+        })),
       ...personelOdemeleri
         .filter((p) => p.banka_hesap_id === selectedId)
         .map((p) => ({
@@ -557,7 +614,7 @@ export function BankaClient({
     }
 
     return { gelenRows: gelen, gidenRows: giden };
-  }, [selectedId, hastaOdemeleri, harcamalar, personelOdemeleri, nakitBankaHareketleri, bankaHesaplari]);
+  }, [selectedId, hastaOdemeleri, harcamalar, cariOdemeleri, kartOdemeleri, personelOdemeleri, nakitBankaHareketleri, bankaHesaplari]);
 
   if (bankaHesaplari.length === 0) {
     return (
@@ -576,7 +633,13 @@ export function BankaClient({
       {duzenlenebilir && (
         <div className="flex flex-wrap gap-2">
           <BankayaGirenDialog selectedId={selectedId} />
-          <BankadanCikanDialog selectedId={selectedId} bankaHesaplari={bankaHesaplari} personelListesi={personelListesi} araclar={araclar} />
+          <BankadanCikanDialog
+            selectedId={selectedId}
+            bankaHesaplari={bankaHesaplari}
+            personelListesi={personelListesi}
+            araclar={araclar}
+            kartlar={kartlar}
+          />
         </div>
       )}
 

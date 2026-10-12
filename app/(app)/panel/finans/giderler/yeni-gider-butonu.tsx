@@ -4,16 +4,20 @@ import { useState } from "react";
 import { CirclePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import { GiderFormu } from "./gider-formu";
 import { giderEkle } from "./actions";
 
 export function YeniGiderButonu({
   araclar,
   bankaHesaplari,
+  kartlar,
+  tedarikciAdlari,
 }: {
   araclar: KlinikArac[];
   bankaHesaplari: KlinikBankaHesabi[];
+  kartlar: KlinikKrediKarti[];
+  tedarikciAdlari: string[];
 }) {
   const [acik, setAcik] = useState(false);
   const [formKey, setFormKey] = useState(0);
@@ -35,6 +39,8 @@ export function YeniGiderButonu({
             gonderButonEtiketi="Kaydet"
             araclar={araclar}
             bankaHesaplari={bankaHesaplari}
+            kartlar={kartlar}
+            tedarikciAdlari={tedarikciAdlari}
             basariliOlunca={() => {
               setAcik(false);
               setFormKey((k) => k + 1);

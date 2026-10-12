@@ -12,10 +12,11 @@ import { cn } from "@/lib/utils";
 import { bugunIstanbulTarihi, formatDateTime } from "@/lib/datetime";
 import type { DonemModu } from "@/lib/finans/donem";
 import { LedgerView } from "@/components/panel/ledger-view";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { GiderFormu } from "../giderler/gider-formu";
-import { giderEkle } from "../giderler/actions";
+import { tedarikciOdemesiEkle } from "../giderler/tedarikciler/actions";
+import { KrediKartiOdemeFormu } from "@/components/panel/kredi-karti-odeme-formu";
 import {
   kasaBaslangicGuncelle,
   kasaDengelemeEkle,
@@ -203,7 +204,7 @@ function KasayaGirenDialog() {
   );
 }
 
-type CikanAdimi = "tedarikci" | "personel" | "hesaplar_arasi" | "diger" | null;
+type CikanAdimi = "tedarikci" | "personel" | "hesaplar_arasi" | "kredi_karti" | "diger" | null;
 
 function PersonelOdemeFormu({
   personelListesi,
@@ -411,6 +412,7 @@ const CIKAN_ADIM_ETIKET: Record<Exclude<CikanAdimi, null>, string> = {
   tedarikci: "Tedarikçi",
   personel: "Personel",
   hesaplar_arasi: "Hesaplar Arası Transfer",
+  kredi_karti: "Kredi Kartı Ödemesi",
   diger: "Diğer",
 };
 
@@ -418,10 +420,12 @@ function KasadanCikanDialog({
   bankaHesaplari,
   personelListesi,
   araclar,
+  kartlar,
 }: {
   bankaHesaplari: KlinikBankaHesabi[];
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
+  kartlar: KlinikKrediKarti[];
 }) {
   const [acik, setAcik] = useState(false);
   const [adim, setAdim] = useState<CikanAdimi>(null);
@@ -455,6 +459,7 @@ function KasadanCikanDialog({
                 tedarikci: "Kayıtlı bir tedarikçiye nakit ödeme",
                 personel: "Sabit personele nakit maaş / avans / prim ödemesi",
                 hesaplar_arasi: "Kasadan bir banka hesabına transfer",
+                kredi_karti: "Şirket kredi kartı borcuna nakit ödeme",
                 diger: "Kayıtlı olmayan kişi / firmaya elden ödeme",
               }}
               onSec={(secim) => secim !== "kamusal" && setAdim(secim)}
@@ -463,13 +468,17 @@ function KasadanCikanDialog({
 
           {adim === "tedarikci" && (
             <GiderFormu
-              action={giderEkle}
+              action={tedarikciOdemesiEkle}
               gonderButonEtiketi="Ekle"
               araclar={araclar}
               bankaHesaplari={[]}
               sabitOdemeTipi="nakit"
+              cariDusSecenegi
               basariliOlunca={kapat}
             />
+          )}
+          {adim === "kredi_karti" && (
+            <KrediKartiOdemeFormu kartlar={kartlar} bankaHesaplari={bankaHesaplari} sabitYontem="nakit" basariliOlunca={kapat} />
           )}
           {adim === "personel" && <PersonelOdemeFormu personelListesi={personelListesi} basariliOlunca={kapat} />}
           {adim === "hesaplar_arasi" && (
@@ -493,6 +502,7 @@ export function KasaClient({
   bankaHesaplari,
   personelListesi,
   araclar,
+  kartlar,
   duzenlenebilir,
 }: {
   kasaKontrol: KasaKontrolBilgisi;
@@ -505,6 +515,7 @@ export function KasaClient({
   bankaHesaplari: KlinikBankaHesabi[];
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
+  kartlar: KlinikKrediKarti[];
   duzenlenebilir: boolean;
 }) {
   return (
@@ -513,7 +524,12 @@ export function KasaClient({
         <div className="flex flex-wrap gap-2">
           <KasaKontrolDialog kasaKontrol={kasaKontrol} />
           <KasayaGirenDialog />
-          <KasadanCikanDialog bankaHesaplari={bankaHesaplari} personelListesi={personelListesi} araclar={araclar} />
+          <KasadanCikanDialog
+            bankaHesaplari={bankaHesaplari}
+            personelListesi={personelListesi}
+            araclar={araclar}
+            kartlar={kartlar}
+          />
         </div>
       )}
 

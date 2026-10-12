@@ -4,11 +4,14 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { ARAC_GOSTERILEN_KATEGORILER, type HarcamaKategori, type OdemeTipi } from "@/types/klinik-harcama";
+import { finansSayfalariniYenile } from "@/lib/finans/sayfa-yenile";
+import { ARAC_GOSTERILEN_KATEGORILER, type HarcamaKategori, type HarcamaOdemeTipi, type OdemeTipi } from "@/types/klinik-harcama";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
 const ODEME_TIPLERI: OdemeTipi[] = ["nakit", "havale", "kredi_karti"];
+// Giderde ayrıca "Cariye Ekle" (borç yazılır, ödeme sonra yapılır) seçilebilir; "Ödeme bilgisi gir" akışında değil.
+const HARCAMA_ODEME_TIPLERI: HarcamaOdemeTipi[] = [...ODEME_TIPLERI, "cari"];
 
 // Migration 20260914090000'daki klinik_harcama.kategori CHECK'iyle birebir aynı liste.
 const harcamaSemasi = z.object({
@@ -19,6 +22,7 @@ const harcamaSemasi = z.object({
   arac_id: z.string().trim().optional(),
   odeme_tipi: z.string().trim().optional(),
   banka_hesap_id: z.string().trim().optional(),
+  kredi_karti_id: z.string().trim().optional(),
   aciklama: z.string().trim().optional(),
   is_faturali: z.string().optional(),
   fatura_no: z.string().trim().optional(),
@@ -52,6 +56,7 @@ function formVerisiOku(formData: FormData) {
     arac_id: formData.get("arac_id") ?? "",
     odeme_tipi: formData.get("odeme_tipi") ?? "",
     banka_hesap_id: formData.get("banka_hesap_id") ?? "",
+    kredi_karti_id: formData.get("kredi_karti_id") ?? "",
     aciklama: formData.get("aciklama") ?? "",
     is_faturali: formData.get("is_faturali") ?? "",
     fatura_no: formData.get("fatura_no") ?? "",
@@ -61,7 +66,9 @@ function formVerisiOku(formData: FormData) {
 /** Kategoriye göre araç, ödeme tipine göre banka hesabı zorunlu tutarlılığı — istemciden ne gelirse gelsin burada garanti edilir. */
 function harcamaSatiriOlustur(veri: z.infer<typeof harcamaSemasi>) {
   const kategori = veri.kategori as HarcamaKategori;
-  const odemeTipi = ODEME_TIPLERI.includes(veri.odeme_tipi as OdemeTipi) ? (veri.odeme_tipi as OdemeTipi) : null;
+  const odemeTipi = HARCAMA_ODEME_TIPLERI.includes(veri.odeme_tipi as HarcamaOdemeTipi)
+    ? (veri.odeme_tipi as HarcamaOdemeTipi)
+    : null;
   const aracGosterilir = ARAC_GOSTERILEN_KATEGORILER.includes(kategori);
   const isFaturali = veri.is_faturali === "on" || veri.is_faturali === "true";
 
@@ -73,10 +80,43 @@ function harcamaSatiriOlustur(veri: z.infer<typeof harcamaSemasi>) {
     arac_id: aracGosterilir && veri.arac_id ? veri.arac_id : null,
     odeme_tipi: odemeTipi,
     banka_hesap_id: odemeTipi === "havale" && veri.banka_hesap_id ? veri.banka_hesap_id : null,
+    kredi_karti_id: odemeTipi === "kredi_karti" && veri.kredi_karti_id ? veri.kredi_karti_id : null,
     aciklama: veri.aciklama ? veri.aciklama : null,
     is_faturali: isFaturali,
     fatura_no: isFaturali && veri.fatura_no ? veri.fatura_no : null,
   };
+}
+
+/**
+ * Cariye eklenen gider tedarikçisiz olamaz (DB CHECK'i de zorlar); seçilen kredi kartı bu kliniğe ait olmalı.
+ * İstemciden ne gelirse gelsin burada garanti edilir.
+ */
+async function harcamaDogrula(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  klinikId: string,
+  veri: z.infer<typeof harcamaSemasi>
+): Promise<string | null> {
+  if (veri.odeme_tipi === "cari" && !veri.tedarikci_adi) {
+    return "Cariye eklemek için tedarikçi adı girilmeli.";
+  }
+  if (veri.odeme_tipi === "kredi_karti" && veri.kredi_karti_id) {
+    const { data: kart } = await supabase
+      .from("klinik_kredi_kartlari")
+      .select("id")
+      .eq("id", veri.kredi_karti_id)
+      .eq("klinik_id", klinikId)
+      .maybeSingle();
+    if (!kart) return "Seçilen kredi kartı bulunamadı.";
+  }
+  return null;
+}
+
+/** Cari bütünlük tetikleyicisi (klinik_harcama_cari_butunluk) hatasını kullanıcıya anlaşılır çevirir. */
+function giderYazmaHatasi(hata: { message?: string } | null, varsayilan: string): string {
+  if (hata?.message?.includes("cari_bakiye_negatif")) {
+    return "Bu cari gideri değiştirirseniz tedarikçiye yapılmış ödemeler kalan borcu aşar. Önce Tedarikçiler'den ilgili cari ödemelerini silin.";
+  }
+  return varsayilan;
 }
 
 export async function giderEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
@@ -93,6 +133,11 @@ export async function giderEkle(_onceki: SonucDurumu, formData: FormData): Promi
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
+  const dogrulamaHatasi = await harcamaDogrula(supabase, klinikId, ayristirma.data);
+  if (dogrulamaHatasi) {
+    return { success: false, message: dogrulamaHatasi };
+  }
+
   const { error } = await supabase.from("klinik_harcama").insert({
     klinik_id: klinikId,
     ...harcamaSatiriOlustur(ayristirma.data),
@@ -104,10 +149,7 @@ export async function giderEkle(_onceki: SonucDurumu, formData: FormData): Promi
     return { success: false, message: "Gider kaydedilemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/finans/giderler");
-  revalidatePath("/panel/finans/raporlar");
-  revalidatePath("/panel/finans/kasa");
-  revalidatePath("/panel/finans/banka");
+  finansSayfalariniYenile();
   return { success: true, message: "Gider kaydedildi." };
 }
 
@@ -129,6 +171,11 @@ export async function giderGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
+  const dogrulamaHatasi = await harcamaDogrula(supabase, klinikId, ayristirma.data);
+  if (dogrulamaHatasi) {
+    return { success: false, message: dogrulamaHatasi };
+  }
+
   const { error } = await supabase
     .from("klinik_harcama")
     .update(harcamaSatiriOlustur(ayristirma.data))
@@ -136,13 +183,10 @@ export async function giderGuncelle(
 
   if (error) {
     console.error("Gider güncellenemedi:", error);
-    return { success: false, message: "Gider güncellenemedi, lütfen tekrar deneyin." };
+    return { success: false, message: giderYazmaHatasi(error, "Gider güncellenemedi, lütfen tekrar deneyin.") };
   }
 
-  revalidatePath("/panel/finans/giderler");
-  revalidatePath("/panel/finans/raporlar");
-  revalidatePath("/panel/finans/kasa");
-  revalidatePath("/panel/finans/banka");
+  finansSayfalariniYenile();
   return { success: true, message: "Gider güncellendi." };
 }
 
@@ -163,6 +207,7 @@ export async function giderOdemeBilgisiGuncelle(_onceki: SonucDurumu, formData: 
   const id = formData.get("id");
   const odemeTipi = String(formData.get("odeme_tipi") ?? "") as OdemeTipi;
   const bankaHesapId = String(formData.get("banka_hesap_id") ?? "").trim();
+  const krediKartiId = String(formData.get("kredi_karti_id") ?? "").trim();
   if (typeof id !== "string" || !id) {
     return { success: false, message: "Gider bulunamadı." };
   }
@@ -184,9 +229,25 @@ export async function giderOdemeBilgisiGuncelle(_onceki: SonucDurumu, formData: 
     }
   }
 
+  if (odemeTipi === "kredi_karti" && krediKartiId) {
+    const { data: kart } = await supabase
+      .from("klinik_kredi_kartlari")
+      .select("id")
+      .eq("id", krediKartiId)
+      .eq("klinik_id", klinikId)
+      .maybeSingle();
+    if (!kart) {
+      return { success: false, message: "Seçilen kredi kartı bulunamadı." };
+    }
+  }
+
   const { error } = await supabase
     .from("klinik_harcama")
-    .update({ odeme_tipi: odemeTipi, banka_hesap_id: odemeTipi === "havale" ? bankaHesapId : null })
+    .update({
+      odeme_tipi: odemeTipi,
+      banka_hesap_id: odemeTipi === "havale" ? bankaHesapId : null,
+      kredi_karti_id: odemeTipi === "kredi_karti" && krediKartiId ? krediKartiId : null,
+    })
     .eq("id", id)
     .eq("klinik_id", klinikId);
 
@@ -213,12 +274,9 @@ export async function giderSil(id: string): Promise<SonucDurumu> {
 
   if (error) {
     console.error("Gider silinemedi:", error);
-    return { success: false, message: "Gider silinemedi, lütfen tekrar deneyin." };
+    return { success: false, message: giderYazmaHatasi(error, "Gider silinemedi, lütfen tekrar deneyin.") };
   }
 
-  revalidatePath("/panel/finans/giderler");
-  revalidatePath("/panel/finans/raporlar");
-  revalidatePath("/panel/finans/kasa");
-  revalidatePath("/panel/finans/banka");
+  finansSayfalariniYenile();
   return { success: true, message: "Gider silindi." };
 }

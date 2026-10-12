@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import { DONEM_AY_SECENEKLERI } from "@/types/kamusal-odeme";
-import { HARCAMA_KATEGORI_ETIKET, ODEME_TIPI_ETIKET, type KlinikHarcamaSatir } from "@/types/klinik-harcama";
+import { HARCAMA_KATEGORI_ETIKET, HARCAMA_ODEME_TIPI_ETIKET, type KlinikHarcamaSatir } from "@/types/klinik-harcama";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { GiderFormu } from "./gider-formu";
 import { giderGuncelle, giderSil } from "./actions";
@@ -33,11 +33,15 @@ export function GiderListesi({
   duzenlenebilir,
   araclar,
   bankaHesaplari,
+  kartlar,
+  tedarikciAdlari,
 }: {
   satirlar: KlinikHarcamaSatir[];
   duzenlenebilir: boolean;
   araclar: KlinikArac[];
   bankaHesaplari: KlinikBankaHesabi[];
+  kartlar: KlinikKrediKarti[];
+  tedarikciAdlari: string[];
 }) {
   const simdi = new Date();
   const [donemModu, setDonemModu] = useState<DonemModu>("aylik");
@@ -46,6 +50,7 @@ export function GiderListesi({
   const [gun, setGun] = useState(bugunIstanbulTarihi());
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
   const [silinecekId, setSilinecekId] = useState<string | null>(null);
+  const [silmeHatasi, setSilmeHatasi] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const filtreliSatirlar = useMemo(() => {
@@ -64,6 +69,7 @@ export function GiderListesi({
   const duzenlenenSatir = satirlar.find((s) => s.id === duzenlenenId) ?? null;
   const aracMap = new Map(araclar.map((a) => [a.id, a]));
   const bankaMap = new Map(bankaHesaplari.map((b) => [b.id, b]));
+  const kartMap = new Map(kartlar.map((k) => [k.id, k]));
 
   function ayDegistir(delta: number) {
     let yeniAy = ay + delta;
@@ -87,7 +93,14 @@ export function GiderListesi({
       const banka = satir.banka_hesap_id ? bankaMap.get(satir.banka_hesap_id) : undefined;
       return <span>{`Havale${banka ? ` (${banka.banka_adi})` : ""}`}</span>;
     }
-    return <span>{ODEME_TIPI_ETIKET[satir.odeme_tipi]}</span>;
+    if (satir.odeme_tipi === "kredi_karti") {
+      const kart = satir.kredi_karti_id ? kartMap.get(satir.kredi_karti_id) : undefined;
+      return <span>{`Kredi Kartı${kart ? ` (${kart.kart_adi})` : ""}`}</span>;
+    }
+    if (satir.odeme_tipi === "cari") {
+      return <StatusBadge tone="amber">{HARCAMA_ODEME_TIPI_ETIKET.cari}</StatusBadge>;
+    }
+    return <span>{HARCAMA_ODEME_TIPI_ETIKET[satir.odeme_tipi]}</span>;
   }
 
   return (
@@ -145,6 +158,12 @@ export function GiderListesi({
         </CardContent>
       </Card>
 
+      {silmeHatasi && (
+        <p role="alert" className="text-sm text-destructive">
+          {silmeHatasi}
+        </p>
+      )}
+
       {filtreliSatirlar.length === 0 ? (
         <EmptyState icon={Wallet} title="Bu dönemde gider kaydı yok." compact />
       ) : (
@@ -188,7 +207,8 @@ export function GiderListesi({
                           disabled={isPending}
                           onClick={() =>
                             startTransition(async () => {
-                              await giderSil(satir.id);
+                              const sonuc = await giderSil(satir.id);
+                              setSilmeHatasi(sonuc?.success ? null : (sonuc?.message ?? "Gider silinemedi."));
                               setSilinecekId(null);
                             })
                           }
@@ -248,6 +268,8 @@ export function GiderListesi({
               duzenlenecek={duzenlenenSatir}
               araclar={araclar}
               bankaHesaplari={bankaHesaplari}
+              kartlar={kartlar}
+              tedarikciAdlari={tedarikciAdlari}
               basariliOlunca={() => setDuzenlenenId(null)}
             />
           )}

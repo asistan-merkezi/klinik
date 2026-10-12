@@ -1,12 +1,13 @@
-import { ArrowLeftRight, Landmark, Send, Truck, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeftRight, CreditCard, Landmark, Send, Truck, Users, type LucideIcon } from "lucide-react";
 
-export type CikanSecimi = "tedarikci" | "personel" | "hesaplar_arasi" | "kamusal" | "diger";
+export type CikanSecimi = "tedarikci" | "personel" | "hesaplar_arasi" | "kamusal" | "kredi_karti" | "diger";
 
 const IKONLAR: Record<CikanSecimi, LucideIcon> = {
   tedarikci: Truck,
   personel: Users,
   hesaplar_arasi: ArrowLeftRight,
   kamusal: Landmark,
+  kredi_karti: CreditCard,
   diger: Send,
 };
 
@@ -15,6 +16,7 @@ const BASLIKLAR: Record<CikanSecimi, string> = {
   personel: "Personel",
   hesaplar_arasi: "Hesaplar Arası Transfer",
   kamusal: "Kamusal Ödeme",
+  kredi_karti: "Kredi Kartı Ödemesi",
   diger: "Diğer",
 };
 
