@@ -59,3 +59,8 @@ function ertesiGun(yyyyMmDd: string): string {
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
 }
+
+/** Ayar formundan gelen aralık geçerli mi ("HH:mm" biçimi, başlangıç ≠ bitiş)? */
+export function sessizSaatAraligiGecerliMi(baslangic: string, bitis: string): boolean {
+  return SAAT_DESENI.test(baslangic) && SAAT_DESENI.test(bitis) && baslangic !== bitis;
+}

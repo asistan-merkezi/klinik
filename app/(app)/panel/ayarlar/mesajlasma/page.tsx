@@ -1,13 +1,15 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { MessageSquareText, MessageCircle, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { BOLUM_SIRASI, KANAL_SIRASI, KANAL_ETIKET, type MesajBolum, type EtkinMesajKurali, type MesajKredi } from "@/types/mesajlasma";
 import { etkinKurallariOlustur, type MesajKuraliDbSatiri } from "@/lib/mesaj/kural-cozumle";
+import { sessizSaatAyariCoz } from "@/lib/mesaj/sessiz-saat";
 import { BolumKartGrubu } from "./bolum-kart-grubu";
+import { SessizSaatKarti } from "./sessiz-saat-karti";
 
 const KANAL_IKON = {
   sms: MessageSquareText,
@@ -16,21 +18,8 @@ const KANAL_IKON = {
 } as const;
 
 export default async function MesajlasmaSayfasi() {
+  const { kullanici } = await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin") {
-    redirect("/panel/ayarlar");
-  }
 
   const klinikId = kullanici.klinik_id;
   if (!klinikId) {
@@ -41,7 +30,7 @@ export default async function MesajlasmaSayfasi() {
     );
   }
 
-  const [kurallarSonuc, bakiyelerSonuc] = await Promise.all([
+  const [kurallarSonuc, bakiyelerSonuc, ayarSonuc] = await Promise.all([
     supabase
       .from("mesaj_kurallari")
       .select("id, tetikleyici_kodu, aktif, sms_aktif, whatsapp_aktif, mail_aktif, mesaj_metni")
@@ -52,7 +41,10 @@ export default async function MesajlasmaSayfasi() {
       .select("kanal, bakiye, updated_at, son_senkron_zamani, merkez_bakiye_versiyonu")
       .eq("klinik_id", klinikId)
       .returns<MesajKredi[]>(),
+    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId).maybeSingle(),
   ]);
+
+  const sessizSaat = sessizSaatAyariCoz((ayarSonuc.data?.ayarlar as Record<string, unknown> | null)?.mesaj_sessiz_saat);
 
   const etkinKurallar = etkinKurallariOlustur(kurallarSonuc.data ?? []);
   const bakiyeMap = new Map(bakiyelerSonuc.data?.map((b) => [b.kanal, b.bakiye]) ?? []);
@@ -97,6 +89,12 @@ export default async function MesajlasmaSayfasi() {
             );
           })}
         </div>
+
+        <SessizSaatKarti
+          baslangicAktif={sessizSaat !== null}
+          baslangicSaati={sessizSaat?.baslangic ?? "21:00"}
+          bitisSaati={sessizSaat?.bitis ?? "08:00"}
+        />
 
         <div className="flex flex-col gap-6">
           {BOLUM_SIRASI.map((bolum) => (

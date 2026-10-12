@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
 import { bilinmeyenDegiskenleriBul } from "@/lib/mesaj/degisken-dogrula";
 import { kuyrukSatiriniIsle } from "@/lib/mesaj/kuyruk-isle";
+import { sessizSaatAraligiGecerliMi } from "@/lib/mesaj/sessiz-saat";
 import type { MesajKanal } from "@/types/mesajlasma";
 
 type SonucDurumu = { success: boolean; message: string };
@@ -190,4 +191,42 @@ export async function testGonder(tetikleyiciKodu: string, kanal: MesajKanal): Pr
     aliciAdres,
     sonuc.hataMesaji
   );
+}
+
+/**
+ * Sessiz saat ayarı (bkz. lib/mesaj/sessiz-saat.ts): `klinik_ayarlar.ayarlar.mesaj_sessiz_saat`.
+ * Aynı jsonb'de başka anahtarlar (qr_kodlari, kasa, sidebar_gizli…) bulunduğundan önce mevcut değer okunup
+ * yalnız bu anahtar üzerine yazılır (read-modify-write; upsert tüm jsonb'yi ezmesin).
+ */
+export async function sessizSaatKaydet(kapali: boolean, baslangic: string, bitis: string): Promise<SonucDurumu> {
+  const yetki = await klinikAdminDogrula();
+  if (!yetki) {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+  if (!kapali && !sessizSaatAraligiGecerliMi(baslangic, bitis)) {
+    return { success: false, message: "Başlangıç ve bitiş saati farklı ve SS:DD biçiminde olmalı." };
+  }
+
+  const { data: mevcutSatir } = await yetki.supabase
+    .from("klinik_ayarlar")
+    .select("ayarlar")
+    .eq("klinik_id", yetki.klinikId)
+    .maybeSingle();
+  const mevcut = (mevcutSatir?.ayarlar as Record<string, unknown> | null) ?? {};
+
+  const { error } = await yetki.supabase.from("klinik_ayarlar").upsert(
+    {
+      klinik_id: yetki.klinikId,
+      ayarlar: { ...mevcut, mesaj_sessiz_saat: kapali ? { kapali: true } : { baslangic, bitis } },
+    },
+    { onConflict: "klinik_id" }
+  );
+
+  if (error) {
+    console.error("Sessiz saat kaydedilemedi:", error.message);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/ayarlar/mesajlasma");
+  return { success: true, message: kapali ? "Sessiz saat kapatıldı." : "Sessiz saat kaydedildi." };
 }
