@@ -2,6 +2,8 @@
 
 import { randomInt } from "node:crypto";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { odemeAlindiMesajiTetikle, paketSatisOzetiMesajiTetikle } from "@/lib/mesaj/hasta-mesaji";
 import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -113,6 +115,10 @@ export async function odemeAl(
   }
 
   revalidateHastaDetay(hastaId);
+  const satilanPaketler = kalemler_json.filter((k) => k.tur === "paket").map((k) => k.ref_id);
+  if (satilanPaketler.length > 0) {
+    after(() => paketSatisOzetiMesajiTetikle(hastaId, satilanPaketler));
+  }
   // Sadece paket kalemi içeren satışlarda artık ödeme alınmıyor, borç olarak
   // ekleniyor (RPC tarafında da aynı ayrım yapılıyor) — mesaj buna göre.
   const sadecePaket = kalemler_json.length > 0 && kalemler_json.every((k) => k.tur === "paket");
@@ -203,17 +209,21 @@ export async function bakiyeHareketiEkle(
   // odeme_yontemi/banka_hesap_id/belge_turu sadece tur='odeme' iken anlamlı
   // (Kasa/Banka mutabakatı ilk ikisini okuyor) — diğer türlerde (kredi/borc) NULL kalır.
   // İade ayrı action'da (hastaIadesiVer).
-  const { error } = await supabase.from("hasta_bakiye_hareket").insert({
-    klinik_id: klinikId,
-    hasta_id: hastaId,
-    tur,
-    tutar,
-    aciklama: aciklama ? aciklama : null,
-    created_at: tarihiSimdikiSaatleUTC(tarih),
-    odeme_yontemi: tur === "odeme" && odeme_yontemi ? odeme_yontemi : null,
-    banka_hesap_id: tur === "odeme" && odeme_yontemi === "banka_havalesi" && banka_hesap_id ? banka_hesap_id : null,
-    belge_turu: tur === "odeme" && belge_turu ? belge_turu : null,
-  });
+  const { data: eklenen, error } = await supabase
+    .from("hasta_bakiye_hareket")
+    .insert({
+      klinik_id: klinikId,
+      hasta_id: hastaId,
+      tur,
+      tutar,
+      aciklama: aciklama ? aciklama : null,
+      created_at: tarihiSimdikiSaatleUTC(tarih),
+      odeme_yontemi: tur === "odeme" && odeme_yontemi ? odeme_yontemi : null,
+      banka_hesap_id: tur === "odeme" && odeme_yontemi === "banka_havalesi" && banka_hesap_id ? banka_hesap_id : null,
+      belge_turu: tur === "odeme" && belge_turu ? belge_turu : null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     console.error("Bakiye hareketi eklenemedi:", error);
@@ -221,6 +231,9 @@ export async function bakiyeHareketiEkle(
   }
 
   revalidateHastaDetay(hastaId);
+  if (tur === "odeme" && eklenen?.id) {
+    after(() => odemeAlindiMesajiTetikle(hastaId, tutar, { hareketId: eklenen.id }));
+  }
   return { success: true, message: "Ödeme eklendi." };
 }
 

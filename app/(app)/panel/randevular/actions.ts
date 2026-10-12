@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { randevuOlayMesajiTetikle } from "@/lib/mesaj/randevu-mesaji";
+import { odemeAlindiMesajiTetikle } from "@/lib/mesaj/hasta-mesaji";
 import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -499,6 +500,10 @@ export async function randevuSeansOdemesiEkle(
     };
   }
 
+  if (sonuc?.hasta_id) {
+    const hastaId = sonuc.hasta_id;
+    after(() => odemeAlindiMesajiTetikle(hastaId, tutar, { randevuId }));
+  }
   return { success: true, message: "Ödeme kaydedildi." };
 }
 

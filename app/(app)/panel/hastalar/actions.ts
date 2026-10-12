@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { hastaHosgeldinTetikle } from "@/lib/mesaj/hasta-mesaji";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -131,6 +133,7 @@ export async function hastaOlustur(
   }
 
   revalidatePath("/panel/hastalar");
+  after(() => hastaHosgeldinTetikle(yeniHasta.id));
   return { success: true, message: "Hasta kaydedildi." };
 }
 

@@ -54,6 +54,8 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     tetiklemeTipi: "anlik",
     gecerliDegiskenler: ["hasta_adi", "klinik_adi"],
     varsayilanMesajMetni: "Merhaba {{hasta_adi}}, {{klinik_adi}}'ne hoş geldiniz! Kaydınız başarıyla oluşturuldu.",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): panelden hastaOlustur (resepsiyon/yönetici) sonrası lib/mesaj/hasta-mesaji.ts kuyruğa yazar; hasta başına tek. QR self-servis kaydına BİLİNÇLİ bağlı DEĞİL — form anonim, telefon doğrulanmıyor, başkasının numarasına klinik kredisiyle SMS attırılabilirdi (telefon doğrulaması gelirse bağlanabilir). Arşiv içe aktarma da bağlı değil (toplu).",
   },
   {
     kod: "hasta_paket_satis_ozet",
@@ -63,6 +65,8 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     tetiklemeTipi: "anlik",
     gecerliDegiskenler: ["hasta_adi", "paket_adi", "seans_sayisi", "klinik_adi"],
     varsayilanMesajMetni: "Merhaba {{hasta_adi}}, {{paket_adi}} paketiniz tanımlandı ({{seans_sayisi}} seans).",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): hastanın Cari & Ödeme'deki satış akışı (odemeAl, paket kalemi içeren) sonrası lib/mesaj/hasta-mesaji.ts; satılan her paket için hastanın o paketten son 2 dk içinde oluşan paket_satis satırı okunur ({{seans_sayisi}} = o satırın kalan_adet'i), satış satırı başına tek mesaj. Paketler sayfasındaki satış diyaloğu da aynı odemeAl'ı çağırdığı için dahil; arşiv içe aktarma (ayrı yol) bağlı değil.",
   },
   {
     kod: "hasta_paket_seans_azaldi",
@@ -329,7 +333,8 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     tetiklemeTipi: "anlik",
     gecerliDegiskenler: ["hasta_adi", "tutar", "klinik_adi"],
     varsayilanMesajMetni: "Merhaba {{hasta_adi}}, {{tutar}} tutarındaki ödemeniz alındı, teşekkür ederiz.",
-    baglanmaNotu: "\"Ödeme Ekle\" ve borç düzenleme (hasta_bakiye_hareket_borc_duzenle) akışlarının ikisi de aday çağrı noktası.",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): bakiyeHareketiEkle (tur='odeme', Cari & Ödeme > Ödeme Ekle) ve randevuSeansOdemesiEkle (Randevu Çizelgesi > Ödeme Ekle) sonrası lib/mesaj/hasta-mesaji.ts kuyruğa yazar; ödeme satırı başına tek mesaj. İade ve borç düzenleme (faturalama) mesaj ÜRETMEZ. Randevu seans ödemesinde idempotency randevu başına (RPC satır id'si dönmez).",
   },
   {
     kod: "muhasebe_taksit_hatirlatma",
