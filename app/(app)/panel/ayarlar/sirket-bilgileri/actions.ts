@@ -117,6 +117,9 @@ export async function sirketBilgileriGuncelle(
     if (!uzanti) {
       return { success: false, message: "Logo PNG, JPG, WEBP veya SVG olmalı." };
     }
+    if (logo.size > 2 * 1024 * 1024) {
+      return { success: false, message: "Logo en fazla 2 MB olabilir." };
+    }
 
     const yol = `${klinikId}/logo.${uzanti}`;
     const { error: yuklemeHatasi } = await supabase.storage

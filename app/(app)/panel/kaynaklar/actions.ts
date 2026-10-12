@@ -177,15 +177,40 @@ export async function kaynakAktifDurumDegistir(
   tablo: KaynakTablosu,
   kaynakId: string,
   yeniDurum: boolean
-) {
+): Promise<{ success: boolean; message: string } | null> {
   const gecerliTablo = tabloSemasi.safeParse(tablo);
   if (!gecerliTablo.success) {
-    return;
+    return null;
   }
 
   const { supabase, klinikId } = await klinikIdGetir();
   if (!klinikId) {
-    return;
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+
+  // Randevu Çizelgesi yalnız AKTİF odaları/cihazları gösterir: gelecek randevusu olan bir kaynak
+  // pasife alınırsa o randevular çizelgeden kaybolur (hasta gelir, randevu görünmez).
+  if (!yeniDurum) {
+    const simdi = new Date().toISOString();
+    const { count } =
+      gecerliTablo.data === "oda"
+        ? await supabase
+            .from("randevu")
+            .select("id", { count: "exact", head: true })
+            .eq("oda_id", kaynakId)
+            .in("durum", ["planlandi", "ertelendi", "geldi", "gecikmeli_geldi"])
+            .gte("bitis", simdi)
+        : await supabase
+            .from("randevu_cihaz_rezervasyon")
+            .select("id", { count: "exact", head: true })
+            .eq("cihaz_id", kaynakId)
+            .gte("bitis", simdi);
+    if (count) {
+      return {
+        success: false,
+        message: `Bu ${gecerliTablo.data === "oda" ? "odaya" : "cihaza"} ait ${count} gelecek randevu var; önce randevuları başka ${gecerliTablo.data === "oda" ? "odaya" : "cihaza"} aktarın ya da iptal edin.`,
+      };
+    }
   }
 
   const { error } = await supabase
@@ -195,9 +220,10 @@ export async function kaynakAktifDurumDegistir(
 
   if (error) {
     console.error(`${gecerliTablo.data} durumu güncellenemedi:`, error);
-    return;
+    return { success: false, message: "Durum güncellenemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath("/panel/kaynaklar");
   revalidatePath("/panel/randevular");
+  return null;
 }

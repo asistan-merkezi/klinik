@@ -67,6 +67,7 @@ function KaynakSatiri({ tablo, kaynak }: { tablo: KaynakTablosu; kaynak: KaynakS
   const [ad, setAd] = useState(kaynak.ad);
   const [hata, setHata] = useState<string | null>(null);
   const [aktifPending, startAktifTransition] = useTransition();
+  const [aktifHata, setAktifHata] = useState<string | null>(null);
   const [adPending, startAdTransition] = useTransition();
 
   if (duzenleniyor) {
@@ -136,12 +137,16 @@ function KaynakSatiri({ tablo, kaynak }: { tablo: KaynakTablosu; kaynak: KaynakS
           variant="outline"
           disabled={aktifPending}
           onClick={() =>
-            startAktifTransition(() => kaynakAktifDurumDegistir(tablo, kaynak.id, !kaynak.aktif))
+            startAktifTransition(async () => {
+              const sonuc = await kaynakAktifDurumDegistir(tablo, kaynak.id, !kaynak.aktif);
+              setAktifHata(sonuc && !sonuc.success ? sonuc.message : null);
+            })
           }
         >
           {kaynak.aktif ? "Pasife al" : "Aktifleştir"}
         </Button>
       </div>
+      {aktifHata && <p className="text-xs text-destructive">{aktifHata}</p>}
     </li>
   );
 }

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -63,22 +64,25 @@ export async function muhasebeSyncGuncelle(
 
   const { parasut_client_id, parasut_client_secret, parasut_company_id } = ayristirma.data;
 
-  // Secret alanı boş bırakılırsa mevcut değer korunur (formda hiçbir zaman
-  // gösterilmediği için "boş = değiştirme" anlamına gelir).
-  const { data: mevcut } = await supabase
-    .from("klinik_muhasebe_entegrasyonu")
-    .select("parasut_client_secret")
-    .eq("klinik_id", klinikId)
-    .maybeSingle();
-
-  const kayitEdilecekSecret = parasut_client_secret ?? mevcut?.parasut_client_secret ?? null;
-  const baglandiMi = Boolean(parasut_client_id && parasut_company_id && kayitEdilecekSecret);
+  // Secret alanı boş bırakılırsa mevcut değer korunur (formda hiçbir zaman gösterilmediği için
+  // "boş = değiştirme"). Secret kolonu kullanıcı rollerine SELECT'e kapalı (migration
+  // 20261012190000) — var olup olmadığı yalnız sunucuda servis rolüyle kontrol edilir.
+  let secretVar = Boolean(parasut_client_secret);
+  if (!secretVar) {
+    const { data: mevcut } = await createAdminClient()
+      .from("klinik_muhasebe_entegrasyonu")
+      .select("parasut_client_secret")
+      .eq("klinik_id", klinikId)
+      .maybeSingle();
+    secretVar = Boolean(mevcut?.parasut_client_secret);
+  }
+  const baglandiMi = Boolean(parasut_client_id && parasut_company_id && secretVar);
 
   const { error } = await supabase.from("klinik_muhasebe_entegrasyonu").upsert(
     {
       klinik_id: klinikId,
       parasut_client_id,
-      parasut_client_secret: kayitEdilecekSecret,
+      ...(parasut_client_secret ? { parasut_client_secret } : {}),
       parasut_company_id,
       baglanti_durumu: baglandiMi ? "baglandi" : "bekliyor",
     },

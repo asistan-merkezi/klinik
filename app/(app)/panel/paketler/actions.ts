@@ -105,6 +105,29 @@ export async function paketGuncelle(
 
   const { ad, islem_tanimi_id, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, kisi_kotasi } = ayristirma.data;
 
+  // Satılmış pakette tedavi ve seans sayısı değiştirilemez: check-in'de paketten düşüm
+  // paket.islem_tanimi_id ile eşleşir (mevcut alıcıların kalan hakları başka tedaviye kayardı) ve
+  // satış kaydı toplam seans sayısını ayrıca tutmaz (kullanılan/toplam göstergesi bozulurdu).
+  // Fiyat/KDV yalnız yeni satışları etkiler, serbest.
+  const { data: mevcut } = await supabase
+    .from("paket")
+    .select("islem_tanimi_id, seans_sayisi")
+    .eq("id", paketId)
+    .maybeSingle();
+  if (mevcut && (mevcut.islem_tanimi_id !== islem_tanimi_id || mevcut.seans_sayisi !== seans_sayisi)) {
+    const { count } = await supabase
+      .from("paket_satis")
+      .select("id", { count: "exact", head: true })
+      .eq("paket_id", paketId);
+    if (count) {
+      return {
+        success: false,
+        message:
+          "Bu paket satılmış; tedavisi ve seans sayısı değiştirilemez. Farklı bir sürüm için paketi \"Tekrarla\" ile kopyalayıp yeni paket oluşturun.",
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("paket")
     .update({
