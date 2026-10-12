@@ -11,6 +11,7 @@ import { puantajSatirToplamiHesapla } from "@/lib/personel/puantaj-cetveli";
 import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { resmiTatilUyarilariGetir, type TatilUyarisi } from "@/lib/tatil/durum";
+import { donemMaasi, maasGecmisiGetir, type MaasGecmisiSatiri } from "@/lib/personel/donem-maasi";
 import type { PersonelPuantajSatir } from "@/types/puantaj";
 import { PuantajCetveliIstemci, type PuantajCetveliSatir } from "./puantaj-cetveli-istemci";
 
@@ -141,6 +142,14 @@ export default async function PuantajCetveliSayfasi({
     ay.param
   );
 
+  // Açık dönem tahmini o ayın maaşıyla (RLS'te geçmişi göremeyen rol için personel.maas'a düşer).
+  let maasGecmisi = new Map<string, MaasGecmisiSatiri[]>();
+  try {
+    maasGecmisi = await maasGecmisiGetir(supabase, gunlukPersonel.map((p) => p.id));
+  } catch (hata) {
+    console.error("Puantaj Cetveli: maaş geçmişi okunamadı:", hata);
+  }
+
   const satirlar: PuantajCetveliSatir[] = gunlukPersonel.map((p) => {
     const kayitlarMap = puantajByPersonel.get(p.id) ?? new Map();
     const kayitlarByTarih: Record<string, PersonelPuantajSatir> = {};
@@ -153,7 +162,7 @@ export default async function PuantajCetveliSayfasi({
     const hakedis = donemKapali
       ? hakedisKapaliDonemToplami(hareketByPersonel.get(p.id) ?? [])
       : hakedisHesapla({
-          personelMaasi: p.maas,
+          personelMaasi: donemMaasi(maasGecmisi.get(p.id), p.maas, ay.bitisTarih),
           fmSaatlikUcret: p.fm_saatlik_ucret,
           terapistAyarlari: terapist
             ? {

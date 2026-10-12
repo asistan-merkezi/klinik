@@ -1,6 +1,6 @@
 "use server";
 
-import { bugunIstanbulTarihi } from "@/lib/datetime";
+import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -85,7 +85,11 @@ export async function maasAyarlariGuncelle(
 
   const { maas, prim_sabit_tutar, fm_saatlik_ucret } = ayristirma.data;
 
-  const { data: eskiPersonel } = await supabase.from("personel").select("maas, calisma_tipi").eq("id", personelId).single();
+  const { data: eskiPersonel } = await supabase
+    .from("personel")
+    .select("maas, calisma_tipi, ise_giris_tarihi, created_at")
+    .eq("id", personelId)
+    .single();
   const maas_hesaplama_modeli = calismaTipindenHesaplamaModeli(eskiPersonel?.calisma_tipi ?? null);
 
   const [personelSonucu, terapistSonucu] = await Promise.all([
@@ -112,6 +116,25 @@ export async function maasAyarlariGuncelle(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // Geçmişte hiç satır yoksa eski maaş da (işe girişten geçerli) kaydedilir — yoksa hakediş
+    // hesabı (lib/personel/donem-maasi.ts) zamdan önceki ayları da yeni maaşla hesaplardı.
+    if (eskiPersonel?.maas != null) {
+      const { count } = await supabase
+        .from("personel_ucret")
+        .select("id", { count: "exact", head: true })
+        .eq("personel_id", personelId);
+      if (count === 0) {
+        const { error: ilkHata } = await supabase.from("personel_ucret").insert({
+          klinik_id: klinikId,
+          personel_id: personelId,
+          maas: eskiPersonel.maas,
+          gecerlilik_tarihi: eskiPersonel.ise_giris_tarihi ?? formatDateForInput(eskiPersonel.created_at),
+          ekleyen_kullanici_id: user?.id ?? null,
+        });
+        if (ilkHata) console.error("Önceki maaş geçmişe kaydedilemedi:", ilkHata);
+      }
+    }
 
     const { error: gecmisHata } = await supabase.from("personel_ucret").insert({
       klinik_id: klinikId,

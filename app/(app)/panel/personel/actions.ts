@@ -529,6 +529,30 @@ export async function personelBilgileriGuncelle(
 
   const adminClient = createAdminClient();
 
+  // Klinikteki son yönetici kendi rolünü düşüremesin — yoksa kimse yönetim ekranlarına giremez,
+  // klinik kilitlenir (super_admin dışında geri dönüş yok).
+  if (mevcutPersonel.kullanici_id && veri.rol !== "klinik_admin") {
+    const { data: mevcutKullanici } = await adminClient
+      .from("kullanici")
+      .select("rol")
+      .eq("id", mevcutPersonel.kullanici_id)
+      .maybeSingle();
+    if (mevcutKullanici?.rol === "klinik_admin") {
+      const { count } = await adminClient
+        .from("kullanici")
+        .select("id", { count: "exact", head: true })
+        .eq("klinik_id", klinikId)
+        .eq("rol", "klinik_admin")
+        .neq("id", mevcutPersonel.kullanici_id);
+      if (!count) {
+        return {
+          success: false,
+          message: "Klinikte başka yönetici yok; son yöneticinin rolü değiştirilemez. Önce başka bir personeli yönetici yapın.",
+        };
+      }
+    }
+  }
+
   // İşten çıkış tarihi girilince (boştan doluya geçince), bir giriş hesabı
   // varsa Supabase Auth hesabı banlanıp yeni giriş/oturum yenileme engellenir
   // — "sisteme girişi/şifreleri iptal olsun" isteği. Tarih sonradan
@@ -606,14 +630,33 @@ export async function personelBilgileriGuncelle(
     kaseDosyasi instanceof File ? kaseDosyasi : null,
     klinikId
   );
-  const ekMesaj = [uyariListesi, hesapMesaji].filter(Boolean).join(" ");
+  // Çıkış tarihinden sonraki planlanmış randevular çizelgede sessizce kalmasın — başka terapiste
+  // aktarılması/iptali için yönetici uyarılır (otomatik iptal edilmez: hastaya haber verilmeli).
+  let randevuUyarisi: string | null = null;
+  if (veri.isten_cikis_tarihi && veri.isten_cikis_tarihi !== mevcutPersonel.isten_cikis_tarihi) {
+    const { data: terapist } = await adminClient.from("terapist").select("id").eq("personel_id", personelId).maybeSingle();
+    if (terapist) {
+      const ertesiGun = new Date(Date.parse(`${veri.isten_cikis_tarihi}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+      const { count } = await adminClient
+        .from("randevu")
+        .select("id", { count: "exact", head: true })
+        .eq("terapist_id", terapist.id)
+        .in("durum", ["planlandi", "ertelendi"])
+        .gte("baslangic", toUTC(`${ertesiGun}T00:00:00`));
+      if (count) {
+        randevuUyarisi = `Bu terapistin çıkış tarihinden sonra ${count} planlanmış randevusu var — Randevu Çizelgesi'nden başka terapiste aktarın ya da iptal edin.`;
+      }
+    }
+  }
+
+  const ekMesaj = [uyariListesi, hesapMesaji, randevuUyarisi].filter(Boolean).join(" ");
 
   revalidatePath(`/panel/personel/${personelId}`);
   revalidatePath("/panel/personel");
   return {
     success: true,
     message: ekMesaj ? `Kaydedildi. ${ekMesaj}` : "Kaydedildi.",
-    uyari: Boolean(uyariListesi) || hesapHata,
+    uyari: Boolean(uyariListesi) || hesapHata || Boolean(randevuUyarisi),
   };
 }
 

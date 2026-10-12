@@ -1,5 +1,6 @@
 "use server";
 
+import { donemMaasi, maasGecmisiGetir } from "@/lib/personel/donem-maasi";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -166,6 +167,16 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
       .maybeSingle(),
   ]);
 
+  // Hakediş o ayın maaşıyla (ayın son günü itibarıyla geçerli) — personel.maas güncel değerdir.
+  let donemMaasDegeri: number | null = personel?.maas ?? null;
+  try {
+    const gecmis = await maasGecmisiGetir(supabase, [personelId]);
+    donemMaasDegeri = donemMaasi(gecmis.get(personelId), personel?.maas ?? null, donemAyi.bitisTarih);
+  } catch (hata) {
+    console.error("Dönem kapatma: maaş geçmişi okunamadı:", hata);
+    return { success: false, message: "Maaş geçmişi okunamadı, dönem kapatılmadı. Lütfen tekrar deneyin." };
+  }
+
   let seansSayisi = 0;
   if (terapist) {
     try {
@@ -200,7 +211,7 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
   const donemId = (donemSonucu as { donem_id: string } | null)?.donem_id;
   if (donemId) {
     const hesap = hakedisHesapla({
-      personelMaasi: personel?.maas ?? null,
+      personelMaasi: donemMaasDegeri,
       fmSaatlikUcret: null, // mesai tutarı RPC'nin kendisinde ayrıca (fm_saatlik_ucret ile) hesaplanıyor, burada 0 sayılıyor.
       terapistAyarlari: terapist
         ? {
@@ -237,7 +248,8 @@ export async function donemKapat(personelId: string, yil: number, ay: number): P
       console.error("Dönem hakedişi işlenemedi:", hesapHatasi);
       return {
         success: true,
-        message: "Dönem kapatıldı ama hakediş satırı işlenemedi — Cari Hesap'tan manuel eklemeniz gerekebilir.",
+        message:
+          "Dönem kapatıldı ama hakediş satırı yazılamadı. Dönemi \"Yeniden Aç\" ile açıp tekrar kapatın (hakediş elle eklenemez).",
       };
     }
   } else {

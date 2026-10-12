@@ -1,17 +1,20 @@
 import type { createClient } from "@/lib/supabase/server";
-import { maasHesapla } from "@/lib/maas";
+import { hakedisHesapla } from "@/lib/personel/hakedis";
+import { donemMaasi, maasGecmisiGetir, type MaasGecmisiSatiri } from "@/lib/personel/donem-maasi";
+import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
+import { donemAylari, personelMaliyetiniTopla, type DefterSatiri, type DonemTahmini } from "@/lib/raporlar/personel-maliyeti";
+import { ayAraligi } from "@/lib/utils";
 import type { MaasHesaplamaModeli } from "@/types/personel";
 import type {
   GelirOzeti,
   GunlukOzet,
   RandevuDurumOzeti,
   SabitPersonelMaliyeti,
-  TerapistPrimSatiri,
   YillikAy,
 } from "@/types/raporlar";
 import type { RaporDonemi } from "@/lib/raporlar/donem";
 import { raporYilDonemi, yilinAylari } from "@/lib/raporlar/donem";
-import { formatDateForInput, formatTime } from "@/lib/datetime";
+import { bugunIstanbulTarihi, formatDateForInput, formatTime } from "@/lib/datetime";
 import { HARCAMA_KATEGORI_ETIKET, type HarcamaKategori } from "@/types/klinik-harcama";
 import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
 import { BELGE_TURU_ETIKETLERI, YONTEM_ETIKETLERI } from "@/types/odeme";
@@ -20,141 +23,141 @@ import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 type SupabaseSunucuClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
- * Sabit personel maliyeti: tüm aktif personelin maaşı + o dönemdeki ekstra
- * hakedişleri (personel_hesap_hareket: prim/yol/yemek/mesai — hakedis/avans/
- * kesinti/odeme hariç), terapistler için lib/maas.ts'teki aynı prim/baraj
- * mantığıyla hesaplanan hakediş dahil. SGK işveren payı
- * bilinçli olarak burada YOK — personel şemasında SGK kolonu yok, kullanıcı
- * kararıyla vergi/SGK maliyeti Muhasebe raporuna (klinik_harcama kategori
- * 'vergi_sgk') taşındı, bkz. hesaplaMuhasebeGideri.
+ * Personel gideri (Raporlar): kapalı dönemlerde defterdeki gerçek tahakkuk, açık dönemlerde o ayın
+ * maaşıyla tahmin, elle girilen prim/yol/yemek/mesai ekstra — kural ve gerekçe
+ * lib/raporlar/personel-maliyeti.ts'te. Dönem birden çok ay kapsıyorsa (Yıllık) her ay ayrı
+ * değerlendirilir; bugünden sonraki aylar sayılmaz. SGK işveren payı burada YOK (Muhasebe
+ * raporu, klinik_harcama 'vergi_sgk').
  */
 export async function hesaplaSabitPersonelMaliyeti(
   supabase: SupabaseSunucuClient,
   klinikId: string,
   donem: RaporDonemi
 ): Promise<SabitPersonelMaliyeti> {
-  const { data: personelListesi } = await supabase
-    .from("personel")
-    .select("id, ad_soyad, maas")
-    .eq("klinik_id", klinikId)
-    .eq("aktif", true)
-    .returns<{ id: string; ad_soyad: string; maas: number | null }[]>();
+  const aylar = donemAylari(donem.baslangicTarih, donem.bitisTarih, bugunIstanbulTarihi());
 
-  const personeller = personelListesi ?? [];
-  if (personeller.length === 0) {
-    return { toplamMaas: 0, sabitToplam: 0, ekstraToplam: 0, terapistPrimleri: [] };
-  }
+  type PersonelSatiri = {
+    id: string;
+    ad_soyad: string;
+    maas: number | null;
+    aktif: boolean;
+    ise_giris_tarihi: string | null;
+    isten_cikis_tarihi: string | null;
+  };
+  type TerapistSatiri = {
+    id: string;
+    personel_id: string;
+    maas_hesaplama_modeli: MaasHesaplamaModeli;
+    prim_sabit_tutar: number | null;
+    baraj_seans_sayisi: number | null;
+    baraj_bonus_tutari: number | null;
+  };
 
-  const personelIdler = personeller.map((p) => p.id);
-
-  const [terapistSonuc, hakedisSonuc] = await Promise.all([
-    supabase
-      .from("terapist")
-      .select("id, personel_id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
-      .eq("klinik_id", klinikId)
-      .in("personel_id", personelIdler)
-      .returns<
-        {
-          id: string;
-          personel_id: string;
-          maas_hesaplama_modeli: MaasHesaplamaModeli;
-          prim_sabit_tutar: number | null;
-          baraj_seans_sayisi: number | null;
-          baraj_bonus_tutari: number | null;
-        }[]
-      >(),
-    // hakedis (taban maaş) hariç — o zaten personel.maas üzerinden sabitToplam'a
-    // dahil ediliyor, burada tekrar sayılırsa çift sayım olur. avans/kesinti/odeme
-    // de dahil edilmiyor — onlar bir maliyet ARTIŞI değil, tahakkuk etmiş
-    // hakedişin ödenmesi/kapatılması (bkz. personel_hesap_hareket şeması).
-    tumSayfalariOku<{ id: string; personel_id: string; tutar: number }>((bas, son) =>
+  const yillar = [...new Set(aylar.map((a) => Number(a.slice(0, 4))))];
+  const [personeller, terapistler, defter, kapaliDonemler] = await Promise.all([
+    tumSayfalariOku<PersonelSatiri>((bas, son) =>
+      supabase
+        .from("personel")
+        .select("id, ad_soyad, maas, aktif, ise_giris_tarihi, isten_cikis_tarihi")
+        .eq("klinik_id", klinikId)
+        .order("id")
+        .range(bas, son)
+    ),
+    tumSayfalariOku<TerapistSatiri>((bas, son) =>
+      supabase
+        .from("terapist")
+        .select("id, personel_id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
+        .eq("klinik_id", klinikId)
+        .order("id")
+        .range(bas, son)
+    ),
+    tumSayfalariOku<DefterSatiri & { id: string }>((bas, son) =>
       supabase
         .from("personel_hesap_hareket")
-        .select("id, personel_id, tutar")
+        .select("id, personel_id, tur, tutar, kaynak_id")
         .eq("klinik_id", klinikId)
-        .in("tur", ["prim", "yol", "yemek", "mesai"])
+        .in("tur", ["hakedis", "prim", "yol", "yemek", "mesai"])
         .gte("tarih", donem.baslangicTarih)
         .lt("tarih", donem.bitisTarih)
         .order("id")
         .range(bas, son)
     ),
+    yillar.length === 0
+      ? Promise.resolve([] as { id: string; personel_id: string; yil: number; ay: number }[])
+      : tumSayfalariOku<{ id: string; personel_id: string; yil: number; ay: number }>((bas, son) =>
+          supabase
+            .from("personel_puantaj_donem")
+            .select("id, personel_id, yil, ay")
+            .eq("klinik_id", klinikId)
+            .eq("durum", "kapali")
+            .in("yil", yillar)
+            .order("id")
+            .range(bas, son)
+        ),
   ]);
 
-  const terapistler = terapistSonuc.data ?? [];
-  const terapistIdler = terapistler.map((t) => t.id);
-
-  // Klinik filtresi yeterli; terapist id listesi URL'ye gömülmez.
-  const randevuSonuc = terapistIdler.length
-    ? await tumSayfalariOku<{ id: string; terapist_id: string }>((bas, son) =>
-        supabase
-          .from("randevu")
-          .select("id, terapist_id")
-          .eq("klinik_id", klinikId)
-          .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-          .not("terapist_id", "is", null)
-          .gte("baslangic", donem.baslangic)
-          .lt("baslangic", donem.bitis)
-          .order("id")
-          .range(bas, son)
-      )
-    : [];
-
-  const seansSayisiMap = new Map<string, number>();
-  for (const r of randevuSonuc) {
-    seansSayisiMap.set(r.terapist_id, (seansSayisiMap.get(r.terapist_id) ?? 0) + 1);
-  }
-
-  const hakedisMap = new Map<string, number>();
-  for (const h of hakedisSonuc) {
-    hakedisMap.set(h.personel_id, (hakedisMap.get(h.personel_id) ?? 0) + h.tutar);
-  }
-
   const terapistByPersonelId = new Map(terapistler.map((t) => [t.personel_id, t]));
+  const kapali = new Set(kapaliDonemler.map((d) => `${d.personel_id}|${d.yil}-${String(d.ay).padStart(2, "0")}`));
 
-  let sabitToplamGenel = 0;
-  let ekstraToplamGenel = 0;
-  const terapistPrimleri: TerapistPrimSatiri[] = [];
+  let maasGecmisi = new Map<string, MaasGecmisiSatiri[]>();
+  try {
+    maasGecmisi = await maasGecmisiGetir(supabase, personeller.map((p) => p.id));
+  } catch (hata) {
+    console.error("Raporlar: maaş geçmişi okunamadı, güncel maaş kullanılıyor:", hata);
+  }
 
-  for (const personel of personeller) {
-    const ekstraToplam = hakedisMap.get(personel.id) ?? 0;
-    const terapist = terapistByPersonelId.get(personel.id);
+  // Açık ay-personel çiftleri için tahmin. Yalnız aktif personel (pasife alınmış birinin açık
+  // dönemi sonsuza dek tahmin edilmesin); ayrılan personelin geçmişi kapalı dönem defterinden gelir.
+  const tahminler: DonemTahmini[] = [];
+  for (const ayParam of aylar) {
+    const ay = ayAraligi(ayParam);
+    const acikPersonel = personeller.filter(
+      (p) =>
+        p.aktif &&
+        !kapali.has(`${p.id}|${ayParam}`) &&
+        (!p.ise_giris_tarihi || p.ise_giris_tarihi < ay.bitisTarih) &&
+        (!p.isten_cikis_tarihi || p.isten_cikis_tarihi >= ay.baslangicTarih)
+    );
+    if (acikPersonel.length === 0) continue;
 
-    if (terapist) {
-      const seansSayisi = seansSayisiMap.get(terapist.id) ?? 0;
-      const hesap = maasHesapla(
-        {
-          maas_hesaplama_modeli: terapist.maas_hesaplama_modeli,
-          sabit_maas: personel.maas,
-          prim_sabit_tutar: terapist.prim_sabit_tutar,
-          baraj_seans_sayisi: terapist.baraj_seans_sayisi,
-          baraj_bonus_tutari: terapist.baraj_bonus_tutari,
-        },
-        seansSayisi,
-        ekstraToplam
-      );
-      sabitToplamGenel += hesap.taban + hesap.prim;
-      ekstraToplamGenel += hesap.ekstra_toplam;
-      terapistPrimleri.push({
-        personelId: personel.id,
-        adSoyad: personel.ad_soyad,
-        taban: hesap.taban,
-        prim: hesap.prim,
-        ekstraToplam: hesap.ekstra_toplam,
-        toplam: hesap.toplam,
-        aciklama: hesap.aciklama,
+    const seansSayilari = await seansSayilariniGetir(
+      supabase,
+      acikPersonel
+        .filter((p) => terapistByPersonelId.has(p.id))
+        .map((p) => ({ terapistId: terapistByPersonelId.get(p.id)!.id, personelId: p.id, istenCikisTarihi: p.isten_cikis_tarihi })),
+      ayParam
+    );
+
+    for (const p of acikPersonel) {
+      const terapist = terapistByPersonelId.get(p.id);
+      const seans = seansSayilari.get(p.id) ?? 0;
+      const hesap = hakedisHesapla({
+        personelMaasi: donemMaasi(maasGecmisi.get(p.id), p.maas, ay.bitisTarih),
+        fmSaatlikUcret: null,
+        terapistAyarlari: terapist
+          ? {
+              maas_hesaplama_modeli: terapist.maas_hesaplama_modeli,
+              prim_sabit_tutar: terapist.prim_sabit_tutar,
+              baraj_seans_sayisi: terapist.baraj_seans_sayisi,
+              baraj_bonus_tutari: terapist.baraj_bonus_tutari,
+            }
+          : null,
+        tamamlananSeansSayisi: seans,
+        onayliFmSaat: 0,
+        ayBaslangicTarih: ay.baslangicTarih,
+        ayBitisTarihExclusive: ay.bitisTarih,
+        iseGirisTarihi: p.ise_giris_tarihi,
+        istenCikisTarihi: p.isten_cikis_tarihi,
       });
-    } else {
-      sabitToplamGenel += personel.maas ?? 0;
-      ekstraToplamGenel += ekstraToplam;
+      tahminler.push({ personelId: p.id, taban: hesap.taban, prim: hesap.prim, seans });
     }
   }
 
-  return {
-    toplamMaas: sabitToplamGenel + ekstraToplamGenel,
-    sabitToplam: sabitToplamGenel,
-    ekstraToplam: ekstraToplamGenel,
-    terapistPrimleri,
-  };
+  return personelMaliyetiniTopla(
+    personeller.map((p) => ({ id: p.id, ad_soyad: p.ad_soyad, terapistMi: terapistByPersonelId.has(p.id) })),
+    defter,
+    tahminler
+  );
 }
 
 type KlinikHarcamaSatir = { id: string; tutar: number };

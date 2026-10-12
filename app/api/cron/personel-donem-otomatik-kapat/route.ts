@@ -5,6 +5,8 @@ import { ayAraligi } from "@/lib/utils";
 import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { cronYetkiliMi } from "@/lib/cron-yetki";
+import { donemMaasi, maasGecmisiGetir, type MaasGecmisiSatiri } from "@/lib/personel/donem-maasi";
+import { parcalara } from "@/lib/supabase/sayfali-okuma";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -114,6 +116,16 @@ export async function GET(request: Request) {
     terapistSatirlari.filter((t) => personelById.has(t.personel_id)).map((t) => [t.personel_id, t])
   );
 
+  // Hakediş o ayın maaşıyla: cron son 3 ayı geriye dönük yakaladığı için güncel maaş
+  // (personel.maas) zamdan önceki bir ayı yeni maaşla kapatabilirdi.
+  let maasGecmisi: Map<string, MaasGecmisiSatiri[]>;
+  try {
+    maasGecmisi = await maasGecmisiGetir(admin, takipEdilebilenler.map((p) => p.id));
+  } catch (hata) {
+    console.error("[cron/personel-donem-otomatik-kapat] maaş geçmişi okunamadı:", hata);
+    return NextResponse.json({ error: "okuma hatası" }, { status: 500 });
+  }
+
   let toplamKapatildi = 0;
   let toplamZatenKapali = 0;
   let toplamHata = 0;
@@ -127,12 +139,13 @@ export async function GET(request: Request) {
     // Seans sayımı dönem kapatılmadan ÖNCE yapılır; okunamazsa bu ay atlanır
     // (sonraki çalıştırma geriye dönük tarayıp yakalar) — eksik primle kapatılmaz.
     let zatenKapaliIdler: Set<string>;
+    let hakedisiEksikDonemler: Map<string, string>; // personel_id → kapalı ama hakedişi yazılmamış dönem id
     let seansSayisiMap: Map<string, number>;
     try {
-      const kapaliDonemler = await tumSayfalariOku<{ personel_id: string }>((bas, son) =>
+      const kapaliDonemler = await tumSayfalariOku<{ id: string; personel_id: string }>((bas, son) =>
         admin
           .from("personel_puantaj_donem")
-          .select("personel_id")
+          .select("id, personel_id")
           .eq("yil", yil)
           .eq("ay", ay)
           .eq("durum", "kapali")
@@ -140,7 +153,29 @@ export async function GET(request: Request) {
           .range(bas, son)
       );
       zatenKapaliIdler = new Set(kapaliDonemler.map((d) => d.personel_id));
-      const sayilacaklar = takipEdilebilenler.filter((p) => !zatenKapaliIdler.has(p.id) && terapistByPersonelId.has(p.id));
+
+      // Dönem kapanıp hakediş RPC'si başarısız olduysa sonraki çalıştırmalar dönemi "zaten kapalı"
+      // sayıp hakedişi hiç yazmıyordu — kapalı ama hakediş satırı olmayan dönemler yeniden denenir.
+      const hakedisliDonemler = new Set<string>();
+      for (const parca of parcalara(kapaliDonemler.map((d) => d.id))) {
+        const satirlar = await tumSayfalariOku<{ id: string; kaynak_id: string }>((bas, son) =>
+          admin
+            .from("personel_hesap_hareket")
+            .select("id, kaynak_id")
+            .eq("tur", "hakedis")
+            .in("kaynak_id", parca)
+            .order("id")
+            .range(bas, son)
+        );
+        for (const s of satirlar) hakedisliDonemler.add(s.kaynak_id);
+      }
+      hakedisiEksikDonemler = new Map(
+        kapaliDonemler.filter((d) => !hakedisliDonemler.has(d.id) && personelById.has(d.personel_id)).map((d) => [d.personel_id, d.id])
+      );
+
+      const sayilacaklar = takipEdilebilenler.filter(
+        (p) => (!zatenKapaliIdler.has(p.id) || hakedisiEksikDonemler.has(p.id)) && terapistByPersonelId.has(p.id)
+      );
       seansSayisiMap = await seansSayilariniGetir(
         admin,
         sayilacaklar.map((p) => ({
@@ -157,7 +192,14 @@ export async function GET(request: Request) {
       continue;
     }
 
-    const buAyTakipEdilecekler = takipEdilebilenler.filter((p) => !zatenKapaliIdler.has(p.id));
+    // İşe girişten önceki ve işten çıkıştan sonraki ayları kapatma (Puantaj Cetveli'yle aynı filtre;
+    // önceden bu aylar 0 hakedişle kapanıyordu, giriş tarihi sonradan düzeltilirse dönem kapalı kalıyordu).
+    const buAyTakipEdilecekler = takipEdilebilenler.filter(
+      (p) =>
+        (!zatenKapaliIdler.has(p.id) || hakedisiEksikDonemler.has(p.id)) &&
+        (!p.ise_giris_tarihi || p.ise_giris_tarihi < hedefAy.bitisTarih) &&
+        (!p.isten_cikis_tarihi || p.isten_cikis_tarihi >= hedefAy.baslangicTarih)
+    );
 
     if (buAyTakipEdilecekler.length === 0) {
       ayOzetleri.push({ donem: hedefAy.param, kapatildi: 0, zatenKapali: 0, hata: 0 });
@@ -169,23 +211,27 @@ export async function GET(request: Request) {
     let hata = 0;
 
     await sinirliEszamanliCalistir(buAyTakipEdilecekler, ESZAMANLI_ISLEM_LIMITI, async (personel) => {
-      const { data: donemSonucu, error: kapatHatasi } = await admin.rpc("personel_puantaj_donem_kapat", {
-        p_personel_id: personel.id,
-        p_yil: yil,
-        p_ay: ay,
-      });
+      let donemId = hakedisiEksikDonemler.get(personel.id);
 
-      if (kapatHatasi) {
-        if (kapatHatasi.message === "donem_zaten_kapali") {
-          zatenKapali++;
-        } else {
-          console.error(`[cron/personel-donem-otomatik-kapat] ${hedefAy.param} ${personel.id} kapatılamadı:`, kapatHatasi.message);
-          hata++;
+      if (!donemId) {
+        const { data: donemSonucu, error: kapatHatasi } = await admin.rpc("personel_puantaj_donem_kapat", {
+          p_personel_id: personel.id,
+          p_yil: yil,
+          p_ay: ay,
+        });
+
+        if (kapatHatasi) {
+          if (kapatHatasi.message === "donem_zaten_kapali") {
+            zatenKapali++;
+          } else {
+            console.error(`[cron/personel-donem-otomatik-kapat] ${hedefAy.param} ${personel.id} kapatılamadı:`, kapatHatasi.message);
+            hata++;
+          }
+          return;
         }
-        return;
-      }
 
-      const donemId = (donemSonucu as { donem_id: string } | null)?.donem_id;
+        donemId = (donemSonucu as { donem_id: string } | null)?.donem_id;
+      }
       if (!donemId) {
         hata++;
         return;
@@ -195,7 +241,7 @@ export async function GET(request: Request) {
       const guncelPersonel = personelById.get(personel.id) ?? personel;
 
       const hesap = hakedisHesapla({
-        personelMaasi: guncelPersonel.maas,
+        personelMaasi: donemMaasi(maasGecmisi.get(personel.id), guncelPersonel.maas, hedefAy.bitisTarih),
         fmSaatlikUcret: null,
         terapistAyarlari: terapist
           ? {

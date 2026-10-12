@@ -249,6 +249,11 @@ export async function manuelRaporEkle(_onceki: SonucDurumu, formData: FormData):
   if (bitis_tarih < baslangic_tarih) {
     return { success: false, message: "Bitiş tarihi başlangıçtan önce olamaz." };
   }
+  // İzin talebindeki (personel_izin_is_gunu_sayisi) 366 gün sınırıyla aynı: yanlış girilmiş bir
+  // aralık binlerce puantaj satırı yazmasın.
+  if (Date.parse(`${bitis_tarih}T00:00:00Z`) - Date.parse(`${baslangic_tarih}T00:00:00Z`) > 366 * 86_400_000) {
+    return { success: false, message: "Rapor aralığı en fazla 1 yıl olabilir." };
+  }
 
   const { data: personel } = await supabase.from("personel").select("klinik_id").eq("id", personel_id).maybeSingle();
   if (!personel || personel.klinik_id !== klinikId) {
