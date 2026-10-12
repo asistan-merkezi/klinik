@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
+import { hizSiniriTuket, ipAnahtari, klinikAnahtari, HIZ_SINIRI_MESAJI } from "@/lib/qr/hiz-siniri";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -13,15 +14,17 @@ const telefonSemasi = z
   .max(20, "Telefon numarası geçersiz.")
   .regex(/^[0-9+ ]+$/, "Telefon sadece rakam, boşluk ve + içerebilir.");
 
-const bosVeyaMetin = z.string().trim().optional().or(z.literal(""));
+// Anonim form: her serbest metin alanına üst sınır (sınırsız metinle DB şişirilemesin).
+const bosVeyaMetin = z.string().trim().max(500, "Metin çok uzun.").optional().or(z.literal(""));
+const kisaMetin = (s: string) => s.trim().slice(0, 200);
 
 const semasi = z.object({
   klinik_id: z.string().uuid("Geçersiz bağlantı."),
-  ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
+  ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı.").max(120, "Ad soyad çok uzun."),
   telefon: telefonSemasi,
-  eposta: z.union([z.string().trim().email("Geçersiz e-posta."), z.literal("")]).optional(),
+  eposta: z.union([z.string().trim().max(254).email("Geçersiz e-posta."), z.literal("")]).optional(),
   dogum_tarihi: z.union([z.string().date(), z.literal("")]).optional(),
-  tc_kimlik_no: bosVeyaMetin,
+  tc_kimlik_no: z.string().trim().max(20, "Kimlik numarası geçersiz.").optional().or(z.literal("")),
   adres: bosVeyaMetin,
   pozisyon: bosVeyaMetin,
   bizi_nereden_duydunuz: bosVeyaMetin,
@@ -40,9 +43,9 @@ const semasi = z.object({
 function deneyimleriTopla(formData: FormData): { sirket: string; gorev: string; sure: string }[] {
   const satirlar = [];
   for (let i = 1; i <= 3; i++) {
-    const sirket = (formData.get(`deneyim${i}_sirket`) as string | null)?.trim() ?? "";
-    const gorev = (formData.get(`deneyim${i}_gorev`) as string | null)?.trim() ?? "";
-    const sure = (formData.get(`deneyim${i}_sure`) as string | null)?.trim() ?? "";
+    const sirket = kisaMetin(String(formData.get(`deneyim${i}_sirket`) ?? ""));
+    const gorev = kisaMetin(String(formData.get(`deneyim${i}_gorev`) ?? ""));
+    const sure = kisaMetin(String(formData.get(`deneyim${i}_sure`) ?? ""));
     if (sirket || gorev || sure) satirlar.push({ sirket, gorev, sure });
   }
   return satirlar;
@@ -51,9 +54,9 @@ function deneyimleriTopla(formData: FormData): { sirket: string; gorev: string; 
 function referanslariTopla(formData: FormData): { ad_soyad: string; telefon: string; baglanti: string }[] {
   const satirlar = [];
   for (let i = 1; i <= 2; i++) {
-    const adSoyad = (formData.get(`referans${i}_ad_soyad`) as string | null)?.trim() ?? "";
-    const telefon = (formData.get(`referans${i}_telefon`) as string | null)?.trim() ?? "";
-    const baglanti = (formData.get(`referans${i}_baglanti`) as string | null)?.trim() ?? "";
+    const adSoyad = kisaMetin(String(formData.get(`referans${i}_ad_soyad`) ?? ""));
+    const telefon = kisaMetin(String(formData.get(`referans${i}_telefon`) ?? ""));
+    const baglanti = kisaMetin(String(formData.get(`referans${i}_baglanti`) ?? ""));
     if (adSoyad || telefon || baglanti) satirlar.push({ ad_soyad: adSoyad, telefon, baglanti });
   }
   return satirlar;
@@ -87,6 +90,16 @@ export async function isBasvurusuOlustur(_onceki: SonucDurumu, formData: FormDat
 
   if (!veri.kvkk_onay) {
     return { success: false, message: "Devam etmek için KVKK onay kutucuğunu işaretlemeniz gerekiyor." };
+  }
+
+  // Hasta ön kayıt/anket ile aynı koruma: önceden bu form sınırsızdı (otomatik doldurmayla bir
+  // kliniğe binlerce sahte, kişisel veri içeren başvuru yazılabilirdi).
+  const izinli = await hizSiniriTuket([
+    { anahtar: await ipAnahtari("is_basvurusu"), limit: 5, pencereSn: 600 },
+    { anahtar: klinikAnahtari("is_basvurusu", veri.klinik_id), limit: 100, pencereSn: 86400 },
+  ]);
+  if (!izinli) {
+    return { success: false, message: HIZ_SINIRI_MESAJI };
   }
 
   const supabase = await createClient();

@@ -9,7 +9,7 @@ const semasi = z
   .object({
     randevu_id: z.string().uuid("Geçersiz bağlantı."),
     puan: z.union([z.coerce.number().int().min(1).max(5), z.literal("")]).optional(),
-    oneri_metni: z.string().trim().optional(),
+    oneri_metni: z.string().trim().max(2000, "Öneri en fazla 2000 karakter olabilir.").optional(),
   })
   .refine((v) => (v.puan !== "" && v.puan !== undefined) || (v.oneri_metni && v.oneri_metni.length > 0), {
     message: "Lütfen bir puan verin veya öneri yazın.",

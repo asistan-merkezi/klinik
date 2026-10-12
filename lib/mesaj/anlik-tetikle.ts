@@ -4,8 +4,12 @@ import type { MesajKanal } from "@/types/mesajlasma";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-/** `whatsappIzni` yalnız hasta alıcılarda anlamlı (hasta.whatsapp_izin_durumu); verilmezse izinli sayılır (personel). */
-type AliciAdres = { telefon: string | null; eposta: string | null; whatsappIzni?: boolean };
+/**
+ * `whatsappIzni` yalnız hasta alıcılarda anlamlı (hasta.whatsapp_izin_durumu); verilmezse izinli sayılır (personel).
+ * `ticariIletiOnayi`: hasta.ticari_ileti_onay_tarihi dolu mu — 'ticari' içerikli tetikleyiciler hastaya
+ * ancak bu `true` ise gönderilir (verilmezse onay YOK sayılır).
+ */
+type AliciAdres = { telefon: string | null; eposta: string | null; whatsappIzni?: boolean; ticariIletiOnayi?: boolean };
 
 /**
  * "anlik" tetikleme tipindeki bir olay gerçekleştiğinde mesaj_kuyrugu'na satır
@@ -40,6 +44,11 @@ export async function anlikMesajTetikle(
   const tanim = TETIKLEYICILER.find((t) => t.kod === params.tetikleyiciKodu);
   if (!tanim) {
     console.error(`[mesaj] bilinmeyen tetikleyici kodu: ${params.tetikleyiciKodu}`);
+    return;
+  }
+
+  // KVKK/İYS: ticari (pazarlama) ileti, hastanın ticari ileti onayı yoksa hiç kuyruğa girmez.
+  if (tanim.icerikTipi === "ticari" && params.aliciTipi === "hasta" && params.adres.ticariIletiOnayi !== true) {
     return;
   }
 

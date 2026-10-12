@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { oturumKilidiYenile } from "@/lib/auth/oturum-kilidi";
 import { guvenliDonusAdresi } from "@/lib/auth/donus-adresi";
+import { GIRIS_KILITLI_MESAJI, girisKilitliMi, hataliGirisKaydet } from "@/lib/auth/giris-hiz-siniri";
 
 type GirisSonucu = { success: false; message: string } | never;
 
@@ -19,6 +20,10 @@ export async function girisYap(
     return { success: false, message: "Telefon/e-posta ve şifre gerekli." };
   }
 
+  if (await girisKilitliMi("personel_giris", girisAdi)) {
+    return { success: false, message: GIRIS_KILITLI_MESAJI };
+  }
+
   const supabase = await createClient();
   const epostaGirisi = girisAdi.includes("@");
 
@@ -30,6 +35,7 @@ export async function girisYap(
       password: sifre,
     });
     if (error) {
+      await hataliGirisKaydet("personel_giris", girisAdi);
       return { success: false, message: "E-posta veya şifre hatalı." };
     }
 
@@ -59,6 +65,7 @@ export async function girisYap(
   });
 
   if (!eposta) {
+    await hataliGirisKaydet("personel_giris", girisAdi);
     return { success: false, message: "Telefon veya şifre hatalı." };
   }
 
@@ -68,6 +75,7 @@ export async function girisYap(
   });
 
   if (error) {
+    await hataliGirisKaydet("personel_giris", girisAdi);
     return { success: false, message: "Telefon veya şifre hatalı." };
   }
 

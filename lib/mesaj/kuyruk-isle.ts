@@ -54,7 +54,7 @@ export async function kuyrukSatiriniIsle(admin: SupabaseClient, satirId: string)
   // geçer, eşzamanlı iki worker/istek aynı satırı iki kez işleyemez.
   const { data: satir, error: claimHata } = await admin
     .from("mesaj_kuyrugu")
-    .update({ durum: "gonderiliyor" })
+    .update({ durum: "gonderiliyor", isleme_alinma_zamani: new Date().toISOString() })
     .eq("id", satirId)
     .eq("durum", "beklemede")
     .select("id, klinik_id, kanal, alici_adres, gonderilecek_metin, tetikleyici_kodu, test_mi, deneme_sayisi, idempotency_anahtari")

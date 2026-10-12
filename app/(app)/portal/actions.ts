@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -235,10 +236,13 @@ export async function iptalTalebiOlustur(randevuId: string, aciklama: string = "
 
 const randevuTalebiSemasi = z.object({
   islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
-  tercih_tarih: z.string().min(1, "Tarih gerekli."),
-  tercih_saat: z.string().optional(),
-  not_metni: z.string().trim().optional(),
+  tercih_tarih: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tarih gerekli."),
+  tercih_saat: z.union([z.string().regex(/^\d{2}:\d{2}$/, "Saat geçersiz."), z.literal("")]).optional(),
+  not_metni: z.string().trim().max(1000, "Not en fazla 1000 karakter olabilir.").optional(),
 });
+
+/** Bir hastanın aynı anda bekleyen randevu talebi üst sınırı (resepsiyon kuyruğu şişmesin). */
+const BEKLEYEN_TALEP_SINIRI = 5;
 
 /**
  * Hasta portaldan yeni bir randevu TALEP eder (mevcut iptalTalebiOlustur ile
@@ -264,6 +268,27 @@ export async function randevuTalebiOlustur(_onceki: SonucDurumu, formData: FormD
   }
 
   const { islem_tanimi_id, tercih_tarih, tercih_saat, not_metni } = ayristirma.data;
+
+  const bugun = bugunIstanbulTarihi();
+  if (tercih_tarih < bugun) {
+    return { success: false, message: "Geçmiş bir tarih için randevu talep edilemez." };
+  }
+  const birYilSonra = `${Number(bugun.slice(0, 4)) + 1}${bugun.slice(4)}`;
+  if (tercih_tarih > birYilSonra) {
+    return { success: false, message: "En fazla bir yıl sonrası için talep edilebilir." };
+  }
+
+  const { count: bekleyen } = await supabase
+    .from("randevu_talebi")
+    .select("id", { count: "exact", head: true })
+    .eq("hasta_id", hastaId)
+    .eq("durum", "bekliyor");
+  if ((bekleyen ?? 0) >= BEKLEYEN_TALEP_SINIRI) {
+    return {
+      success: false,
+      message: "Yanıt bekleyen talepleriniz var. Kliniğiniz bunları yanıtladıktan sonra yeni talep gönderebilirsiniz.",
+    };
+  }
 
   const { error } = await supabase.from("randevu_talebi").insert({
     hasta_id: hastaId,

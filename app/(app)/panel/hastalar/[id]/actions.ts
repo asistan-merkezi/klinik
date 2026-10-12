@@ -1,5 +1,6 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { redirect } from "next/navigation";
 import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
@@ -436,10 +437,13 @@ export async function faturaTetikle(faturaId: string): Promise<SonucDurumu> {
 
 type PortalSonucu = { success: boolean; message: string; geciciSifre?: string } | null;
 
+// Kriptografik rastgele, 8 karakter; karışabilen karakterler (0/O, 1/I/L) yok — hasta elle yazacak.
+// Önceden Math.random ile 6 rakamdı (yalnız 1 milyon olasılık, tahmin edilebilir üreteç).
+const GECICI_SIFRE_ALFABESI = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function geciciSifreUret(): string {
   let sifre = "";
-  for (let i = 0; i < 6; i++) {
-    sifre += Math.floor(Math.random() * 10).toString();
+  for (let i = 0; i < 8; i++) {
+    sifre += GECICI_SIFRE_ALFABESI[randomInt(GECICI_SIFRE_ALFABESI.length)];
   }
   return sifre;
 }

@@ -17,10 +17,15 @@ const telefonSemasi = z
 
 const semasi = z.object({
   klinik_id: z.string().uuid("Geçersiz bağlantı."),
-  ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
+  ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı.").max(120, "Ad soyad çok uzun."),
   telefon: telefonSemasi,
   dogum_tarihi: z.union([z.string().date(), z.literal("")]).optional(),
-  kimlik_no: z.string().trim().optional(),
+  kimlik_no: z
+    .string()
+    .trim()
+    .max(20, "Kimlik numarası geçersiz.")
+    .regex(/^[A-Za-z0-9]*$/, "Kimlik numarası yalnız harf ve rakam içerebilir.")
+    .optional(),
   kimlik_no_tipi: z.enum(["tc", "pasaport"]).optional(),
   whatsapp_izin_durumu: z.coerce.boolean().optional(),
   ticari_ileti_onay: z.coerce.boolean().optional(),

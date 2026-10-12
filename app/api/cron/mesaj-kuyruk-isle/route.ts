@@ -9,6 +9,11 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const BATCH_BOYUTU = 25;
+// Her satır en fazla ~15 sn (merkez isteği zaman aşımı) sürebilir; 25 satır 60 sn sınırını aşabilir.
+// Süre bu eşiği geçince yeni satır alınmaz — kalanlar bir sonraki çalıştırmada işlenir.
+const SURE_BUTCESI_MS = 40_000;
+/** Bu süreden uzun 'gonderiliyor'da kalan satır, çöken/zaman aşımına uğrayan bir işlemden kalmıştır. */
+const TAKILI_SATIR_DK = 10;
 
 /**
  * mesaj_kuyrugu'nda durum='beklemede' AND planlanan_zaman<=now() olan
@@ -22,7 +27,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "yetkisiz" }, { status: 401 });
   }
 
+  const baslangic = Date.now();
   const admin = createAdminClient();
+
+  // Takılı kalan satırları kurtar (bkz. migration 20261012200000). Merkezdeki idempotency anahtarı
+  // aynı mesajın iki kez gönderilmesini engeller.
+  const esik = new Date(Date.now() - TAKILI_SATIR_DK * 60_000).toISOString();
+  const { error: kurtarmaHata } = await admin
+    .from("mesaj_kuyrugu")
+    .update({ durum: "beklemede", hata_mesaji: "işlem yarıda kaldı, yeniden denenecek" })
+    .eq("durum", "gonderiliyor")
+    .or(`isleme_alinma_zamani.is.null,isleme_alinma_zamani.lt.${esik}`);
+  if (kurtarmaHata) {
+    console.error("[cron/mesaj-kuyruk-isle] takılı satırlar kurtarılamadı:", kurtarmaHata.message);
+  }
+
   const { data: satirlar, error } = await admin
     .from("mesaj_kuyrugu")
     .select("id")
@@ -38,6 +57,7 @@ export async function GET(request: Request) {
 
   const sonuclar: { id: string; durum: string }[] = [];
   for (const satir of satirlar ?? []) {
+    if (Date.now() - baslangic > SURE_BUTCESI_MS) break;
     const sonuc = await kuyrukSatiriniIsle(admin, satir.id);
     sonuclar.push({ id: satir.id, durum: sonuc.durum });
   }
