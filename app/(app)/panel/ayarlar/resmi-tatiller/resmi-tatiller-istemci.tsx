@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { bayramOnerisiKarar, onerileriKontrolEt, tatilEkle, tatilSil } from "./actions";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 type Sonuc = { success: boolean; message: string } | null;
 
@@ -78,12 +79,8 @@ export function BayramOnerisiKarti({
 export function TatilEkleFormu({ varsayilanTarih }: { varsayilanTarih: string }) {
   const [acik, setAcik] = useState(false);
   const [sonuc, formAction, isPending] = useActionState(tatilEkle, null);
-  const [gorulenSonuc, setGorulenSonuc] = useState(sonuc);
 
-  if (sonuc !== gorulenSonuc) {
-    setGorulenSonuc(sonuc);
-    if (sonuc?.success) setAcik(false);
-  }
+  useBasariOlunca(sonuc, () => setAcik(false));
 
   if (!acik) {
     return (

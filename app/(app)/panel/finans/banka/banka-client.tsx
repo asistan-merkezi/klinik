@@ -28,6 +28,7 @@ import {
   bankaPersonelOdemesiEkle,
   nakitBankaHareketiSil,
 } from "./actions";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
@@ -209,12 +210,8 @@ function PersonelOdemeFormu({
   basariliOlunca: () => void;
 }) {
   const [durum, formAction, isPending] = useActionState(bankaPersonelOdemesiEkle, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) basariliOlunca();
-  }
+  useBasariOlunca(durum, () => basariliOlunca());
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -280,12 +277,8 @@ function HesaplarArasiFormu({
   basariliOlunca: () => void;
 }) {
   const [durum, formAction, isPending] = useActionState(bankadanTransferEkle, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) basariliOlunca();
-  }
+  useBasariOlunca(durum, () => basariliOlunca());
 
   const digerHesaplar = bankaHesaplari.filter((b) => b.id !== selectedId);
 
@@ -339,12 +332,8 @@ function HesaplarArasiFormu({
 
 function DigerCikanFormu({ selectedId, basariliOlunca }: { selectedId: string; basariliOlunca: () => void }) {
   const [durum, formAction, isPending] = useActionState(bankadanDigerCikanEkle, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) basariliOlunca();
-  }
+  useBasariOlunca(durum, () => basariliOlunca());
 
   return (
     <form action={formAction} className="flex flex-col gap-3">

@@ -20,6 +20,7 @@ import {
   type KamusalOdemeSatir,
   type OdemeTipi,
 } from "@/types/kamusal-odeme";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 type OdemeAction = (onceki: SonucDurumu, formData: FormData) => Promise<SonucDurumu>;
@@ -48,7 +49,6 @@ export function OdemeFormu({
 }) {
   const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(action, null);
-  const [gorulenDurum, setGorulenDurum] = useState<SonucDurumu>(null);
   const [odemeTipi, setOdemeTipi] = useState<OdemeTipi | undefined>(duzenlenecek?.odeme_tipi);
   const aracGerekli = odemeTipi != null && ARAC_GEREKTIREN_TIPLER.includes(odemeTipi);
   const [odemeTarihi, setOdemeTarihi] = useState(
@@ -56,12 +56,7 @@ export function OdemeFormu({
   );
   const [odemeYontemi, setOdemeYontemi] = useState<string | undefined>(duzenlenecek?.odeme_yontemi ?? undefined);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) {
-      basariliOlunca?.();
-    }
-  }
+  useBasariOlunca(durum, () => basariliOlunca?.());
 
   const simdi = new Date();
   const donemAyVarsayilan = duzenlenecek?.donem_ay ?? varsayilanDonemAy ?? simdi.getMonth() + 1;

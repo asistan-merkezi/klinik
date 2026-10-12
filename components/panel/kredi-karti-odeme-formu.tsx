@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import type { KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import { krediKartiOdemeEkle } from "@/app/(app)/panel/finans/kredi-karti/actions";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 const SELECT_SINIF =
   "h-9 rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -34,13 +35,9 @@ export function KrediKartiOdemeFormu({
   basariliOlunca?: () => void;
 }) {
   const [sonuc, formAction, isPending] = useActionState(krediKartiOdemeEkle, null);
-  const [gorulenSonuc, setGorulenSonuc] = useState(sonuc);
   const [yontem, setYontem] = useState<"nakit" | "havale" | "">(sabitYontem ?? "");
 
-  if (sonuc !== gorulenSonuc) {
-    setGorulenSonuc(sonuc);
-    if (sonuc?.success) basariliOlunca?.();
-  }
+  useBasariOlunca(sonuc, () => basariliOlunca?.());
 
   if (kartlar.length === 0) {
     return (

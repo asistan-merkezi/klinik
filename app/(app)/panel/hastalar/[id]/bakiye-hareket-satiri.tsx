@@ -15,6 +15,7 @@ import {
 } from "@/lib/fatura/eksik-bilgi";
 import { borcDuzenle } from "./actions";
 import { formatDate, formatTime } from "@/lib/datetime";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -151,17 +152,11 @@ function BorcDuzenleDialog({
   const idOnEki = useId();
   const duzenleAction = borcDuzenle.bind(null, hastaId, hareket.id);
   const [durum, formAction, isPending] = useActionState(duzenleAction, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [iskontoMetni, setIskontoMetni] = useState(hareket.iskonto_tutari > 0 ? String(hareket.iskonto_tutari) : "");
   const [faturali, setFaturali] = useState(false);
   const [aciklama, setAciklama] = useState("");
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) {
-      onOpenChange(false);
-    }
-  }
+  useBasariOlunca(durum, () => onOpenChange(false));
 
   const iskonto = Number(iskontoMetni) || 0;
   const netToplam = Math.max(hareket.tutar - iskonto, 0);

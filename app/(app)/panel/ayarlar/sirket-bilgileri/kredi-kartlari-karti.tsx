@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { KlinikBankaHesabiDetay, KlinikKrediKarti, KrediKartiTahsilatAyari } from "@/types/klinik";
 import { krediKartiEkle, krediKartiGuncelle, krediKartiSil, krediKartiTahsilatAyariKaydet } from "./actions";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 type KartTipi = KlinikKrediKarti["kart_tipi"];
 
@@ -18,13 +19,9 @@ const KART_TIPI_ETIKET: Record<KartTipi, string> = { klinik: "Şirket Kartı", s
 /** Ekleme ve düzenleme aynı formu kullanır; `kart` doluysa düzenleme (gizli id ile). */
 function KrediKartiFormu({ kart, kapat }: { kart?: KlinikKrediKarti; kapat: () => void }) {
   const [sonuc, formAction, isPending] = useActionState(kart ? krediKartiGuncelle : krediKartiEkle, null);
-  const [gorulenSonuc, setGorulenSonuc] = useState(sonuc);
   const [tip, setTip] = useState<KartTipi>(kart?.kart_tipi ?? "klinik");
 
-  if (sonuc !== gorulenSonuc) {
-    setGorulenSonuc(sonuc);
-    if (sonuc?.success) kapat();
-  }
+  useBasariOlunca(sonuc, () => kapat());
 
   const onEk = kart ? `duzenle-${kart.id}-` : "yeni-";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { PUANTAJ_DURUM_SECENEKLERI } from "@/types/puantaj";
 import type { PersonelPuantajSatir } from "@/types/puantaj";
 import { gunKaydet } from "./actions";
 import { FmOnayButonlari } from "./fm-onay-butonlari";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 const OTOMATIK_DEGER = "otomatik";
 const DURUM_SECENEKLERI_OTOMATIK = [
@@ -41,12 +42,8 @@ export function HucreDuzenleDialog({
 }) {
   const kaydetAction = gunKaydet.bind(null, personelId, tarih);
   const [durum, formAction, isPending] = useActionState(kaydetAction, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) onOpenChange(false);
-  }
+  useBasariOlunca(durum, () => onOpenChange(false));
 
   const izinKaynakli = kayit?.kaynak === "izin_talebi";
   const beklemedeFm = kayit != null && (kayit.fazla_mesai_dakika ?? 0) > 0 && kayit.fm_onay_durumu === "bekliyor";

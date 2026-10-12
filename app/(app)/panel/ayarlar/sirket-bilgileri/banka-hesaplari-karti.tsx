@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { KlinikBankaHesabiDetay } from "@/types/klinik";
 import { bankaHesabiEkle, bankaHesabiGuncelle, bankaHesabiSil } from "./actions";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 type HesapTipi = KlinikBankaHesabiDetay["hesap_tipi"];
 
@@ -22,13 +23,9 @@ function formatIban(iban: string): string {
 /** Ekleme ve düzenleme aynı formu kullanır; `hesap` doluysa düzenleme (gizli id ile). */
 function BankaHesabiFormu({ hesap, kapat }: { hesap?: KlinikBankaHesabiDetay; kapat: () => void }) {
   const [sonuc, formAction, isPending] = useActionState(hesap ? bankaHesabiGuncelle : bankaHesabiEkle, null);
-  const [gorulenSonuc, setGorulenSonuc] = useState(sonuc);
   const [tip, setTip] = useState<HesapTipi>(hesap?.hesap_tipi ?? "klinik");
 
-  if (sonuc !== gorulenSonuc) {
-    setGorulenSonuc(sonuc);
-    if (sonuc?.success) kapat();
-  }
+  useBasariOlunca(sonuc, () => kapat());
 
   const onEk = hesap ? `duzenle-${hesap.id}-` : "yeni-";
 

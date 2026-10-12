@@ -24,6 +24,7 @@ import {
   type KlinikHarcamaSatir,
   type OdemeTipi,
 } from "@/types/klinik-harcama";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 type GiderAction = (onceki: SonucDurumu, formData: FormData) => Promise<SonucDurumu>;
@@ -66,7 +67,6 @@ export function GiderFormu({
 }) {
   const idOnEki = useId();
   const [durum, formAction, isPending] = useActionState(action, null);
-  const [gorulenDurum, setGorulenDurum] = useState<SonucDurumu>(null);
   const [kategori, setKategori] = useState<HarcamaKategori | undefined>(duzenlenecek?.kategori);
   const [odemeTipi, setOdemeTipi] = useState<HarcamaOdemeTipi | null>(
     sabitOdemeTipi ?? duzenlenecek?.odeme_tipi ?? null
@@ -87,12 +87,7 @@ export function GiderFormu({
   const [faturali, setFaturali] = useState(duzenlenecek?.is_faturali ?? false);
   const aracGosterilir = kategori != null && ARAC_GOSTERILEN_KATEGORILER.includes(kategori);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) {
-      basariliOlunca?.();
-    }
-  }
+  useBasariOlunca(durum, () => basariliOlunca?.());
 
   const bugun = bugunIstanbulTarihi();
 

@@ -19,6 +19,7 @@ import { formatDateForInput } from "@/lib/datetime";
 import { useMesgulAraliklar } from "./queries";
 import { gelecekteMi, gunEkleStr, saatAdaylari, saatMusaitMi } from "@/lib/randevu/musait-saatler";
 import { KayitliPaketler } from "./kayitli-paketler";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 type Props = {
   terapistler: TerapistSecenekSatir[];
@@ -46,7 +47,6 @@ export function PeriyodikRandevuFormu({
   sabitHasta,
 }: Props) {
   const [durum, formAction, isPending] = useActionState(periyodikRandevuOlustur, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [hastaId, setHastaId] = useState(sabitHasta?.id ?? "");
   const [islemTanimiId, setIslemTanimiId] = useState("");
   const [terapistId, setTerapistId] = useState("");
@@ -118,12 +118,7 @@ export function PeriyodikRandevuFormu({
     setGunler((mevcut) => mevcut.map((g, i) => (i === index ? { ...g, ...degisiklik } : g)));
   }
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) {
-      onBasarili?.();
-    }
-  }
+  useBasariOlunca(durum, () => onBasarili?.());
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

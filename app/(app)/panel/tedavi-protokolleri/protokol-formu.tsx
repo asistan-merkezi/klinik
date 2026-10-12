@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { SecenekSatir } from "@/types/randevu";
 import { AdimEditor, bosAdim, type Adim } from "./adim-editor";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 function textAlaniSinifi() {
   return cn(
@@ -40,14 +41,8 @@ export function ProtokolFormu({
   const [adimlar, setAdimlar] = useState<Adim[]>(
     baslangicAdimlar && baslangicAdimlar.length > 0 ? baslangicAdimlar : [bosAdim(`${idOnEki}-0`)]
   );
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) {
-      basariliOlunca?.();
-    }
-  }
+  useBasariOlunca(durum, () => basariliOlunca?.());
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

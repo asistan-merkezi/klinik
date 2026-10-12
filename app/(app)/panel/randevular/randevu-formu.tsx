@@ -19,6 +19,7 @@ import { randevuOlustur } from "./actions";
 import { HastaArama } from "./hasta-arama";
 import { KayitliPaketler } from "./kayitli-paketler";
 import { useMesgulAraliklar, useTedaviEtkinFiyat } from "./queries";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -50,7 +51,6 @@ export function RandevuFormu({
 }: Props) {
   const efektifSabitHasta = sabitHasta ?? (talep ? { id: talep.hastaId, ad: talep.hastaAd } : undefined);
   const [durum, formAction, isPending] = useActionState(randevuOlustur, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
   const [hastaId, setHastaId] = useState(efektifSabitHasta?.id ?? "");
   const [islemTanimiId, setIslemTanimiId] = useState(talep?.islemTanimiId ?? "");
   const [terapistId, setTerapistId] = useState("");
@@ -130,12 +130,7 @@ export function RandevuFormu({
   // sıfırlanıyor (HastaArama'nın kendi state'i bundan habersiz kalıp
   // görünüm/gizli-input uyumsuzluğu yaratıyor) — kafa karıştırıcı yarı-sıfırlanmış
   // form yerine, randevu detay panelindeki (düzenleme) ile aynı desenle dialog'u kapatıyoruz.
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) {
-      onBasarili?.();
-    }
-  }
+  useBasariOlunca(durum, () => onBasarili?.());
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

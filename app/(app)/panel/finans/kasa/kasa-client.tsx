@@ -27,6 +27,7 @@ import {
   kasaPersonelOdemesiEkle,
   nakitBankaHareketiSil,
 } from "./actions";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 export type KasaKontrolBilgisi = {
   baslangicTutari: number;
@@ -50,6 +51,8 @@ function BaslangicTutariFormu({ kasaKontrol }: { kasaKontrol: KasaKontrolBilgisi
           type="number"
           min={0}
           step="0.01"
+          // Kayıttan sonra sunucudan gelen değer değişir; kontrolsüz alanın defaultValue'su sonradan değişirse Base UI uyarır — key ile yeniden kurulur.
+          key={kasaKontrol.baslangicTutari}
           defaultValue={kasaKontrol.baslangicTutari}
           required
           disabled={isPending}
@@ -75,12 +78,8 @@ function BaslangicTutariFormu({ kasaKontrol }: { kasaKontrol: KasaKontrolBilgisi
 
 function DengelemeFormu({ girenKisi, basariliOlunca }: { girenKisi: string; basariliOlunca: () => void }) {
   const [durum, formAction, isPending] = useActionState(kasaDengelemeEkle, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) basariliOlunca();
-  }
+  useBasariOlunca(durum, () => basariliOlunca());
 
   return (
     <form action={formAction} className="flex flex-col gap-3 rounded-2xl border border-border p-3">
@@ -214,12 +213,8 @@ function PersonelOdemeFormu({
   basariliOlunca: () => void;
 }) {
   const [durum, formAction, isPending] = useActionState(kasaPersonelOdemesiEkle, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) basariliOlunca();
-  }
+  useBasariOlunca(durum, () => basariliOlunca());
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -294,12 +289,8 @@ function HesaplarArasiFormu({
   basariliOlunca: () => void;
 }) {
   const [durum, formAction, isPending] = useActionState(kasadanBankayaTransferEkle, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) basariliOlunca();
-  }
+  useBasariOlunca(durum, () => basariliOlunca());
 
   if (bankaHesaplari.length === 0) {
     return (
@@ -364,12 +355,8 @@ function HesaplarArasiFormu({
 
 function DigerCikanFormu({ basariliOlunca }: { basariliOlunca: () => void }) {
   const [durum, formAction, isPending] = useActionState(kasadanDigerCikanEkle, null);
-  const [gorulenDurum, setGorulenDurum] = useState(durum);
 
-  if (durum !== gorulenDurum) {
-    setGorulenDurum(durum);
-    if (durum?.success) basariliOlunca();
-  }
+  useBasariOlunca(durum, () => basariliOlunca());
 
   return (
     <form action={formAction} className="flex flex-col gap-3">

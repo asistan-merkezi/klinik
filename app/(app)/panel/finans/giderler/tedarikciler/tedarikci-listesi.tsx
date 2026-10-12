@@ -22,6 +22,7 @@ import {
 } from "@/types/klinik-harcama";
 import { giderOdemeBilgisiGuncelle } from "../actions";
 import { cariOdemeEkle, cariOdemeSil } from "./actions";
+import { useBasariOlunca } from "@/lib/use-basari-olunca";
 
 export type TedarikciHareketi = {
   /** cari_gider: "Cariye Ekle" (borç) · odenmis_gider: nakit/havale/kart (borç+ödeme, net 0) ·
@@ -469,13 +470,9 @@ function CariOdemeFormu({
   kapat: () => void;
 }) {
   const [sonuc, formAction, isPending] = useActionState(cariOdemeEkle, null);
-  const [gorulenSonuc, setGorulenSonuc] = useState(sonuc);
   const [tip, setTip] = useState<OdemeTipi | "">("");
 
-  if (sonuc !== gorulenSonuc) {
-    setGorulenSonuc(sonuc);
-    if (sonuc?.success) kapat();
-  }
+  useBasariOlunca(sonuc, () => kapat());
 
   return (
     <form action={formAction} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
@@ -597,13 +594,9 @@ function OdemeBilgisiFormu({
   kapat: () => void;
 }) {
   const [sonuc, formAction, isPending] = useActionState(giderOdemeBilgisiGuncelle, null);
-  const [gorulenSonuc, setGorulenSonuc] = useState(sonuc);
   const [tip, setTip] = useState<OdemeTipi | "">(h.odeme_tipi && h.odeme_tipi !== "cari" ? h.odeme_tipi : "");
 
-  if (sonuc !== gorulenSonuc) {
-    setGorulenSonuc(sonuc);
-    if (sonuc?.success) kapat();
-  }
+  useBasariOlunca(sonuc, () => kapat());
 
   return (
     <form action={formAction} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
