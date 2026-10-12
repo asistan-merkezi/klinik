@@ -241,7 +241,9 @@ export async function giderOdemeBilgisiGuncelle(_onceki: SonucDurumu, formData: 
     }
   }
 
-  const { error } = await supabase
+  // Yalnız yöntemi HÂLÂ boş kayıtlar: ödenmiş/cariye eklenmiş bir giderin yöntemini sonradan değiştirmek
+  // geçmiş Kasa/Banka/cari bakiyelerini sessizce kaydırırdı.
+  const { data: guncellenen, error } = await supabase
     .from("klinik_harcama")
     .update({
       odeme_tipi: odemeTipi,
@@ -249,11 +251,16 @@ export async function giderOdemeBilgisiGuncelle(_onceki: SonucDurumu, formData: 
       kredi_karti_id: odemeTipi === "kredi_karti" && krediKartiId ? krediKartiId : null,
     })
     .eq("id", id)
-    .eq("klinik_id", klinikId);
+    .eq("klinik_id", klinikId)
+    .is("odeme_tipi", null)
+    .select("id");
 
   if (error) {
     console.error("Gider ödeme bilgisi kaydedilemedi:", error);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+  if (!guncellenen?.length) {
+    return { success: false, message: "Bu giderin ödeme bilgisi zaten girilmiş." };
   }
 
   revalidatePath("/panel/finans/giderler/tedarikciler");
