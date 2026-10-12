@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import { DONEM_AY_SECENEKLERI } from "@/types/kamusal-odeme";
 import { HARCAMA_KATEGORI_ETIKET, ODEME_TIPI_ETIKET, type KlinikHarcamaSatir } from "@/types/klinik-harcama";
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { GiderFormu } from "./gider-formu";
 import { giderGuncelle, giderSil } from "./actions";
 
@@ -19,7 +20,13 @@ const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "cu
 const tarihFormat = (tarih: string) => new Date(tarih).toLocaleDateString("tr-TR");
 const ayEtiket = (ay: number) => DONEM_AY_SECENEKLERI.find((s) => s.value === ay)?.label ?? String(ay);
 
-type DonemModu = "aylik" | "yillik";
+type DonemModu = "aylik" | "yillik" | "gunluk";
+
+/** "YYYY-MM-DD" gününü `delta` gün kaydırır (UTC takvim aritmetiği, saat dilimi kayması yok). */
+function gunKaydir(gun: string, delta: number): string {
+  const [y, m, d] = gun.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
+}
 
 export function GiderListesi({
   satirlar,
@@ -36,6 +43,7 @@ export function GiderListesi({
   const [donemModu, setDonemModu] = useState<DonemModu>("aylik");
   const [yil, setYil] = useState(simdi.getFullYear());
   const [ay, setAy] = useState(simdi.getMonth() + 1);
+  const [gun, setGun] = useState(bugunIstanbulTarihi());
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
   const [silinecekId, setSilinecekId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -43,13 +51,14 @@ export function GiderListesi({
   const filtreliSatirlar = useMemo(() => {
     return satirlar
       .filter((s) => {
+        if (donemModu === "gunluk") return s.tarih.slice(0, 10) === gun;
         const tarih = new Date(s.tarih);
         if (tarih.getFullYear() !== yil) return false;
         if (donemModu === "aylik" && tarih.getMonth() + 1 !== ay) return false;
         return true;
       })
       .sort((a, b) => (a.tarih < b.tarih ? 1 : -1));
-  }, [satirlar, donemModu, yil, ay]);
+  }, [satirlar, donemModu, yil, ay, gun]);
 
   const donemToplami = filtreliSatirlar.reduce((acc, s) => acc + s.tutar, 0);
   const duzenlenenSatir = satirlar.find((s) => s.id === duzenlenenId) ?? null;
@@ -88,11 +97,22 @@ export function GiderListesi({
           <TabsList>
             <TabsTrigger value="aylik">Aylık</TabsTrigger>
             <TabsTrigger value="yillik">Yıllık</TabsTrigger>
+            <TabsTrigger value="gunluk">Günlük</TabsTrigger>
           </TabsList>
         </Tabs>
 
         <div className="flex items-center gap-2">
-          {donemModu === "aylik" ? (
+          {donemModu === "gunluk" ? (
+            <>
+              <Button type="button" variant="outline" size="icon-sm" onClick={() => setGun((g) => gunKaydir(g, -1))} aria-label="Önceki gün">
+                <ChevronLeft />
+              </Button>
+              <span className="min-w-36 text-center text-sm font-medium">{tarihFormat(gun)}</span>
+              <Button type="button" variant="outline" size="icon-sm" onClick={() => setGun((g) => gunKaydir(g, 1))} aria-label="Sonraki gün">
+                <ChevronRight />
+              </Button>
+            </>
+          ) : donemModu === "aylik" ? (
             <>
               <Button type="button" variant="outline" size="icon-sm" onClick={() => ayDegistir(-1)} aria-label="Önceki ay">
                 <ChevronLeft />
