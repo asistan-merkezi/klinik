@@ -3,13 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
+import type { KlinikBankaHesabi } from "@/types/klinik";
 import type { KlinikHarcamaSatir } from "@/types/klinik-harcama";
 import { GiderlerSekmeCubugu } from "../giderler-sekme-cubugu";
 import { TedarikciListesi, type TedarikciOzeti } from "./tedarikci-listesi";
 
 type HarcamaSatiri = Pick<
   KlinikHarcamaSatir,
-  "id" | "tarih" | "tutar" | "kategori" | "aciklama" | "tedarikci_adi" | "odeme_tipi" | "fatura_no"
+  "id" | "tarih" | "tutar" | "kategori" | "aciklama" | "tedarikci_adi" | "odeme_tipi" | "banka_hesap_id" | "fatura_no"
 >;
 
 /** "Ofis  Market" / "ofis market" aynı tedarikçi sayılsın diye (Türkçe küçük harf, tek boşluk). */
@@ -21,14 +22,21 @@ const tedarikciAnahtari = (ad: string) => ad.trim().replace(/\s+/g, " ").toLocal
  * ödenen toplam ve hareket dökümü izlenir (tüm zamanlar).
  */
 export default async function TedarikcilerSayfasi() {
-  await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
+  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
   const supabase = await createClient();
+  const duzenlenebilir = kullanici.rol === "klinik_admin";
+
+  const bankaSonucu = await supabase
+    .from("klinik_banka_hesaplari")
+    .select("id, banka_adi, sube")
+    .order("sort_order")
+    .returns<KlinikBankaHesabi[]>();
 
   // Sayfalı: tek sorgu 1000 kayıtta sessizce kesilir.
   const satirlar = await tumSayfalariOku<HarcamaSatiri>((bas, son) =>
     supabase
       .from("klinik_harcama")
-      .select("id, tarih, tutar, kategori, aciklama, tedarikci_adi, odeme_tipi, fatura_no")
+      .select("id, tarih, tutar, kategori, aciklama, tedarikci_adi, odeme_tipi, banka_hesap_id, fatura_no")
       .not("tedarikci_adi", "is", null)
       .neq("tedarikci_adi", "")
       .order("tarih", { ascending: false })
@@ -56,6 +64,7 @@ export default async function TedarikcilerSayfasi() {
       kategori: s.kategori,
       aciklama: s.aciklama,
       odeme_tipi: s.odeme_tipi,
+      banka_hesap_id: s.banka_hesap_id,
       fatura_no: s.fatura_no,
     });
   }
@@ -73,7 +82,11 @@ export default async function TedarikcilerSayfasi() {
 
         <GiderlerSekmeCubugu />
 
-        <TedarikciListesi tedarikciler={tedarikciler} />
+        <TedarikciListesi
+          tedarikciler={tedarikciler}
+          bankaHesaplari={bankaSonucu.data ?? []}
+          duzenlenebilir={duzenlenebilir}
+        />
       </div>
     </div>
   );

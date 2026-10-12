@@ -146,6 +146,63 @@ export async function giderGuncelle(
   return { success: true, message: "Gider güncellendi." };
 }
 
+/**
+ * Mevcut bir giderin yalnız ÖDEME BİLGİSİNİ (yöntem + havale ise banka hesabı) yazar — örn. Paraşüt'ten
+ * "ödendi" gelip yöntemi belli olmayan kayıtlar. Kasa/Banka mutabakatı `odeme_tipi`/`banka_hesap_id`'den okur,
+ * bu yüzden kayıt bu bilgi girilince ilgili ekrana düşer. Diğer alanlara (tutar, tarih…) dokunmaz.
+ */
+export async function giderOdemeBilgisiGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
+  if (!klinikId) {
+    return { success: false, message: "Klinik bilgisi bulunamadı." };
+  }
+  if (rol !== "klinik_admin") {
+    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  }
+
+  const id = formData.get("id");
+  const odemeTipi = String(formData.get("odeme_tipi") ?? "") as OdemeTipi;
+  const bankaHesapId = String(formData.get("banka_hesap_id") ?? "").trim();
+  if (typeof id !== "string" || !id) {
+    return { success: false, message: "Gider bulunamadı." };
+  }
+  if (!ODEME_TIPLERI.includes(odemeTipi)) {
+    return { success: false, message: "Ödeme yöntemi seçilmeli." };
+  }
+  if (odemeTipi === "havale") {
+    if (!bankaHesapId) {
+      return { success: false, message: "Havale için banka hesabı seçilmeli." };
+    }
+    const { data: hesap } = await supabase
+      .from("klinik_banka_hesaplari")
+      .select("id")
+      .eq("id", bankaHesapId)
+      .eq("klinik_id", klinikId)
+      .maybeSingle();
+    if (!hesap) {
+      return { success: false, message: "Seçilen banka hesabı bulunamadı." };
+    }
+  }
+
+  const { error } = await supabase
+    .from("klinik_harcama")
+    .update({ odeme_tipi: odemeTipi, banka_hesap_id: odemeTipi === "havale" ? bankaHesapId : null })
+    .eq("id", id)
+    .eq("klinik_id", klinikId);
+
+  if (error) {
+    console.error("Gider ödeme bilgisi kaydedilemedi:", error);
+    return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
+  }
+
+  revalidatePath("/panel/finans/giderler/tedarikciler");
+  revalidatePath("/panel/finans/giderler");
+  revalidatePath("/panel/finans/kasa");
+  revalidatePath("/panel/finans/banka");
+  revalidatePath("/panel/finans/kredi-karti");
+  return { success: true, message: "Ödeme bilgisi kaydedildi." };
+}
+
 export async function giderSil(id: string): Promise<SonucDurumu> {
   const { supabase, rol } = await yetkiliBaglantiGetir();
   if (rol !== "klinik_admin") {
