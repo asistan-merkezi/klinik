@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CirclePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { KlinikArac } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import { OdemeFormu } from "./odeme-formu";
 import { kamusalOdemeEkle } from "./actions";
 
@@ -12,10 +12,12 @@ export function YeniOdemeButonu({
   varsayilanDonemAy,
   varsayilanDonemYil,
   araclar,
+  bankaHesaplari,
 }: {
   varsayilanDonemAy: number;
   varsayilanDonemYil: number;
   araclar: KlinikArac[];
+  bankaHesaplari: KlinikBankaHesabi[];
 }) {
   const [acik, setAcik] = useState(false);
   const [formKey, setFormKey] = useState(0);
@@ -38,6 +40,7 @@ export function YeniOdemeButonu({
             varsayilanDonemAy={varsayilanDonemAy}
             varsayilanDonemYil={varsayilanDonemYil}
             araclar={araclar}
+            bankaHesaplari={bankaHesaplari}
             basariliOlunca={() => {
               setAcik(false);
               setFormKey((k) => k + 1);

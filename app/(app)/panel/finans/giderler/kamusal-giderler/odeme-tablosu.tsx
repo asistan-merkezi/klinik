@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import type { KlinikArac } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import {
   ODEME_TIPI_ETIKET,
   DURUM_ETIKET,
@@ -37,10 +37,12 @@ export function OdemeTablosu({
   satirlar,
   yonetici,
   araclar,
+  bankaHesaplari,
 }: {
   satirlar: KamusalOdemeSatirDurumlu[];
   yonetici: boolean;
   araclar: KlinikArac[];
+  bankaHesaplari: KlinikBankaHesabi[];
 }) {
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
   const [silinecekId, setSilinecekId] = useState<string | null>(null);
@@ -74,7 +76,18 @@ export function OdemeTablosu({
               <TableCell className="text-muted-foreground">{donemFormat(satir.donem_ay, satir.donem_yil)}</TableCell>
               <TableCell className="text-right tabular-nums">{paraFormat(satir.tutar)}</TableCell>
               <TableCell className="text-muted-foreground">{tarihFormat(satir.vade_tarihi)}</TableCell>
-              <TableCell className="text-muted-foreground">{tarihFormat(satir.odeme_tarihi)}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {tarihFormat(satir.odeme_tarihi)}
+                {satir.odeme_tarihi && (
+                  <span className="block text-xs">
+                    {satir.odeme_yontemi === "nakit"
+                      ? "Nakit (Kasa)"
+                      : satir.odeme_yontemi === "havale"
+                        ? "Havale (Banka)"
+                        : <span className="text-amber-600 dark:text-amber-400">Ödeme yöntemi eksik — Kasa/Banka&apos;ya yansımaz</span>}
+                  </span>
+                )}
+              </TableCell>
               <TableCell>
                 <StatusBadge tone={DURUM_TON[satir.durum]}>{DURUM_ETIKET[satir.durum]}</StatusBadge>
               </TableCell>
@@ -148,6 +161,7 @@ export function OdemeTablosu({
               gonderButonEtiketi="Güncelle"
               duzenlenecek={duzenlenenSatir}
               araclar={araclar}
+              bankaHesaplari={bankaHesaplari}
               basariliOlunca={() => setDuzenlenenId(null)}
             />
           )}

@@ -4,6 +4,7 @@ import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { formatDateForInput } from "@/lib/datetime";
 import { finansDonemiCoz } from "@/lib/finans/donem";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
 import { PageHeader } from "@/components/ui/page-header";
 import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
@@ -37,6 +38,8 @@ type NakitBankaSatiri = {
   aciklama: string | null;
   karsi_taraf_adi: string | null;
 };
+// Ödenmiş, nakit ödenen kamusal ödemeler — kasa_bakiye_once_toplam ile aynı kaynak.
+type KamusalOdemeSatiri = { id: string; odeme_tarihi: string; tutar: number; odeme_tipi: string; notlar: string | null };
 type DengelemeSatiri = { id: string; tutar: number; aciklama: string | null; ekleyen_ad: string; created_at: string };
 
 type KasaAyari = { baslangic_tutari?: number; baslangic_zamani?: string; baslangic_giren?: string };
@@ -64,6 +67,7 @@ export default async function KasaSayfasi({
     kartOdemeleri,
     personelOdemeleri,
     nakitBankaHareketleri,
+    kamusalOdemeleri,
     dengelemeler,
     bankaHesabiSonucu,
     personelListesiSonucu,
@@ -146,6 +150,19 @@ export default async function KasaSayfasi({
         .order("id")
         .range(bas, son)
         .returns<NakitBankaSatiri[]>()
+    ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("kamusal_odeme")
+        .select("id, odeme_tarihi, tutar, odeme_tipi, notlar")
+        .eq("odeme_yontemi", "nakit")
+        .not("odeme_tarihi", "is", null)
+        .gte("odeme_tarihi", donem.baslangic)
+        .lt("odeme_tarihi", donem.bitis)
+        .order("odeme_tarihi")
+        .order("id")
+        .range(bas, son)
+        .returns<KamusalOdemeSatiri[]>()
     ),
     dengelemeleriOku(supabase, donem.baslangicTs, donem.bitisTs),
     supabase
@@ -274,6 +291,14 @@ export default async function KasaSayfasi({
         aciklama: n.aciklama ?? undefined,
         sil: { hedef: "nakit_banka_hareketi" as const, id: n.id },
       })),
+    ...kamusalOdemeleri.map((k) => ({
+      id: k.id,
+      tarih: k.odeme_tarihi,
+      tutar: k.tutar,
+      etiket: "Kamusal ödeme",
+      taraf: ODEME_TIPI_ETIKET[k.odeme_tipi as OdemeTipi] ?? k.odeme_tipi,
+      aciklama: k.notlar ?? undefined,
+    })),
     ...dengelemeler
       .filter((d) => d.tutar < 0)
       .map((d) => dengelemeSatiri(d, -d.tutar)),

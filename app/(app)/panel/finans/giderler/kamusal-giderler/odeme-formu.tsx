@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { KlinikArac } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
+import { bugunIstanbulTarihi } from "@/lib/datetime";
 import {
   ODEME_TIPI_SECENEKLERI,
   DONEM_AY_SECENEKLERI,
@@ -30,6 +31,8 @@ export function OdemeFormu({
   varsayilanDonemAy,
   varsayilanDonemYil,
   araclar,
+  bankaHesaplari,
+  sabitBankaHesapId,
   basariliOlunca,
 }: {
   action: OdemeAction;
@@ -38,6 +41,9 @@ export function OdemeFormu({
   varsayilanDonemAy?: number;
   varsayilanDonemYil?: number;
   araclar: KlinikArac[];
+  bankaHesaplari: KlinikBankaHesabi[];
+  /** Banka sayfasından (Bankadan Çıkan) açılınca: yöntem havale + bu hesap sabit, ödeme tarihi bugün. */
+  sabitBankaHesapId?: string;
   basariliOlunca?: () => void;
 }) {
   const idOnEki = useId();
@@ -45,6 +51,10 @@ export function OdemeFormu({
   const [gorulenDurum, setGorulenDurum] = useState<SonucDurumu>(null);
   const [odemeTipi, setOdemeTipi] = useState<OdemeTipi | undefined>(duzenlenecek?.odeme_tipi);
   const aracGerekli = odemeTipi != null && ARAC_GEREKTIREN_TIPLER.includes(odemeTipi);
+  const [odemeTarihi, setOdemeTarihi] = useState(
+    duzenlenecek?.odeme_tarihi ?? (sabitBankaHesapId ? bugunIstanbulTarihi() : "")
+  );
+  const [odemeYontemi, setOdemeYontemi] = useState<string | undefined>(duzenlenecek?.odeme_yontemi ?? undefined);
 
   if (durum !== gorulenDurum) {
     setGorulenDurum(durum);
@@ -191,11 +201,78 @@ export function OdemeFormu({
           id={`${idOnEki}-odeme_tarihi`}
           name="odeme_tarihi"
           type="date"
-          defaultValue={duzenlenecek?.odeme_tarihi ?? ""}
+          value={odemeTarihi}
+          onChange={(e) => setOdemeTarihi(e.target.value)}
           disabled={isPending}
         />
         <p className="text-xs text-muted-foreground">Boş bırakılırsa ödeme &quot;Bekliyor&quot; olarak görünür.</p>
       </div>
+
+      {sabitBankaHesapId && (
+        <>
+          <input type="hidden" name="odeme_yontemi" value="havale" />
+          <input type="hidden" name="banka_hesap_id" value={sabitBankaHesapId} />
+        </>
+      )}
+
+      {odemeTarihi && !sabitBankaHesapId && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`${idOnEki}-odeme_yontemi`}>Ödeme Yöntemi</Label>
+            <Select
+              name="odeme_yontemi"
+              required
+              disabled={isPending}
+              value={odemeYontemi}
+              onValueChange={(v) => setOdemeYontemi(v ?? undefined)}
+              items={[
+                { value: "nakit", label: "Nakit (Kasa)" },
+                { value: "havale", label: "Havale (Banka)" },
+              ]}
+            >
+              <SelectTrigger id={`${idOnEki}-odeme_yontemi`} className="w-full">
+                <SelectValue placeholder="Seçiniz..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nakit">Nakit (Kasa)</SelectItem>
+                <SelectItem value="havale">Havale (Banka)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {odemeYontemi === "havale" && (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`${idOnEki}-banka_hesap_id`}>Banka Hesabı</Label>
+              {bankaHesaplari.length === 0 ? (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  Kayıtlı banka hesabı yok — Şirket Bilgileri&apos;nden hesap ekleyin.
+                </p>
+              ) : (
+                <Select
+                  name="banka_hesap_id"
+                  required
+                  disabled={isPending}
+                  defaultValue={duzenlenecek?.banka_hesap_id ?? undefined}
+                  items={bankaHesaplari.map((b) => ({ value: b.id, label: b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi }))}
+                >
+                  <SelectTrigger id={`${idOnEki}-banka_hesap_id`} className="w-full">
+                    <SelectValue placeholder="Seçiniz..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankaHesaplari.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.sube ? `${b.banka_adi} — ${b.sube}` : b.banka_adi}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground sm:col-span-2">
+            Ödeme, seçilen yönteme göre Kasa ya da Banka defterinde çıkış olarak görünür.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <Label htmlFor={`${idOnEki}-notlar`}>Notlar</Label>

@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ayAraligi } from "@/lib/utils";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { kamusalOdemeDurumHesapla, type KamusalOdemeSatir } from "@/types/kamusal-odeme";
-import type { KlinikArac } from "@/types/klinik";
+import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import { YeniOdemeButonu } from "./yeni-odeme-butonu";
 import { OdemeTablosu } from "./odeme-tablosu";
 import { GiderlerSekmeCubugu } from "../giderler-sekme-cubugu";
@@ -64,10 +64,10 @@ export default async function KamusalGiderlerSayfasi({
   const ay = ayAraligi(ayParam);
   const [donemYil, donemAy] = ay.param.split("-").map(Number);
 
-  const [ayKayitlariSonuc, yilKayitlariSonuc, araclarSonuc] = await Promise.all([
+  const [ayKayitlariSonuc, yilKayitlariSonuc, araclarSonuc, bankaHesaplariSonuc] = await Promise.all([
     supabase
       .from("kamusal_odeme")
-      .select("id, odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar, arac_id")
+      .select("id, odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar, arac_id, odeme_yontemi, banka_hesap_id")
       .eq("klinik_id", klinikId)
       .eq("donem_yil", donemYil)
       .eq("donem_ay", donemAy)
@@ -85,9 +85,15 @@ export default async function KamusalGiderlerSayfasi({
       .eq("klinik_id", klinikId)
       .order("plaka")
       .returns<KlinikArac[]>(),
+    supabase
+      .from("klinik_banka_hesaplari")
+      .select("id, banka_adi, sube")
+      .order("sort_order")
+      .returns<KlinikBankaHesabi[]>(),
   ]);
 
   const araclar = araclarSonuc.data ?? [];
+  const bankaHesaplari = bankaHesaplariSonuc.data ?? [];
 
   const bugun = bugunIstanbulTarihi();
   const ayKayitlari = (ayKayitlariSonuc.data ?? []).map((satir) => ({
@@ -111,7 +117,12 @@ export default async function KamusalGiderlerSayfasi({
           icon={Landmark}
           actions={
             yonetici && (
-              <YeniOdemeButonu varsayilanDonemAy={donemAy} varsayilanDonemYil={donemYil} araclar={araclar} />
+              <YeniOdemeButonu
+                varsayilanDonemAy={donemAy}
+                varsayilanDonemYil={donemYil}
+                araclar={araclar}
+                bankaHesaplari={bankaHesaplari}
+              />
             )
           }
         />
@@ -143,7 +154,7 @@ export default async function KamusalGiderlerSayfasi({
         {ayKayitlari.length === 0 ? (
           <EmptyState icon={Landmark} title="Bu ay için kayıtlı kamusal ödeme yok." compact />
         ) : (
-          <OdemeTablosu satirlar={ayKayitlari} yonetici={yonetici} araclar={araclar} />
+          <OdemeTablosu satirlar={ayKayitlari} yonetici={yonetici} araclar={araclar} bankaHesaplari={bankaHesaplari} />
         )}
       </div>
     </div>

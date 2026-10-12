@@ -314,6 +314,8 @@ const BORC_DUZENLE_HATA_MESAJLARI: Record<string, string> = {
   hareket_bulunamadi: "Bakiye hareketi bulunamadı.",
   gecersiz_hareket_turu: "Bu hareket bir borç kaydı değil.",
   iskonto_fazla: "İskonto tutarı borç tutarından büyük olamaz.",
+  fatura_kesilmis: "Bu borcun faturası kesilmiş; tutarı değiştirilemez. Önce faturayı iptal/iade edin.",
+  fatura_tutari_sifir: "Faturalı bir borcun net tutarı 0 olamaz (tam iskonto faturalanamaz).",
 };
 
 function borcDuzenleHatasiniCevir(mesaj: string | undefined) {

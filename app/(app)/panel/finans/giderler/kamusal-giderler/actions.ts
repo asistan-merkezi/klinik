@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { ARAC_GEREKTIREN_TIPLER } from "@/types/kamusal-odeme";
+import { bankaHesabiHatasiniCevir } from "@/lib/finans/banka-hesabi-kurali";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -31,6 +32,8 @@ const odemeSemasi = z.object({
   odeme_tarihi: z.string().trim().optional(),
   notlar: z.string().trim().optional(),
   arac_id: z.string().trim().optional(),
+  odeme_yontemi: z.enum(["nakit", "havale"]).optional().or(z.literal("")),
+  banka_hesap_id: z.string().trim().optional(),
 });
 
 async function yetkiliBaglantiGetir() {
@@ -61,7 +64,33 @@ function formVerisiOku(formData: FormData) {
     vade_tarihi: formData.get("vade_tarihi"),
     odeme_tarihi: formData.get("odeme_tarihi") ?? "",
     notlar: formData.get("notlar") ?? "",
+    arac_id: formData.get("arac_id") ?? "",
+    odeme_yontemi: formData.get("odeme_yontemi") ?? "",
+    banka_hesap_id: formData.get("banka_hesap_id") ?? "",
   });
+}
+
+/**
+ * Ödenen (ödeme tarihi girilmiş) kamusal ödeme Kasa/Banka defterine çıkış olarak düşer — bunun için
+ * ödeme yöntemi (havale ise banka hesabı) zorunlu. Ödenmemişse yöntem/hesap boş tutulur.
+ */
+function odemeBilgisiCoz(veri: z.infer<typeof odemeSemasi>):
+  | { hata: string }
+  | { odeme_yontemi: "nakit" | "havale" | null; banka_hesap_id: string | null } {
+  if (!veri.odeme_tarihi) return { odeme_yontemi: null, banka_hesap_id: null };
+  if (!veri.odeme_yontemi) return { hata: "Ödeme tarihi girildiyse ödeme yöntemi (Nakit/Havale) seçilmeli." };
+  if (veri.odeme_yontemi === "havale" && !veri.banka_hesap_id) return { hata: "Havale için banka hesabı seçilmeli." };
+  return {
+    odeme_yontemi: veri.odeme_yontemi,
+    banka_hesap_id: veri.odeme_yontemi === "havale" ? veri.banka_hesap_id ?? null : null,
+  };
+}
+
+function finansSayfalariniYenile() {
+  revalidatePath("/panel/finans/giderler/kamusal-giderler");
+  revalidatePath("/panel/finans/raporlar");
+  revalidatePath("/panel/finans/kasa");
+  revalidatePath("/panel/finans/banka");
 }
 
 export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
@@ -84,6 +113,11 @@ export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData)
     return { success: false, message: "Bu ödeme tipi için araç seçilmeli." };
   }
 
+  const odemeBilgisi = odemeBilgisiCoz(ayristirma.data);
+  if ("hata" in odemeBilgisi) {
+    return { success: false, message: odemeBilgisi.hata };
+  }
+
   const { error } = await supabase.from("kamusal_odeme").insert({
     klinik_id: klinikId,
     odeme_tipi,
@@ -94,16 +128,17 @@ export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData)
     odeme_tarihi: odeme_tarihi ? odeme_tarihi : null,
     notlar: notlar ? notlar : null,
     arac_id: ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null,
+    odeme_yontemi: odemeBilgisi.odeme_yontemi,
+    banka_hesap_id: odemeBilgisi.banka_hesap_id,
     olusturan_kullanici_id: user!.id,
   });
 
   if (error) {
     console.error("Kamusal ödeme kaydedilemedi:", error);
-    return { success: false, message: "Ödeme kaydedilemedi, lütfen tekrar deneyin." };
+    return { success: false, message: bankaHesabiHatasiniCevir(error.message) ?? "Ödeme kaydedilemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/finans/giderler/kamusal-giderler");
-  revalidatePath("/panel/finans/raporlar");
+  finansSayfalariniYenile();
   return { success: true, message: "Ödeme kaydedildi." };
 }
 
@@ -131,6 +166,11 @@ export async function kamusalOdemeGuncelle(
     return { success: false, message: "Bu ödeme tipi için araç seçilmeli." };
   }
 
+  const odemeBilgisi = odemeBilgisiCoz(ayristirma.data);
+  if ("hata" in odemeBilgisi) {
+    return { success: false, message: odemeBilgisi.hata };
+  }
+
   const { error } = await supabase
     .from("kamusal_odeme")
     .update({
@@ -142,16 +182,17 @@ export async function kamusalOdemeGuncelle(
       odeme_tarihi: odeme_tarihi ? odeme_tarihi : null,
       notlar: notlar ? notlar : null,
       arac_id: ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null,
+      odeme_yontemi: odemeBilgisi.odeme_yontemi,
+      banka_hesap_id: odemeBilgisi.banka_hesap_id,
     })
     .eq("id", id);
 
   if (error) {
     console.error("Kamusal ödeme güncellenemedi:", error);
-    return { success: false, message: "Ödeme güncellenemedi, lütfen tekrar deneyin." };
+    return { success: false, message: bankaHesabiHatasiniCevir(error.message) ?? "Ödeme güncellenemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/finans/giderler/kamusal-giderler");
-  revalidatePath("/panel/finans/raporlar");
+  finansSayfalariniYenile();
   return { success: true, message: "Ödeme güncellendi." };
 }
 
@@ -168,7 +209,6 @@ export async function kamusalOdemeSil(id: string): Promise<SonucDurumu> {
     return { success: false, message: "Ödeme silinemedi, lütfen tekrar deneyin." };
   }
 
-  revalidatePath("/panel/finans/giderler/kamusal-giderler");
-  revalidatePath("/panel/finans/raporlar");
+  finansSayfalariniYenile();
   return { success: true, message: "Ödeme silindi." };
 }

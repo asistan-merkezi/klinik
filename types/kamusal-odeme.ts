@@ -51,6 +51,9 @@ export type KamusalOdemeSatir = {
   odeme_tarihi: string | null;
   notlar: string | null;
   arac_id: string | null;
+  /** Ödendiyse nasıl: nakit → Kasa çıkışı, havale → banka_hesap_id'den çıkış (migration 20261012180000). */
+  odeme_yontemi: "nakit" | "havale" | null;
+  banka_hesap_id: string | null;
 };
 
 /** `bugun` "yyyy-MM-dd" formatında (bkz. lib/datetime.ts bugunIstanbulTarihi) — date string karşılaştırması için. */

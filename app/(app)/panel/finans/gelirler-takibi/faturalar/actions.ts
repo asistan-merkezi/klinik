@@ -19,6 +19,8 @@ const HATA_MESAJLARI: Record<string, string> = {
   hareket_bulunamadi: "Bakiye hareketi bulunamadı.",
   gecersiz_hareket_turu: "Bu hareket bir borç kaydı değil.",
   iskonto_fazla: "İskonto tutarı borç tutarından büyük olamaz.",
+  fatura_kesilmis: "Bu borcun faturası kesilmiş; tutarı değiştirilemez. Önce faturayı iptal/iade edin.",
+  fatura_tutari_sifir: "Net tutarı 0 olan borç faturalanamaz (tam iskonto).",
 };
 
 function hataMesajiCevir(mesaj: string | undefined) {

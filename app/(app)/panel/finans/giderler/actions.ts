@@ -152,7 +152,7 @@ export async function giderEkle(_onceki: SonucDurumu, formData: FormData): Promi
 
   if (error) {
     console.error("Gider kaydedilemedi:", error);
-    return { success: false, message: "Gider kaydedilemedi, lütfen tekrar deneyin." };
+    return { success: false, message: giderYazmaHatasi(error, "Gider kaydedilemedi, lütfen tekrar deneyin.") };
   }
 
   finansSayfalariniYenile();

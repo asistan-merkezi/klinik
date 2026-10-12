@@ -51,6 +51,9 @@ type PersonelOdemeSatiri = {
   banka_hesap_id: string | null;
   personel: { ad_soyad: string } | null;
 };
+// Ödenmiş, havale ile banka hesabından ödenen kamusal ödemeler (vergi/SGK...) — banka_bakiye_once_toplam_tumu ile aynı kaynak.
+type KamusalOdemeSatiri = { id: string; odeme_tarihi: string; tutar: number; odeme_tipi: string; banka_hesap_id: string | null; notlar: string | null };
+
 type NakitBankaSatiri = {
   id: string;
   tip: string;
@@ -89,6 +92,7 @@ export default async function BankaSayfasi({
     kartOdemeleri,
     personelOdemeleri,
     nakitBankaHareketleri,
+    kamusalOdemeleri,
     personelListesiSonucu,
     aracSonucu,
     kartSonucu,
@@ -172,6 +176,19 @@ export default async function BankaSayfasi({
         .range(bas, son)
         .returns<NakitBankaSatiri[]>()
     ),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("kamusal_odeme")
+        .select("id, odeme_tarihi, tutar, odeme_tipi, banka_hesap_id, notlar")
+        .eq("odeme_yontemi", "havale")
+        .not("odeme_tarihi", "is", null)
+        .gte("odeme_tarihi", donem.baslangic)
+        .lt("odeme_tarihi", donem.bitis)
+        .order("odeme_tarihi")
+        .order("id")
+        .range(bas, son)
+        .returns<KamusalOdemeSatiri[]>()
+    ),
     supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad").returns<{ id: string; ad_soyad: string }[]>(),
     supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
     supabase
@@ -202,6 +219,7 @@ export default async function BankaSayfasi({
           kartOdemeleri={kartOdemeleri}
           personelOdemeleri={personelOdemeleri}
           nakitBankaHareketleri={nakitBankaHareketleri}
+          kamusalOdemeleri={kamusalOdemeleri}
           personelListesi={personelListesiSonucu.data ?? []}
           araclar={aracSonucu.data ?? []}
           kartlar={kartSonucu.data ?? []}

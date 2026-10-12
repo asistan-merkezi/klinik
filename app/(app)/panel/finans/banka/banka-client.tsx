@@ -1,5 +1,6 @@
 "use client";
 
+import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
 import { CikanSecimListesi } from "@/components/panel/cikan-secim-listesi";
 import { useActionState, useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Landmark } from "lucide-react";
@@ -469,7 +470,16 @@ function BankadanCikanDialog({
           {adim === "hesaplar_arasi" && (
             <HesaplarArasiFormu selectedId={selectedId} bankaHesaplari={bankaHesaplari} basariliOlunca={kapat} />
           )}
-          {adim === "kamusal" && <OdemeFormu action={kamusalOdemeEkle} gonderButonEtiketi="Ekle" araclar={araclar} basariliOlunca={kapat} />}
+          {adim === "kamusal" && (
+            <OdemeFormu
+              action={kamusalOdemeEkle}
+              gonderButonEtiketi="Ekle"
+              araclar={araclar}
+              bankaHesaplari={bankaHesaplari}
+              sabitBankaHesapId={selectedId}
+              basariliOlunca={kapat}
+            />
+          )}
           {adim === "diger" && <DigerCikanFormu selectedId={selectedId} basariliOlunca={kapat} />}
         </DialogContent>
       </Dialog>
@@ -485,6 +495,7 @@ export function BankaClient({
   kartOdemeleri,
   personelOdemeleri,
   nakitBankaHareketleri,
+  kamusalOdemeleri,
   personelListesi,
   araclar,
   kartlar,
@@ -501,6 +512,7 @@ export function BankaClient({
   kartOdemeleri: KartOdemeSatiri[];
   personelOdemeleri: PersonelOdemeSatiri[];
   nakitBankaHareketleri: NakitBankaSatiri[];
+  kamusalOdemeleri: { id: string; odeme_tarihi: string; tutar: number; odeme_tipi: string; banka_hesap_id: string | null; notlar: string | null }[];
   personelListesi: { id: string; ad_soyad: string }[];
   araclar: KlinikArac[];
   kartlar: KlinikKrediKarti[];
@@ -581,6 +593,16 @@ export function BankaClient({
           etiket: p.tur === "avans" ? "Personel avansı" : "Personel ödemesi",
           taraf: p.personel?.ad_soyad ?? "Personel",
         })),
+      ...kamusalOdemeleri
+        .filter((k) => k.banka_hesap_id === selectedId)
+        .map((k) => ({
+          id: k.id,
+          tarih: k.odeme_tarihi,
+          tutar: k.tutar,
+          etiket: "Kamusal ödeme",
+          taraf: ODEME_TIPI_ETIKET[k.odeme_tipi as OdemeTipi] ?? k.odeme_tipi,
+          aciklama: k.notlar ?? undefined,
+        })),
     ];
 
     // Transfer yönü HER ZAMAN hedef/kaynak hesap kimliğine göre belirlenir, `tip`'e göre DEĞİL:
@@ -614,7 +636,7 @@ export function BankaClient({
     }
 
     return { gelenRows: gelen, gidenRows: giden };
-  }, [selectedId, hastaOdemeleri, harcamalar, cariOdemeleri, kartOdemeleri, personelOdemeleri, nakitBankaHareketleri, bankaHesaplari]);
+  }, [selectedId, hastaOdemeleri, harcamalar, cariOdemeleri, kartOdemeleri, personelOdemeleri, nakitBankaHareketleri, kamusalOdemeleri, bankaHesaplari]);
 
   if (bankaHesaplari.length === 0) {
     return (
