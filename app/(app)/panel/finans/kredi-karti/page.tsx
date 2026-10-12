@@ -163,7 +163,7 @@ export default async function KrediKartiSayfasi({
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <PageHeader
           title="Kredi Kartı"
-          description="POS ile alınan tahsilatlar ve kartla yapılan giderlerin mutabakatı."
+          description="Kartla yapılan giderlerin takibi."
           icon={CreditCard}
         />
 
