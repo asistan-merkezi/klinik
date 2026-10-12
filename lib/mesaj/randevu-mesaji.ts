@@ -3,6 +3,7 @@ import { formatDateTime } from "@/lib/datetime";
 import { anlikMesajTetikle } from "./anlik-tetikle";
 import {
   HATIRLATMA_KURALLARI,
+  hatirlatmaEnGecGonderimZamani,
   hatirlatmaGerekliMi,
   hatirlatmaPenceresi,
   randevuMesajAnahtari,
@@ -54,7 +55,9 @@ async function satiriKuyrugaYaz(
   klinikAdi: string,
   ekDegiskenler: Record<string, string> = {},
   /** Anahtar için ayrı durum/başlangıç gerekirse (ör. ertelemede yeni saat). */
-  anahtarSatiri?: { baslangic: string; durum?: string | null; iptal_tarihi?: string | null }
+  anahtarSatiri?: { baslangic: string; durum?: string | null; iptal_tarihi?: string | null },
+  /** Sessiz saat erteleyecekse bunu aşan mesaj hiç yazılmaz (bkz. anlikMesajTetikle). */
+  enGecGonderimZamani?: Date
 ): Promise<void> {
   if (!r.hasta) return;
   await anlikMesajTetikle(admin, {
@@ -75,6 +78,7 @@ async function satiriKuyrugaYaz(
       ...ekDegiskenler,
     },
     idempotencyTemeli: randevuMesajAnahtari(kod, { id: r.id, ...(anahtarSatiri ?? r) }),
+    enGecGonderimZamani,
   });
 }
 
@@ -166,7 +170,7 @@ export async function randevuHatirlatmalariniTara(
     const klinikler = await klinikAdlariniGetir(admin, uygun.map((r) => r.klinik_id));
     for (const r of uygun) {
       try {
-        await satiriKuyrugaYaz(admin, kod, r, klinikler.get(r.klinik_id) ?? "");
+        await satiriKuyrugaYaz(admin, kod, r, klinikler.get(r.klinik_id) ?? "", {}, undefined, hatirlatmaEnGecGonderimZamani(kod, r.baslangic));
       } catch (hata) {
         console.error(`[mesaj] hatırlatma yazılamadı (${kod}, randevu ${r.id}):`, hata);
       }

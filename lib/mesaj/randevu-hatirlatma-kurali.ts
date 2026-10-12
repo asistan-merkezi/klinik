@@ -17,11 +17,19 @@ export type RandevuHatirlatmaKodu = "randevu_hatirlatma_1gun" | "randevu_hatirla
  */
 export const HATIRLATMA_KURALLARI: Record<
   RandevuHatirlatmaKodu,
-  { kalanMinMs: number; kalanMaxMs: number; oncedenEnAzMs: number }
+  { kalanMinMs: number; kalanMaxMs: number; oncedenEnAzMs: number; enGecKalanMs: number }
 > = {
-  randevu_hatirlatma_1gun: { kalanMinMs: 23 * SAAT, kalanMaxMs: 24 * SAAT, oncedenEnAzMs: 24 * SAAT },
-  randevu_hatirlatma_2saat: { kalanMinMs: 1 * SAAT, kalanMaxMs: 2 * SAAT, oncedenEnAzMs: 2 * SAAT },
+  randevu_hatirlatma_1gun: { kalanMinMs: 23 * SAAT, kalanMaxMs: 24 * SAAT, oncedenEnAzMs: 24 * SAAT, enGecKalanMs: 1 * SAAT },
+  randevu_hatirlatma_2saat: { kalanMinMs: 1 * SAAT, kalanMaxMs: 2 * SAAT, oncedenEnAzMs: 2 * SAAT, enGecKalanMs: 30 * DK },
 };
+
+/**
+ * Sessiz saat hatırlatmayı erteleyecekse en geç bu ana kadar ertelenebilir (randevudan `enGecKalanMs` önce);
+ * daha geç kalacaksa hatırlatma hiç gönderilmez (anlamsız olurdu).
+ */
+export function hatirlatmaEnGecGonderimZamani(kod: RandevuHatirlatmaKodu, randevuBaslangic: string): Date {
+  return new Date(new Date(randevuBaslangic).getTime() - HATIRLATMA_KURALLARI[kod].enGecKalanMs);
+}
 
 /** `baslangic` bu aralıkta (min exclusive, max inclusive) olan 'planlandi' randevular hatırlatılır. */
 export function hatirlatmaPenceresi(kod: RandevuHatirlatmaKodu, simdi: Date): { alt: string; ust: string } {

@@ -1,5 +1,6 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { TETIKLEYICILER } from "./tetikleyiciler";
+import { SESSIZ_SAAT_MUAF_TETIKLEYICILER, gonderimZamani, sessizSaatAyariCoz } from "./sessiz-saat";
 import type { MesajKanal } from "@/types/mesajlasma";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -39,6 +40,12 @@ export async function anlikMesajTetikle(
      * her çağrı benzersiz (Date.now()).
      */
     idempotencyTemeli?: string;
+    /**
+     * Sessiz saat (bkz. sessiz-saat.ts) mesajı ileri bir zamana erteleyecekse ve o zaman bunu AŞIYORSA mesaj hiç
+     * kuyruğa yazılmaz — ör. 2 saat önce hatırlatması sabah 06:00'da üretilip 08:00'e ertelenirse randevu saatinden
+     * sonra giderdi. Verilmezse erteleme sınırsızdır.
+     */
+    enGecGonderimZamani?: Date;
   }
 ): Promise<void> {
   const tanim = TETIKLEYICILER.find((t) => t.kod === params.tetikleyiciKodu);
@@ -60,6 +67,23 @@ export async function anlikMesajTetikle(
     .maybeSingle();
 
   if (!kural || !kural.aktif) return;
+
+  // Sessiz saat: klinik ayarı (yoksa varsayılan 21:00-08:00 İstanbul). Sessizse planlanan_zaman aralığın bitişine alınır.
+  let planlananZaman: string | null = null;
+  if (!SESSIZ_SAAT_MUAF_TETIKLEYICILER.includes(params.tetikleyiciKodu)) {
+    const { data: ayarSatiri } = await admin
+      .from("klinik_ayarlar")
+      .select("ayarlar")
+      .eq("klinik_id", params.klinikId)
+      .maybeSingle();
+    const ayar = sessizSaatAyariCoz((ayarSatiri?.ayarlar as Record<string, unknown> | null)?.mesaj_sessiz_saat);
+    const simdi = new Date();
+    const gonderim = gonderimZamani(simdi, ayar);
+    if (gonderim.getTime() !== simdi.getTime()) {
+      if (params.enGecGonderimZamani && gonderim > params.enGecGonderimZamani) return;
+      planlananZaman = gonderim.toISOString();
+    }
+  }
 
   const metinDoldur = (sablon: string) =>
     sablon.replace(/\{\{(\w+)\}\}/g, (tam, ad) => params.degiskenler[ad] ?? tam);
@@ -92,6 +116,7 @@ export async function anlikMesajTetikle(
       alici_adres: k.adres,
       gonderilecek_metin: metin,
       idempotency_anahtari: idempotencyAnahtari,
+      ...(planlananZaman ? { planlanan_zaman: planlananZaman } : {}),
     });
 
     // 23505 = aynı idempotency anahtarı zaten kuyrukta: beklenen, hata değil.

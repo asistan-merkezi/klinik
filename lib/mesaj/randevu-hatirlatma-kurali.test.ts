@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hatirlatmaGerekliMi, hatirlatmaPenceresi, randevuMesajAnahtari } from "./randevu-hatirlatma-kurali";
+import { hatirlatmaEnGecGonderimZamani, hatirlatmaGerekliMi, hatirlatmaPenceresi, randevuMesajAnahtari } from "./randevu-hatirlatma-kurali";
 
 const SIMDI = new Date("2026-10-12T10:00:00.000Z");
 
@@ -47,5 +47,12 @@ describe("randevuMesajAnahtari", () => {
     const a = randevuMesajAnahtari("randevu_iptal", { ...r, durum: "iptal", iptal_tarihi: "2026-10-12T10:00:00Z" });
     const b = randevuMesajAnahtari("randevu_iptal", { ...r, durum: "iptal", iptal_tarihi: "2026-10-12T11:00:00Z" });
     expect(a).not.toBe(b);
+  });
+});
+
+describe("hatirlatmaEnGecGonderimZamani", () => {
+  it("1 gün: randevudan 1 saat önce, 2 saat: 30 dk önce", () => {
+    expect(hatirlatmaEnGecGonderimZamani("randevu_hatirlatma_1gun", "2026-10-13T10:00:00.000Z").toISOString()).toBe("2026-10-13T09:00:00.000Z");
+    expect(hatirlatmaEnGecGonderimZamani("randevu_hatirlatma_2saat", "2026-10-13T10:00:00.000Z").toISOString()).toBe("2026-10-13T09:30:00.000Z");
   });
 });
