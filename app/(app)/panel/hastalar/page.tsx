@@ -14,11 +14,20 @@ import { HastaTablosu } from "./hasta-tablosu";
 import { HastaAramaKutusu } from "./hasta-arama-kutusu";
 import { bildirimSayisiGetir } from "./bildirimler/bildirim-sayisi";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
+import {
+  DIGER,
+  SAYFA_BOYUTU,
+  harfAnahtari,
+  harfParametresiCoz,
+  harfSayilariniTopla,
+  sayfaParametresiCoz,
+} from "@/lib/hasta/harf-listesi";
+import { HarfCubugu, SayfaGezinme } from "./harf-cubugu";
 
 export default async function HastalarSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; harf?: string; sayfa?: string }>;
 }) {
   const supabase = await createClient();
 
@@ -30,19 +39,62 @@ export default async function HastalarSayfasi({
   const bildirimGorulebilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
   const bildirimSayisi = bildirimGorulebilir ? await bildirimSayisiGetir(supabase) : 0;
 
-  const { q } = await searchParams;
+  const { q, harf: harfParam, sayfa: sayfaParam } = await searchParams;
   const arama = q?.trim() ?? "";
+  const harf = harfParametresiCoz(harfParam);
 
   const listeKolonlari =
     "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, eposta, hasta_hassas(adres)";
-  const { data, error } = arama
-    ? await hastaAra<Omit<HastaListeSatiri, "bakiye">>(supabase, arama, listeKolonlari, 50)
-    : await supabase
+  type ListeSatiri = Omit<HastaListeSatiri, "bakiye">;
+
+  // Arama yoksa: ada göre harf çubuğu + 50'lik sayfalar (hasta_harf_listesi, Türkçe alfabe sırası).
+  // RPC'ler yoksa (migration 20261012150000 uygulanmadan deploy) harf çubuğu gizlenir, düz
+  // ad_soyad sırasıyla sayfalanır.
+  let data: ListeSatiri[] | null = null;
+  let error: { message: string } | null = null;
+  let harfSayilari: Map<string, number> | null = null;
+  let toplamKayit = 0;
+  let sayfa = 1;
+
+  if (arama) {
+    ({ data, error } = await hastaAra<ListeSatiri>(supabase, arama, listeKolonlari, 50));
+  } else {
+    const sayimSonucu = await supabase.rpc("hasta_bas_harf_sayilari");
+    const rpcYok = sayimSonucu.error && ["PGRST202", "42883"].includes(sayimSonucu.error.code ?? "");
+
+    if (!rpcYok) {
+      if (sayimSonucu.error) {
+        error = sayimSonucu.error;
+      } else {
+        const { sayilar, toplam } = harfSayilariniTopla((sayimSonucu.data ?? []) as { harf: string | null; adet: number }[]);
+        harfSayilari = sayilar;
+        toplamKayit = harf ? (sayilar.get(harf) ?? 0) : toplam;
+        sayfa = sayfaParametresiCoz(sayfaParam, toplamKayit);
+        const sonuc = await supabase
+          .rpc("hasta_harf_listesi", {
+            p_harf: harf === null ? null : harf === DIGER ? DIGER : harfAnahtari(harf),
+            p_bas: (sayfa - 1) * SAYFA_BOYUTU,
+            p_adet: SAYFA_BOYUTU,
+          })
+          .select(listeKolonlari);
+        data = (sonuc.data ?? null) as ListeSatiri[] | null;
+        error = sonuc.error;
+      }
+    } else {
+      const { count } = await supabase.from("hasta").select("id", { count: "exact", head: true });
+      toplamKayit = count ?? 0;
+      sayfa = sayfaParametresiCoz(sayfaParam, toplamKayit);
+      const sonuc = await supabase
         .from("hasta")
         .select(listeKolonlari)
         .order("ad_soyad")
-        .limit(50)
-        .returns<Omit<HastaListeSatiri, "bakiye">[]>();
+        .order("id")
+        .range((sayfa - 1) * SAYFA_BOYUTU, sayfa * SAYFA_BOYUTU - 1)
+        .returns<ListeSatiri[]>();
+      data = sonuc.data;
+      error = sonuc.error;
+    }
+  }
   const hastalarHam = data ?? [];
 
   const hastaIdler = hastalarHam.map((h) => h.id);
@@ -114,13 +166,21 @@ export default async function HastalarSayfasi({
           <HastaAramaKutusu baslangic={arama} />
         </div>
 
+        {!arama && harfSayilari && (
+          <HarfCubugu
+            secili={harf}
+            sayilar={harfSayilari}
+            toplam={[...harfSayilari.values()].reduce((a, b) => a + b, 0)}
+          />
+        )}
+
         {error && (
           <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
         )}
         {!error && hastalar.length === 0 && (
           <EmptyState
             icon={Users}
-            title={arama ? "Aramayla eşleşen hasta yok." : "Henüz hasta kaydı yok."}
+            title={arama ? "Aramayla eşleşen hasta yok." : harf ? "Bu harfle başlayan hasta yok." : "Henüz hasta kaydı yok."}
           />
         )}
         {!error && hastalar.length > 0 && (
@@ -136,6 +196,9 @@ export default async function HastalarSayfasi({
               <HastaTablosu hastalar={hastalar} />
             </div>
           </>
+        )}
+        {!arama && !error && toplamKayit > SAYFA_BOYUTU && (
+          <SayfaGezinme harf={harf} sayfa={sayfa} toplamKayit={toplamKayit} />
         )}
       </div>
     </div>

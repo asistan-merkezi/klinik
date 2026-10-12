@@ -21,6 +21,9 @@ export function HastaAramaKutusu({ baslangic }: { baslangic: string }) {
 
     zamanlayiciRef.current = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
+      // Arama değişince sayfa numarası anlamını yitirir (arama sonucu sayfalı değil); harf korunur,
+      // arama temizlenince aynı harfin ilk sayfasına dönülür.
+      params.delete("sayfa");
       if (yeniDeger.trim()) {
         params.set("q", yeniDeger);
       } else {
