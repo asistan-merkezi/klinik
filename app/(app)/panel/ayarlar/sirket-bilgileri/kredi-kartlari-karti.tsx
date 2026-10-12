@@ -157,11 +157,23 @@ function TahsilatBilgisi({
   const hesap = bankaHesaplari.find((h) => h.id === hesapId);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+    // key: kayıttan sonra sunucudan gelen yeni değerlerle form yeniden kurulsun (uncontrolled select/input
+    // defaultValue değişimini ve action sonrası form sıfırlamasını takip etmez, kayıtlı değer boş görünürdü).
+    <form key={`${hesapId}|${oran}`} action={formAction} className="flex flex-col gap-4 rounded-2xl border border-border p-4">
       <div>
         <h3 className="text-base font-semibold">Tahsilat Bilgisi</h3>
         <p className="text-sm text-muted-foreground">
           Hasta tahsilatında (Ödeme Ekle) “Kredi Kartı” seçilince tutar, komisyon düşülerek bu hesaba işlenir.
+        </p>
+        <p className="mt-1 text-sm">
+          <span className="text-muted-foreground">Kayıtlı ayar: </span>
+          {hesap ? (
+            <span className="font-medium">
+              {hesap.banka_adi} · %{String(oran).replace(".", ",")} komisyon
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Tahsilat hesabı seçilmedi</span>
+          )}
         </p>
       </div>
 

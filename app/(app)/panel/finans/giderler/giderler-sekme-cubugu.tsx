@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, Landmark, Receipt } from "lucide-react";
+import { Wallet, Landmark, Receipt, Truck } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const SEKMELER = [
   { href: "/panel/finans/giderler", label: "Genel Giderler", icon: Wallet },
+  { href: "/panel/finans/giderler/tedarikciler", label: "Tedarikçiler ve Cari Takibi", icon: Truck },
   { href: "/panel/finans/giderler/kamusal-giderler", label: "Kamusal Giderler", icon: Landmark },
   { href: "/panel/finans/giderler/gelen-faturalar", label: "Gelen Faturalar", icon: Receipt },
 ] as const;
