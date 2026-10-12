@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -99,6 +100,9 @@ async function harcamaDogrula(
   if (veri.odeme_tipi === "cari" && !veri.tedarikci_adi) {
     return "Cariye eklemek için tedarikçi adı girilmeli.";
   }
+  if (havaleHesapEksikMi(veri.odeme_tipi, veri.banka_hesap_id)) {
+    return HAVALE_HESAP_GEREKLI_MESAJI;
+  }
   if (veri.odeme_tipi === "kredi_karti" && veri.kredi_karti_id) {
     const { data: kart } = await supabase
       .from("klinik_kredi_kartlari")
@@ -113,6 +117,8 @@ async function harcamaDogrula(
 
 /** Cari bütünlük tetikleyicisi (klinik_harcama_cari_butunluk) hatasını kullanıcıya anlaşılır çevirir. */
 function giderYazmaHatasi(hata: { message?: string } | null, varsayilan: string): string {
+  const bankaHatasi = bankaHesabiHatasiniCevir(hata?.message);
+  if (bankaHatasi) return bankaHatasi;
   if (hata?.message?.includes("cari_bakiye_negatif")) {
     return "Bu cari gideri değiştirirseniz tedarikçiye yapılmış ödemeler kalan borcu aşar. Önce Tedarikçiler'den ilgili cari ödemelerini silin.";
   }

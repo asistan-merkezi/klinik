@@ -6,8 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatDateTime } from "@/lib/datetime";
 import { telefonGoster } from "@/lib/utils";
-import type { PaketSatisSatir, OdemeGecmisSatir } from "@/types/odeme";
+import type { PaketSatisSatir, OdemeYontemi } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
+
+// Gerçek tahsilat/iade defteri hasta_bakiye_hareket'tir (Kasa/Banka/Raporlar ile aynı kaynak).
+// `odeme` tablosuna yalnız bir borç "faturalı" işaretlenince satır düşer — ödeme geçmişi
+// oradan okunursa hastanın gerçek ödemeleri görünmez, faturalı ama ödenmemiş borç ödeme gibi görünür.
+type PortalOdemeSatiri = {
+  id: string;
+  created_at: string;
+  tur: "odeme" | "iade";
+  tutar: number;
+  odeme_yontemi: OdemeYontemi | null;
+};
 import type { PortalRandevuSatir, PortalRandevuTalebiSatir } from "@/types/portal";
 import { AktifPaketSatiri } from "@/components/hasta/aktif-paket-satiri";
 import { portalCikisYap } from "./actions";
@@ -68,14 +79,13 @@ export default async function PortalSayfasi() {
       .order("satis_tarihi")
       .returns<PaketSatisSatir[]>(),
     supabase
-      .from("odeme")
-      .select(
-        "id, created_at, iskonto_tutari, faturali, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad), paket_satis(paket(ad))), odeme_satiri(yontem, tutar), fatura(id, durum, e_arsiv_pdf_url, hata_mesaji)"
-      )
+      .from("hasta_bakiye_hareket")
+      .select("id, created_at, tur, tutar, odeme_yontemi")
       .eq("hasta_id", hastaId)
+      .in("tur", ["odeme", "iade"])
       .order("created_at", { ascending: false })
       .limit(20)
-      .returns<OdemeGecmisSatir[]>(),
+      .returns<PortalOdemeSatiri[]>(),
     supabase
       .from("randevu_talebi")
       .select("id, islem_tanimi(ad), tercih_tarih, tercih_saat, not_metni, durum, created_at")
@@ -225,30 +235,23 @@ export default async function PortalSayfasi() {
               <p className="text-sm text-muted-foreground">Henüz ödeme yok.</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border">
-                {odemeGecmisi.map((odeme) => {
-                  const kalemAdlari = odeme.odeme_kalemi
-                    .map((k) => k.islem_tanimi?.ad ?? k.paket_satis?.paket?.ad ?? "—")
-                    .join(", ");
-                  const toplam = odeme.odeme_satiri.reduce((acc, s) => acc + s.tutar, 0);
-                  const yontemler = odeme.odeme_satiri
-                    .map((s) => YONTEM_ETIKETLERI[s.yontem] ?? s.yontem)
-                    .join(" + ");
-
-                  return (
-                    <li key={odeme.id} className="flex flex-col gap-1 py-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{kalemAdlari}</span>
-                        <span>
-                          {toplam.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDateTime(odeme.created_at)} · {yontemler || "—"} ·{" "}
-                        {odeme.faturali ? "Faturalı" : "Faturasız"}
+                {odemeGecmisi.map((odeme) => (
+                  <li key={odeme.id} className="flex flex-col gap-1 py-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{odeme.tur === "iade" ? "İade" : "Ödeme"}</span>
+                      <span className="tabular-nums">
+                        {(odeme.tur === "iade" ? -odeme.tutar : odeme.tutar).toLocaleString("tr-TR", {
+                          style: "currency",
+                          currency: "TRY",
+                        })}
                       </span>
-                    </li>
-                  );
-                })}
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDateTime(odeme.created_at)} ·{" "}
+                      {odeme.odeme_yontemi ? YONTEM_ETIKETLERI[odeme.odeme_yontemi] : "—"}
+                    </span>
+                  </li>
+                ))}
               </ul>
             )}
           </CardContent>

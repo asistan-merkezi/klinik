@@ -1,6 +1,7 @@
 "use server";
 
 import { bugunIstanbulTarihi } from "@/lib/datetime";
+import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -161,6 +162,9 @@ export async function hesapHareketiEkle(
   }
 
   const { tur, tutar, tarih, aciklama, odeme_tipi, banka_hesap_id } = ayristirma.data;
+  if (havaleHesapEksikMi(odeme_tipi, banka_hesap_id)) {
+    return { success: false, message: HAVALE_HESAP_GEREKLI_MESAJI };
+  }
 
   const { error } = await supabase.rpc("personel_hesap_hareket_ekle", {
     p_personel_id: personelId,
@@ -174,7 +178,7 @@ export async function hesapHareketiEkle(
 
   if (error) {
     console.error("Hesap hareketi eklenemedi:", error);
-    return { success: false, message: "Hareket eklenemedi, lütfen tekrar deneyin." };
+    return { success: false, message: bankaHesabiHatasiniCevir(error.message) ?? "Hareket eklenemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath(`/panel/personel/${personelId}`);

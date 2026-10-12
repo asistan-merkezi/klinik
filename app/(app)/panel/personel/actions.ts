@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -741,6 +742,9 @@ export async function topluHesapHareketiEkle(_onceki: SonucDurumu, formData: For
   }
 
   const { tur, tarih, aciklama, odeme_tipi, banka_hesap_id, kalemler_json } = ayristirma.data;
+  if (havaleHesapEksikMi(odeme_tipi, banka_hesap_id)) {
+    return { success: false, message: HAVALE_HESAP_GEREKLI_MESAJI };
+  }
 
   let kalemlerHam: unknown;
   try {

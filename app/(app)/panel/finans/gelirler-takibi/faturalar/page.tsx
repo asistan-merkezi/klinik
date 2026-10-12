@@ -11,6 +11,7 @@ import { raporAyDonemi, raporGunDonemi, raporYilDonemi, type RaporDonemi } from 
 import type { FaturaSatir } from "@/types/odeme";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
 import { kdvAyristir } from "@/lib/fatura/kdv-hesapla";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { FinansBorcSatiriBileseni, type FinansBorcSatiri } from "./borc-satiri";
 
 type BorcSorguSatiri = {
@@ -110,26 +111,35 @@ export default async function FaturalarSayfasi({
           ? raporGunDonemi(tarih)
           : null;
 
-  let sorgu = supabase
-    .from("hasta_bakiye_hareket")
-    .select(
-      "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
-        // hasta_hassas embed'le aynı sorguda (1-1, PK = hasta_id) — önceden
-        // ayrı bir .in("hasta_id", [...]) sorgusuydu; Yıllık görünümde (limit
-        // yok) yüzlerce id GET URL'sini şişirip sorguyu düşürüyor ve her satır
-        // "eksik bilgi" görünüyordu.
-        "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, adres)), " +
-        "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani)), " +
-        "odeme(fatura(id, durum, hata_mesaji, e_arsiv_pdf_url))"
-    )
-    .eq("tur", "borc")
-    .order("created_at", { ascending: false });
+  const borcSorgusu = () =>
+    supabase
+      .from("hasta_bakiye_hareket")
+      .select(
+        "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
+          // hasta_hassas embed'le aynı sorguda (1-1, PK = hasta_id) — önceden
+          // ayrı bir .in("hasta_id", [...]) sorgusuydu; Yıllık görünümde (limit
+          // yok) yüzlerce id GET URL'sini şişirip sorguyu düşürüyor ve her satır
+          // "eksik bilgi" görünüyordu.
+          "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, adres)), " +
+          "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani)), " +
+          "odeme(fatura(id, durum, hata_mesaji, e_arsiv_pdf_url))"
+      )
+      .eq("tur", "borc");
 
-  sorgu = donem ? sorgu.gte("created_at", donem.baslangic).lt("created_at", donem.bitis) : sorgu.limit(200);
-
-  const { data } = await sorgu.returns<BorcSorguSatiri[]>();
-
-  const borclar = data ?? [];
+  // Dönem seçiliyse dönemin TÜM satırları 1000'lik sayfalarla okunur (tek sorgu PostgREST
+  // max_rows'ta sessizce kesilirdi — yoğun bir klinikte yıllık borç satırı binleri aşar).
+  // "Tümü"nde son 200 kayıt.
+  const borclar: BorcSorguSatiri[] = donem
+    ? await tumSayfalariOku((bas, son) =>
+        borcSorgusu()
+          .gte("created_at", donem.baslangic)
+          .lt("created_at", donem.bitis)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(bas, son)
+          .returns<BorcSorguSatiri[]>()
+      )
+    : ((await borcSorgusu().order("created_at", { ascending: false }).limit(200).returns<BorcSorguSatiri[]>()).data ?? []);
 
   const satirlar: FinansBorcSatiri[] = borclar.map((b) => {
     const hassas = b.hasta?.hasta_hassas;

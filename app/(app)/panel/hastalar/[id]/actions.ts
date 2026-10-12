@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { tarihiSimdikiSaatleUTC } from "@/lib/datetime";
@@ -194,6 +195,10 @@ export async function bakiyeHareketiEkle(
 
   const { tur, tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id, belge_turu } = ayristirma.data;
 
+  if (tur === "odeme" && havaleHesapEksikMi(odeme_yontemi, banka_hesap_id)) {
+    return { success: false, message: HAVALE_HESAP_GEREKLI_MESAJI };
+  }
+
   // odeme_yontemi/banka_hesap_id/belge_turu sadece tur='odeme' iken anlamlı
   // (Kasa/Banka mutabakatı ilk ikisini okuyor) — diğer türlerde (kredi/borc) NULL kalır.
   // İade ayrı action'da (hastaIadesiVer).
@@ -211,7 +216,7 @@ export async function bakiyeHareketiEkle(
 
   if (error) {
     console.error("Bakiye hareketi eklenemedi:", error);
-    return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
+    return { success: false, message: bankaHesabiHatasiniCevir(error.message) ?? "Eklenemedi, lütfen tekrar deneyin." };
   }
 
   revalidateHastaDetay(hastaId);

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -421,7 +422,9 @@ export async function randevuSeansOdemesiEkle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
   const { tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id, belge_turu } = ayristirma.data;
-
+  if (havaleHesapEksikMi(odeme_yontemi, banka_hesap_id)) {
+    return { success: false, message: HAVALE_HESAP_GEREKLI_MESAJI };
+  }
 
   const { data, error } = await supabase.rpc("randevu_seans_bedelini_isle", {
     p_randevu_id: randevuId,
@@ -437,6 +440,10 @@ export async function randevuSeansOdemesiEkle(
     console.error("Seans ödemesi eklenemedi:", error);
     if (error.message?.includes("seans_tamamlanmamis")) {
       return { success: false, message: "Bu randevu henüz tamamlanmamış." };
+    }
+    const bankaHatasi = bankaHesabiHatasiniCevir(error.message);
+    if (bankaHatasi) {
+      return { success: false, message: bankaHatasi };
     }
     return { success: false, message: "Ödeme kaydedilemedi, lütfen tekrar deneyin." };
   }

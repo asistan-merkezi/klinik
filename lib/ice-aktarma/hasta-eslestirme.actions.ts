@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { telefonAnahtari } from "@/lib/ice-aktarma/normallestir";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 
 export type TelefonEslesmesi =
   | { durum: "bulundu"; hasta_id: string; ad_soyad: string }
@@ -27,16 +28,26 @@ export async function hastaTelefonlariniEslestir(telefonlar: string[]): Promise<
     return {};
   }
 
-  const { data, error } = await supabase.from("hasta").select("id, ad_soyad, telefon");
-
-  if (error || !data) {
-    console.error("Hasta telefon eşleştirme hatası:", error);
+  // 1000'lik sayfalarla TÜMÜ okunur — tek sorgu PostgREST max_rows'ta sessizce kesilir ve
+  // 1000. hastadan sonrakiler "bulunamadı" sayılıp arşiv satırları yanlış atlanırdı.
+  let data: { id: string; ad_soyad: string; telefon: string | null }[];
+  try {
+    data = await tumSayfalariOku((bas, son) =>
+      supabase
+        .from("hasta")
+        .select("id, ad_soyad, telefon")
+        .order("id")
+        .range(bas, son)
+        .returns<{ id: string; ad_soyad: string; telefon: string | null }[]>()
+    );
+  } catch (hata) {
+    console.error("Hasta telefon eşleştirme hatası:", hata);
     return {};
   }
 
   const gruplar = new Map<string, { id: string; ad_soyad: string }[]>();
   for (const satir of data) {
-    const anahtar = telefonAnahtari(satir.telefon);
+    const anahtar = telefonAnahtari(satir.telefon ?? "");
     if (!anahtar) continue;
     const liste = gruplar.get(anahtar) ?? [];
     liste.push({ id: satir.id, ad_soyad: satir.ad_soyad });

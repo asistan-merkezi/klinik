@@ -109,6 +109,7 @@ function KrediKartiFormu({ kart, kapat }: { kart?: KlinikKrediKarti; kapat: () =
 
 function SilmeDugmesi({ id }: { id: string }) {
   const [silinsinMi, setSilinsinMi] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   if (silinsinMi) {
@@ -121,7 +122,8 @@ function SilmeDugmesi({ id }: { id: string }) {
           disabled={isPending}
           onClick={() =>
             startTransition(async () => {
-              await krediKartiSil(id);
+              const sonuc = await krediKartiSil(id);
+              setHata(sonuc && !sonuc.success ? sonuc.message : null);
               setSilinsinMi(false);
             })
           }
@@ -135,9 +137,12 @@ function SilmeDugmesi({ id }: { id: string }) {
     );
   }
   return (
-    <Button type="button" size="icon-sm" variant="ghost" aria-label="Kredi kartını sil" onClick={() => setSilinsinMi(true)}>
-      <Trash2 />
-    </Button>
+    <span className="flex items-center justify-end gap-1.5">
+      {hata && <span className="text-xs text-destructive">{hata}</span>}
+      <Button type="button" size="icon-sm" variant="ghost" aria-label="Kredi kartını sil" onClick={() => setSilinsinMi(true)}>
+        <Trash2 />
+      </Button>
+    </span>
   );
 }
 

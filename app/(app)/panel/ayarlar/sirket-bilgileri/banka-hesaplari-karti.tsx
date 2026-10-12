@@ -107,6 +107,7 @@ function BankaHesabiFormu({ hesap, kapat }: { hesap?: KlinikBankaHesabiDetay; ka
 
 function SilmeDugmesi({ id }: { id: string }) {
   const [silinsinMi, setSilinsinMi] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   if (silinsinMi) {
@@ -119,7 +120,8 @@ function SilmeDugmesi({ id }: { id: string }) {
           disabled={isPending}
           onClick={() =>
             startTransition(async () => {
-              await bankaHesabiSil(id);
+              const sonuc = await bankaHesabiSil(id);
+              setHata(sonuc && !sonuc.success ? sonuc.message : null);
               setSilinsinMi(false);
             })
           }
@@ -133,9 +135,12 @@ function SilmeDugmesi({ id }: { id: string }) {
     );
   }
   return (
-    <Button type="button" size="icon-sm" variant="ghost" aria-label="Banka hesabını sil" onClick={() => setSilinsinMi(true)}>
-      <Trash2 />
-    </Button>
+    <span className="flex items-center justify-end gap-1.5">
+      {hata && <span className="text-xs text-destructive">{hata}</span>}
+      <Button type="button" size="icon-sm" variant="ghost" aria-label="Banka hesabını sil" onClick={() => setSilinsinMi(true)}>
+        <Trash2 />
+      </Button>
+    </span>
   );
 }
 

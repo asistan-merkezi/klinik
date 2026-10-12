@@ -489,10 +489,37 @@ export async function bankaHesabiSil(id: string): Promise<SonucDurumu> {
     return { success: false, message: "Bu işlem için yetkiniz yok." };
   }
 
+  // id istemciden gelir ve aşağıda .or() filtre metnine girer — yalnız UUID kabul et.
+  if (!z.string().uuid().safeParse(id).success) {
+    return { success: false, message: "Banka hesabı bulunamadı." };
+  }
+
+  // Hesaba bağlı tahsilat/gider/personel/cari/kart ödemesi varsa silme: bağ ON DELETE SET NULL
+  // olduğundan o hesabın tüm geçmişi Banka defterinden geri dönüşsüz düşerdi. DB'de de
+  // banka_hesabi_silme_engeli tetikleyicisi aynı kuralı zorlar (migration 20261012120000).
+  const bagliSayilari = await Promise.all([
+    ...["hasta_bakiye_hareket", "klinik_harcama", "personel_hesap_hareket", "klinik_cari_odeme", "klinik_kredi_karti_odeme"].map(
+      (tablo) => supabase.from(tablo).select("id", { count: "exact", head: true }).eq("banka_hesap_id", id)
+    ),
+    supabase
+      .from("nakit_banka_hareketi")
+      .select("id", { count: "exact", head: true })
+      .or(`kaynak_banka_hesap_id.eq.${id},hedef_banka_hesap_id.eq.${id}`),
+  ]);
+  if (bagliSayilari.some((s) => s.error || (s.count ?? 0) > 0)) {
+    return {
+      success: false,
+      message: "Bu hesaba bağlı tahsilat, ödeme veya transfer kayıtları var; geçmiş kaybolmasın diye hesap silinemez.",
+    };
+  }
+
   const { error } = await supabase.from("klinik_banka_hesaplari").delete().eq("id", id).eq("klinik_id", klinikId);
 
   if (error) {
     console.error("Banka hesabı silinemedi:", error);
+    if (error.message?.includes("banka_hesabi_kullaniliyor") || error.code === "23503") {
+      return { success: false, message: "Bu hesaba bağlı kayıtlar var; hesap silinemez." };
+    }
     return { success: false, message: "Banka hesabı silinemedi, lütfen tekrar deneyin." };
   }
 

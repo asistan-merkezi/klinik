@@ -5,6 +5,9 @@ import { formatDateTime } from "@/lib/datetime";
 import { cn, telefonGoster } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+
+const LISTE_LIMITI = 200;
 
 export default async function AnketYanitlariSayfasi() {
   const supabase = await createClient();
@@ -23,13 +26,28 @@ export default async function AnketYanitlariSayfasi() {
     redirect("/panel/ayarlar");
   }
 
-  const { data: yanitlar } = await supabase
-    .from("anket_yaniti")
-    .select("id, puan, oneri_metni, ad_soyad, telefon, created_at")
-    .eq("klinik_id", kullanici.klinik_id)
-    .order("created_at", { ascending: false });
+  // Liste son 200 yanıtla sınırlı; ortalama ise TÜM puanlardan (yalnız puan kolonu, sayfalı) —
+  // tek sorgu yıllar içinde 1000. yanıtta sessizce kesilir, ortalama da yanlış çıkardı.
+  const [{ data: yanitlar }, tumPuanlar] = await Promise.all([
+    supabase
+      .from("anket_yaniti")
+      .select("id, puan, oneri_metni, ad_soyad, telefon, created_at")
+      .eq("klinik_id", kullanici.klinik_id)
+      .order("created_at", { ascending: false })
+      .limit(LISTE_LIMITI),
+    tumSayfalariOku((bas, son) =>
+      supabase
+        .from("anket_yaniti")
+        .select("id, puan")
+        .eq("klinik_id", kullanici.klinik_id)
+        .not("puan", "is", null)
+        .order("id")
+        .range(bas, son)
+        .returns<{ id: string; puan: number | null }[]>()
+    ),
+  ]);
 
-  const puanlar = (yanitlar ?? []).map((y) => y.puan).filter((p): p is number => p !== null);
+  const puanlar = tumPuanlar.map((y) => y.puan).filter((p): p is number => p !== null);
   const ortalama = puanlar.length > 0 ? (puanlar.reduce((a, b) => a + b, 0) / puanlar.length).toFixed(1) : null;
 
   return (
