@@ -10,6 +10,7 @@ import { hakedisHesapla, hakedisKapaliDonemToplami } from "@/lib/personel/hakedi
 import { puantajSatirToplamiHesapla } from "@/lib/personel/puantaj-cetveli";
 import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { resmiTatilUyarilariGetir, type TatilUyarisi } from "@/lib/tatil/durum";
 import type { PersonelPuantajSatir } from "@/types/puantaj";
 import { PuantajCetveliIstemci, type PuantajCetveliSatir } from "./puantaj-cetveli-istemci";
 
@@ -38,12 +39,19 @@ export default async function PuantajCetveliSayfasi({
   const yonetici = kullanici.rol === "klinik_admin";
 
   let bekleyenIzinSayisi = 0;
+  let tatilUyarilari: TatilUyarisi[] = [];
   if (yonetici) {
-    const { count } = await supabase
-      .from("personel_izin_talebi")
-      .select("id", { count: "exact", head: true })
-      .eq("durum", "beklemede");
+    const [{ count }, uyarilar] = await Promise.all([
+      supabase
+        .from("personel_izin_talebi")
+        .select("id", { count: "exact", head: true })
+        .eq("durum", "beklemede"),
+      // Bayram tarihi onaylanmamışsa o günler izin/puantajda iş günü sayılır — yöneticiye hatırlat.
+      // Tablo henüz yoksa (migration uygulanmadan deploy) uyarı gösterilmez, sayfa düşmez.
+      resmiTatilUyarilariGetir(supabase).catch(() => []),
+    ]);
     bekleyenIzinSayisi = count ?? 0;
+    tatilUyarilari = uyarilar;
   }
 
   const ay = ayAraligi(ayParam);
@@ -211,6 +219,24 @@ export default async function PuantajCetveliSayfasi({
             </>
           }
         />
+
+        {tatilUyarilari.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-sm">
+            <p>
+              <span className="font-semibold">Resmi tatil hatırlatması:</span>{" "}
+              {tatilUyarilari
+                .map((u) => `${u.ad} ${u.yil} (${u.durum === "bekliyor" ? "onay bekliyor" : "tarih girilmemiş"})`)
+                .join(", ")}
+              . Onaylanana kadar bu günler izin ve puantajda iş günü sayılır.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/panel/ayarlar/resmi-tatiller">Resmi Tatillere Git</Link>}
+            />
+          </div>
+        )}
 
         <PuantajCetveliIstemci
           ay={ay}

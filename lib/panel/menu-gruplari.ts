@@ -25,6 +25,7 @@ import {
   Boxes,
   CreditCard,
   Briefcase,
+  CalendarDays,
   History,
   UserX,
   type LucideIcon,
@@ -105,6 +106,7 @@ export const MENU_GRUPLARI: MenuGrubu[] = [
     ogeler: [
       { href: "/panel/ayarlar/sirket-bilgileri", label: "Şirket Bilgileri", icon: Building2 },
       { href: "/panel/ayarlar/personel-tanimlama", label: "Personel Tanımlama", icon: Briefcase },
+      { href: "/panel/ayarlar/resmi-tatiller", label: "Resmi Tatiller", icon: CalendarDays },
       { href: "/panel/ayarlar/muhasebe-sync", label: "Muhasebe Sync", icon: RefreshCw },
       { href: "/panel/ayarlar/mesajlasma", label: "SMS/Whatsapp/Mail Ayarları", icon: MessageCircle },
       { href: "/panel/tablet", label: "Kapı Tablet Ayarları", icon: Tablet },
