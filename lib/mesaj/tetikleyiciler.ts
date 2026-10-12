@@ -151,6 +151,8 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     tetiklemeTipi: "anlik",
     gecerliDegiskenler: ["hasta_adi", "randevu_tarihi", "terapist_adi", "klinik_adi"],
     varsayilanMesajMetni: "Merhaba {{hasta_adi}}, randevunuz {{randevu_tarihi}} tarihine oluşturuldu. Sizi bekliyoruz.",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): randevuOlustur (tek randevu) başarılı olunca lib/mesaj/randevu-mesaji.ts kuyruğa yazar. Periyodik randevu oluşturma bilinçli bağlı DEĞİL (her seans için ayrı onay mesajı yağardı); portal talebinden onaylanan randevu da randevuOlustur'dan geçtiği için dahil.",
   },
   {
     kod: "randevu_hatirlatma_1gun",
@@ -161,6 +163,8 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     zamanlamaAciklamasi: "Randevu saatinden 1 gün önce, günlük tarama",
     gecerliDegiskenler: ["hasta_adi", "randevu_tarihi", "terapist_adi", "klinik_adi"],
     varsayilanMesajMetni: "Merhaba {{hasta_adi}}, yarınki {{randevu_tarihi}} randevunuzu hatırlatmak isteriz.",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): mesaj-kuyruk-isle cron'unun başında randevuHatirlatmalariniTara (lib/mesaj/randevu-mesaji.ts). Randevuya 23-24 saat kala, durumu 'planlandi', en az 24 saat önceden alınmış randevular; idempotency randevu+başlangıç.",
   },
   {
     kod: "randevu_hatirlatma_2saat",
@@ -171,6 +175,8 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     zamanlamaAciklamasi: "Randevu saatinden 2 saat önce (1 günlük hatırlatma taramasıyla aynı geçişte hesaplanıp planlanan_zaman ile kuyruğa yazılabilir)",
     gecerliDegiskenler: ["hasta_adi", "randevu_tarihi", "terapist_adi", "klinik_adi"],
     varsayilanMesajMetni: "Merhaba {{hasta_adi}}, randevunuza 2 saat kaldı, sizi bekliyoruz.",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): 1 günlük hatırlatmayla aynı tarama (randevuHatirlatmalariniTara); randevuya 1-2 saat kala, 'planlandi', en az 2 saat önceden alınmış randevular. Gönderim zamanı 5 dk'lık cron granülaritesindedir.",
   },
   {
     kod: "randevu_iptal",
@@ -178,8 +184,11 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     ad: "Randevu iptal/erteleme bildirimi",
     icerikTipi: "hizmet",
     tetiklemeTipi: "anlik",
-    gecerliDegiskenler: ["hasta_adi", "randevu_tarihi", "klinik_adi"],
-    varsayilanMesajMetni: "Merhaba {{hasta_adi}}, randevunuz iptal edildi/ertelendi. Yeni bir randevu için bizimle iletişime geçebilirsiniz.",
+    gecerliDegiskenler: ["hasta_adi", "randevu_tarihi", "randevu_durumu", "klinik_adi"],
+    varsayilanMesajMetni:
+      "Merhaba {{hasta_adi}}, {{randevu_tarihi}} tarihli randevunuz {{randevu_durumu}}. Yeni bir randevu için bizimle iletişime geçebilirsiniz. — {{klinik_adi}}",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): randevuIptalEt, iptalTalebiOnayla ve randevuErtele sonrası lib/mesaj/randevu-mesaji.ts kuyruğa yazar. {{randevu_durumu}} = \"iptal edildi\" ya da \"<yeni tarih> tarihine ertelendi\" ({{randevu_tarihi}} her iki durumda ESKİ tarih). Periyodik randevu toplu iptali (periyodikRandevuIptalEt) bilinçli bağlı DEĞİL — hasta başına onlarca mesaj gitmesin.",
   },
   {
     kod: "randevu_gelmedi",
@@ -189,6 +198,8 @@ export const TETIKLEYICILER: readonly TetikleyiciTanimi[] = [
     tetiklemeTipi: "anlik",
     gecerliDegiskenler: ["hasta_adi", "randevu_tarihi", "klinik_adi"],
     varsayilanMesajMetni: "Merhaba {{hasta_adi}}, bugünkü randevunuza gelemediğinizi fark ettik. Yeni bir randevu planlamak ister misiniz?",
+    baglanmaNotu:
+      "BAĞLI (2026-10-12): randevuDurumGuncelle('gelmedi') başarılı olunca lib/mesaj/randevu-mesaji.ts kuyruğa yazar; randevu başına tek mesaj (yanlış 'Gelmedi' düzeltilip tekrar işaretlense de ikinci mesaj gitmez).",
   },
   {
     kod: "randevu_sonraki_oneri",

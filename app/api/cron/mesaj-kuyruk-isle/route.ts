@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cronYetkiliMi } from "@/lib/cron-yetki";
 import { kuyrukSatiriniIsle } from "@/lib/mesaj/kuyruk-isle";
+import { randevuHatirlatmalariniTara } from "@/lib/mesaj/randevu-mesaji";
 
 export const runtime = "nodejs";
 // Bir batch'te 25 satır, her biri bir ağ çağrısı (adapter) + birkaç DB
@@ -42,6 +43,15 @@ export async function GET(request: Request) {
     console.error("[cron/mesaj-kuyruk-isle] takılı satırlar kurtarılamadı:", kurtarmaHata.message);
   }
 
+  // Zamanlanmış randevu hatırlatmaları (1 gün / 2 saat) önce kuyruğa yazılır; aşağıda aynı çalıştırmada işlenir.
+  // Hata kuyruğu işlemeyi engellemesin diye ayrı try/catch.
+  let hatirlatmalar: Awaited<ReturnType<typeof randevuHatirlatmalariniTara>> = [];
+  try {
+    hatirlatmalar = await randevuHatirlatmalariniTara(admin);
+  } catch (hata) {
+    console.error("[cron/mesaj-kuyruk-isle] randevu hatırlatma taraması başarısız:", hata);
+  }
+
   const { data: satirlar, error } = await admin
     .from("mesaj_kuyrugu")
     .select("id")
@@ -62,5 +72,5 @@ export async function GET(request: Request) {
     sonuclar.push({ id: satir.id, durum: sonuc.durum });
   }
 
-  return NextResponse.json({ islenen: sonuclar.length, sonuclar });
+  return NextResponse.json({ islenen: sonuclar.length, sonuclar, hatirlatmalar });
 }

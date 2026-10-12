@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { randevuOlayMesajiTetikle } from "@/lib/mesaj/randevu-mesaji";
 import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -171,6 +173,7 @@ export async function randevuOlustur(
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   revalidateHastaDetay(hasta_id);
+  after(() => randevuOlayMesajiTetikle(yeniRandevu.id, "randevu_onay"));
   return { success: true, message: "Randevu oluşturuldu." };
 }
 
@@ -541,6 +544,7 @@ export async function randevuDurumGuncelle(
   if (sonuc?.hasta_id) {
     revalidateHastaDetay(sonuc.hasta_id);
   }
+  after(() => randevuOlayMesajiTetikle(randevuId, "randevu_gelmedi"));
   return {
     success: true,
     message: sonuc?.paket_iade
@@ -611,6 +615,7 @@ export async function randevuIptalEt(
   if (sonuc?.hasta_id) {
     revalidateHastaDetay(sonuc.hasta_id);
   }
+  after(() => randevuOlayMesajiTetikle(randevuId, "randevu_iptal"));
   return { success: true, message: iptalSonucMesaji(sonuc) };
 }
 
@@ -738,6 +743,7 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
   if (mevcut.hasta_id) {
     revalidateHastaDetay(mevcut.hasta_id);
   }
+  after(() => randevuOlayMesajiTetikle(randevuId, "randevu_iptal", { eskiBaslangic: mevcut.baslangic }));
   return {
     success: true,
     message: `Randevu ${ayristirma.data.tarih} ${ayristirma.data.saat} saatine ertelendi.`,
@@ -957,6 +963,7 @@ export async function iptalTalebiOnayla(talepId: string, randevuId: string, bede
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
+  after(() => randevuOlayMesajiTetikle(randevuId, "randevu_iptal"));
   return { success: true, message: "Randevu iptal edildi." };
 }
 
