@@ -72,8 +72,7 @@ export default async function PuantajCetveliSayfasi({
     supabase.from("klinik").select("cumartesi_baslangic, pazar_baslangic").eq("id", kullanici.klinik_id).single(),
     supabase
       .from("personel")
-      .select("id, ad_soyad, maas, fm_saatlik_ucret, ise_giris_tarihi, isten_cikis_tarihi, pozisyon:pozisyon_id(ad, puantaj_modu)")
-      .eq("aktif", true)
+      .select("id, ad_soyad, aktif, maas, fm_saatlik_ucret, ise_giris_tarihi, isten_cikis_tarihi, pozisyon:pozisyon_id(ad, puantaj_modu)")
       .order("ad_soyad"),
     // Personel × gün: 33+ personelde 1000 satırı aşar, sayfalı okunur.
     tumSayfalariOku<PersonelPuantajSatir & { personel_id: string }>((bas, son) =>
@@ -97,8 +96,14 @@ export default async function PuantajCetveliSayfasi({
       .lt("tarih", ay.bitisTarih),
   ]);
 
+  // Pasife alınmış personel de, görüntülenen ayda gerçekten çalıştığına dair iz varsa listelenir: o ay içinde
+  // çıkış tarihi olan ya da o ay puantaj kaydı bulunan. Önceden yalnız şu an aktif olanlar gelirdi; geçmiş ayların
+  // cetveli (ve dönem kapatma/yeniden açma) pasife alınan kişi için kayboluyordu. Bugünün (içinde bulunulan ayın)
+  // pasif ve izsiz personeli yine gizli.
+  const puantajliPersonel = new Set((puantajSonucu ?? []).map((r) => r.personel_id));
   const gunlukPersonel = (personelSonucu ?? []).filter(
     (p) =>
+      (p.aktif || !!p.isten_cikis_tarihi || puantajliPersonel.has(p.id)) &&
       (p.pozisyon as { puantaj_modu?: string } | null)?.puantaj_modu !== "takipsiz" &&
       (!p.ise_giris_tarihi || p.ise_giris_tarihi < ay.bitisTarih) &&
       // İşten çıkış tarihi bu ayın BAŞLANGICINDAN önceyse (tamamen geçmiş bir
