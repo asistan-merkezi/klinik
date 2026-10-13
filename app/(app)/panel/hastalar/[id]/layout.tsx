@@ -56,6 +56,7 @@ export default async function HastaDetayLayout({
           eposta={hasta.eposta}
           dogumTarihi={hasta.dogum_tarihi}
           kalanPaketHakki={ozet?.kalan_paket_hakki ?? null}
+          mesajAtabilir={duzenlenebilir}
         />
 
         {children}

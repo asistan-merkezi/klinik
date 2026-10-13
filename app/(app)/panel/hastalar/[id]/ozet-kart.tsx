@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Mail, MessageSquareHeart } from "lucide-react";
+import { Phone, Mail, MessageSquareHeart, Send } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -9,6 +9,7 @@ import { DURUM_TONU_SINIFLARI } from "@/lib/ui/durum-tonlari";
 import { cn, telefonGoster } from "@/lib/utils";
 import { useHastaSigortalar } from "./queries";
 import { TalepOneriModal } from "./talep-oneri-modal";
+import { MesajAtModal } from "./mesaj-at-modal";
 
 const KUTU_SINIFI =
   "flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:brightness-95";
@@ -44,6 +45,7 @@ export function OzetKart({
   eposta,
   dogumTarihi,
   kalanPaketHakki,
+  mesajAtabilir,
 }: {
   hastaId: string;
   adSoyad: string;
@@ -51,8 +53,11 @@ export function OzetKart({
   eposta: string | null;
   dogumTarihi: string | null;
   kalanPaketHakki: number | null;
+  /** Yalnız klinik_admin/resepsiyon: hastaya elle mesaj gönderme butonu. */
+  mesajAtabilir: boolean;
 }) {
   const [talepModalAcik, setTalepModalAcik] = useState(false);
+  const [mesajModalAcik, setMesajModalAcik] = useState(false);
   const yas = yasHesapla(dogumTarihi);
   const { data: sigortalar } = useHastaSigortalar(hastaId, true);
   const sigortaliMi = (sigortalar?.length ?? 0) > 0;
@@ -86,7 +91,7 @@ export function OzetKart({
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex shrink-0 flex-col items-stretch gap-2">
           <button
             type="button"
             onClick={() => setTalepModalAcik(true)}
@@ -95,9 +100,20 @@ export function OzetKart({
             <MessageSquareHeart className="size-4" aria-hidden />
             Talep ve Öneriler
           </button>
+          {mesajAtabilir && (
+            <button
+              type="button"
+              onClick={() => setMesajModalAcik(true)}
+              className={cn(KUTU_SINIFI, DURUM_TONU_SINIFLARI.sky)}
+            >
+              <Send className="size-4" aria-hidden />
+              Mesaj At
+            </button>
+          )}
         </div>
 
         <TalepOneriModal acik={talepModalAcik} onOpenChange={setTalepModalAcik} hastaId={hastaId} />
+        {mesajAtabilir && <MesajAtModal acik={mesajModalAcik} onOpenChange={setMesajModalAcik} hastaId={hastaId} />}
       </CardContent>
     </Card>
   );
