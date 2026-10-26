@@ -24,7 +24,7 @@ const ATLANAN_FONKSIYON = new Set([
 ]);
 // FORCE RLS dışında kalan, tenant'sız tablolar (gerekçe: sema-esleme.md)
 const FORCE_ISTISNA = new Set([
-  "resmi_tatil", "pozisyon_sablonlari", "olcek_tanimi", "egzersiz_kutuphanesi", "hiz_siniri_sayac",
+  "pozisyon_sablonlari", "hiz_siniri_sayac",
 ]);
 // Yalnız sistem (bakim_rolu) çağırabilir; auth.role()='service_role' kabulleri sistem_baglami()'na çevrilir
 const KOMUT = { r: "SELECT", a: "INSERT", w: "UPDATE", d: "DELETE" };
@@ -183,10 +183,12 @@ e("");
 e("-- ===== Satır düzeyi güvenlik =====");
 const forceTablolar = [];
 for (const t of tabloAdlari) {
-  const klinikIdVar = (await q(`select 1 from pg_attribute where attrelid=$1 and attname='klinik_id' and not attisdropped`, [t.oid])).length > 0;
+  const kv = await q(`select attnotnull from pg_attribute where attrelid=$1 and attname='klinik_id' and not attisdropped`, [t.oid]);
+  const klinikIdVar = kv.length > 0;
+  const bosOlabilir = klinikIdVar && !kv[0].attnotnull;
   if (t.relrowsecurity) e(`ALTER TABLE ${ad(t.relname)} ENABLE ROW LEVEL SECURITY;`);
   const force = t.relrowsecurity && !FORCE_ISTISNA.has(t.relname) && (klinikIdVar || t.relname === "klinik");
-  if (force) { e(`ALTER TABLE ${ad(t.relname)} FORCE ROW LEVEL SECURITY;`); forceTablolar.push({ ad: t.relname, klinikIdVar }); }
+  if (force) { e(`ALTER TABLE ${ad(t.relname)} FORCE ROW LEVEL SECURITY;`); forceTablolar.push({ ad: t.relname, klinikIdVar, bosOlabilir }); }
 }
 e("");
 const anonTablo = new Map(); // tablo -> Set(komut)
@@ -216,7 +218,7 @@ e("");
 // FORCE altında DEFINER fonksiyonlar/tetikleyiciler (sahip: klinik_sahip) YALNIZ aktif tenant'ın satırlarına dokunabilir.
 e("-- Sahip politikası: FORCE altında klinik_sahip (DEFINER fonksiyon/tetikleyici sahibi) da yalnız aktif tenant'ı görür; tenant'lar arası erişim YOK.");
 for (const t of forceTablolar) {
-  const koşul = t.ad === "klinik" ? "id = current_klinik_id()" : "klinik_id = current_klinik_id()";
+  const koşul = t.ad === "klinik" ? "id = current_klinik_id()" : t.bosOlabilir && t.ad !== "kullanici" ? "(klinik_id IS NULL OR klinik_id = current_klinik_id())" : "klinik_id = current_klinik_id()";
   e(`CREATE POLICY sahip_aktif_tenant ON ${ad(t.ad)} AS PERMISSIVE FOR ALL TO klinik_sahip USING (${koşul}) WITH CHECK (${koşul});`);
 }
 e("");

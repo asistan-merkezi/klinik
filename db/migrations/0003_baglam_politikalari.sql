@@ -9,3 +9,6 @@ CREATE POLICY bakim_klinik_listesi ON klinik AS PERMISSIVE FOR SELECT TO bakim_r
 -- Global (tenant'sız) resmi tatil kataloğunu betik yazar.
 GRANT SELECT, INSERT, UPDATE ON resmi_tatil TO bakim_rolu;
 CREATE POLICY bakim_resmi_tatil ON resmi_tatil AS PERMISSIVE FOR ALL TO bakim_rolu USING (true) WITH CHECK (true);
+
+-- Bağlam fonksiyonları (db/arac/baglam-fonksiyonlari.sql): politikalar bunları çağırır; 0002'deki REVOKE FROM PUBLIC sonrası açıkça verilir.
+GRANT EXECUTE ON FUNCTION current_rol(), is_super_admin(), current_hasta_id() TO klinik_uygulama, klinik_anonim, bakim_rolu;
