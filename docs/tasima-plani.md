@@ -1,104 +1,100 @@
 # Taşıma Planı: Vercel + Supabase → Windows Server VM + Postgres
 
 Dal: `tasima/windows-postgres`. Kararlar: `CLAUDE.md > Hedef Altyapı ve Taşıma Kararları`.
+İlgili belgeler: `docs/supabase-envanter.md` (Aşama 0 çıktısı, gerçek sayılar) · `docs/kvkk-aktarim.md` (aktarım ve e-posta taraması) · `docs/sunucu-kurulum.md` (roller, env adları, yedek ve geri yükleme).
 
-> **Not — envanter kaynağı**: Bu plan `docs/supabase-envanter.md`'ye dayanacaktı, ama dosya repoda YOK (`git ls-files` ve çalışma dizini kontrol edildi). Aşağıdaki sayılar 2026-10-26'da kod/migration taramasından (`grep`) çıkarıldı; yaklaşıktır. Envanter dosyası eklenirse Aşama 0 çıktısı olarak onunla karşılaştırılıp bu plan düzeltilir.
+## Alınan kararlar (2026-10-26)
 
-## Mevcut bağımlılık özeti (tarama)
+1. **Parolalar**: mevcut hesaplar için **toplu sıfırlama**. bcrypt doğrulama / argon2 yükseltme kodu YAZILMAYACAK. Test ve pilot hesapları yeniden oluşturulacak.
+2. **Destek chatbotu**: taşıma boyunca **kapalı** (feature flag). Sonra açılırsa kişisel ve sağlık verisi LLM'e hiç gönderilmeyecek. **Taşıma kapsamından çıkarıldı.**
+3. **E-posta**: Resend (EU) kalır. E-posta şablonlarında kişisel/sağlık verisi olmayacak, yalnız bağlantı odaklı metin. Tüm şablonlar `docs/kvkk-aktarim.md`'de tarandı: **28/28 ihlal ediyor** (henüz canlı kural yok).
+4. **Tek oturum kilidi**: taşımadan **sonraya ertelendi**; özellik şimdi yazılmayacak. Oturum tablosu buna sonradan izin verecek şekilde tasarlanır (cihaz/oturum kimliği saklanır).
+5. **Yedek**: günlük **30 gün** + aylık **12 ay** saklama (hukuk onayına tabi, parametre). Şifreleme anahtarı sunucuda saklanmaz; `yedek.ps1` yalnız ortak anahtarı ortam değişkeninden alır; geri yükleme testi sunucu kurulum dokümanında zorunlu adım. Ayrıntı: `docs/sunucu-kurulum.md`.
+6. **FORCE ROW LEVEL SECURITY**: tüm tenant tablolarında açık. Migration ve cron bakım işleri için ayrı **`bakim_rolu`**; uygulama bağlantısı bu rolü asla kullanmaz.
 
-| Alan | Bulgu |
-|---|---|
-| Supabase import eden dosya | ~161 (`@supabase/*` veya `lib/supabase`) |
-| `.from('...')` kullanan dosya | ~135 |
-| Farklı `.rpc()` adı | ~50 (SQL tarafında çok daha fazla plpgsql fonksiyon) |
-| Auth çağrısı (`auth.getUser/admin/signIn…`) | ~80 dosya |
-| Realtime (`channel`/`postgres_changes`) | 3 dosya: `tablet-ekrani.tsx`, `canli-cizelge.tsx`, `randevu-bildirimleri.tsx` |
-| Storage (`.storage`) | 6 dosya (şirket logosu, hasta belge/foto, personel belge, izin belgesi) + 4 migration'da `storage.objects` politikası |
-| Migration | 172 dosya; ~157 yerde `auth.uid()`/`auth.users` referansı |
-| Cron route | 5 (`personel-donem-otomatik-kapat`, `resmi-tatil-guncelle`, `audit-log-bolum-olustur`, `mesaj-kuyruk-isle`, `kredi-senkron`) |
-| PDF | `lib/pdf/browser.ts` (`puppeteer-core` + `@sparticuz/chromium`) |
-| Yurt dışı çıkış | `app/api/destek-chatbot/route.ts` → LLM (AI Gateway `anthropic/claude-sonnet-5`); mesaj merkezi (SMS/WhatsApp/Mail) ayrı proje |
+## Aşama 0 sonucu (envanter) — plandaki yaklaşık sayılardan farklar
+
+Ayrıntı: `docs/supabase-envanter.md`. Sayılar migration metni + koddan; canlı DB kataloğuyla doğrulama Aşama 10 öncesi.
+
+- Kod tarafı beklenenle örtüştü: 161 import dosyası, 134 `.from` dosyası, 50 RPC adı, 3 realtime dosyası (yalnız `randevu`), 6 storage dosyası, 172 migration, 5 cron route.
+- **Farklar**: PDF route **3** (planda 2); tetikleyici **28** (CLAUDE.md 27); migration'da `storage.objects` **6 dosya** (planda 4); `auth` kullanımı 68 migration dosyasında 145 `auth.uid()` + 12 `auth.users` + 12 `auth.jwt/role`; **22 dosya service-role** (`createAdminClient`) kullanıyor (planda yoktu); `vercel.json`'da yalnız 3 cron kayıtlı.
+- **Yeni bulgular**: (a) `hasta-belge` bucket'ını hiçbir migration açmıyor (yalnız `musteri-belge`) → migration'sız değişiklik, canlı katalogla doğrulanacak; (b) 85 migration dosyası SECURITY DEFINER içeriyor → FORCE RLS tasarımını etkiler (aşağıda); (c) kalıntı nesneler: `current_musteri_id`, `_gecici_rol_probe`, PIN RPC'leri; (d) `pgcrypto` kurulu (CLAUDE.md "YOK" diyordu, yalnız kullanılmıyor olabilir).
 
 ## Ana riskler
 
-1. **RLS'in `auth.uid()`'ye bağlı olması.** Politikaların, `current_klinik_id()`, `current_hasta_id()`, `is_super_admin()` ve trigger'ların çoğu `auth.uid()` / `request.jwt.claims` okuyor. Hepsi `current_setting('app.user_id')` / `app.tenant_id` modeline çevrilmeli; bir tanesi atlanırsa ya veri sızar ya da sessizce 0 satır döner.
-2. **`SET LOCAL` + bağlantı havuzu.** `SET LOCAL` yalnız transaction içinde geçerli. Her sorgu `BEGIN; SET LOCAL …; … COMMIT` içinde çalışmazsa değerler başka isteğe sızar veya hiç görünmez. Tek bir sarmalayıcı (`withTenant`) dışında DB'ye erişim olmamalı.
-3. **BYPASSRLS / sahiplik.** Tablo sahibi rol RLS'i atlar (FORCE yoksa). Uygulama rolü sahibi olmamalı, `BYPASSRLS` taşımamalı; `SECURITY DEFINER` fonksiyonların sahibi ayrı bir rol olmalı.
-4. **PostgREST'e gömülü davranışlar kaybolur.** Embed (`select('a, b(c)')`), `max_rows` kesmesi, kolon GRANT'leri, `.insert().select()` RLS davranışı. 135 dosyada sorgu yeniden yazılacak; embed'ler JOIN/ayrı sorguya dönüşür.
-5. **Auth kimlik göçü.** Supabase `auth.users` şifre hash'leri (bcrypt) Better Auth/argon2'ye doğrudan taşınmaz. Personel ve hasta portalı (sentetik e-posta `m-{id}@portal.local`) için ya bcrypt doğrulayıp ilk girişte argon2'ye yükseltme ya da toplu şifre sıfırlama gerekir. Tek oturum kilidi (`oturum_kilidi`) bu geçişte yeniden ele alınmalı.
-6. **Realtime davranışı.** `postgres_changes` yerine SSE + LISTEN/NOTIFY: RLS'e tabi değil, yani NOTIFY yükünde veri taşınmamalı (yalnız `klinik_id` + id), istemci sonra yetkili sorguyla çeker. Bağlantı kopması/yeniden bağlanma tablet toleransı korunmalı.
-7. **Windows'a özgü işletim riskleri.** NSSM servis çökme/yeniden başlatma, Caddy sertifika yenileme (80/443 dışarıdan erişilebilir olmalı), Windows güncelleme yeniden başlatmaları, Task Scheduler'ın saat dilimi, dosya yolu/büyük-küçük harf farkları, `puppeteer` için Chrome/Edge sürüm uyumu.
-8. **KVKK.** Destek chatbotu hasta/kullanıcı verisini yurt dışı LLM'e gönderebilir; Supabase dışında e-posta servisi eklenirse aynı sorun. Yedekler şifresiz kalırsa ihlal. Erişim logu (kim hangi hasta verisine baktı) şimdiki `audit_log` ve `hasta_belge_goruntule` ile birlikte düşünülmeli.
-9. **Tek VM = tek hata noktası.** Yedek/geri yükleme tatbikatı yapılmadan canlıya geçilmez.
-10. **Canlı veri kesintisi.** Geçiş sırasında yazma durdurulmadan alınan dump tutarsız olur; kesinti penceresi ve geri dönüş planı (Aşama 9) şart.
+1. **RLS'in `auth.uid()`'ye bağlı olması** (145 kullanım, 68 dosya; ≈264 politika). Hepsi `app.user_id` / `app.tenant_id` modeline çevrilmeli; biri atlanırsa ya veri sızar ya da sessizce 0 satır döner.
+2. **`SET LOCAL` + bağlantı havuzu**: yalnız transaction içinde geçerli; tek sarmalayıcı (`withTenant`) dışında DB erişimi olmamalı.
+3. **FORCE RLS + SECURITY DEFINER + bakim_rolu**: FORCE'ta sahip dahil herkes RLS'e tabi; yalnız `BYPASSRLS` atlar. DEFINER fonksiyonlar (çoğu RPC) çağıranın `app.tenant_id`'siyle çalışır — doğru; ama **tenant bağlamı olmayan** yollar tasarım ister: (i) anonim akışlar (QR ön kayıt/anket/puantaj, portal giriş telefon sorgusu, iş başvurusu, hız sınırı sayacı), (ii) çok-klinikli cron taramaları. Aşama 2'de her biri için ya dar `klinik_anonim` politikası ya da açık bir tenant-döngüsü tasarlanır. **Sınır**: uygulama bağlantısı `bakim_rolu` kullanmayacağı için çok-klinikli cron'lar HTTP route'tan klinik klinik (her biri `withTenant` ile) işlenir; klinik listesi için tek amaçlı, yalnız id döndüren dar bir fonksiyon gerekir — bu, sahibi `BYPASSRLS`'li bir DEFINER fonksiyon olursa kararın (6) ince bir istisnasıdır, **onayınla** netleşecek (aşağıda "Açık kararlar"). DB bakımı (partition açma, migration) HTTP'den değil, `bakim_rolu` ile çalışan Task Scheduler betiklerinden yapılır.
+4. **PostgREST'e gömülü davranışlar kaybolur**: ≈32 dosyada embed, `max_rows`, kolon GRANT'leri, `.insert().select()` RLS davranışı. 134 dosyada sorgu yeniden yazılır.
+5. **Auth kimlik göçü**: karar gereği toplu sıfırlama (kod yok). Risk kullanıcı tarafında: sıfırlama duyurusu, personel/portal hastalarına geçici şifre dağıtımı (portal şifresi bugün 8 karakterli geçici şifre mantığıyla zaten üretiliyor), test/pilot hesapların yeniden kurulması, **sentetik portal e-postası** (`m-{hasta.id}@portal.local`) ve personel telefon girişi akışının Better Auth'ta karşılığı.
+6. **Realtime**: `postgres_changes` yerine SSE+NOTIFY; NOTIFY yükünde veri taşınmaz (yalnız `klinik_id` + id), istemci yetkili sorguyla çeker.
+7. **Windows işletim riskleri**: NSSM çökme/yeniden başlatma, Caddy sertifika yenileme (80/443), Windows güncelleme reboot'ları, Task Scheduler saat dilimi (mevcut cron saatleri UTC), yol/büyük-küçük harf, Chrome/Edge sürümü.
+8. **KVKK**: e-posta şablonlarının tamamı kuralı ihlal ediyor (ilk kural açılışından önce düzeltilmeli); chatbot kapalı; yedekler şifreli, anahtar sunucuda yok; erişim logu.
+9. **Tek VM = tek hata noktası**: geri yükleme tatbikatı yapılmadan canlıya geçilmez.
+10. **Canlı veri kesintisi / geri dönüş** (Aşama 10).
+11. **Migration'sız sapma**: envanter migration metninden; canlı katalog ile fark çıkabilir (bucket adı örneği).
 
 ## Aşamalar
 
-Her aşama kendi içinde `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli (CLAUDE.md kuralı). Gizli değer hiçbir dosyaya yazılmaz.
+Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Gizli değer hiçbir dosyaya yazılmaz.
 
-### Aşama 0 — Envanter ve temel hazırlık
-- `docs/supabase-envanter.md` üret/yerleştir: tablo, view, matview, fonksiyon (SECURITY DEFINER dahil), trigger, politika, extension, storage bucket, cron, env değişkeni listesi.
-- Her Supabase API kullanımını sınıfla: sorgu / RPC / auth / storage / realtime.
-- **Bitti kriteri**: envanter dosyası commit'li; her öğenin hedefteki karşılığı (Drizzle, SQL, Better Auth, dosya, SSE, vb.) bir tabloda yazılı; `grep @supabase` sonucu envanterdeki dosya listesiyle uyuşuyor.
+### Aşama 0 — Envanter ✅ (2026-10-26)
+- Çıktı: `docs/supabase-envanter.md`, `docs/kvkk-aktarim.md`.
+- **Bitti kriteri (karşılandı)**: envanter commit'li; her kalemin hedef karşılığı tabloda; grep sayıları dosya listesiyle tutuyor. **Kalan**: canlı `pg_catalog`/`storage.buckets`/`pg_policies` dökümüyle karşılaştırma (Aşama 2 başında, salt-okunur) ve fark listesi.
 
 ### Aşama 1 — Hedef sunucu ve Postgres kurulumu
-- Windows Server VM, Node.js LTS, PostgreSQL, NSSM, Caddy kurulumu; güvenlik duvarı yalnız 80/443; Postgres yalnız localhost.
-- Roller: `klinik_sahip` (migration sahibi), `klinik_uygulama` (`NOBYPASSRLS`, tablo sahibi değil), `klinik_yedek`. `FORCE ROW LEVEL SECURITY` kararı.
-- **Bitti kriteri**: boş bir Next.js sayfası Caddy + NSSM arkasında alan adıyla TLS üzerinden açılıyor; servis yeniden başlatmada ve VM reboot'ta kendiliğinden kalkıyor; `klinik_uygulama` rolüyle `BYPASSRLS` ve sahiplik olmadığı `\du` / `\dt` çıktısıyla gösterildi.
+- Windows Server VM, Node.js LTS, PostgreSQL, NSSM, Caddy; güvenlik duvarı yalnız 80/443; Postgres yalnız localhost. Ayrıntı: `docs/sunucu-kurulum.md`.
+- Roller: `klinik_sahip`, `klinik_uygulama` (NOBYPASSRLS), `klinik_anonim`, **`bakim_rolu`** (BYPASSRLS; yalnız migration/bakım betikleri), `klinik_yedek`.
+- **Bitti kriteri**: boş Next.js sayfası Caddy + NSSM arkasında alan adıyla TLS'te açılıyor; VM reboot'ta servis kendiliğinden kalkıyor; `\du` çıktısında yalnız `bakim_rolu` ve `klinik_yedek` BYPASSRLS taşıyor, `klinik_uygulama` sahip değil; uygulamanın ortamında `BAKIM_DATABASE_URL` yok (kanıt: servis env dökümü, değerler gizli).
 
 ### Aşama 2 — Şema taşıma (Supabase'siz düz Postgres)
-- 172 migration'dan Supabase'e özgü olanları ayıkla (`auth.*`, `storage.*`, `realtime`, `pg_net`, `pg_cron`, `supabase_*` roller/grantlar). Temiz bir `baseline` şema + gerekirse sonrası için Drizzle migration düzeni.
-- `auth.uid()` → `current_setting('app.user_id', true)::uuid`; `current_klinik_id()` / `current_hasta_id()` / `is_super_admin()` bu ayarlardan türer. `auth.role()` kontrolleri yeniden tasarlanır.
-- Politikalar ve `SECURITY DEFINER` fonksiyonlar (`SET search_path` dahil) yeni rollere göre yeniden grant'lenir; `audit_log` partition tuzağı (partition başına RLS + grant) korunur.
-- **Bitti kriteri**: temiz bir Postgres'te baseline şema hatasız kurulur; RLS izolasyon testi (iki klinik, rol başına `SET LOCAL` simülasyonu, ROLLBACK) CLAUDE.md "Süreç" yöntemiyle geçer: başka klinik satırı görünmez/yazılamaz, `klinik_uygulama` ile `app.tenant_id` verilmezse 0 satır döner.
+- 172 migration'dan baseline: `auth.*`, `storage.*`, `supabase_realtime`, Supabase rolleri çıkar; kalıntıları (`_gecici_rol_probe`, `current_musteri_id`, PIN RPC'leri) alma. `auth.uid()` → `current_setting('app.user_id', true)::uuid`; `current_klinik_id()` / `current_hasta_id()` / `is_super_admin()` bu ayarlardan türer. `auth.users` FK'ları Better Auth `user` tablosuna.
+- **FORCE ROW LEVEL SECURITY tüm tenant tablolarında**; tenant olmayan tablolar listelenip gerekçeli istisna. Anonim ve cron yolları için Risk 3'teki tasarım uygulanır. Fonksiyon/tablo sahipliği `klinik_sahip`; `bakim_rolu` migration'ı çalıştırır.
+- `audit_log` partition tuzağı (partition başına RLS+grant) korunur.
+- **Oturum tablosu** (Better Auth `session`) şu kolonlarla tasarlanır: oturum id, `kullanici_id`, **`cihaz_kimligi`** (tarayıcıda httpOnly cookie ile üretilen rastgele kimlik), ilk/son etkinlik zamanı, bitiş, IP (hash) ve user-agent; `(kullanici_id, son_etkinlik)` indeksi. Tek oturum kilidi şimdi YAZILMAZ; ileride "aynı kullanıcıda başka `cihaz_kimligi`'ne ait oturumu sonlandır" mantığı bu tablodan, şema değişikliği olmadan eklenebilir olmalı. Eski `oturum_kilidi` tablosu/RPC'si baseline'a alınmaz.
+- **Bitti kriteri**: temiz Postgres'te baseline hatasız kurulur; `relforcerowsecurity` tüm tenant tablolarında true (sorguyla kanıt); iki klinik × her rol için `SET LOCAL` simülasyonu (ROLLBACK) geçer: başka klinik satırı görünmez/yazılamaz, bağlam yokken 0 satır döner, `klinik_uygulama` DEFINER fonksiyonlar dışında RLS'i atlayamaz; anonim akışların beklenen dar yazma/okuma sınırı doğrulanır (anon'a SELECT yok kuralı korunur).
 
 ### Aşama 3 — Veri erişim katmanı (Drizzle + pg)
-- `lib/db/`: havuz, `withTenant(tenantId, userId, fn)` (BEGIN + `SET LOCAL` + COMMIT), Drizzle şeması (introspect ile başla).
-- `lib/supabase/*` yerine yeni istemci; sorgular modül modül taşınır (her PR bir modül: hasta, randevu, finans, personel, mesaj, vb.). PostgREST embed / `max_rows` / `parcalara()` / `tumSayfalariOku` tuzakları yerine açık JOIN ve sayfalama.
-- 50 RPC çağrısı doğrudan `SELECT fn(...)`/`db.execute` olur; çok-tablolu işlemler RPC'de kalır (kural değişmez).
-- **Bitti kriteri**: `grep -r "@supabase\|lib/supabase" app lib components` boş; DB'ye `withTenant` dışında erişim yok (lint kuralı veya test); mevcut vitest + entegrasyon betikleri yeni katmanda geçer; kritik akışlar (randevu → check-in → seans bedeli → ödeme, hasta CRUD, kasa/banka bakiyesi) eski ve yeni sistemde aynı rakamı verir.
+- `lib/db/`: havuz, `withTenant`, Drizzle şeması; modül modül sorgu taşıma. Embed → JOIN; `tumSayfalariOku`/`parcalara()` kalkar. 50 RPC → `select fn(...)`. 22 service-role kullanımı tek tek: anon akış / cron / kullanıcı yönetimi / kaldırılacak.
+- **Chatbot kapatma**: `DESTEK_CHATBOT_ACIK` (varsayılan kapalı) bayrağı; kapalıyken menü öğesi gizli, `/panel/destek/chatbot` sayfası ve `/api/destek-chatbot` 404/403 döner, LLM çağrısı hiç yapılmaz. `ai` paketi/AI Gateway çağrısı bayrak arkasında kalır, taşıma kapsamında başka iş yapılmaz.
+- **Bitti kriteri**: `grep -r "@supabase\|lib/supabase" app lib components` boş; `withTenant` dışı DB erişimi yok (lint kuralı/test); mevcut vitest + entegrasyon betikleri geçer; kritik akışlar (randevu → check-in → seans bedeli → ödeme, hasta CRUD, kasa/banka bakiyesi) eski/yeni sistemde aynı rakam; bayrak kapalıyken chatbot rotaları erişilemez (kanıt: istek) ve ağ çağrısı yapılmaz.
 
 ### Aşama 4 — Auth (Better Auth)
-- Better Auth credentials + argon2, oturumlar DB'de; rol/tenant her istekte DB'den. `proxy.ts` oturum yenilemesi yeniden yazılır; `eylemYetkisiGetir`, `sayfaYetkisiIste`, `gecerli-kullanici.ts`, `gecerli-hasta.ts` yeni oturuma bağlanır.
-- Personel, hasta portalı, QR puantaj girişi (`/giris?donus=`), geçici portal şifresi, işten çıkışta hesabı kapatma (Supabase ban yerine oturum iptali + giriş engeli), giriş hız sınırı, tek oturum kilidi kararı.
-- Mevcut kullanıcı göçü stratejisi (bcrypt doğrulama + argon2 yükseltme **ya da** toplu sıfırlama) kullanıcıyla netleştirilir.
-- **Bitti kriteri**: 5 rolün (super_admin, klinik_admin, resepsiyon, terapist, muhasebe) ve portal hastasının giriş/çıkışı gerçek tarayıcıda denendi; yetkisiz rol sayfa ve action'da reddediliyor; işten çıkarılan kullanıcı yeni oturum açamıyor ve açık oturumu düşüyor; anon QR akışları (ön kayıt, anket) kimliksiz çalışıyor ve anon rolüne SELECT hâlâ kapalı.
+- Better Auth credentials + argon2, oturumlar DB'de (Aşama 2 tablosu); rol/tenant her istekte DB'den. `proxy.ts`, `eylemYetkisiGetir`, `sayfaYetkisiIste`, `gecerli-kullanici.ts`, `gecerli-hasta.ts` yeni oturuma bağlanır. **Giriş akışı tek bir yardımcıda, `cihaz_kimligi` üretimi ve oturuma yazılması dahil.**
+- Personel, hasta portalı, QR puantaj girişi (`/giris?donus=`), geçici portal şifresi, işten çıkışta hesabı kapatma (ban yerine giriş engeli + oturum iptali), giriş hız sınırı.
+- **Parola göçü: toplu sıfırlama.** Kullanıcılar için ilk giriş şifre belirleme akışı (tek kullanımlık bağlantı/geçici şifre — e-posta kuralına uygun, veri içermez); **eski bcrypt hash'i okuyan/yükselten hiçbir kod yazılmaz**. Test/pilot hesaplar sıfırdan oluşturulur; Supabase `auth.users`'tan hiçbir hash aktarılmaz.
+- **Bitti kriteri**: 5 rol + portal hastası gerçek tarayıcıda giriş/çıkış; yetkisiz rol sayfa ve action'da reddediliyor; işten çıkarılan kullanıcı giriş yapamıyor ve açık oturumu düşüyor; anon QR akışları kimliksiz çalışıyor; sıfırlama akışı denendi; kod tabanında bcrypt/Supabase hash okuma yok (`grep`); `session` tablosunda `cihaz_kimligi` doluyor.
 
-### Aşama 5 — Dosyalar (Storage yerine dosya sistemi)
-- Web kökü dışında klasör (`DOSYA_KOKU` env); yol düzeni mevcut ile aynı (`{klinik_id}/{hasta_id}/{kategori}/{belge_id}.{ext}`). Yalnız yetkili route servis eder (RLS'li sorguyla belge kaydı doğrulanır, `hasta_belge_goruntule` kaydı korunur). Yol gezinme (`..`) ve MIME doğrulaması.
-- 6 yükleme noktası + logo servisi taşınır; mevcut dosyalar Supabase'ten indirilip aynı yapıya kopyalanır.
-- **Bitti kriteri**: başka kliniğin / yetkisiz rolün belge URL'si 403/404; terapist yükler+görür+silemez kuralı korunmuş; yol gezinme denemesi reddediliyor; taşınan dosya sayısı ve toplam boyut kaynakla birebir (sayım + hash örneklemi).
+### Aşama 5 — Dosyalar
+- `DOSYA_KOKU` (web kökü dışı), yol düzeni `{klinik_id}/{hasta_id}/{kategori}/{belge_id}.{ext}`; yalnız yetkili route servis eder (`hasta_belge_goruntule` kaydı korunur); yol gezinme ve MIME doğrulaması. 3 bucket: `hasta-belge`, `personel-belge`, `klinik-logo` (şu an public → logo için ayrı, bilinçli karar). Mevcut dosyalar Supabase'ten kopyalanır.
+- **Bitti kriteri**: başka klinik/yetkisiz rol 403/404; terapist yükler+görür+silemez; yol gezinme reddedilir; taşınan dosya sayısı/boyutu kaynakla eşit (hash örneklemi).
 
 ### Aşama 6 — Realtime (SSE + LISTEN/NOTIFY)
-- `randevu` (ve tablet için gerekenler) üzerinde NOTIFY tetikleyicisi (yük: yalnız `klinik_id`, tablo, id, durum); tek bir sunucu dinleyicisi + klinik bazlı SSE endpoint'i, her olayda istemci yetkili sorguyla veriyi çeker.
-- 3 tüketici (`tablet-ekrani`, `canli-cizelge`, `randevu-bildirimleri`) taşınır; çevrimdışı rozeti, yeniden bağlanınca tazeleme ve 5 dk güvenlik yenilemesi korunur. Caddy'de SSE için buffering kapalı, boşta bağlantı zaman aşımı yok.
-- **Bitti kriteri**: iki tarayıcıyla check-in tablete ve çizelgeye ≤ birkaç sn'de yansıyor; başka kliniğin olayı gelmiyor; sunucu yeniden başlatılınca istemci kendiliğinden bağlanıp tazeleniyor; 30+ dk açık tablette bağlantı kopmuyor.
+- `randevu` NOTIFY tetikleyicisi (yük: klinik_id, id, durum), tek dinleyici + klinik bazlı SSE, istemci yetkili sorguyla çeker; 3 tüketici taşınır; çevrimdışı rozeti/yeniden bağlanma tazelemesi/5 dk yenileme korunur; Caddy'de buffering kapalı.
+- **Bitti kriteri**: iki tarayıcıyla check-in tablete ve çizelgeye birkaç sn içinde yansır; başka klinik olayı gelmez; sunucu yeniden başlayınca istemci kendiliğinden bağlanır; 30+ dk açık tablette kopma yok.
 
 ### Aşama 7 — Cron, PDF, mesajlaşma, dış çağrılar
-- Task Scheduler: 5 `/api/cron/*` route'u gizli başlıkla (`CRON_SECRET`), `lib/cron-yetki.ts` korunur; saatler UTC mi İstanbul mu net yazılır (mevcut: UTC). `mesaj-kuyruk-isle` 5 dk'da bir, `audit-log-bolum-olustur` pencere kontrolü.
-- PDF: `@sparticuz/chromium` kaldırılır, `puppeteer-core` + `CHROMIUM_PATH`; `vercel.json` / `outputFileTracingIncludes` kalıntıları temizlenir.
-- KVKK: destek chatbotuna giden içerik maskelenir ya da LLM bağlantısı kapatılır (karar gerekir); mesaj merkezi çağrılarında hangi kişisel verinin çıktığı listelenir; e-posta için yurt dışı servis kullanılmayacaksa alternatif (kendi SMTP) kararı.
-- **Bitti kriteri**: her cron elle ve zamanlanmış çalıştırıldı, yetkisiz çağrı (başlıksız) 401; 2 PDF formu hedef sunucuda üretildi ve gözle doğrulandı; chatbot/e-posta/mesaj giden isteklerinde ham kişisel veri bulunmadığı örnek istek kaydıyla gösterildi.
+- Task Scheduler: 5 `/api/cron/*` route'u gizli başlıkla (`CRON_SECRET`), zamanlar UTC→İstanbul çevrilerek yazılır; çok-klinikli işler `withTenant` döngüsüyle (Risk 3); DB bakımı (`audit-log-bolum-olustur`, partition) `bakim_rolu` betiğiyle. `mesaj-kuyruk-isle` 5 dk.
+- PDF: 3 route (`@sparticuz/chromium` kalkar) → `puppeteer-core` + `CHROMIUM_PATH`; `vercel.json`/`outputFileTracingIncludes` kalıntıları temizlenir; Lambda/Vercel ortam algılaması kalkar.
+- **E-posta kuralı**: `docs/kvkk-aktarim.md` önerisi uygulanır — e-posta kanalı için ayrı değişken beyaz listesi (`klinik_adi`, `baglanti`), veri içermeyen sabit konu, ek yok, kaydederken ve göndermeden önce doğrulama, bağlantı üreten imzalı/kısa ömürlü token mekanizması.
+- Chatbot: kapalı kalır (Aşama 3 bayrağı); bu aşamada iş yok.
+- **Bitti kriteri**: her cron elle ve zamanlanmış çalıştırıldı, başlıksız çağrı 401; 3 PDF hedef sunucuda üretilip gözle doğrulandı; kuyruğa giren e-posta metinlerinde ad/tarih/tutar/paket/izin türü yok (28 tetikleyici × test: e-posta kanalında yasak değişkenle kayıt reddediliyor ve eski serbest metinli kural gönderimde engelleniyor); chatbot/LLM'e giden istek yok.
 
 ### Aşama 8 — Güvenlik, KVKK, yedek, izleme
-- Yedek: günlük `pg_dump` + WAL (mümkünse), **şifreli** (örn. `age`/7-Zip AES), sunucu dışı konuma; saklama süresi hukukla netleşir. Geri yükleme tatbikatı.
-- Erişim logu: hasta verisi okuma izleri (`hasta_belge_goruntule` genişletmesi veya uygulama logu); log dosyalarında kişisel veri yok; log döndürme.
-- Sertleştirme: RDP/yönetim erişimi yalnız dışarı-bağlantılı (pull) modelle uyumlu şekilde, gelen yönetim portu açık değil; Windows Defender/güvenlik duvarı; ortam değişkenleri yalnız servis hesabına okunur; Cloudflare proxy + origin'e yalnız Cloudflare IP'leri.
-- Servis izleme: NSSM çıktı/log, disk/Postgres doluluk uyarısı, uptime kontrolü.
-- **Bitti kriteri**: şifreli yedekten boş sunucuya geri yükleme yapıldı ve rakamlar (kasa/banka bakiyesi, hasta sayısı) kaynakla tutuyor; yedek dosyası anahtarsız açılamıyor; dışarıdan yalnız 80/443 açık (port taraması); gizli değer repo ve loglarda yok (`grep` + gizli tarayıcı).
+- Yedek: `docs/sunucu-kurulum.md` tasarımı (age ortak anahtarı sunucuda, özel anahtar dışarıda; günlük 30 gün + aylık 12 ay, parametre; sunucu dışı kopya). Erişim logu (kim hangi hasta verisine baktı; log dosyalarında kişisel veri yok; döndürme). Sertleştirme: gelen yönetim portu yok, ortam değişkenleri yalnız servis hesabına, Cloudflare IP'lerine origin kısıtı. İzleme: servis, disk/Postgres doluluğu, uptime.
+- **Bitti kriteri**: sunucu kurulum dokümanındaki **geri yükleme testi** boş makinede yapıldı, rakamlar kaynakla tutuyor ve kayıt tutuldu; sunucuda özel anahtar yok (dosya/env/kayıt taraması) ve yedek anahtarsız açılamıyor; saklama parametreleri değiştirilince temizlik davranışı değişiyor (iki değerle denendi); dışarıdan yalnız 80/443 açık (port taraması); gizli değer repo ve loglarda yok.
 
 ### Aşama 9 — Deploy hattı (pull tabanlı)
-- Sunucuda Task Scheduler/servis: Git'ten belirli etiket/dal çeker (salt-okunur deploy anahtarı veya token — dosyada yok), `npm ci` + `next build`, NSSM servisini yeniden başlatır; başarısızsa önceki sürüme döner. Migration adımı ayrı ve onaylı.
-- **Bitti kriteri**: etiket atılınca sunucu kendisi çekip yayınlıyor; bilerek bozuk bir sürümde otomatik geri dönüş çalıştı; sunucuya gelen yönetim bağlantısı olmadan tüm akış tamamlandı.
+- Sunucu etiket/dalı kendisi çeker (salt-okunur deploy anahtarı — dosyada yok), `npm ci` + `next build`, NSSM yeniden başlatma, başarısızlıkta önceki sürüme dönüş. Migration adımı ayrı, `bakim_rolu` ile, onaylı.
+- **Bitti kriteri**: etiket atılınca sunucu kendisi yayınlıyor; bilerek bozuk sürümde otomatik geri dönüş çalıştı; sunucuya gelen yönetim bağlantısı olmadan tüm akış tamamlandı.
 
 ### Aşama 10 — Veri göçü ve geçiş
-- Kesinti penceresi: Supabase'te yazma kapat → dump → Postgres'e yükle → doğrulama sayıları (tablo bazında satır sayısı, finans toplamları, bakiye view'ları, dosya sayısı) → DNS geçişi (Cloudflare) → kısa süre eski sistem salt-okunur açık.
-- Önce prova geçişi (staging veri kopyasıyla), sonra gerçek geçiş. Geri dönüş: DNS'i eski Vercel'e geri çevirme + o sırada yazılanları elle aktarma planı.
-- **Bitti kriteri**: provada tüm doğrulama sayıları eşit; gerçek geçişte kullanıcı kabul testi (resepsiyon, terapist, tablet, portal) geçti; 1-2 hafta sorunsuz çalışma sonrası Supabase/Vercel projeleri kapatılır ve dal `main`'e birleştirilir (birleştirme kullanıcı onayıyla).
+- Kesinti penceresi: Supabase'te yazma kapat → dump → yükle → doğrulama (satır sayıları, finans toplamları, bakiye view'ları, dosya sayısı, **canlı katalog ↔ envanter farkı kapalı**) → kullanıcılara şifre belirleme bağlantıları → DNS geçişi. Önce prova (staging kopyası). Geri dönüş: DNS'i eski Vercel'e çevirme + aradaki yazmaları elle aktarma planı.
+- **Bitti kriteri**: provada tüm doğrulama sayıları eşit; gerçek geçişte kullanıcı kabul testi (resepsiyon, terapist, tablet, portal) geçti; 1–2 hafta sorunsuz çalışma sonrası Supabase/Vercel kapatılır; dal `main`'e birleştirme **kullanıcı onayıyla**.
 
-## Açık kararlar (kullanıcıdan gerekli)
-- Mevcut kullanıcı parolaları: bcrypt doğrulama + argon2 yükseltme mi, toplu sıfırlama mı?
-- Destek chatbotu: LLM'e giden veri maskelenecek mi, yoksa özellik kapatılacak mı? E-posta gönderimi nasıl (kendi SMTP?)?
-- Tek oturum kilidi taşınacak mı (henüz canlıda aktif değil)?
-- Yedek saklama süresi ve şifreleme anahtarının tutulduğu yer (hukuk onayı).
-- `FORCE ROW LEVEL SECURITY` kullanılsın mı (öneri: evet).
+## Açık kararlar (kalan)
+- **Cron + `bakim_rolu` sınırı** (Risk 3): çok-klinikli HTTP cron'ların klinik listesini nasıl alacağı. Öneri: yalnız `klinik.id` döndüren, tek amaçlı DEFINER fonksiyon (sahibi `BYPASSRLS`'li); bu, "uygulama bağlantısı bakim_rolu'nü asla kullanmaz" kararıyla çelişmez (bağlantı hep `klinik_uygulama`) ama sahiplik açısından ince bir istisnadır — onay gerekir. Alternatifi: bu işleri HTTP'den çıkarıp `bakim_rolu` betiklerine taşımak (ama o zaman iş mantığı Node route'larından ayrışır, test ve bakım yükü artar).
+- `klinik-logo` bucket'ı şu an public; hedefte public servis mi, imzalı mı?
+- Yedeğin sunucu dışı kopya hedefi (Türkiye içi) ve özel anahtar saklama sorumluları.
+- Cloudflare proxy'nin açık olup olmayacağı (KVKK açısından içerik Cloudflare'den geçer).
+- SMS/WhatsApp (merkez) aktarımının KVKK değerlendirmesi (bu kararın kapsamı dışında bırakıldı).
