@@ -152,6 +152,23 @@ Vitest + RTL (unit), Supabase (integration), Playwright (e2e — randevu → che
 
 Son güncelleme: 2026-10-26 (küçültüldü; önceki tam hâl `docs/CLAUDE-ARSIV-2026-10-26.md`)
 
+## Hedef Altyapı ve Taşıma Kararları
+Dal: `tasima/windows-postgres` (main'e dokunulmaz). Plan ve aşama kriterleri: `docs/tasima-plani.md`. Yukarıdaki Vercel/Supabase anlatımı taşıma bitene kadar GEÇERLİ mevcut durumdur.
+
+- **Hedef**: Vodafone Cloud'da tek Windows Server VM. Vercel ve Supabase kullanılmayacak (maliyet + KVKK). Linux, Docker ve WSL yok.
+- **Çalışma zamanı**: Node.js LTS, uygulama NSSM ile Windows servisi, önünde Caddy (TLS, alan adı yönlendirme). Cloudflare DNS/proxy önde.
+- **Veritabanı**: PostgreSQL (aynı sunucu), düz Postgres. `supabase-js`, `@supabase/ssr` ve `auth` şeması kaldırılacak.
+- **Veri erişimi**: Drizzle ORM + `pg`.
+- **Tenant izolasyonu**: Postgres RLS korunacak. Uygulama her işlemde `SET LOCAL app.tenant_id` ve `app.user_id` verir. Uygulama kullanıcısı `BYPASSRLS` yetkisi olmayan ayrı bir rol olacak.
+- **Auth**: Better Auth (credentials), argon2 hash, oturumlar veritabanında. Rol ve tenant bilgisi veritabanından okunur.
+- **Dosyalar**: web kökü dışındaki bir klasör, yalnızca yetkili route üzerinden servis edilir.
+- **Realtime** (tablet oda gösterimi): SSE + Postgres LISTEN/NOTIFY.
+- **Cron**: Windows Task Scheduler, ilgili `/api/cron/*` adreslerini gizli başlıkla çağırır.
+- **PDF**: sistem Chrome/Edge, yolu `CHROMIUM_PATH` ortam değişkeninden.
+- **Deploy**: pull tabanlı (sunucudan dışarı bağlanır), sunucuya gelen yönetim bağlantısı yok.
+- **KVKK**: kişisel veri yurt dışı servislere (e-posta, LLM) gönderilmeyecek ya da maskelenecek; erişim logu tutulacak; yedekler şifreli.
+- **Gizli değerler** hiçbir dosyaya yazılmaz, sadece değişken adları belgelenir.
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
