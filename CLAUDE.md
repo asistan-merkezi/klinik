@@ -153,7 +153,7 @@ Vitest + RTL (unit), Supabase (integration), Playwright (e2e — randevu → che
 Son güncelleme: 2026-10-26 (küçültüldü; önceki tam hâl `docs/CLAUDE-ARSIV-2026-10-26.md`)
 
 ## Hedef Altyapı ve Taşıma Kararları
-Dal: `tasima/windows-postgres` (main'e dokunulmaz). Plan ve aşama kriterleri: `docs/tasima-plani.md` · envanter: `docs/supabase-envanter.md` · KVKK aktarım/e-posta taraması: `docs/kvkk-aktarim.md` · sunucu/yedek: `docs/sunucu-kurulum.md`. Yukarıdaki Vercel/Supabase anlatımı taşıma bitene kadar GEÇERLİ mevcut durumdur.
+Dal: `tasima/windows-postgres` (main'e dokunulmaz). Plan ve aşama kriterleri: `docs/tasima-plani.md` · envanter: `docs/supabase-envanter.md` · KVKK aktarım/e-posta taraması: `docs/kvkk-aktarim.md` · sunucu/yedek: `docs/sunucu-kurulum.md` · service role sınıflaması: `docs/service-role-siniflama.md` · şema eşleme: `docs/sema-esleme.md`. Yukarıdaki Vercel/Supabase anlatımı taşıma bitene kadar GEÇERLİ mevcut durumdur.
 
 - **Hedef**: Vodafone Cloud'da tek Windows Server VM. Vercel ve Supabase kullanılmayacak (maliyet + KVKK). Linux, Docker ve WSL yok.
 - **Çalışma zamanı**: Node.js LTS, uygulama NSSM ile Windows servisi, önünde Caddy (TLS, alan adı yönlendirme). Cloudflare DNS/proxy önde.
@@ -161,12 +161,13 @@ Dal: `tasima/windows-postgres` (main'e dokunulmaz). Plan ve aşama kriterleri: `
 - **Veri erişimi**: Drizzle ORM + `pg`.
 - **Tenant izolasyonu**: Postgres RLS korunacak. Uygulama her işlemde `SET LOCAL app.tenant_id` ve `app.user_id` verir. Uygulama kullanıcısı `BYPASSRLS` yetkisi olmayan ayrı bir rol olacak.
 - **Auth**: Better Auth (credentials), argon2 hash, oturumlar veritabanında. Rol ve tenant bilgisi veritabanından okunur.
-- **Dosyalar**: web kökü dışındaki bir klasör, yalnızca yetkili route üzerinden servis edilir.
+- **Dosyalar**: web kökü dışındaki bir klasör, yalnızca yetkili route üzerinden servis edilir. Bucket adı olarak kodun kullandığı `hasta-belge` esas (canlı veri yok, katalog doğrulaması gerekmiyor); `musteri-belge` ve klinik logosu da aynı disk depolamasında, hepsi yetkili route'tan servis edilir (public dosya yok).
 - **Realtime** (tablet oda gösterimi): SSE + Postgres LISTEN/NOTIFY.
-- **Cron**: Windows Task Scheduler, ilgili `/api/cron/*` adreslerini gizli başlıkla çağırır.
+- **Cron / arka plan işleri**: HTTP route DEĞİL. `scripts/` altında Node betikleri, Windows Task Scheduler çağırır; `bakim_rolu` ile bağlanır (yalnız `klinik` üzerinde SELECT + bakım fonksiyonlarına EXECUTE), klinik başına iş `withTenant` ile. `/api/cron/*` route'ları ve `CRON_SECRET` kaldırılacak. Hiçbir BYPASSRLS'li fonksiyon yazılmaz.
+- **Cloudflare**: klinik alan adı için **proxy KAPALI (yalnız DNS)**. KVKK notu: proxy açık olursa TLS Cloudflare'de sonlanır, sağlık verisi yurt dışında çözülmüş hâlde geçer.
 - **PDF**: sistem Chrome/Edge, yolu `CHROMIUM_PATH` ortam değişkeninden.
 - **Deploy**: pull tabanlı (sunucudan dışarı bağlanır), sunucuya gelen yönetim bağlantısı yok.
-- **KVKK**: kişisel veri yurt dışı servislere (e-posta, LLM) gönderilmeyecek ya da maskelenecek; erişim logu tutulacak; yedekler şifreli.
+- **KVKK**: kişisel veri yurt dışı servislere (e-posta, LLM) gönderilmeyecek ya da maskelenecek; **SMS/WhatsApp/e-posta mesaj içeriğinde kişisel/sağlık verisi olmayacak** (aynı kural, bkz. `docs/kvkk-aktarim.md`); erişim logu tutulacak; yedekler şifreli; yedeğin dış kopyası önce Türkiye içinde, yurt dışı şifreli depolama hukuk onayına bağlı.
 - **Gizli değerler** hiçbir dosyaya yazılmaz, sadece değişken adları belgelenir.
 
 # This is NOT the Next.js you know

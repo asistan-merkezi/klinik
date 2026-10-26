@@ -29,11 +29,13 @@ Tarih: 2026-10-26 · Dal: `tasima/windows-postgres` · Kaynak: kod (`grep`) + `s
 | `ENABLE ROW LEVEL SECURITY` | **99** ifade; **`FORCE` = 0** | — | Hedef: tüm tenant tablolarında FORCE |
 | Extension | `btree_gist`, `pg_trgm`, `pgcrypto` (ikisi 2'şer migration'da) | — | `pgcrypto`: CLAUDE.md "YOK" diyor ama extension kurulu ve RPC'ler `search_path = public, extensions` kullanıyor. Hedefte her üçü kurulacak; `gen_random_uuid` Postgres çekirdeğinde |
 | `pg_cron` / `pg_net` | **Kullanılmıyor** (yalnız yorumlarda geçiyor) | — | Cron tamamen Vercel/HTTP tabanlı |
-| Cron route | **5**; `vercel.json`'da kayıtlı **yalnız 3** | 5 | `mesaj-kuyruk-isle` ve `kredi-senkron` bilinçli kayıtsız (merkez zamanlayıcı çağırıyor). Hedefte ikisi de Task Scheduler'a girer |
+| Cron route | **5**; `vercel.json`'da kayıtlı **yalnız 3** | 5 | `mesaj-kuyruk-isle` ve `kredi-senkron` bilinçli kayıtsız (merkez zamanlayıcı çağırıyor). Hedefte 5'i de `scripts/` altında Node betiği, Task Scheduler çağırır; `/api/cron/*` ve `CRON_SECRET` kalkar |
 | PDF route | **3** (`hasta-kayit-formu`, `is-basvuru-formu`, `hasta-cari-hareketler`) | 2 form | **Plan "2 PDF formu" diyordu; kodda 3 PDF route var** (üçüncü cari hareketler). `vercel.json > functions` + `outputFileTracingIncludes` üçü için tanımlı |
 | Diğer API route | `destek-chatbot`, `hasta-arama`, `hasta-belge/foto-yukle`, `oturum-cikis` | — | |
 | Sayfa / server action | **74** `page.tsx`; **48** `"use server"` dosyası (47 `actions.ts`/`*-actions.ts`) | — | |
 | Mesaj tetikleyicisi (`lib/mesaj/tetikleyiciler.ts`) | **28** | **27** (CLAUDE.md) | CLAUDE.md düzeltildi (28) |
+
+\* **Karar (2026-10-26)**: canlı veri olmadığından katalog doğrulaması gerekmiyor; kodun kullandığı `hasta-belge` adı esas alınır. Aşağıdaki sapma notu yalnız geçmiş kaydıdır.
 
 \* **Sapma (migration'sız değişiklik)**: hiçbir migration `hasta-belge` bucket'ını açmıyor; migration'lar yalnız `musteri-belge` (+ onun `storage.objects` politikaları, `20260729100000`) tanımlıyor, kod ise `hasta-belge` kullanıyor. CLAUDE.md belge akışının çalıştığını söylediği için bucket ve politikaların Supabase panelinden/elle yeniden adlandırıldığı varsayılıyor. Aşama 10'dan önce canlı `storage.buckets` ve `pg_policies` dökümüyle doğrulanmalı; baseline `hasta-belge` yolunu esas alır.
 
@@ -45,7 +47,7 @@ Tarih: 2026-10-26 · Dal: `tasima/windows-postgres` · Kaynak: kod (`grep`) + `s
 | `SUPABASE_SERVICE_ROLE_KEY` | `lib/supabase/admin.ts` | **Kalkar** |
 | `SUPABASE_DB_PASSWORD` | yalnız yerel `.env.local` (bakım/psql) | Kalkar; yerine `DATABASE_URL` (uygulama rolü) ve bakım için ayrı `BAKIM_DATABASE_URL` (yalnız Task Scheduler betikleri) |
 | `MESAJ_MERKEZ_BASE_URL`, `MESAJ_MERKEZ_API_KEY` | `lib/mesaj/merkez-client.ts` (henüz girilmedi) | Kalır |
-| `CRON_SECRET` | `lib/cron-yetki.ts` | Kalır (Task Scheduler gizli başlığı) |
+| `CRON_SECRET` | `lib/cron-yetki.ts` | **Kalkar** (HTTP cron route'ları kalkıyor; betikler `bakim.env` ile) |
 | `PUPPETEER_EXECUTABLE_PATH` | `lib/pdf/browser.ts` | **Yeniden adlandırılır → `CHROMIUM_PATH`** |
 | `VERCEL`, `AWS_LAMBDA_FUNCTION_NAME` | `lib/pdf/browser.ts` ortam algılaması (Lambda'da `@sparticuz/chromium`) | **Kalkar** (+ `@sparticuz/chromium` bağımlılığı) |
 | `ENTEGRASYON_ONAY`, `ANALYZE`, `NODE_ENV` | betik/geliştirme | Kalır |

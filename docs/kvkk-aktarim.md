@@ -5,6 +5,7 @@ Tarih: 2026-10-26 · Dal: `tasima/windows-postgres`. Bu belge hukuki görüş de
 ## Kural (taşıma kararı)
 
 1. Kişisel ve sağlık verisi yurt dışı servislere (e-posta, LLM) **gönderilmeyecek ya da maskelenecek**.
+1b. **SMS ve WhatsApp mesaj içeriğinde de** kişisel/sağlık verisi olmayacak (e-posta kuralıyla aynı): yalnız `klinik_adi` ve bağlantı. Alıcı telefon numarası gönderim için kaçınılmaz olarak operatöre/Meta'ya gider; ayrı not edilir. (WhatsApp, Meta altyapısı olduğu için yurt dışı aktarımı ayrıca hukuk değerlendirmesi ister.)
 2. **E-posta** (Resend, EU): şablonlarda kişisel/sağlık verisi **bulunmayacak**; yalnız bağlantı odaklı metin ("Bildiriminiz hazır, görüntülemek için giriş yapın: {{baglanti}}"). Alıcı adresi gönderim için kaçınılmaz olarak servise gider; bu ayrıca not edilir ve veri işleme sözleşmesi/aydınlatma metninde yer almalıdır.
 3. **Destek chatbotu** taşıma boyunca kapalı; sonra açılırsa kişisel/sağlık verisi LLM'e hiç gitmeyecek.
 
@@ -13,10 +14,14 @@ Tarih: 2026-10-26 · Dal: `tasima/windows-postgres`. Bu belge hukuki görüş de
 | Nokta | Kod | Giden veri | Durum |
 |---|---|---|---|
 | E-posta (merkez → Resend EU) | `lib/mesaj/merkez-client.ts` (`mail → eposta`), şablonlar `lib/mesaj/tetikleyiciler.ts` + `mesaj_kurallari.mesaj_metni` | Şablon metni (ad, tarih, tutar, paket…) + alıcı adresi | **İhlal var** (aşağıda). Repoda doğrudan Resend çağrısı yok; Resend'e gidişi merkez projesi yapıyor — orada konu/ek/log politikası ayrıca doğrulanmalı |
-| SMS / WhatsApp (merkez) | aynı | Aynı şablon metinleri + telefon | Bu karar kapsamında DEĞİL (yalnız e-posta ve LLM istendi); WhatsApp (Meta) ayrıca hukuk değerlendirmesi ister |
+| SMS / WhatsApp (merkez) | aynı | Aynı 28 şablon metni + telefon | **İhlal var**: e-postayla aynı kural uygulanır (aşağıda "Mesaj şablonları — tüm kanallar") |
 | LLM (destek chatbotu) | `app/api/destek-chatbot/route.ts` (AI Gateway, `anthropic/claude-sonnet-5`) | Kullanıcının sohbet mesajları (serbest metin, kişisel/sağlık verisi yazılabilir) | **Kapalı olacak** (feature flag, plan Aşama 3). İstemci tarafı filtre yok |
 | Mesaj merkezi API | `lib/mesaj/merkez-client.ts` | `disKullaniciId = klinik_id`, alıcı, metin | Ayrı proje; konum/sözleşme teyit edilmedi |
 | Cloudflare (DNS/proxy) | — | Trafik üzerinden geçer (TLS sonlandırma Cloudflare'de olacaksa içerik de) | Karar: proxy açık mı (Full strict) — hukukla netleşmeli |
+
+## Mesaj şablonları — tüm kanallar (e-posta, SMS, WhatsApp)
+
+Tetikleyici kataloğu kanaldan bağımsızdır: aynı `varsayilanMesajMetni` ve `mesaj_kurallari.mesaj_metni` üç kanalda da gönderilir (`anlikMesajTetikle` her açık kanal için ayrı kuyruk satırı yazar). Bu nedenle **aşağıdaki 28 şablon taramasının sonucu SMS ve WhatsApp için de geçerlidir: 28/28 ihlal**. Kanala özgü ek notlar: SMS kısa olduğundan bağlantı odaklı metin zaten doğaldır; WhatsApp'ta şablon (template) onayı gereken metinlerde değişken olarak ad geçmesi aynı ihlaldir; hatırlatma mesajlarında (`randevu_hatirlatma_*`) tarih/saat bilgisi hastaya en çok fayda sağlayan veri olduğundan kuralın hasta deneyimine etkisi için ürün kararı gerekir (kural: veri yok, yalnız bağlantı). Uygulama: aşağıdaki "Önerilen uyum yolu" tüm kanallara genişletilir — kanal başına değişken beyaz listesi `klinik_adi` ve `baglanti`.
 
 ## E-posta şablonları taraması
 

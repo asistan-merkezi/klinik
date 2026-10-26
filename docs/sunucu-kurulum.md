@@ -7,19 +7,63 @@ Node.js LTS · PostgreSQL (aynı VM, yalnız `localhost`) · NSSM (uygulama serv
 
 ## 2. Veritabanı rolleri
 
-| Rol | Giriş | Yetki | Kullanan |
+| Rol | Giriş | RLS | Yetki | Kullanan |
+|---|---|---|---|---|
+| `klinik_sahip` | hayır (`NOLOGIN`) | tabi (FORCE) | Tablo/fonksiyon sahibi; DDL | Migration bu rolle sahiplik atar (`scripts/db-kur.ps1`) |
+| `klinik_uygulama` | evet | **tabi** | Yalnız gerekli `SELECT/INSERT/UPDATE/DELETE` ve `EXECUTE` | Uygulama (yalnız `DATABASE_URL`) |
+| `klinik_anonim` | hayır (uygulama giriş öncesi akışlarda `SET LOCAL ROLE`) | **tabi** | Yalnız anonim akışların dar politikaları/fonksiyonları | QR, portal/personel giriş öncesi, iş başvurusu |
+| **`bakim_rolu`** | evet | **tabi (BYPASSRLS DEĞİL)** | `klinik` üzerinde **yalnız SELECT**; bakım fonksiyonlarına EXECUTE; `klinik_uygulama` rolüne üyelik (`SET LOCAL ROLE klinik_uygulama` ile klinik başına iş `withTenant` altında yapılır) | **Yalnız** `scripts/` altındaki bakım betikleri (`BAKIM_DATABASE_URL`). Uygulama süreci bu bilgiyi hiç almaz |
+| `klinik_yedek` | evet | **BYPASSRLS** (tek istisna) | Salt-okunur (`pg_read_all_data`) | Yalnız `yedek.ps1`. FORCE RLS altında `pg_dump` BYPASSRLS'siz çalışamaz; süper kullanıcı yerine bu dar rol seçildi. **Onay bekliyor** (plan, açık kararlar) |
+
+Karar: bakim_rolu BYPASSRLS DEĞİL; bakım işi de RLS'ten geçer (klinik başına `app.tenant_id`). Böylece "sistem işi" bile başka kliniğin verisini bir transaction'da karıştıramaz. Sistem bağlamı RPC'lerde `session_user = 'bakim_rolu'` ile tanınır (bkz. `docs/service-role-siniflama.md`).
+
+**Tüm tenant tablolarında `ALTER TABLE … FORCE ROW LEVEL SECURITY`.** Hiçbir fonksiyonun sahibi RLS'i atlayan bir rol olmaz; fonksiyonlar `klinik_sahip` sahipliğindedir. Doğrulama: `db/kontrol/bypassrls-kontrol.sql` (`scripts/db-kur.ps1` içinde çalışır). Tenant olmayan tablolar `docs/sema-esleme.md`'de listelenir.
+
+## 3. Ortam değişkenleri ve gizli dosyalar (yalnız adlar)
+
+`CRON_SECRET` **yoktur** (HTTP cron kalktı). Windows hesapları ve dosyalar:
+
+| Windows hesabı | Ne çalıştırır | Okuyabildiği gizli dosya |
+|---|---|---|
+| `svc-klinik-uygulama` | NSSM servisi (Next.js) | `C:\klinik\gizli\uygulama.env` |
+| `svc-klinik-bakim` | Task Scheduler görevleri (`scripts/*.mjs`) | `C:\klinik\gizli\bakim.env` |
+| `svc-klinik-yedek` | `yedek.ps1` | `C:\klinik\gizli\yedek.env` |
+
+**`uygulama.env`**: `DATABASE_URL` (klinik_uygulama) · `BETTER_AUTH_SECRET` · `BETTER_AUTH_URL` · `DOSYA_KOKU` · `CHROMIUM_PATH` · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` · `DESTEK_CHATBOT_ACIK` (varsayılan kapalı).
+**`bakim.env`**: `BAKIM_DATABASE_URL` (bakim_rolu) · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` (kuyruk işçisi ve kredi senkronu için). **`DATABASE_URL` ve `BETTER_AUTH_SECRET` burada YOKTUR.**
+**`yedek.env`**: `YEDEK_DATABASE_URL` (klinik_yedek) · `YEDEK_HEDEF_KLASOR` · `YEDEK_ALICI_ANAHTARI` (age ortak anahtarı) · `YEDEK_GUNLUK_SAKLAMA_GUN` (30) · `YEDEK_AYLIK_SAKLAMA_AY` (12) · `YEDEK_DIS_KOPYA_HEDEFI`.
+
+### NTFS izinleri (tasarım — Aşama 1'de uygulanıp doğrulanacak)
+Miras kapatılır, yalnız ilgili hesap OKUR, çapraz hesaplara açık **Deny** yazılır:
+```
+icacls C:\klinik\gizli /inheritance:r
+icacls C:\klinik\gizli /grant:r "SYSTEM:(OI)(CI)F" "BUILTIN\Administrators:(OI)(CI)F"
+icacls C:\klinik\gizli\bakim.env    /grant:r "KLINIK\svc-klinik-bakim:R"
+icacls C:\klinik\gizli\bakim.env    /deny    "KLINIK\svc-klinik-uygulama:(R,RX)"
+icacls C:\klinik\gizli\uygulama.env /grant:r "KLINIK\svc-klinik-uygulama:R"
+icacls C:\klinik\gizli\uygulama.env /deny    "KLINIK\svc-klinik-bakim:(R,RX)"
+icacls C:\klinik\gizli\yedek.env    /grant:r "KLINIK\svc-klinik-yedek:R"
+```
+**Doğrulama (bitti kriteri)**: `svc-klinik-uygulama` hesabıyla (`runas`) `type C:\klinik\gizli\bakim.env` → "Erişim engellendi"; uygulama sürecinin ortamında `BAKIM_DATABASE_URL` görünmüyor. Yönetici hesabı dosyaları okuyabilir (sunucu yöneticisine güven varsayılır; Administrators grubunun üyeleri ayrıca belgelenir).
+Betikler `node --env-file=C:\klinik\gizli\bakim.env scripts\<is>.mjs` ile başlar ve env değerlerini loga yazmaz. Aynı Windows hesabının süreçleri birbirinin ortamını okuyabildiğinden ayrım **hesap** düzeyindedir (bu yüzden üç ayrı hesap).
+
+## 3b. Zamanlanmış işler (Task Scheduler)
+
+Sunucu saat dilimi **Turkey Standard Time** (UTC+3, yaz saati yok); görev saatleri doğrudan İstanbul saatidir. Görevler `svc-klinik-bakim` ile "oturum açılsa da açılmasa da" çalışır; hata olay günlüğüne veri içermeyen satır olarak yazılır.
+
+| Betik (`scripts/`) | Sıklık | Eski cron (UTC) → İstanbul | Not |
 |---|---|---|---|
-| `klinik_sahip` | hayır (`NOLOGIN`) | Tabloların/fonksiyonların sahibi | Migration'ın sahiplik atadığı rol |
-| `klinik_uygulama` | evet | `NOBYPASSRLS`, sahip DEĞİL; yalnız gerekli `SELECT/INSERT/UPDATE/DELETE`/`EXECUTE` | Uygulama (yalnız `DATABASE_URL`) |
-| `klinik_anonim` | hayır (uygulama `SET LOCAL ROLE` ile geçer — Aşama 2'de netleşir) | Yalnız anonim akışların dar politikaları | QR/portal giriş/başvuru formları |
-| **`bakim_rolu`** | evet | `BYPASSRLS` + migration/bakım yetkisi | **Yalnız** migration ve DB bakım betikleri (`BAKIM_DATABASE_URL`). Uygulama süreci bu bağlantı bilgisini ASLA almaz |
-| `klinik_yedek` | evet | `pg_dump` için salt-okunur (`pg_read_all_data`) + `BYPASSRLS` (dump'ın tüm satırı görmesi için) | Yalnız `yedek.ps1` |
+| `personel-donem-otomatik-kapat.mjs` | Ayın 1'i 06:00 | `0 3 1 * *` → 06:00 | Son 3 ay, idempotent, 8'li eşzamanlı |
+| `audit-log-bolum-olustur.mjs` | Ayın 1'i 05:00 | `0 2 1 * *` → 05:00 | Pencereyi 3 ay ileri taşır |
+| `resmi-tatil-guncelle.mjs` | Ayın 1'i 07:00 | `0 4 1 * *` → 07:00 | Global `resmi_tatil` + klinik önerileri |
+| `mesaj-kuyruk-isle.mjs` | 5 dk'da bir | (merkez zamanlayıcı) | Kuyruk + randevu hatırlatma taraması |
+| `kredi-senkron.mjs` | Saatlik | (merkez zamanlayıcı) | Merkez bakiyesi → yerel yansıma |
 
-**Tüm tenant tablolarında `ALTER TABLE … FORCE ROW LEVEL SECURITY`** (sahip dahil herkes RLS'e tabi). FORCE'ta RLS'i yalnız `BYPASSRLS` özniteliği atlar; bu yüzden `bakim_rolu` ve `klinik_yedek` bu öznitelikle tanımlanır, başka kimseye verilmez. Tenant tablosu olmayanlar (ör. `resmi_tatil`, `resmi_tatil_oneri`, `hiz_siniri_sayac`, `klinik`) tek tek listelenip istisna olarak gerekçelendirilir.
+Betikler bakim_rolu ile bağlanıp `klinik` listesini okur; her klinik için `BEGIN; SET LOCAL ROLE klinik_uygulama; SET LOCAL app.tenant_id …` (`withTenant`) ile işler. Çift çalışma: Task Scheduler "çalışan örnek varken yenisini başlatma" + işin kendi idempotency'si.
 
-## 3. Ortam değişkenleri (yalnız adlar)
-`DATABASE_URL` · `BAKIM_DATABASE_URL` (uygulamada tanımlı OLMAZ) · `BETTER_AUTH_SECRET` · `BETTER_AUTH_URL` · `CRON_SECRET` · `DOSYA_KOKU` · `CHROMIUM_PATH` · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` · `DESTEK_CHATBOT_ACIK` (varsayılan kapalı) · `YEDEK_HEDEF_KLASOR` · `YEDEK_ALICI_ANAHTARI` (age **ortak** anahtarı) · `YEDEK_GUNLUK_SAKLAMA_GUN` (varsayılan 30) · `YEDEK_AYLIK_SAKLAMA_AY` (varsayılan 12) · `YEDEK_DIS_KOPYA_HEDEFI`.
-Servis ortam değişkenleri yalnız servis hesabının okuyabildiği NSSM ayarında tutulur; repoya/loglara yazılmaz.
+## 3c. Cloudflare — KVKK notu
+
+Klinik alan adı için Cloudflare **proxy KAPALI (yalnız DNS, "gri bulut")**. Gerekçe: proxy açıkken TLS Cloudflare'de sonlanır ve sağlık verisi yurt dışındaki bir sistemde çözülmüş (düz metin) olarak geçer; KVKK açısından yurt dışı aktarım sayılabilir. Sonuçlar: TLS doğrudan Caddy'de sonlanır; Cloudflare'in DDoS/WAF koruması yoktur (güvenlik duvarı, Caddy hız sınırı ve Windows sertleştirmesi ile karşılanır); origin IP herkese açıktır; "origin'e yalnız Cloudflare IP'leri" kısıtı **uygulanmaz**.
 
 ## 4. Yedek tasarımı (`yedek.ps1`)
 
@@ -34,7 +78,7 @@ Betik akışı:
 4. SHA-256 özeti (`.sha256`) yazılır; dosya boyutu 0 ise hata.
 5. Dosya sistemi (`DOSYA_KOKU`) için ayrı arşiv (zip → age).
 6. Saklama: günlükler `YEDEK_GUNLUK_SAKLAMA_GUN` günden eskiyse, aylıklar `YEDEK_AYLIK_SAKLAMA_AY` aydan eskiyse silinir (aylıklar günlük temizliğinden korunur).
-7. Sunucu **dışına** kopya: sunucudan dışarı bağlanarak (push) `YEDEK_DIS_KOPYA_HEDEFI`'ne; hedef Türkiye içinde olmalı (KVKK; yer netleşmedi).
+7. Sunucu **dışına** kopya: sunucudan dışarı bağlanarak (push) `YEDEK_DIS_KOPYA_HEDEFI`'ne. **Önce Türkiye içi bir hedef**; hedef seçimi **açık karar** (plan). Yurt dışı şifreli depolama hukuk onayına bağlıdır, onaysız kullanılmaz.
 8. Başarısızlık Windows olay günlüğüne ve (veri içermeyen) uyarıya yazılır; betik çıktısında kişisel veri/anahtar yok.
 
 Task Scheduler: günlük, gece saati; `SYSTEM` yerine yalnız gerekli klasörlere yetkili servis hesabı.

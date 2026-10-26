@@ -12,6 +12,13 @@ Dal: `tasima/windows-postgres`. Kararlar: `CLAUDE.md > Hedef Altyapı ve Taşım
 5. **Yedek**: günlük **30 gün** + aylık **12 ay** saklama (hukuk onayına tabi, parametre). Şifreleme anahtarı sunucuda saklanmaz; `yedek.ps1` yalnız ortak anahtarı ortam değişkeninden alır; geri yükleme testi sunucu kurulum dokümanında zorunlu adım. Ayrıntı: `docs/sunucu-kurulum.md`.
 6. **FORCE ROW LEVEL SECURITY**: tüm tenant tablolarında açık. Migration ve cron bakım işleri için ayrı **`bakim_rolu`**; uygulama bağlantısı bu rolü asla kullanmaz.
 
+7. **Cron/arka plan işleri HTTP route olarak kalmıyor.** 3 cron (`personel-donem-otomatik-kapat`, `audit-log-bolum-olustur`, `resmi-tatil-guncelle`) ve diğer arka plan işleri (`mesaj-kuyruk-isle`, `kredi-senkron`) `scripts/` altında Node betiği; Task Scheduler çağırır; `bakim_rolu` ile bağlanır (yalnız `klinik` üzerinde SELECT), klinik başına iş `withTenant` ile. **Hiçbir BYPASSRLS'li fonksiyon yazılmaz.** `/api/cron/*` route'ları ve `CRON_SECRET` kaldırılır. `bakim.env` için NTFS izinli ayrı dosya tasarımı: `docs/sunucu-kurulum.md`. *Uygulama notu*: bakim_rolu NOBYPASSRLS tasarlandı (bakım işi de RLS'ten geçer); sistem bağlamı `session_user = 'bakim_rolu'` ile tanınır.
+8. **Service role**: 22 dosyadaki her kullanım `docs/service-role-siniflama.md`'de (a) sistem işi → bakim_rolu betiği, (b) kullanıcı bağlamı → `withTenant`, (c) oturum öncesi → dar tek amaçlı fonksiyon olarak sınıflandı. Bu sınıflama **Aşama 3 ve 7b'nin ilk hedefidir**.
+9. **Dosya depolama**: kodun kullandığı ad `hasta-belge` esas; katalog doğrulaması gerekmiyor (canlı veri yok). `musteri-belge` ve klinik logosu da aynı disk depolamasında; hepsi yetkili route'tan servis edilir (public dosya yok).
+10. **Cloudflare**: klinik için proxy KAPALI (yalnız DNS); TLS Cloudflare'de sonlanırsa sağlık verisi yurt dışında çözülmüş geçer. KVKK notu CLAUDE.md ve `docs/sunucu-kurulum.md`'de.
+11. **Yedek dış kopya**: önce Türkiye içi hedef (hedef seçimi açık karar); yurt dışı şifreli depolama hukuk onayına bağlı.
+12. **SMS/WhatsApp**: mesaj içeriğinde kişisel/sağlık verisi olmayacak (e-posta kuralıyla aynı). `docs/kvkk-aktarim.md` taraması tüm kanallara genişletildi (28/28 ihlal, canlı kural yok).
+
 ## Aşama 0 sonucu (envanter) — plandaki yaklaşık sayılardan farklar
 
 Ayrıntı: `docs/supabase-envanter.md`. Sayılar migration metni + koddan; canlı DB kataloğuyla doğrulama Aşama 10 öncesi.
@@ -24,7 +31,7 @@ Ayrıntı: `docs/supabase-envanter.md`. Sayılar migration metni + koddan; canl�
 
 1. **RLS'in `auth.uid()`'ye bağlı olması** (145 kullanım, 68 dosya; ≈264 politika). Hepsi `app.user_id` / `app.tenant_id` modeline çevrilmeli; biri atlanırsa ya veri sızar ya da sessizce 0 satır döner.
 2. **`SET LOCAL` + bağlantı havuzu**: yalnız transaction içinde geçerli; tek sarmalayıcı (`withTenant`) dışında DB erişimi olmamalı.
-3. **FORCE RLS + SECURITY DEFINER + bakim_rolu**: FORCE'ta sahip dahil herkes RLS'e tabi; yalnız `BYPASSRLS` atlar. DEFINER fonksiyonlar (çoğu RPC) çağıranın `app.tenant_id`'siyle çalışır — doğru; ama **tenant bağlamı olmayan** yollar tasarım ister: (i) anonim akışlar (QR ön kayıt/anket/puantaj, portal giriş telefon sorgusu, iş başvurusu, hız sınırı sayacı), (ii) çok-klinikli cron taramaları. Aşama 2'de her biri için ya dar `klinik_anonim` politikası ya da açık bir tenant-döngüsü tasarlanır. **Sınır**: uygulama bağlantısı `bakim_rolu` kullanmayacağı için çok-klinikli cron'lar HTTP route'tan klinik klinik (her biri `withTenant` ile) işlenir; klinik listesi için tek amaçlı, yalnız id döndüren dar bir fonksiyon gerekir — bu, sahibi `BYPASSRLS`'li bir DEFINER fonksiyon olursa kararın (6) ince bir istisnasıdır, **onayınla** netleşecek (aşağıda "Açık kararlar"). DB bakımı (partition açma, migration) HTTP'den değil, `bakim_rolu` ile çalışan Task Scheduler betiklerinden yapılır.
+3. **FORCE RLS + SECURITY DEFINER**: FORCE'ta sahip dahil herkes RLS'e tabi; fonksiyon sahibi `klinik_sahip` (BYPASSRLS değil) olduğundan DEFINER fonksiyonlar RLS'i **atlamaz** — başka kullanıcının satırını görmesi gerekiyorsa bu politika + kolon GRANT'iyle açıkça verilir (`docs/service-role-siniflama.md`, #14, #15). Tenant bağlamı olmayan yollar: anonim akışlar (dar `klinik_anonim` politikası/fonksiyonu) ve sistem işleri (bakim_rolu betiği: klinik listesi + klinik başına `withTenant`). `bakim_rolu` BYPASSRLS değildir; tek BYPASSRLS rolü `klinik_yedek`'tir (pg_dump gereği, onay bekliyor).
 4. **PostgREST'e gömülü davranışlar kaybolur**: ≈32 dosyada embed, `max_rows`, kolon GRANT'leri, `.insert().select()` RLS davranışı. 134 dosyada sorgu yeniden yazılır.
 5. **Auth kimlik göçü**: karar gereği toplu sıfırlama (kod yok). Risk kullanıcı tarafında: sıfırlama duyurusu, personel/portal hastalarına geçici şifre dağıtımı (portal şifresi bugün 8 karakterli geçici şifre mantığıyla zaten üretiliyor), test/pilot hesapların yeniden kurulması, **sentetik portal e-postası** (`m-{hasta.id}@portal.local`) ve personel telefon girişi akışının Better Auth'ta karşılığı.
 6. **Realtime**: `postgres_changes` yerine SSE+NOTIFY; NOTIFY yükünde veri taşınmaz (yalnız `klinik_id` + id), istemci yetkili sorguyla çeker.
@@ -55,9 +62,10 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - **Bitti kriteri**: temiz Postgres'te baseline hatasız kurulur; `relforcerowsecurity` tüm tenant tablolarında true (sorguyla kanıt); iki klinik × her rol için `SET LOCAL` simülasyonu (ROLLBACK) geçer: başka klinik satırı görünmez/yazılamaz, bağlam yokken 0 satır döner, `klinik_uygulama` DEFINER fonksiyonlar dışında RLS'i atlayamaz; anonim akışların beklenen dar yazma/okuma sınırı doğrulanır (anon'a SELECT yok kuralı korunur).
 
 ### Aşama 3 — Veri erişim katmanı (Drizzle + pg)
+- **İlk hedef**: `docs/service-role-siniflama.md` (22 dosya) — her satır (a)/(b)/(c) çözümüne taşınır; tablo güncel tutulur.
 - `lib/db/`: havuz, `withTenant`, Drizzle şeması; modül modül sorgu taşıma. Embed → JOIN; `tumSayfalariOku`/`parcalara()` kalkar. 50 RPC → `select fn(...)`. 22 service-role kullanımı tek tek: anon akış / cron / kullanıcı yönetimi / kaldırılacak.
 - **Chatbot kapatma**: `DESTEK_CHATBOT_ACIK` (varsayılan kapalı) bayrağı; kapalıyken menü öğesi gizli, `/panel/destek/chatbot` sayfası ve `/api/destek-chatbot` 404/403 döner, LLM çağrısı hiç yapılmaz. `ai` paketi/AI Gateway çağrısı bayrak arkasında kalır, taşıma kapsamında başka iş yapılmaz.
-- **Bitti kriteri**: `grep -r "@supabase\|lib/supabase" app lib components` boş; `withTenant` dışı DB erişimi yok (lint kuralı/test); mevcut vitest + entegrasyon betikleri geçer; kritik akışlar (randevu → check-in → seans bedeli → ödeme, hasta CRUD, kasa/banka bakiyesi) eski/yeni sistemde aynı rakam; bayrak kapalıyken chatbot rotaları erişilemez (kanıt: istek) ve ağ çağrısı yapılmaz.
+- **Bitti kriteri**: `grep -r "createAdminClient" .` boş ve sınıflama tablosundaki (b)/(c) satırlarının hepsi kapalı; `grep -r "@supabase\|lib/supabase" app lib components` boş; `withTenant` dışı DB erişimi yok (lint kuralı/test); mevcut vitest + entegrasyon betikleri geçer; kritik akışlar (randevu → check-in → seans bedeli → ödeme, hasta CRUD, kasa/banka bakiyesi) eski/yeni sistemde aynı rakam; bayrak kapalıyken chatbot rotaları erişilemez (kanıt: istek) ve ağ çağrısı yapılmaz.
 
 ### Aşama 4 — Auth (Better Auth)
 - Better Auth credentials + argon2, oturumlar DB'de (Aşama 2 tablosu); rol/tenant her istekte DB'den. `proxy.ts`, `eylemYetkisiGetir`, `sayfaYetkisiIste`, `gecerli-kullanici.ts`, `gecerli-hasta.ts` yeni oturuma bağlanır. **Giriş akışı tek bir yardımcıda, `cihaz_kimligi` üretimi ve oturuma yazılması dahil.**
@@ -66,22 +74,26 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - **Bitti kriteri**: 5 rol + portal hastası gerçek tarayıcıda giriş/çıkış; yetkisiz rol sayfa ve action'da reddediliyor; işten çıkarılan kullanıcı giriş yapamıyor ve açık oturumu düşüyor; anon QR akışları kimliksiz çalışıyor; sıfırlama akışı denendi; kod tabanında bcrypt/Supabase hash okuma yok (`grep`); `session` tablosunda `cihaz_kimligi` doluyor.
 
 ### Aşama 5 — Dosyalar
-- `DOSYA_KOKU` (web kökü dışı), yol düzeni `{klinik_id}/{hasta_id}/{kategori}/{belge_id}.{ext}`; yalnız yetkili route servis eder (`hasta_belge_goruntule` kaydı korunur); yol gezinme ve MIME doğrulaması. 3 bucket: `hasta-belge`, `personel-belge`, `klinik-logo` (şu an public → logo için ayrı, bilinçli karar). Mevcut dosyalar Supabase'ten kopyalanır.
+- `DOSYA_KOKU` (web kökü dışı), yol düzeni `{klinik_id}/{hasta_id}/{kategori}/{belge_id}.{ext}`; yalnız yetkili route servis eder (`hasta_belge_goruntule` kaydı korunur); yol gezinme ve MIME doğrulaması. Kök altında kodun kullandığı adlar esas: `hasta-belge` (eski `musteri-belge` içeriği dahil), `personel-belge`, `klinik-logo`; **logo dahil hiçbir dosya public değil**, hepsi yetkili route'tan servis edilir (klinik logosu için oturumlu `/api/dosya/logo`; giriş öncesi sayfada logo gerekiyorsa dar, yalnız logoyu döndüren route). Mevcut dosyalar Supabase'ten kopyalanır.
 - **Bitti kriteri**: başka klinik/yetkisiz rol 403/404; terapist yükler+görür+silemez; yol gezinme reddedilir; taşınan dosya sayısı/boyutu kaynakla eşit (hash örneklemi).
 
 ### Aşama 6 — Realtime (SSE + LISTEN/NOTIFY)
 - `randevu` NOTIFY tetikleyicisi (yük: klinik_id, id, durum), tek dinleyici + klinik bazlı SSE, istemci yetkili sorguyla çeker; 3 tüketici taşınır; çevrimdışı rozeti/yeniden bağlanma tazelemesi/5 dk yenileme korunur; Caddy'de buffering kapalı.
 - **Bitti kriteri**: iki tarayıcıyla check-in tablete ve çizelgeye birkaç sn içinde yansır; başka klinik olayı gelmez; sunucu yeniden başlayınca istemci kendiliğinden bağlanır; 30+ dk açık tablette kopma yok.
 
-### Aşama 7 — Cron, PDF, mesajlaşma, dış çağrılar
-- Task Scheduler: 5 `/api/cron/*` route'u gizli başlıkla (`CRON_SECRET`), zamanlar UTC→İstanbul çevrilerek yazılır; çok-klinikli işler `withTenant` döngüsüyle (Risk 3); DB bakımı (`audit-log-bolum-olustur`, partition) `bakim_rolu` betiğiyle. `mesaj-kuyruk-isle` 5 dk.
+### Aşama 7a — PDF, mesajlaşma kuralı, dış çağrılar
 - PDF: 3 route (`@sparticuz/chromium` kalkar) → `puppeteer-core` + `CHROMIUM_PATH`; `vercel.json`/`outputFileTracingIncludes` kalıntıları temizlenir; Lambda/Vercel ortam algılaması kalkar.
-- **E-posta kuralı**: `docs/kvkk-aktarim.md` önerisi uygulanır — e-posta kanalı için ayrı değişken beyaz listesi (`klinik_adi`, `baglanti`), veri içermeyen sabit konu, ek yok, kaydederken ve göndermeden önce doğrulama, bağlantı üreten imzalı/kısa ömürlü token mekanizması.
+- **Mesaj kuralı (e-posta, SMS, WhatsApp — tüm kanallar)**: `docs/kvkk-aktarim.md` önerisi uygulanır — kanal başına değişken beyaz listesi (`klinik_adi`, `baglanti`), veri içermeyen sabit konu, ek yok, kaydederken ve göndermeden önce doğrulama, bağlantı üreten imzalı/kısa ömürlü token mekanizması.
 - Chatbot: kapalı kalır (Aşama 3 bayrağı); bu aşamada iş yok.
-- **Bitti kriteri**: her cron elle ve zamanlanmış çalıştırıldı, başlıksız çağrı 401; 3 PDF hedef sunucuda üretilip gözle doğrulandı; kuyruğa giren e-posta metinlerinde ad/tarih/tutar/paket/izin türü yok (28 tetikleyici × test: e-posta kanalında yasak değişkenle kayıt reddediliyor ve eski serbest metinli kural gönderimde engelleniyor); chatbot/LLM'e giden istek yok.
+- **Bitti kriteri**: 3 PDF hedef sunucuda üretilip gözle doğrulandı; kuyruğa giren e-posta/SMS/WhatsApp metinlerinde ad/tarih/tutar/paket/izin türü yok (28 tetikleyici × 3 kanal test: yasak değişkenle kayıt reddediliyor, eski serbest metinli kural gönderimde engelleniyor); chatbot/LLM'e giden istek yok.
+
+### Aşama 7b — Cron ve arka plan işleri → `scripts/` (Task Scheduler)
+- **İlk hedef**: `docs/service-role-siniflama.md` (a) satırları (#17–21, #24, #25 tarama kısmı, #27).
+- `scripts/` altında 5 Node betiği (`personel-donem-otomatik-kapat`, `audit-log-bolum-olustur`, `resmi-tatil-guncelle`, `mesaj-kuyruk-isle`, `kredi-senkron`) + ortak `scripts/lib/bakim-baglanti.ts` (bakim_rolu bağlantısı, klinik listesi, klinik başına `withTenant`). Task Scheduler tablosu ve `bakim.env` NTFS tasarımı: `docs/sunucu-kurulum.md`. `/api/cron/*` route'ları, `lib/cron-yetki.ts`, `CRON_SECRET` silinir. RPC'lerdeki `service_role` kabulü `sistem_baglami()`'na (`session_user='bakim_rolu'`) çevrilir.
+- **Bitti kriteri**: her betik elle ve zamanlanmış çalıştırıldı, tekrar çalıştırma idempotent; `svc-klinik-uygulama` hesabı `bakim.env`'i okuyamıyor (kanıt: `runas` denemesi); `bakim_rolu` ile tenant bağlamı vermeden `hasta` SELECT'i 0 satır; `grep -r "api/cron\|CRON_SECRET"` boş; bakim_rolu'nün `klinik` dışında tablo SELECT yetkisi yok (`information_schema.role_table_grants` kanıtı).
 
 ### Aşama 8 — Güvenlik, KVKK, yedek, izleme
-- Yedek: `docs/sunucu-kurulum.md` tasarımı (age ortak anahtarı sunucuda, özel anahtar dışarıda; günlük 30 gün + aylık 12 ay, parametre; sunucu dışı kopya). Erişim logu (kim hangi hasta verisine baktı; log dosyalarında kişisel veri yok; döndürme). Sertleştirme: gelen yönetim portu yok, ortam değişkenleri yalnız servis hesabına, Cloudflare IP'lerine origin kısıtı. İzleme: servis, disk/Postgres doluluğu, uptime.
+- Yedek: `docs/sunucu-kurulum.md` tasarımı (age ortak anahtarı sunucuda, özel anahtar dışarıda; günlük 30 gün + aylık 12 ay, parametre; sunucu dışı kopya **önce Türkiye içi**). Erişim logu (kim hangi hasta verisine baktı; log dosyalarında kişisel veri yok; döndürme). Sertleştirme: gelen yönetim portu yok, ortam değişkenleri yalnız servis hesabına, Cloudflare **proxy kapalı** (yalnız DNS; KVKK nedeniyle), bu yüzden WAF/DDoS yerine sunucu güvenlik duvarı + Caddy hız sınırı. İzleme: servis, disk/Postgres doluluğu, uptime.
 - **Bitti kriteri**: sunucu kurulum dokümanındaki **geri yükleme testi** boş makinede yapıldı, rakamlar kaynakla tutuyor ve kayıt tutuldu; sunucuda özel anahtar yok (dosya/env/kayıt taraması) ve yedek anahtarsız açılamıyor; saklama parametreleri değiştirilince temizlik davranışı değişiyor (iki değerle denendi); dışarıdan yalnız 80/443 açık (port taraması); gizli değer repo ve loglarda yok.
 
 ### Aşama 9 — Deploy hattı (pull tabanlı)
@@ -93,8 +105,8 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - **Bitti kriteri**: provada tüm doğrulama sayıları eşit; gerçek geçişte kullanıcı kabul testi (resepsiyon, terapist, tablet, portal) geçti; 1–2 hafta sorunsuz çalışma sonrası Supabase/Vercel kapatılır; dal `main`'e birleştirme **kullanıcı onayıyla**.
 
 ## Açık kararlar (kalan)
-- **Cron + `bakim_rolu` sınırı** (Risk 3): çok-klinikli HTTP cron'ların klinik listesini nasıl alacağı. Öneri: yalnız `klinik.id` döndüren, tek amaçlı DEFINER fonksiyon (sahibi `BYPASSRLS`'li); bu, "uygulama bağlantısı bakim_rolu'nü asla kullanmaz" kararıyla çelişmez (bağlantı hep `klinik_uygulama`) ama sahiplik açısından ince bir istisnadır — onay gerekir. Alternatifi: bu işleri HTTP'den çıkarıp `bakim_rolu` betiklerine taşımak (ama o zaman iş mantığı Node route'larından ayrışır, test ve bakım yükü artar).
-- `klinik-logo` bucket'ı şu an public; hedefte public servis mi, imzalı mı?
-- Yedeğin sunucu dışı kopya hedefi (Türkiye içi) ve özel anahtar saklama sorumluları.
-- Cloudflare proxy'nin açık olup olmayacağı (KVKK açısından içerik Cloudflare'den geçer).
-- SMS/WhatsApp (merkez) aktarımının KVKK değerlendirmesi (bu kararın kapsamı dışında bırakıldı).
+- **`klinik_yedek` BYPASSRLS istisnası**: FORCE RLS altında `pg_dump` BYPASSRLS'siz tüm satırı okuyamaz. Öneri: salt-okunur, yalnız yedek betiğinin kullandığı `klinik_yedek` rolü (BYPASSRLS). Alternatif: yedeği süper kullanıcıyla almak (daha geniş yetki). Onay gerekir; `db/kontrol/bypassrls-kontrol.sql` bu rolü ayrı bir "izinli istisna" olarak raporlar.
+- **Yedeğin Türkiye içi dış kopya hedefi** (hangi sağlayıcı/konum) ve özel anahtar saklama sorumluları; yurt dışı şifreli depolama hukuk onayı.
+- Giriş öncesi sayfalarda (portal/personel girişi) klinik logosu gerekiyor mu? Gerekiyorsa yalnız logo döndüren dar route.
+- Better Auth'ta telefon/sentetik e-posta ile giriş tasarımı (Aşama 4).
+- Raporlar/finans için dönem kilidi vb. ürün kararları taşımadan bağımsız (kapsam dışı).
