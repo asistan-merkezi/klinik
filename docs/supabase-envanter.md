@@ -51,7 +51,7 @@ Tarih: 2026-10-26 · Dal: `tasima/windows-postgres` · Kaynak: kod (`grep`) + `s
 | `PUPPETEER_EXECUTABLE_PATH` | `lib/pdf/browser.ts` | **Yeniden adlandırılır → `CHROMIUM_PATH`** |
 | `VERCEL`, `AWS_LAMBDA_FUNCTION_NAME` | `lib/pdf/browser.ts` ortam algılaması (Lambda'da `@sparticuz/chromium`) | **Kalkar** (+ `@sparticuz/chromium` bağımlılığı) |
 | `ENTEGRASYON_ONAY`, `ANALYZE`, `NODE_ENV` | betik/geliştirme | Kalır |
-| (yeni) `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `DOSYA_KOKU`, `YEDEK_*` | — | Eklenecek; yalnız adları belgelenir (`docs/sunucu-kurulum.md`) |
+| (yeni) `DATABASE_URL`, `KIMLIK_DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `DOSYA_KOKU`, `YEDEK_*` | — | Eklenecek; yalnız adları belgelenir (`docs/sunucu-kurulum.md`) |
 
 Chatbot yapay zekâ çağrısı `ai` paketiyle gateway üzerinden (`"anthropic/claude-sonnet-5"`); ayrı env gerektirmiyor (Vercel OIDC). Taşıma boyunca özellik kapalı (bkz. plan, karar 2).
 

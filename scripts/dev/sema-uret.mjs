@@ -1,11 +1,13 @@
-// Referans veritabanından (172 migration'ın Supabase-uyumluluk katmanıyla uygulandığı geçici Postgres)
+// (scripts/dev/ altında; bağımlılıklar scripts/dev/package.json) Referans veritabanından (172 migration'ın Supabase-uyumluluk katmanıyla uygulandığı geçici Postgres)
 // düz Postgres temel şemasını üretir. Çıktı: db/migrations/0002_temel_sema.sql + db/seed/0001_referans_veri.sql
 //
-// Kullanım:  REF_DB_URL=postgres://... node db/arac/sema-uret.mjs
+// Kullanım: docs/sema-uretim.md (scripts/dev/yeniden-uret.mjs her şeyi sırayla yapar)
 // Üretim kuralları ve eşleme tablosu: docs/sema-esleme.md
 import pg from "pg";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+const KOK = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const url = process.env.REF_DB_URL;
 if (!url) throw new Error("REF_DB_URL gerekli");
@@ -21,7 +23,14 @@ const ATLANAN_FONKSIYON = new Set([
   "_gecici_rol_probe", "current_musteri_id", "oturum_anahtari_yenile",
   // Bağlam fonksiyonları yeniden yazıldı (app.user_id / app.tenant_id): 0001 ve db/arac/baglam-fonksiyonlari.sql
   "current_klinik_id", "current_rol", "is_super_admin", "current_hasta_id",
+  // Giriş öncesi telefon -> e-posta aramaları: Better Auth (kimlik_rolu) ile değiştirilecek, anonim DEĞİL (docs/giris-akislari.md, docs/definer-siniflama.md)
+  "personel_giris_epostasi", "portal_giris_epostasi",
+  // Tenant'sız kısa kod aramasının yeni yeri: tanima.klinik_qr_bilgisi_getir (db/migrations/0004_tanima_ve_definer_sertlestirme.sql)
+  "klinik_qr_bilgisi_getir",
 ]);
+// SECURITY DEFINER gereksiz olanlar: çağıranın yetkisiyle de aynı sonucu verir (kanıt: docs/definer-siniflama.md)
+const INVOKER_OLACAK = new Set(["personel_izin_is_gunu_sayisi"]);
+const definerKaldir = (ad_, def) => (INVOKER_OLACAK.has(ad_) ? def.replace(/ SECURITY DEFINER/, "").replace(/\nSECURITY DEFINER/, "") : def);
 // FORCE RLS dışında kalan, tenant'sız tablolar (gerekçe: sema-esleme.md)
 const FORCE_ISTISNA = new Set([
   "pozisyon_sablonlari", "hiz_siniri_sayac",
@@ -40,7 +49,8 @@ function donustur(t) {
     .replace(/auth\.uid\(\)/g, "app_kullanici_id()")
     .replace(/\(?\s*auth\.role\(\)\s*=\s*'service_role'\s*\)?/g, "sistem_baglami()")
     .replace(/auth\.users/g, "kimlik_kullanici")
-    .replace(/u\.email/g, "u.eposta")
+    .replace(/\bu\.email\b/g, "u.eposta")
+    .replace(/from anon, authenticated/g, "from klinik_anonim, klinik_uygulama") // audit_log_bolum_olustur: bölümde uygulama rolü yetkisi olmamalı
     .replace(/\bTO anon\b/g, "TO klinik_anonim")
     .replace(/\bTO authenticated\b/g, "TO klinik_uygulama");
 }
@@ -62,7 +72,7 @@ for (const t of await q(`select t.typname, array_agg(e.enumlabel::text order by 
 e("");
 
 // ---- Bağlam fonksiyonları (elle yazıldı; enum'lardan sonra, tablolardan önce) ----
-e(fs.readFileSync("db/arac/baglam-fonksiyonlari.sql", "utf8"));
+e(fs.readFileSync(path.join(KOK, "db/arac/baglam-fonksiyonlari.sql"), "utf8"));
 e("");
 
 // ---- Tablolar ----
@@ -93,7 +103,7 @@ for (let degisti = true; degisti; ) {
 if (erkenFonksiyonlar.size) e("-- ===== Üretilmiş kolonların kullandığı fonksiyonlar (tablolardan önce) =====");
 for (const f of fonks) {
   if (!erkenFonksiyonlar.has(f.proname)) continue;
-  e(donustur(f.def).replace(/^CREATE OR REPLACE FUNCTION/, "CREATE FUNCTION") + ";");
+  e(definerKaldir(f.proname, donustur(f.def)).replace(/^CREATE OR REPLACE FUNCTION/, "CREATE FUNCTION") + ";");
   e("");
 }
 const ertelenenVarsayilan = [];
@@ -125,7 +135,7 @@ e("");
 e("-- ===== Fonksiyonlar =====");
 for (const f of fonks) {
   if (ATLANAN_FONKSIYON.has(f.proname) || erkenFonksiyonlar.has(f.proname)) continue;
-  let def = donustur(f.def);
+  let def = definerKaldir(f.proname, donustur(f.def));
   e(def.replace(/^CREATE OR REPLACE FUNCTION/, "CREATE FUNCTION") + ";");
   e("");
 }
@@ -224,44 +234,132 @@ for (const t of forceTablolar) {
 e("");
 
 // ---- Yetkiler ----
+// İlke: varsayılan yetki YOK. klinik_uygulama'ya yalnız KODUN gerçekten kullandığı işlemler verilir
+// (db/arac/kod-kullanimi.json, scripts/dev/kullanim-tara.mjs) ve asla eski `authenticated` yetkisini aşmaz.
 e("-- ===== Yetkiler =====");
+e("-- Varsayılan yetkiler kapalı: PUBLIC'ten alındı, sahibin gelecekteki nesneleri için de (0001'de ALTER DEFAULT PRIVILEGES).");
 e("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;");
 e("REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;");
+e("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;");
+
+const kullanim = JSON.parse(fs.readFileSync(path.join(KOK, "db/arac/kod-kullanimi.json"), "utf8"));
+// Değişkenle verilen tablo adları (statik taramada çözülemeyen) elle çözüldü; kaynak satırlar belgelendi.
+const ELLE = {
+  oda: ["SELECT", "INSERT", "UPDATE"], cihaz: ["SELECT", "INSERT", "UPDATE"], // app/(app)/panel/kaynaklar/actions.ts (z.enum oda|cihaz)
+  klinik_harcama: ["SELECT"], klinik_cari_odeme: ["SELECT"], klinik_kredi_karti_odeme: ["SELECT"], // sirket-bilgileri/actions.ts:467
+  hasta_bakiye_hareket: ["SELECT"], personel_hesap_hareket: ["SELECT"],                             // sirket-bilgileri/actions.ts:505
+};
+const kullanilan = new Map(); // ad -> Set(op)
+const kaynaklar = new Map();  // ad -> Set(dosya)
+const ekle = (ad_, ops, kaynak) => {
+  const s = kullanilan.get(ad_) ?? new Set();
+  ops.forEach((o) => s.add(o));
+  kullanilan.set(ad_, s);
+  const k = kaynaklar.get(ad_) ?? new Set(); k.add(kaynak); kaynaklar.set(ad_, k);
+};
+for (const [ad_, ops] of Object.entries(ELLE)) ekle(ad_, ops, "elle");
+// FK ipuçlarını çözmek için katalog: tablo -> {kolon -> hedef tablo}, kısıt adı -> hedef tablo
+const fkRows = await q(`select c.conrelid::regclass::text t, a.attname kolon, c.conname, c.confrelid::regclass::text hedef
+  from pg_constraint c join pg_attribute a on a.attrelid=c.conrelid and a.attnum = any(c.conkey) where c.contype='f'`);
+const fkKolon = new Map(), fkAd = new Map();
+for (const r of fkRows) { fkKolon.set(`${r.t}.${r.kolon}`, r.hedef); fkAd.set(r.conname, r.hedef); }
+const tumTablolar = new Set([...tabloAdlari.map((t) => t.relname), ...(await q(`select relname from pg_class where relnamespace='public'::regnamespace and relkind in ('v','m')`)).map((r) => r.relname)]);
+const cozulemeyen = [];
+for (const k of kullanim.kayitlar) {
+  ekle(k.tablo, k.islemler, k.dosya);
+  const baglam = new Map([[k.tablo, k.tablo]]);
+  for (const g of k.gomulu) {
+    const ust = baglam.get(g.ust) ?? g.ust;
+    let hedef = null;
+    if (tumTablolar.has(g.ad)) hedef = g.ad;
+    else if (fkKolon.has(`${ust}.${g.ad}`)) hedef = fkKolon.get(`${ust}.${g.ad}`);
+    else if (g.ipucu.length && fkAd.has(g.ipucu[0])) hedef = fkAd.get(g.ipucu[0]);
+    else if (g.ipucu.length && fkKolon.has(`${ust}.${g.ipucu[0]}`)) hedef = fkKolon.get(`${ust}.${g.ipucu[0]}`);
+    else {
+      // ters yön: ad bir tablo adı değilse, ad kolonuna sahip başka bir tablonun FK'si olabilir
+      const adaylar = fkRows.filter((r) => r.hedef === ust && r.t === g.ad);
+      if (adaylar.length) hedef = g.ad;
+    }
+    if (hedef) { baglam.set(g.ad, hedef); if (g.alias) baglam.set(g.alias, hedef); ekle(hedef, ["SELECT"], `${k.dosya} (gömülü)`); }
+    else cozulemeyen.push(`${k.dosya}:${k.satir} ${ust} -> ${g.ad}`);
+  }
+}
+// security_invoker görünümler: çağıranın yetkisiyle taban tablolara bakar -> taban tablolara SELECT gerekir
+const invokerView = await q(`select c.relname v, d.refobjid::regclass::text t from pg_class c
+  join pg_rewrite r on r.ev_class=c.oid join pg_depend d on d.objid=r.oid and d.refobjid<>c.oid and d.classid='pg_rewrite'::regclass
+  join pg_class b on b.oid=d.refobjid and b.relkind in ('r','p','v','m')
+  where c.relnamespace='public'::regnamespace and c.relkind='v' and 'security_invoker=true' = any(c.reloptions)`);
+for (const iv of invokerView) if (kullanilan.has(iv.v)) ekle(iv.t.replace(/^public[.]/, ""), ["SELECT"], `view ${iv.v} (security_invoker)`);
+
+const yetkiMatrisi = []; // docs için
+const kodDisiTablolar = [];
 for (const t of tabloAdlari) {
-  const acl = await q(`select (aclexplode(c.relacl)).grantee::regrole::text g, (aclexplode(c.relacl)).privilege_type p
-    from pg_class c where c.oid=$1`, [t.oid]);
-  const uyg = acl.filter((x) => x.g === "authenticated").map((x) => x.p);
-  if (uyg.length) e(`GRANT ${uyg.join(", ")} ON ${ad(t.relname)} TO klinik_uygulama;`);
+  const acl = await q(`select (aclexplode(c.relacl)).grantee::regrole::text g, (aclexplode(c.relacl)).privilege_type p from pg_class c where c.oid=$1`, [t.oid]);
+  const eskiTablo = new Set(acl.filter((x) => x.g === "authenticated").map((x) => x.p)); // üst sınır
   const kolAcl = await q(`select a.attname, (aclexplode(a.attacl)).grantee::regrole::text g, (aclexplode(a.attacl)).privilege_type p
     from pg_attribute a where a.attrelid=$1 and a.attacl is not null and not a.attisdropped`, [t.oid]);
-  const gruplu = {};
-  for (const k of kolAcl.filter((x) => x.g === "authenticated")) (gruplu[k.p] ??= []).push(k.attname);
-  for (const [p, kols] of Object.entries(gruplu)) e(`GRANT ${p} (${kols.map(ad).join(", ")}) ON ${ad(t.relname)} TO klinik_uygulama;`);
+  const kolGrup = {};
+  for (const k of kolAcl.filter((x) => x.g === "authenticated")) (kolGrup[k.p] ??= []).push(k.attname);
+  const istenen = kullanilan.get(t.relname) ?? new Set();
+  const verilen = ["SELECT", "INSERT", "UPDATE", "DELETE"].filter((p) => istenen.has(p) && eskiTablo.has(p));
+  if (!kullanilan.has(t.relname)) kodDisiTablolar.push(t.relname);
+  if (verilen.length) e(`GRANT ${verilen.join(", ")} ON ${ad(t.relname)} TO klinik_uygulama;`);
+  // kolon düzeyi (ör. klinik_muhasebe_entegrasyonu): yalnız kodun kullandığı işlemler için, eski kolon listesiyle
+  for (const [p, kols] of Object.entries(kolGrup)) if (istenen.has(p) && !verilen.includes(p)) e(`GRANT ${p} (${kols.map(ad).join(", ")}) ON ${ad(t.relname)} TO klinik_uygulama;`);
   const an = anonTablo.get(t.relname);
   if (an && an.size) e(`GRANT ${[...an].join(", ")} ON ${ad(t.relname)} TO klinik_anonim;`);
+  yetkiMatrisi.push({ tablo: t.relname, uygulama: verilen, kolon: Object.keys(kolGrup), anonim: an ? [...an] : [], kodda: kullanilan.has(t.relname), eskiYetki: [...eskiTablo], istenenYetkisiz: [...istenen].filter((p) => !eskiTablo.has(p) && !kolGrup[p]) });
 }
 for (const v of await q(`select c.relname, (aclexplode(c.relacl)).grantee::regrole::text g, (aclexplode(c.relacl)).privilege_type p
   from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in ('v','m')`)) {
-  if (v.g === "authenticated") e(`GRANT ${v.p} ON ${ad(v.relname)} TO klinik_uygulama;`);
+  if (v.g === "authenticated" && v.p === "SELECT" && kullanilan.has(v.relname)) e(`GRANT SELECT ON ${ad(v.relname)} TO klinik_uygulama;`);
 }
-// Fonksiyonlar: authenticated EXECUTE'u olanlar -> klinik_uygulama; anon yalnız açıkça verilenler + anon politikalarının kullandıkları
-const anonAcik = new Set(["hasta_qr_self_servis_mi", "klinik_qr_bilgisi_getir", "randevu_anket_uygun_mu", "seans_degerlendirme_baglam_getir", "hiz_siniri_kullan", "qr_kodu_aktif_mi"]);
+
+// Fonksiyonlar: kodun çağırdığı RPC'ler + politika/görünüm/varsayılan/kısıt ifadelerinin kullandıkları + (INVOKER fonksiyonların çağırdıkları).
+const rpcAdlari = new Set(Object.keys(kullanim.rpc));
+const ifadeMetni = [
+  ...(await q(`select pg_get_expr(polqual,polrelid) x from pg_policy union all select pg_get_expr(polwithcheck,polrelid) from pg_policy`)).map((r) => r.x),
+  ...(await q(`select pg_get_viewdef(c.oid) x from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in ('v','m')`)).map((r) => r.x),
+  ...(await q(`select pg_get_expr(adbin,adrelid) x from pg_attrdef`)).map((r) => r.x),
+  ...(await q(`select pg_get_constraintdef(oid) x from pg_constraint where contype in ('c','x')`)).map((r) => r.x),
+  ...(await q(`select pg_get_indexdef(indexrelid) x from pg_index`)).map((r) => r.x),
+].filter(Boolean).join("\n");
+const adBul = (metin, ad_) => new RegExp("(^|[^a-z_0-9])" + ad_ + "[ ]*[(]").test(metin);
+const fonksiyonlarAd = fonks.filter((f) => !ATLANAN_FONKSIYON.has(f.proname));
+const uygFonks = new Set(fonksiyonlarAd.filter((f) => rpcAdlari.has(f.proname) || adBul(ifadeMetni, f.proname) || ["current_rol", "is_super_admin", "current_hasta_id"].includes(f.proname)).map((f) => f.proname));
+for (let degisti = true; degisti; ) { // INVOKER olan fonksiyonlar çağırdıklarını çağıranın yetkisiyle çalıştırır
+  degisti = false;
+  for (const f of fonksiyonlarAd) {
+    if (!uygFonks.has(f.proname) || f.prosecdef) continue;
+    for (const g of fonksiyonlarAd) if (!uygFonks.has(g.proname) && adBul(f.def, g.proname)) { uygFonks.add(g.proname); degisti = true; }
+  }
+}
+const anonAcik = new Set(["hasta_qr_self_servis_mi", "randevu_anket_uygun_mu", "seans_degerlendirme_baglam_getir", "hiz_siniri_kullan", "qr_kodu_aktif_mi"]);
 const bakimAcik = new Set(["audit_log_bolum_olustur"]);
-const sistemFonks = [];
-for (const f of fonks) {
-  if (ATLANAN_FONKSIYON.has(f.proname)) continue;
-  const imza = (await q(`select p.oid::regprocedure::text s from pg_proc p where p.oid=$1`, [f.oid]))[0].s.replace(/^public\./, "");
+// Anonim yazılan tabloların varsayılan/üretilmiş kolon ve CHECK ifadelerinde geçen fonksiyonlar anon'un da EXECUTE'unu ister
+// (ör. hasta.arama_metni üretilmiş kolonu turkce_arama_metni'yi çağırır; yoksa anonim kayıt "permission denied for function" ile düşer).
+const anonTabloIfade = [
+  ...(await q(`select pg_get_expr(d.adbin,d.adrelid) x from pg_attrdef d where d.adrelid::regclass::text = any($1)`, [[...anonTablo.keys()]])).map((r) => r.x),
+  ...(await q(`select pg_get_constraintdef(oid) x from pg_constraint where contype in ('c','x') and conrelid::regclass::text = any($1)`, [[...anonTablo.keys()]])).map((r) => r.x),
+  ...(await q(`select pg_get_indexdef(indexrelid) x from pg_index where indrelid::regclass::text = any($1)`, [[...anonTablo.keys()]])).map((r) => r.x),
+].join("\n");
+const fonksiyonYetki = [];
+for (const f of fonksiyonlarAd) {
+  const imza = (await q(`select p.oid::regprocedure::text s from pg_proc p where p.oid=$1`, [f.oid]))[0].s.replace(/^public[.]/, "");
   const g = (await q(`select (aclexplode(p.proacl)).grantee::regrole::text g from pg_proc p where p.oid=$1`, [f.oid])).map((x) => x.g);
-  if (g.includes("authenticated")) e(`GRANT EXECUTE ON FUNCTION ${imza} TO klinik_uygulama;`);
-  else if (g.includes("service_role")) sistemFonks.push(imza);
-  if (f.proname === "hiz_siniri_kullan") e(`GRANT EXECUTE ON FUNCTION ${imza} TO klinik_uygulama;`);
-  if (anonAcik.has(f.proname) || anonFonksiyon.has(f.proname)) e(`GRANT EXECUTE ON FUNCTION ${imza} TO klinik_anonim;`);
+  const uyg = (uygFonks.has(f.proname) && g.includes("authenticated")) || f.proname === "hiz_siniri_kullan";
+  if (uyg) e(`GRANT EXECUTE ON FUNCTION ${imza} TO klinik_uygulama;`);
+  const anon = anonAcik.has(f.proname) || anonFonksiyon.has(f.proname) || adBul(anonTabloIfade, f.proname);
+  if (anon) e(`GRANT EXECUTE ON FUNCTION ${imza} TO klinik_anonim;`);
   if (bakimAcik.has(f.proname)) e(`GRANT EXECUTE ON FUNCTION ${imza} TO bakim_rolu;`);
+  fonksiyonYetki.push({ ad: f.proname, imza, definer: f.prosecdef, uygulama: uyg, anonim: anon, bakim: bakimAcik.has(f.proname) });
 }
 e("");
+fs.writeFileSync(path.join(KOK, "db/arac/yetki-ozeti.json"), JSON.stringify({ yetkiMatrisi, fonksiyonYetki, kodDisiTablolar, cozulemeyenGomulu: cozulemeyen }, null, 1) + "\n", "utf8");
+const sistemFonks = [];
 
-fs.mkdirSync("db/migrations", { recursive: true });
-fs.writeFileSync("db/migrations/0002_temel_sema.sql", out.join("\n"), "utf8");
+fs.mkdirSync(path.join(KOK, "db/migrations"), { recursive: true });
+fs.writeFileSync(path.join(KOK, "db/migrations/0002_temel_sema.sql"), out.join("\n"), "utf8");
 
 // ---- Tohum (referans) veri: tenant'sız kataloglar ----
 const tohum = ["resmi_tatil", "egzersiz_kutuphanesi", "pozisyon_sablonlari", "olcek_tanimi"];
@@ -271,8 +369,8 @@ for (const tb of tohum) {
   if (!rows.length) continue;
   so.push(`INSERT INTO ${tb} SELECT * FROM jsonb_populate_recordset(NULL::${tb}, $j$${JSON.stringify(rows.map((r) => r.j))}$j$::jsonb);`);
 }
-fs.mkdirSync("db/seed", { recursive: true });
-fs.writeFileSync("db/seed/0001_referans_veri.sql", so.join("\n") + "\n", "utf8");
+fs.mkdirSync(path.join(KOK, "db/seed"), { recursive: true });
+fs.writeFileSync(path.join(KOK, "db/seed/0001_referans_veri.sql"), so.join("\n") + "\n", "utf8");
 
 console.log(JSON.stringify({
   tablo: tabloAdlari.length, fonksiyon: ozFonksAdlari.length, force: forceTablolar.length,

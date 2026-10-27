@@ -1350,20 +1350,6 @@ END;
 $function$
 ;
 
-CREATE FUNCTION public.portal_giris_epostasi(p_telefon text)
- RETURNS text
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-  SELECT 'm-' || h.id::text || '@portal.local'
-  FROM hasta h
-  JOIN hasta_kullanici hk ON hk.hasta_id = h.id
-  WHERE h.telefon = p_telefon AND hk.aktif = true
-  LIMIT 1;
-$function$
-;
-
 CREATE FUNCTION public.randevu_iptal_talebi_klinik_id_ata()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2910,7 +2896,7 @@ $function$
 CREATE FUNCTION public.personel_izin_is_gunu_sayisi(p_baslangic date, p_bitis date)
  RETURNS integer
  LANGUAGE plpgsql
- STABLE SECURITY DEFINER
+ STABLE
  SET search_path TO 'public'
 AS $function$
 declare
@@ -3302,16 +3288,6 @@ END;
 $function$
 ;
 
-CREATE FUNCTION public.klinik_qr_bilgisi_getir(p_kisa_kod text)
- RETURNS TABLE(id uuid, ad text)
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-  SELECT id, ad FROM klinik WHERE qr_kisa_kod = p_kisa_kod;
-$function$
-;
-
 CREATE FUNCTION public.personel_hesap_hareket_ekle(p_personel_id uuid, p_tur text, p_tutar numeric, p_tarih date DEFAULT CURRENT_DATE, p_aciklama text DEFAULT NULL::text, p_odeme_tipi text DEFAULT NULL::text, p_banka_hesap_id uuid DEFAULT NULL::uuid)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -3402,22 +3378,6 @@ CREATE FUNCTION public.telefon_normalize(p_telefon text)
  IMMUTABLE
 AS $function$
   SELECT NULLIF(right(regexp_replace(coalesce(p_telefon, ''), '\D', '', 'g'), 10), '');
-$function$
-;
-
-CREATE FUNCTION public.personel_giris_epostasi(p_telefon text)
- RETURNS text
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-  SELECT u.email
-  FROM kullanici k
-  JOIN kimlik_kullanici u ON u.id = k.id
-  WHERE k.rol NOT IN ('klinik_admin', 'super_admin')
-    AND telefon_normalize(k.telefon) = telefon_normalize(p_telefon)
-    AND telefon_normalize(p_telefon) IS NOT NULL
-  LIMIT 1;
 $function$
 ;
 
@@ -3931,7 +3891,7 @@ begin
       );
       -- Partition doğrudan API'den erişilemesin (bkz. yukarıdaki güvenlik notu)
       execute format('alter table public.%I enable row level security', v_ad);
-      execute format('revoke all on table public.%I from anon, authenticated', v_ad);
+      execute format('revoke all on table public.%I from klinik_anonim, klinik_uygulama', v_ad);
       v_olusan := v_olusan || v_ad;
     end if;
     v_ay := (v_ay + interval '1 month')::date;
@@ -6694,189 +6654,96 @@ CREATE POLICY sahip_aktif_tenant ON klinik_kredi_karti_odeme AS PERMISSIVE FOR A
 CREATE POLICY sahip_aktif_tenant ON resmi_tatil_oneri AS PERMISSIVE FOR ALL TO klinik_sahip USING (klinik_id = current_klinik_id()) WITH CHECK (klinik_id = current_klinik_id());
 
 -- ===== Yetkiler =====
+-- Varsayılan yetkiler kapalı: PUBLIC'ten alındı, sahibin gelecekteki nesneleri için de (0001'de ALTER DEFAULT PRIVILEGES).
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON kullanici TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON terapist TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta TO klinik_uygulama;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+GRANT SELECT, UPDATE ON klinik TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kullanici TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON personel TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON terapist TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON hasta TO klinik_uygulama;
 GRANT INSERT ON hasta TO klinik_anonim;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON oda TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON cihaz TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON randevu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_ayarlar TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON islem_kategori TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON islem_tanimi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON paket TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON odeme TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON paket_satis TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON odeme_kalemi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON odeme_satiri TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_bakiye_hareket TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON fatura TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_kullanici TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON randevu_iptal_talebi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_hassas TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON oda TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON cihaz TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON randevu TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON klinik_ayarlar TO klinik_uygulama;
+GRANT SELECT, UPDATE ON islem_tanimi TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON paket TO klinik_uygulama;
+GRANT SELECT ON paket_satis TO klinik_uygulama;
+GRANT SELECT, INSERT ON hasta_bakiye_hareket TO klinik_uygulama;
+GRANT SELECT ON fatura TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON hasta_kullanici TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON randevu_iptal_talebi TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON hasta_hassas TO klinik_uygulama;
 GRANT INSERT ON hasta_hassas TO klinik_anonim;
-GRANT INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_muhasebe_entegrasyonu TO klinik_uygulama;
+GRANT INSERT, UPDATE ON klinik_muhasebe_entegrasyonu TO klinik_uygulama;
 GRANT SELECT (klinik_id, parasut_client_id, parasut_company_id, baglanti_durumu, created_at, updated_at) ON klinik_muhasebe_entegrasyonu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON periyodik_randevu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON islem_kontrendikasyon TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_hedef TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON olcek_tanimi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_olcum TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON egzersiz_kutuphanesi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON ev_egzersiz_programi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON ev_egzersiz_kalemi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON ev_egzersiz_takip TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON seans_checklist_sablonu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON randevu_checklist TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_iletisim_log TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_anket TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON randevu_on_form TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_iliski TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_sigorta TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_belge TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_onam TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_vucut_haritasi_isareti TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_protokol TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_harcama TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_hassas TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_acil_kisi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_mesleki_belge TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON tedavi_protokolu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON tedavi_protokolu_adimi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON is_basvurusu TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON periyodik_randevu TO klinik_uygulama;
+GRANT SELECT ON islem_kontrendikasyon TO klinik_uygulama;
+GRANT SELECT ON hasta_hedef TO klinik_uygulama;
+GRANT SELECT ON olcek_tanimi TO klinik_uygulama;
+GRANT SELECT ON hasta_olcum TO klinik_uygulama;
+GRANT SELECT ON hasta_iletisim_log TO klinik_uygulama;
+GRANT SELECT ON hasta_iliski TO klinik_uygulama;
+GRANT SELECT ON hasta_sigorta TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON hasta_belge TO klinik_uygulama;
+GRANT SELECT, INSERT ON hasta_onam TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON hasta_vucut_haritasi_isareti TO klinik_uygulama;
+GRANT SELECT, INSERT ON hasta_protokol TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON klinik_harcama TO klinik_uygulama;
+GRANT SELECT ON personel_hassas TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON personel_acil_kisi TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON personel_mesleki_belge TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON tedavi_protokolu TO klinik_uygulama;
+GRANT SELECT, INSERT, DELETE ON tedavi_protokolu_adimi TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON is_basvurusu TO klinik_uygulama;
 GRANT INSERT ON is_basvurusu TO klinik_anonim;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON anket_yaniti TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON anket_yaniti TO klinik_uygulama;
 GRANT INSERT ON anket_yaniti TO klinik_anonim;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON islem_tanimi_fiyat_gecmisi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON iskonto_oranlari TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON vardiya_turu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_vardiya_atama TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_puantaj_donem TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_puantaj TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_ucret TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_arac TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON kamusal_odeme TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON seans_degerlendirme TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON iskonto_oranlari TO klinik_uygulama;
+GRANT SELECT ON personel_puantaj_donem TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON personel_puantaj TO klinik_uygulama;
+GRANT SELECT, INSERT ON personel_ucret TO klinik_uygulama;
+GRANT SELECT, INSERT, DELETE ON klinik_arac TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kamusal_odeme TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON seans_degerlendirme TO klinik_uygulama;
 GRANT INSERT ON seans_degerlendirme TO klinik_anonim;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON randevu_talebi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON destek_talebi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON mesaj_kurallari TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON mesaj_kuyrugu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON mesaj_kredileri TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON mesaj_kredi_hareketleri TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_anamnez TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON resmi_tatil TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_izin_talebi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_hesap_hareket TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON pozisyon_sablonlari TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON pozisyonlar TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_banka_hesaplari TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON nakit_banka_hareketi TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON personel_egitim TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON hasta_yorum TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON islem_tanimi_adim TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON islem_adimi_sablonu TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON audit_log TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON randevu_cihaz_rezervasyon TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON kasa_dengeleme TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_kredi_kartlari TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_cari_odeme TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON klinik_kredi_karti_odeme TO klinik_uygulama;
-GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON resmi_tatil_oneri TO klinik_uygulama;
-GRANT INSERT ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON randevu_talebi TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON destek_talebi TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON mesaj_kurallari TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON mesaj_kuyrugu TO klinik_uygulama;
+GRANT SELECT ON mesaj_kredileri TO klinik_uygulama;
+GRANT SELECT ON mesaj_kredi_hareketleri TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON hasta_anamnez TO klinik_uygulama;
+GRANT SELECT, INSERT, DELETE ON resmi_tatil TO klinik_uygulama;
+GRANT SELECT ON personel_izin_talebi TO klinik_uygulama;
+GRANT SELECT ON personel_hesap_hareket TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON pozisyonlar TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON klinik_banka_hesaplari TO klinik_uygulama;
+GRANT SELECT, INSERT, DELETE ON nakit_banka_hareketi TO klinik_uygulama;
+GRANT SELECT, INSERT, DELETE ON personel_egitim TO klinik_uygulama;
+GRANT INSERT ON hasta_yorum TO klinik_uygulama;
+GRANT SELECT ON islem_tanimi_adim TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON islem_adimi_sablonu TO klinik_uygulama;
+GRANT SELECT, INSERT ON audit_log TO klinik_uygulama;
+GRANT SELECT ON randevu_cihaz_rezervasyon TO klinik_uygulama;
+GRANT SELECT, INSERT, DELETE ON kasa_dengeleme TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON klinik_kredi_kartlari TO klinik_uygulama;
+GRANT SELECT, DELETE ON klinik_cari_odeme TO klinik_uygulama;
+GRANT SELECT, INSERT, DELETE ON klinik_kredi_karti_odeme TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON resmi_tatil_oneri TO klinik_uygulama;
 GRANT SELECT ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
-GRANT UPDATE ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
-GRANT DELETE ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
-GRANT TRUNCATE ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
-GRANT REFERENCES ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
-GRANT TRIGGER ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
-GRANT MAINTAIN ON klinik_kredi_karti_hareketleri TO klinik_uygulama;
-GRANT INSERT ON v_hasta_cari_ozet TO klinik_uygulama;
 GRANT SELECT ON v_hasta_cari_ozet TO klinik_uygulama;
-GRANT UPDATE ON v_hasta_cari_ozet TO klinik_uygulama;
-GRANT DELETE ON v_hasta_cari_ozet TO klinik_uygulama;
-GRANT TRUNCATE ON v_hasta_cari_ozet TO klinik_uygulama;
-GRANT REFERENCES ON v_hasta_cari_ozet TO klinik_uygulama;
-GRANT TRIGGER ON v_hasta_cari_ozet TO klinik_uygulama;
-GRANT MAINTAIN ON v_hasta_cari_ozet TO klinik_uygulama;
-GRANT INSERT ON v_hasta_detay_ozet TO klinik_uygulama;
 GRANT SELECT ON v_hasta_detay_ozet TO klinik_uygulama;
-GRANT UPDATE ON v_hasta_detay_ozet TO klinik_uygulama;
-GRANT DELETE ON v_hasta_detay_ozet TO klinik_uygulama;
-GRANT TRUNCATE ON v_hasta_detay_ozet TO klinik_uygulama;
-GRANT REFERENCES ON v_hasta_detay_ozet TO klinik_uygulama;
-GRANT TRIGGER ON v_hasta_detay_ozet TO klinik_uygulama;
-GRANT MAINTAIN ON v_hasta_detay_ozet TO klinik_uygulama;
-GRANT INSERT ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT SELECT ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT UPDATE ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT DELETE ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT TRUNCATE ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT REFERENCES ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT TRIGGER ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT MAINTAIN ON v_hasta_ilerleme TO klinik_uygulama;
-GRANT INSERT ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT SELECT ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT UPDATE ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT DELETE ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT TRUNCATE ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT REFERENCES ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT TRIGGER ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT MAINTAIN ON v_hasta_karsilastirma TO klinik_uygulama;
-GRANT INSERT ON v_hasta_ozet TO klinik_uygulama;
 GRANT SELECT ON v_hasta_ozet TO klinik_uygulama;
-GRANT UPDATE ON v_hasta_ozet TO klinik_uygulama;
-GRANT DELETE ON v_hasta_ozet TO klinik_uygulama;
-GRANT TRUNCATE ON v_hasta_ozet TO klinik_uygulama;
-GRANT REFERENCES ON v_hasta_ozet TO klinik_uygulama;
-GRANT TRIGGER ON v_hasta_ozet TO klinik_uygulama;
-GRANT MAINTAIN ON v_hasta_ozet TO klinik_uygulama;
-GRANT INSERT ON v_personel_bilgi_durumu TO klinik_uygulama;
 GRANT SELECT ON v_personel_bilgi_durumu TO klinik_uygulama;
-GRANT UPDATE ON v_personel_bilgi_durumu TO klinik_uygulama;
-GRANT DELETE ON v_personel_bilgi_durumu TO klinik_uygulama;
-GRANT TRUNCATE ON v_personel_bilgi_durumu TO klinik_uygulama;
-GRANT REFERENCES ON v_personel_bilgi_durumu TO klinik_uygulama;
-GRANT TRIGGER ON v_personel_bilgi_durumu TO klinik_uygulama;
-GRANT MAINTAIN ON v_personel_bilgi_durumu TO klinik_uygulama;
-GRANT INSERT ON v_personel_hesap_bakiye TO klinik_uygulama;
 GRANT SELECT ON v_personel_hesap_bakiye TO klinik_uygulama;
-GRANT UPDATE ON v_personel_hesap_bakiye TO klinik_uygulama;
-GRANT DELETE ON v_personel_hesap_bakiye TO klinik_uygulama;
-GRANT TRUNCATE ON v_personel_hesap_bakiye TO klinik_uygulama;
-GRANT REFERENCES ON v_personel_hesap_bakiye TO klinik_uygulama;
-GRANT TRIGGER ON v_personel_hesap_bakiye TO klinik_uygulama;
-GRANT MAINTAIN ON v_personel_hesap_bakiye TO klinik_uygulama;
-GRANT INSERT ON v_personel_izin_bakiye TO klinik_uygulama;
 GRANT SELECT ON v_personel_izin_bakiye TO klinik_uygulama;
-GRANT UPDATE ON v_personel_izin_bakiye TO klinik_uygulama;
-GRANT DELETE ON v_personel_izin_bakiye TO klinik_uygulama;
-GRANT TRUNCATE ON v_personel_izin_bakiye TO klinik_uygulama;
-GRANT REFERENCES ON v_personel_izin_bakiye TO klinik_uygulama;
-GRANT TRIGGER ON v_personel_izin_bakiye TO klinik_uygulama;
-GRANT MAINTAIN ON v_personel_izin_bakiye TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION set_updated_at() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION portal_giris_epostasi(text) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION randevu_iptal_talebi_klinik_id_ata() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_hassas_klinik_id_ata() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION derive_klinik_id_from_parent() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION audit_log_yaz() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_terapist_sadece_risk_guncelle() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION randevu_on_form_dogrula() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_iliski_klinik_dogrula() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_belge_onam_dogrula() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hasta_belge_goruntule(uuid) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_protokol_kontrendikasyon_kontrol() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION odeme_olustur(uuid,numeric,boolean,text,jsonb,jsonb) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_hassas_kaydet(uuid,text,text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_hassas_maskeli_getir(uuid) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_hassas_terapist_sadece_anamnez_guncelle() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_hassas_terapist_sadece_anamnez_ekle() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_hassas_denetim_bilgisi_ata() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_gelis_isaretle(uuid,integer) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hasta_arsiv_ice_aktar(jsonb) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_arsiv_ice_aktar(jsonb) TO klinik_uygulama;
@@ -6884,28 +6751,21 @@ GRANT EXECUTE ON FUNCTION hasta_bakiye_hareket_arsiv_ekle(jsonb) TO klinik_uygul
 GRANT EXECUTE ON FUNCTION paket_satis_arsiv_ekle(uuid,jsonb) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hasta_qr_self_servis_mi(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hasta_qr_self_servis_mi(uuid) TO klinik_anonim;
-GRANT EXECUTE ON FUNCTION islem_tanimi_fiyat_gecmisi_yaz() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION islem_tanimi_etkin_fiyat(uuid,uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION resepsiyon_puantaj_gorebilir_mi() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION personel_puantaj_planlanan_getir(uuid,date) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_puantaj_net_dakika(timestamp with time zone,timestamp with time zone,integer) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_puantaj_planlanan_dakika(time without time zone,time without time zone) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_puantaj_sapma_dakika(timestamp with time zone,timestamp with time zone,integer,time without time zone,time without time zone) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION personel_puantaj_varsayilanlari_doldur() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION personel_puantaj_fm_onay_denetim() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_puantaj_donemi_acik_mi(uuid,date) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_puantaj_donem_kapat(uuid,integer,integer) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_puantaj_donem_yeniden_ac(uuid,integer,integer) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION seans_degerlendirme_alanlari_doldur() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_anket_uygun_mu(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_anket_uygun_mu(uuid) TO klinik_anonim;
 GRANT EXECUTE ON FUNCTION seans_degerlendirme_baglam_getir(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION seans_degerlendirme_baglam_getir(uuid) TO klinik_anonim;
 GRANT EXECUTE ON FUNCTION qr_kodu_aktif_mi(uuid,text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION qr_kodu_aktif_mi(uuid,text) TO klinik_anonim;
-GRANT EXECUTE ON FUNCTION randevu_talebi_klinik_id_ata() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hasta_bakiye_hareket_borc_duzenle(uuid,numeric,boolean,text) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION mesaj_kredi_yukle(uuid,mesaj_kanal_tipi,integer,numeric,text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION mesaj_kredi_senkronla(uuid,mesaj_kanal_tipi,integer,bigint) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_izin_hak_gun_hesapla(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_izin_is_gunu_sayisi(date,date) TO klinik_uygulama;
@@ -6916,24 +6776,14 @@ GRANT EXECUTE ON FUNCTION personel_izin_talebi_onayla(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_izin_talebi_reddet(uuid,text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_izin_talebi_yonetici_iptal(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION personel_hesap_hareket_donem_ekle(uuid,numeric,numeric) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION pozisyon_pasif_engelle() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION klinik_pozisyonlari_seed() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION klinik_qr_kisa_kod_uret() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION klinik_qr_kisa_kod_varsayilan() TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION klinik_qr_bilgisi_getir(text) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION klinik_qr_bilgisi_getir(text) TO klinik_anonim;
 GRANT EXECUTE ON FUNCTION personel_hesap_hareket_ekle(uuid,text,numeric,date,text,text,uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION terapist_id_giris_yapan_kullaniciya_ait_mi(uuid) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_yorum_alanlari_doldur() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION telefon_normalize(text) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION personel_giris_epostasi(text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION kasa_bakiye_once_toplam(date) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION banka_bakiye_once_toplam_tumu(date) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION kredi_karti_bakiye_once_toplam(date) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION islem_tanimi_toplam_sure_guncelle() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION islem_tanimi_kaydet(uuid,text,numeric,numeric,numeric,numeric,numeric,text,jsonb) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_seans_bedelini_isle(uuid,numeric,text,uuid,text,timestamp with time zone,text) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION audit_log_degisiklik_yaz() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hiz_siniri_kullan(text,integer,integer,boolean) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hiz_siniri_kullan(text,integer,integer,boolean) TO klinik_anonim;
 GRANT EXECUTE ON FUNCTION audit_log_bolum_olustur(integer,date) TO bakim_rolu;
@@ -6941,16 +6791,14 @@ GRANT EXECUTE ON FUNCTION personel_puantaj_kendi_kaydet(text) TO klinik_uygulama
 GRANT EXECUTE ON FUNCTION rapor_donem_ozeti(timestamp with time zone,timestamp with time zone,date,date) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION rapor_yillik_ozet(integer) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION turkce_arama_metni(text) TO klinik_uygulama;
+GRANT EXECUTE ON FUNCTION turkce_arama_metni(text) TO klinik_anonim;
 GRANT EXECUTE ON FUNCTION hasta_ara(text,integer) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION gelmeme_analizi(timestamp with time zone,timestamp with time zone) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION randevu_iptal_talebi_gec_iptal_ata() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_iptal_geri_al(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_iptal_et(uuid,text,boolean,boolean) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION hasta_bakiye_hareket_kredi_karti_ayari() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION tedarikci_anahtari(text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION klinik_cari_bakiyeler(uuid,text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION klinik_cari_odeme_ekle(text,numeric,date,text,uuid,uuid,text) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION klinik_harcama_cari_butunluk() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION kredi_karti_borc_ozetleri(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION resmi_tatil_onerisi_karar(integer,text,boolean,date[]) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION turkce_kucuk_harf(text) TO klinik_uygulama;
@@ -6958,4 +6806,3 @@ GRANT EXECUTE ON FUNCTION turkce_sira_anahtari(text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hasta_bas_harf_sayilari() TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION hasta_harf_listesi(text,integer,integer) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_gelmedi_isaretle(uuid) TO klinik_uygulama;
-GRANT EXECUTE ON FUNCTION personel_hesap_hareket_tutar_yuvarla() TO klinik_uygulama;

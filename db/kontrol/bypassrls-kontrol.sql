@@ -13,7 +13,7 @@ WHERE (rolbypassrls OR rolsuper) AND rolname NOT IN ('postgres', 'klinik_yedek')
 INSERT INTO kontrol_sonuc
 SELECT 'fonksiyon_sahibi_bypass', 'HATA', n.nspname || '.' || p.proname || ' (sahip: ' || r.rolname || ')'
 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace JOIN pg_roles r ON r.oid = p.proowner
-WHERE n.nspname IN ('public', 'extensions') AND (r.rolbypassrls OR r.rolsuper)
+WHERE n.nspname IN ('public', 'extensions', 'tanima') AND (r.rolbypassrls OR r.rolsuper)
   AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e');   -- eklenti fonksiyonları hariç
 
 -- 3) public şemasında sahibi klinik_sahip olmayan fonksiyon (eklenti dışı)
@@ -42,7 +42,22 @@ WHERE grantee = 'bakim_rolu' AND table_schema = 'public'
 -- 6) Uygulama rolü hiçbir nesnenin sahibi olmamalı
 INSERT INTO kontrol_sonuc
 SELECT 'uygulama_sahip', 'HATA', c.relname FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner
-WHERE r.rolname IN ('klinik_uygulama', 'bakim_rolu', 'klinik_anonim');
+WHERE r.rolname IN ('klinik_uygulama', 'bakim_rolu', 'klinik_anonim', 'kimlik_rolu', 'klinik_tanima') AND c.relnamespace = 'public'::regnamespace;
+
+-- 6b) klinik_yedek (tek izinli BYPASSRLS rolü): giriş kuralı yalnız localhost'tan olmalı (pg_hba), süper kullanıcı/yazma üyeliği olmamalı
+INSERT INTO kontrol_sonuc
+SELECT 'yedek_hba_uzak', 'HATA', 'satır ' || line_number || ': ' || coalesce(address, '(yerel soket)')
+FROM pg_hba_file_rules
+WHERE 'klinik_yedek' = ANY (user_name) AND address IS NOT NULL AND address NOT IN ('127.0.0.1', '::1', 'localhost');
+INSERT INTO kontrol_sonuc
+SELECT 'hba_genel_uzak', 'UYARI', 'satır ' || line_number || ': tüm kullanıcılar için ' || address || ' (elle gözden geçir)'
+FROM pg_hba_file_rules
+WHERE 'all' = ANY (user_name) AND address IS NOT NULL AND address NOT IN ('127.0.0.1', '::1', 'localhost')
+  AND NOT ('klinik_yedek' = ANY (user_name));
+INSERT INTO kontrol_sonuc
+SELECT 'yedek_super_veya_yazma', 'HATA', rolname FROM pg_roles WHERE rolname = 'klinik_yedek' AND (rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication);
+INSERT INTO kontrol_sonuc
+SELECT 'yedek_sahip_nesne', 'HATA', c.relname FROM pg_class c WHERE c.relowner = 'klinik_yedek'::regrole;
 
 -- 7) Bilgi: izinli istisnalar
 INSERT INTO kontrol_sonuc

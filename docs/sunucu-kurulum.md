@@ -13,7 +13,23 @@ Node.js LTS · PostgreSQL (aynı VM, yalnız `localhost`) · NSSM (uygulama serv
 | `klinik_uygulama` | evet | **tabi** | Yalnız gerekli `SELECT/INSERT/UPDATE/DELETE` ve `EXECUTE` | Uygulama (yalnız `DATABASE_URL`) |
 | `klinik_anonim` | hayır (uygulama giriş öncesi akışlarda `SET LOCAL ROLE`) | **tabi** | Yalnız anonim akışların dar politikaları/fonksiyonları | QR, portal/personel giriş öncesi, iş başvurusu |
 | **`bakim_rolu`** | evet | **tabi (BYPASSRLS DEĞİL)** | `klinik` üzerinde **yalnız SELECT**; bakım fonksiyonlarına EXECUTE; `klinik_uygulama` rolüne üyelik (`SET LOCAL ROLE klinik_uygulama` ile klinik başına iş `withTenant` altında yapılır) | **Yalnız** `scripts/` altındaki bakım betikleri (`BAKIM_DATABASE_URL`). Uygulama süreci bu bilgiyi hiç almaz |
-| `klinik_yedek` | evet | **BYPASSRLS** (tek istisna) | Salt-okunur (`pg_read_all_data`) | Yalnız `yedek.ps1`. FORCE RLS altında `pg_dump` BYPASSRLS'siz çalışamaz; süper kullanıcı yerine bu dar rol seçildi. **Onay bekliyor** (plan, açık kararlar) |
+| `kimlik_rolu` | evet | tabi | **Yalnız** `kimlik_kullanici`, `kimlik_hesap`, `oturum`, `kimlik_dogrulama` (Better Auth bağlantısı). Başka hiçbir tabloda/fonksiyonda yetkisi yok; `klinik_uygulama`, `klinik_anonim`, `bakim_rolu` bu tablolarda HİÇBİR yetkiye sahip değil | Better Auth (`KIMLIK_DATABASE_URL`) |
+| `klinik_tanima` | hayır (`NOLOGIN`) | tabi | Yalnız `klinik(id, ad, qr_kisa_kod)` ve `randevu(id, klinik_id)` kolonlarını okuyabilir; `tanima` şemasındaki iki DEFINER fonksiyonun sahibi | Giriş öncesi tenant'sız çözümleme (kısa kod → klinik, randevu → klinik) |
+| `klinik_yedek` | evet | **BYPASSRLS** (tek istisna, **ONAYLANDI 2026-10-27**) | **Yalnız SELECT** (`pg_read_all_data`; başka rol üyeliği, yazma, CREATE yok). `pg_hba.conf`'ta yalnız `127.0.0.1/32` ve `::1/128` | Yalnız `yedek.ps1` (parolası yalnız `svc-klinik-yedek` hesabının okuyabildiği `yedek.env`'de) |
+
+**klinik_yedek istisnası (onaylandı):** FORCE RLS altında `pg_dump` BYPASSRLS'siz tabloyu tam okuyamaz; süper kullanıcı yerine yalnız-okuma yetkili dar bir rol seçildi. Koşullar: (1) yalnız SELECT, yazma/DDL yetkisi yok, hiçbir nesnenin sahibi değil; (2) giriş yalnız localhost'tan (aşağıdaki `pg_hba.conf` satırları); (3) parola yalnız yedek hesabının okuyabildiği `yedek.env` dosyasında; (4) `db/kontrol/bypassrls-kontrol.sql` izin listesinde adıyla yer alır (başka hiçbir rol BYPASSRLS olamaz) ve `yetki-matrisi.sql` yazma yetkisini ve rol üyeliklerini denetler; (5) pg_dump kimlik tablolarını da (parola hash'leri dahil) okur — bu yüzden yedek şifreli saklanır ve `klinik_yedek` kimlik tablolarında yetki matrisinin tek izinli istisnasıdır (yalnız SELECT).
+
+`pg_hba.conf` (özet; sıra önemli, `scram-sha-256`):
+```
+host  klinik  klinik_yedek     127.0.0.1/32  scram-sha-256
+host  klinik  klinik_yedek     ::1/128       scram-sha-256
+host  klinik  klinik_uygulama  127.0.0.1/32  scram-sha-256
+host  klinik  kimlik_rolu      127.0.0.1/32  scram-sha-256
+host  klinik  bakim_rolu       127.0.0.1/32  scram-sha-256
+host  all     all              0.0.0.0/0     reject
+host  all     all              ::/0          reject
+```
+(`listen_addresses = 'localhost'` ayrıca.) Kontrol: `bypassrls-kontrol.sql` `pg_hba_file_rules` üzerinden `klinik_yedek` için uzak adres bulursa HATA verir.
 
 Karar: bakim_rolu BYPASSRLS DEĞİL; bakım işi de RLS'ten geçer (klinik başına `app.tenant_id`). Böylece "sistem işi" bile başka kliniğin verisini bir transaction'da karıştıramaz. Sistem bağlamı RPC'lerde `session_user = 'bakim_rolu'` ile tanınır (bkz. `docs/service-role-siniflama.md`).
 
@@ -29,9 +45,9 @@ Karar: bakim_rolu BYPASSRLS DEĞİL; bakım işi de RLS'ten geçer (klinik baş�
 | `svc-klinik-bakim` | Task Scheduler görevleri (`scripts/*.mjs`) | `C:\klinik\gizli\bakim.env` |
 | `svc-klinik-yedek` | `yedek.ps1` | `C:\klinik\gizli\yedek.env` |
 
-**`uygulama.env`**: `DATABASE_URL` (klinik_uygulama) · `BETTER_AUTH_SECRET` · `BETTER_AUTH_URL` · `DOSYA_KOKU` · `CHROMIUM_PATH` · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` · `DESTEK_CHATBOT_ACIK` (varsayılan kapalı).
+**`uygulama.env`**: `DATABASE_URL` (klinik_uygulama) · `KIMLIK_DATABASE_URL` (kimlik_rolu — Better Auth; uygulama süreci iki bağlantı havuzu kullanır) · `BETTER_AUTH_SECRET` · `BETTER_AUTH_URL` · `DOSYA_KOKU` · `CHROMIUM_PATH` · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` · `DESTEK_CHATBOT_ACIK` (varsayılan kapalı).
 **`bakim.env`**: `BAKIM_DATABASE_URL` (bakim_rolu) · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` (kuyruk işçisi ve kredi senkronu için). **`DATABASE_URL` ve `BETTER_AUTH_SECRET` burada YOKTUR.**
-**`yedek.env`**: `YEDEK_DATABASE_URL` (klinik_yedek) · `YEDEK_HEDEF_KLASOR` · `YEDEK_ALICI_ANAHTARI` (age ortak anahtarı) · `YEDEK_GUNLUK_SAKLAMA_GUN` (30) · `YEDEK_AYLIK_SAKLAMA_AY` (12) · `YEDEK_DIS_KOPYA_HEDEFI`.
+**`yedek.env`**: `YEDEK_DATABASE_URL` (klinik_yedek; yalnız localhost) · `YEDEK_HEDEF_KLASOR` · `YEDEK_ALICI_ANAHTARI` (age ortak anahtarı) · `YEDEK_GUNLUK_SAKLAMA_GUN` (30) · `YEDEK_AYLIK_SAKLAMA_AY` (12) · `YEDEK_DIS_KOPYA_HEDEFI`.
 
 ### NTFS izinleri (tasarım — Aşama 1'de uygulanıp doğrulanacak)
 Miras kapatılır, yalnız ilgili hesap OKUR, çapraz hesaplara açık **Deny** yazılır:
@@ -60,6 +76,9 @@ Sunucu saat dilimi **Turkey Standard Time** (UTC+3, yaz saati yok); görev saatl
 | `kredi-senkron.mjs` | Saatlik | (merkez zamanlayıcı) | Merkez bakiyesi → yerel yansıma |
 
 Betikler bakim_rolu ile bağlanıp `klinik` listesini okur; her klinik için `BEGIN; SET LOCAL ROLE klinik_uygulama; SET LOCAL app.tenant_id …` (`withTenant`) ile işler. Çift çalışma: Task Scheduler "çalışan örnek varken yenisini başlatma" + işin kendi idempotency'si.
+
+## 3b2. Giriş öncesi logo (tasarım)
+Giriş sayfaları logoyu **tek amaçlı, önbellekli, tenant verisi dönmeyen** bir route'tan alır: `GET /api/logo/[kisaKod]` (kısa kod = herkese açık QR kısa kodu). Kurallar: yalnız görsel baytı döner (JSON/başka klinik alanı yok); kısa kod `tanima.klinik_qr_bilgisi_getir` ile çözülür, bulunamazsa sabit varsayılan logo (404 ayrımı sızdırmaz); `Cache-Control: public, max-age=3600`, ETag; hız sınırı (anonim uç, bkz. plan Aşama 3); dosya `DOSYA_KOKU/klinik-logo/{klinik_id}/…` altından yalnız bu route okur, doğrudan dosya servisi yoktur. Oturumlu panelde logo `/api/dosya/logo` (yetkili route) ile gelir. Caddy'de bu yol için kısa önbellek eklenebilir; **diğer hiçbir dosya yolu önbelleğe alınmaz.**
 
 ## 3c. Cloudflare — KVKK notu
 

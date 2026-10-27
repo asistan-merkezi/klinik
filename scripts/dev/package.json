@@ -1,0 +1,14 @@
+{
+  "name": "klinik-dev-araclari",
+  "private": true,
+  "type": "module",
+  "description": "Şema üretimi ve veritabanı kontrol testleri için geliştirici araçları (uygulamanın bağımlılığı DEĞİL). Kurulum: cd scripts/dev && npm install",
+  "scripts": {
+    "yeniden-uret": "node yeniden-uret.mjs",
+    "kontrol": "node kontrol-calistir.mjs"
+  },
+  "dependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
+    "pg": "^8.23.1"
+  }
+}

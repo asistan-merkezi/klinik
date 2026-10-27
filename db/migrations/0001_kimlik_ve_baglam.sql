@@ -3,6 +3,11 @@
 -- Çalıştıran rol: klinik_sahip.
 SET search_path = public, extensions;
 
+-- Varsayılan yetkiler KAPALI: klinik_sahip'in bundan sonra yaratacağı hiçbir nesne PUBLIC'e açık gelmez (özellikle fonksiyonlarda EXECUTE).
+ALTER DEFAULT PRIVILEGES FOR ROLE klinik_sahip IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE klinik_sahip IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE klinik_sahip IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
 CREATE TABLE kimlik_kullanici (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   ad text NOT NULL DEFAULT '',
@@ -64,8 +69,9 @@ $$ SELECT nullif(current_setting('app.tenant_id', true), '')::uuid $$;
 CREATE FUNCTION sistem_baglami() RETURNS boolean LANGUAGE sql STABLE AS
 $$ SELECT session_user = 'bakim_rolu' $$;
 
--- Kimlik tabloları yalnız uygulama rolüne (Better Auth); tenant'sız olduğundan RLS yok.
+-- Kimlik tabloları YALNIZ kimlik_rolu (Better Auth bağlantısı) tarafından erişilir; klinik_uygulama, klinik_anonim, bakim_rolu
+-- bu tablolarda HİÇBİR yetkiye sahip değildir. (Tablo sahibi klinik_sahip'in DEFINER giriş fonksiyonları sahip olarak okur: docs/giris-akislari.md.)
 REVOKE ALL ON kimlik_kullanici, kimlik_hesap, oturum, kimlik_dogrulama FROM PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE ON kimlik_kullanici, kimlik_hesap, oturum, kimlik_dogrulama TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kimlik_kullanici, kimlik_hesap, oturum, kimlik_dogrulama TO kimlik_rolu;
 GRANT EXECUTE ON FUNCTION app_kullanici_id(), current_klinik_id() TO klinik_uygulama, klinik_anonim, bakim_rolu;
 GRANT EXECUTE ON FUNCTION sistem_baglami() TO klinik_uygulama, klinik_anonim, bakim_rolu;

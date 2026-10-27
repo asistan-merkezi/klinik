@@ -1,6 +1,6 @@
 <#
  Boş Postgres'e klinik veritabanını kurar (Aşama 2). psql.exe PATH'te olmalı.
- Şifreler dosyaya YAZILMAZ: ortam değişkeninden okunur (KLINIK_UYGULAMA_SIFRE, KLINIK_BAKIM_SIFRE, KLINIK_YEDEK_SIFRE);
+ Şifreler dosyaya YAZILMAZ: ortam değişkeninden okunur (KLINIK_UYGULAMA_SIFRE, KLINIK_KIMLIK_SIFRE, KLINIK_BAKIM_SIFRE, KLINIK_YEDEK_SIFRE);
  süper kullanıcı bağlantısı PGPASSWORD veya pgpass ile verilir.
  DENENMEDİ: Windows'ta psql ile çalıştırılmadı; aynı SQL dosyaları bir Node düzeneğiyle denendi.
  Kullanım:  .\scripts\db-kur.ps1 -Sunucu localhost -Port 5432 -SuperKullanici postgres
@@ -11,7 +11,7 @@ param(
   [string]$SuperKullanici = "postgres"
 )
 $ErrorActionPreference = "Stop"
-foreach ($d in "KLINIK_UYGULAMA_SIFRE", "KLINIK_BAKIM_SIFRE", "KLINIK_YEDEK_SIFRE") {
+foreach ($d in "KLINIK_UYGULAMA_SIFRE", "KLINIK_KIMLIK_SIFRE", "KLINIK_BAKIM_SIFRE", "KLINIK_YEDEK_SIFRE") {
   if (-not (Get-Item "env:$d" -ErrorAction SilentlyContinue)) { throw "$d ortam değişkeni gerekli" }
 }
 $kok = Split-Path -Parent $PSScriptRoot
@@ -26,6 +26,7 @@ function Psql([string]$Veritabani, [string]$Dosya, [string[]]$Ek = @()) {
 # 1) Roller ve veritabanı (süper kullanıcı)
 Psql "postgres" "db/kurulum/00_roller.sql" @(
   "-v", "uygulama_sifre=$env:KLINIK_UYGULAMA_SIFRE",
+  "-v", "kimlik_sifre=$env:KLINIK_KIMLIK_SIFRE",
   "-v", "bakim_sifre=$env:KLINIK_BAKIM_SIFRE",
   "-v", "yedek_sifre=$env:KLINIK_YEDEK_SIFRE")
 Psql "postgres" "db/kurulum/01_veritabani.sql"
@@ -33,7 +34,7 @@ Psql "klinik" "db/kurulum/02_eklentiler.sql"
 
 # 2) Şema ve tohum: nesne sahibi klinik_sahip (SET ROLE ile)
 foreach ($f in "db/migrations/0001_kimlik_ve_baglam.sql", "db/migrations/0002_temel_sema.sql",
-               "db/migrations/0003_baglam_politikalari.sql", "db/seed/0001_referans_veri.sql") {
+               "db/migrations/0003_baglam_politikalari.sql", "db/migrations/0004_tanima_ve_definer_sertlestirme.sql", "db/seed/0001_referans_veri.sql") {
   $gecici = New-TemporaryFile
   try {
     "SET ROLE klinik_sahip;" | Set-Content -Path $gecici -Encoding utf8

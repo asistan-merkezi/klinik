@@ -1,0 +1,1304 @@
+{
+ "uretim": "db/kontrol/definer-duman-testi.mjs",
+ "veriliTablolar": [
+  "egzersiz_kutuphanesi",
+  "hasta",
+  "hasta_bakiye_hareket",
+  "islem_tanimi",
+  "islem_tanimi_fiyat_gecmisi",
+  "kimlik_kullanici",
+  "klinik",
+  "kullanici",
+  "oda",
+  "olcek_tanimi",
+  "paket",
+  "paket_satis",
+  "personel",
+  "pozisyon_sablonlari",
+  "pozisyonlar",
+  "randevu",
+  "resmi_tatil",
+  "terapist"
+ ],
+ "sonuclar": [
+  {
+   "ad": "audit_log_bolum_olustur",
+   "imza": "audit_log_bolum_olustur(integer,date)",
+   "donus": "jsonb",
+   "tur": "ic",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "IC",
+   "ayrinti": "uygulama/anonim EXECUTE yetkisi yok: yalnız tetikleyici/başka fonksiyon/bakım betiği çağırabilir"
+  },
+  {
+   "ad": "audit_log_degisiklik_yaz",
+   "imza": "audit_log_degisiklik_yaz()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "audit_log_yaz",
+   "imza": "audit_log_yaz()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "banka_bakiye_once_toplam_tumu",
+   "imza": "banka_bakiye_once_toplam_tumu(date)",
+   "donus": "TABLE(banka_hesap_id uuid, toplam numeric)",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos"
+   },
+   "b": {
+    "durum": "bos"
+   },
+   "c": {
+    "durum": "bos"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "banka_hesabi_butunluk",
+   "imza": "banka_hesabi_butunluk()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "banka_hesabi_silme_engeli",
+   "imza": "banka_hesabi_silme_engeli()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "current_hasta_id",
+   "imza": "current_hasta_id()",
+   "donus": "uuid",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"current_hasta_id\":null}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"current_hasta_id\":null}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"current_hasta_id\":null}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "current_rol",
+   "imza": "current_rol()",
+   "donus": "kullanici_rol_tipi",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"current_rol\":null}"
+   },
+   "b": {
+    "durum": "veri",
+    "ornek": "{\"current_rol\":\"klinik_admin\"}"
+   },
+   "c": {
+    "durum": "veri",
+    "ornek": "{\"current_rol\":\"klinik_admin\"}"
+   },
+   "sonuc": "TASARIM_GEREGI",
+   "ayrinti": "A:bos {\"current_rol\":null} · B:veri {\"current_rol\":\"klinik_admin\"}"
+  },
+  {
+   "ad": "derive_klinik_id_from_parent",
+   "imza": "derive_klinik_id_from_parent()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_arsiv_ice_aktar",
+   "imza": "hasta_arsiv_ice_aktar(jsonb)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "hasta_bakiye_hareket_arsiv_ekle",
+   "imza": "hasta_bakiye_hareket_arsiv_ekle(jsonb)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "hasta_bakiye_hareket_borc_duzenle",
+   "imza": "hasta_bakiye_hareket_borc_duzenle(uuid,numeric,boolean,text)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "hareket_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "hareket_bulunamadi"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "hasta_bakiye_hareket_kredi_karti_ayari",
+   "imza": "hasta_bakiye_hareket_kredi_karti_ayari()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_belge_goruntule",
+   "imza": "hasta_belge_goruntule(uuid)",
+   "donus": "hasta_belge",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "belge_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "belge_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "belge_bulunamadi"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "hasta_belge_onam_dogrula",
+   "imza": "hasta_belge_onam_dogrula()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_hassas_denetim_bilgisi_ata",
+   "imza": "hasta_hassas_denetim_bilgisi_ata()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_hassas_klinik_id_ata",
+   "imza": "hasta_hassas_klinik_id_ata()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_hassas_terapist_sadece_anamnez_ekle",
+   "imza": "hasta_hassas_terapist_sadece_anamnez_ekle()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_hassas_terapist_sadece_anamnez_guncelle",
+   "imza": "hasta_hassas_terapist_sadece_anamnez_guncelle()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_iliski_klinik_dogrula",
+   "imza": "hasta_iliski_klinik_dogrula()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_portal_alan_kisitla",
+   "imza": "hasta_portal_alan_kisitla()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_protokol_kontrendikasyon_kontrol",
+   "imza": "hasta_protokol_kontrendikasyon_kontrol()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_qr_self_servis_mi",
+   "imza": "hasta_qr_self_servis_mi(uuid)",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"hasta_qr_self_servis_mi\":false}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"hasta_qr_self_servis_mi\":false}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"hasta_qr_self_servis_mi\":false}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "hasta_terapist_sadece_risk_guncelle",
+   "imza": "hasta_terapist_sadece_risk_guncelle()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hasta_yorum_alanlari_doldur",
+   "imza": "hasta_yorum_alanlari_doldur()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "hiz_siniri_kullan",
+   "imza": "hiz_siniri_kullan(text,integer,integer,boolean)",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "veri",
+    "ornek": "{\"hiz_siniri_kullan\":true}"
+   },
+   "b": {
+    "durum": "veri",
+    "ornek": "{\"hiz_siniri_kullan\":true}"
+   },
+   "c": {
+    "durum": "veri",
+    "ornek": "{\"hiz_siniri_kullan\":true}"
+   },
+   "sonuc": "TASARIM_GEREGI",
+   "ayrinti": "A:veri {\"hiz_siniri_kullan\":true} · B:veri {\"hiz_siniri_kullan\":true}"
+  },
+  {
+   "ad": "is_super_admin",
+   "imza": "is_super_admin()",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"is_super_admin\":false}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"is_super_admin\":false}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"is_super_admin\":false}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "islem_tanimi_etkin_fiyat",
+   "imza": "islem_tanimi_etkin_fiyat(uuid,uuid)",
+   "donus": "numeric",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"islem_tanimi_etkin_fiyat\":null}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"islem_tanimi_etkin_fiyat\":null}"
+   },
+   "c": {
+    "durum": "veri",
+    "ornek": "{\"islem_tanimi_etkin_fiyat\":\"1000.00\"}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "islem_tanimi_fiyat_gecmisi_yaz",
+   "imza": "islem_tanimi_fiyat_gecmisi_yaz()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "islem_tanimi_kaydet",
+   "imza": "islem_tanimi_kaydet(uuid,text,numeric,numeric,numeric,numeric,numeric,text,jsonb)",
+   "donus": "uuid",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "cannot get array length of a non-array"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "cannot get array length of a non-array"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "islem_tanimi_toplam_sure_guncelle",
+   "imza": "islem_tanimi_toplam_sure_guncelle()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "kasa_bakiye_once_toplam",
+   "imza": "kasa_bakiye_once_toplam(date)",
+   "donus": "numeric",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"kasa_bakiye_once_toplam\":\"0\"}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"kasa_bakiye_once_toplam\":\"0\"}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"kasa_bakiye_once_toplam\":\"0\"}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "klinik_cari_odeme_ekle",
+   "imza": "klinik_cari_odeme_ekle(text,numeric,date,text,uuid,uuid,text)",
+   "donus": "uuid",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "odeme_tipi_gecersiz"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "odeme_tipi_gecersiz"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "klinik_harcama_cari_butunluk",
+   "imza": "klinik_harcama_cari_butunluk()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "klinik_pozisyonlari_seed",
+   "imza": "klinik_pozisyonlari_seed()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "kredi_karti_bakiye_once_toplam",
+   "imza": "kredi_karti_bakiye_once_toplam(date)",
+   "donus": "numeric",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"kredi_karti_bakiye_once_toplam\":\"0\"}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"kredi_karti_bakiye_once_toplam\":\"0\"}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"kredi_karti_bakiye_once_toplam\":\"0\"}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "mesaj_kredi_senkronla",
+   "imza": "mesaj_kredi_senkronla(uuid,mesaj_kanal_tipi,integer,bigint)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "mismatched parentheses at or near \")\""
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "mismatched parentheses at or near \")\""
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "mismatched parentheses at or near \")\""
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "mesaj_kredi_yukle",
+   "imza": "mesaj_kredi_yukle(uuid,mesaj_kanal_tipi,integer,numeric,text)",
+   "donus": "void",
+   "tur": "ic",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "IC",
+   "ayrinti": "uygulama/anonim EXECUTE yetkisi yok: yalnız tetikleyici/başka fonksiyon/bakım betiği çağırabilir"
+  },
+  {
+   "ad": "nakit_banka_hareketi_hesap_butunluk",
+   "imza": "nakit_banka_hareketi_hesap_butunluk()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "odeme_olustur",
+   "imza": "odeme_olustur(uuid,numeric,boolean,text,jsonb,jsonb)",
+   "donus": "uuid",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "hasta_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "paket_satis_arsiv_ekle",
+   "imza": "paket_satis_arsiv_ekle(uuid,jsonb)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "paket_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_hassas_kaydet",
+   "imza": "personel_hassas_kaydet(uuid,text,text)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"personel_hassas_kaydet\":\"\"}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_hassas_maskeli_getir",
+   "imza": "personel_hassas_maskeli_getir(uuid)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"personel_hassas_maskeli_getir\":{\"pasaport_var\":false,\"pasaport_son2\":null,\"tc_"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_hesap_hareket_donem_ekle",
+   "imza": "personel_hesap_hareket_donem_ekle(uuid,numeric,numeric)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_hesap_hareket_ekle",
+   "imza": "personel_hesap_hareket_ekle(uuid,text,numeric,date,text,text,uuid)",
+   "donus": "uuid",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_izin_cakisanlari_getir",
+   "imza": "personel_izin_cakisanlari_getir(uuid)",
+   "donus": "TABLE(personel_id uuid, ad_soyad text, baslangic_tarih date, bitis_tarih date)",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos"
+   },
+   "b": {
+    "durum": "bos"
+   },
+   "c": {
+    "durum": "bos"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_izin_hak_gun_hesapla",
+   "imza": "personel_izin_hak_gun_hesapla(uuid)",
+   "donus": "numeric",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"personel_izin_hak_gun_hesapla\":null}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"personel_izin_hak_gun_hesapla\":null}"
+   },
+   "c": {
+    "durum": "veri",
+    "ornek": "{\"personel_izin_hak_gun_hesapla\":\"14\"}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_izin_talebi_onayla",
+   "imza": "personel_izin_talebi_onayla(uuid)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_izin_talebi_reddet",
+   "imza": "personel_izin_talebi_reddet(uuid,text)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_izin_talebi_yonetici_iptal",
+   "imza": "personel_izin_talebi_yonetici_iptal(uuid)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_izin_talep_iptal_et",
+   "imza": "personel_izin_talep_iptal_et(uuid)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_izin_talep_olustur",
+   "imza": "personel_izin_talep_olustur(uuid,text,date,date,text,text)",
+   "donus": "uuid",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "tip_gecersiz"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_puantaj_donem_kapat",
+   "imza": "personel_puantaj_donem_kapat(uuid,integer,integer)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "new row for relation \"personel_puantaj_donem\" violates check constraint \"personel_puantaj_donem_yil_check\""
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_puantaj_donem_yeniden_ac",
+   "imza": "personel_puantaj_donem_yeniden_ac(uuid,integer,integer)",
+   "donus": "void",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi_veya_zaten_acik"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi_veya_zaten_acik"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_puantaj_donemi_acik_mi",
+   "imza": "personel_puantaj_donemi_acik_mi(uuid,date)",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"personel_puantaj_donemi_acik_mi\":false}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"personel_puantaj_donemi_acik_mi\":false}"
+   },
+   "c": {
+    "durum": "veri",
+    "ornek": "{\"personel_puantaj_donemi_acik_mi\":true}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_puantaj_fm_onay_denetim",
+   "imza": "personel_puantaj_fm_onay_denetim()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "personel_puantaj_kendi_kaydet",
+   "imza": "personel_puantaj_kendi_kaydet(text)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "personel_puantaj_planlanan_getir",
+   "imza": "personel_puantaj_planlanan_getir(uuid,date)",
+   "donus": "TABLE(vardiya_turu_id uuid, baslangic time without time zone, bitis time without time zone)",
+   "tur": "ic",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "IC",
+   "ayrinti": "uygulama/anonim EXECUTE yetkisi yok: yalnız tetikleyici/başka fonksiyon/bakım betiği çağırabilir"
+  },
+  {
+   "ad": "personel_puantaj_varsayilanlari_doldur",
+   "imza": "personel_puantaj_varsayilanlari_doldur()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "pozisyon_pasif_engelle",
+   "imza": "pozisyon_pasif_engelle()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "qr_kodu_aktif_mi",
+   "imza": "qr_kodu_aktif_mi(uuid,text)",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"qr_kodu_aktif_mi\":false}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"qr_kodu_aktif_mi\":false}"
+   },
+   "c": {
+    "durum": "veri",
+    "ornek": "{\"qr_kodu_aktif_mi\":true}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_anket_uygun_mu",
+   "imza": "randevu_anket_uygun_mu(uuid)",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"randevu_anket_uygun_mu\":false}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"randevu_anket_uygun_mu\":false}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"randevu_anket_uygun_mu\":false}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_arsiv_ice_aktar",
+   "imza": "randevu_arsiv_ice_aktar(jsonb)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_cihaz_rezervasyon_tetikle",
+   "imza": "randevu_cihaz_rezervasyon_tetikle()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "randevu_cihaz_rezervasyon_yenile",
+   "imza": "randevu_cihaz_rezervasyon_yenile(uuid)",
+   "donus": "void",
+   "tur": "ic",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "IC",
+   "ayrinti": "uygulama/anonim EXECUTE yetkisi yok: yalnız tetikleyici/başka fonksiyon/bakım betiği çağırabilir"
+  },
+  {
+   "ad": "randevu_gelis_isaretle",
+   "imza": "randevu_gelis_isaretle(uuid,integer)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "c": {
+    "durum": "degisiklik",
+    "ornek": "{\"randevu_gelis_isaretle\":{\"yontem\":\"yok\",\"hasta_id\":\"10000000-0000-0000-0000-00"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_gelmedi_isaretle",
+   "imza": "randevu_gelmedi_isaretle(uuid)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "c": {
+    "durum": "degisiklik",
+    "ornek": "{\"randevu_gelmedi_isaretle\":{\"hasta_id\":\"10000000-0000-0000-0000-000000000003\",\""
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_iptal_et",
+   "imza": "randevu_iptal_et(uuid,text,boolean,boolean)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "c": {
+    "durum": "degisiklik",
+    "ornek": "{\"randevu_iptal_et\":{\"bedelli\":false,\"hasta_id\":\"10000000-0000-0000-0000-0000000"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_iptal_geri_al",
+   "imza": "randevu_iptal_geri_al(uuid)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "randevu_iptal_degil"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_iptal_talebi_gec_iptal_ata",
+   "imza": "randevu_iptal_talebi_gec_iptal_ata()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "randevu_iptal_talebi_klinik_id_ata",
+   "imza": "randevu_iptal_talebi_klinik_id_ata()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "randevu_on_form_dogrula",
+   "imza": "randevu_on_form_dogrula()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "randevu_seans_bedelini_isle",
+   "imza": "randevu_seans_bedelini_isle(uuid,numeric,text,uuid,text,timestamp with time zone,text)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "seans_tamamlanmamis"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "randevu_talebi_klinik_id_ata",
+   "imza": "randevu_talebi_klinik_id_ata()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "resepsiyon_puantaj_gorebilir_mi",
+   "imza": "resepsiyon_puantaj_gorebilir_mi()",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"resepsiyon_puantaj_gorebilir_mi\":false}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"resepsiyon_puantaj_gorebilir_mi\":false}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"resepsiyon_puantaj_gorebilir_mi\":false}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "resmi_tatil_onerisi_karar",
+   "imza": "resmi_tatil_onerisi_karar(integer,text,boolean,date[])",
+   "donus": "integer",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "bayram_gecersiz"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "bayram_gecersiz"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "seans_degerlendirme_alanlari_doldur",
+   "imza": "seans_degerlendirme_alanlari_doldur()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
+   "ad": "seans_degerlendirme_baglam_getir",
+   "imza": "seans_degerlendirme_baglam_getir(uuid)",
+   "donus": "TABLE(klinik_ad text, zaten_dolduruldu boolean)",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": true,
+   "a": {
+    "durum": "bos"
+   },
+   "b": {
+    "durum": "bos"
+   },
+   "c": {
+    "durum": "veri",
+    "ornek": "{\"klinik_ad\":\"klinikbir\",\"zaten_dolduruldu\":false}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "terapist_id_giris_yapan_kullaniciya_ait_mi",
+   "imza": "terapist_id_giris_yapan_kullaniciya_ait_mi(uuid)",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"terapist_id_giris_yapan_kullaniciya_ait_mi\":false}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"terapist_id_giris_yapan_kullaniciya_ait_mi\":false}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"terapist_id_giris_yapan_kullaniciya_ait_mi\":false}"
+   },
+   "sonuc": "GECTI"
+  }
+ ]
+}

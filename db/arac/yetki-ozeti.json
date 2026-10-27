@@ -1,0 +1,2592 @@
+{
+ "yetkiMatrisi": [
+  {
+   "tablo": "klinik",
+   "uygulama": [
+    "SELECT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "kullanici",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "terapist",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [
+    "INSERT"
+   ],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "oda",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "cihaz",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "randevu",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_ayarlar",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "islem_kategori",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "islem_tanimi",
+   "uygulama": [
+    "SELECT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "paket",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "odeme",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "paket_satis",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "odeme_kalemi",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "odeme_satiri",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_bakiye_hareket",
+   "uygulama": [
+    "SELECT",
+    "INSERT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "fatura",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_kullanici",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "randevu_iptal_talebi",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_hassas",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [
+    "INSERT"
+   ],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_muhasebe_entegrasyonu",
+   "uygulama": [
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [
+    "SELECT"
+   ],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "periyodik_randevu",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "islem_kontrendikasyon",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_hedef",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "olcek_tanimi",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_olcum",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "egzersiz_kutuphanesi",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "ev_egzersiz_programi",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "ev_egzersiz_kalemi",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "ev_egzersiz_takip",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "seans_checklist_sablonu",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "randevu_checklist",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_iletisim_log",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_anket",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "randevu_on_form",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_iliski",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_sigorta",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_belge",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_onam",
+   "uygulama": [
+    "SELECT",
+    "INSERT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_vucut_haritasi_isareti",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_protokol",
+   "uygulama": [
+    "SELECT",
+    "INSERT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_harcama",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_hassas",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_acil_kisi",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_mesleki_belge",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "tedavi_protokolu",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "tedavi_protokolu_adimi",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "is_basvurusu",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [
+    "INSERT"
+   ],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "anket_yaniti",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [
+    "INSERT"
+   ],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "islem_tanimi_fiyat_gecmisi",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "iskonto_oranlari",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "vardiya_turu",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_vardiya_atama",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_puantaj_donem",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_puantaj",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_ucret",
+   "uygulama": [
+    "SELECT",
+    "INSERT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_arac",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "kamusal_odeme",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "seans_degerlendirme",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [
+    "INSERT"
+   ],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "randevu_talebi",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "destek_talebi",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "mesaj_kurallari",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "mesaj_kuyrugu",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "mesaj_kredileri",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "mesaj_kredi_hareketleri",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_anamnez",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "resmi_tatil",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_izin_talebi",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_hesap_hareket",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "pozisyon_sablonlari",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "pozisyonlar",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_banka_hesaplari",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "nakit_banka_hareketi",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "personel_egitim",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hasta_yorum",
+   "uygulama": [
+    "INSERT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "islem_tanimi_adim",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "islem_adimi_sablonu",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "hiz_siniri_sayac",
+   "uygulama": [],
+   "kolon": [],
+   "anonim": [],
+   "kodda": false,
+   "eskiYetki": [],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "audit_log",
+   "uygulama": [
+    "SELECT",
+    "INSERT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "randevu_cihaz_rezervasyon",
+   "uygulama": [
+    "SELECT"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "kasa_dengeleme",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_kredi_kartlari",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_cari_odeme",
+   "uygulama": [
+    "SELECT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "klinik_kredi_karti_odeme",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "DELETE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  },
+  {
+   "tablo": "resmi_tatil_oneri",
+   "uygulama": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+   ],
+   "kolon": [],
+   "anonim": [],
+   "kodda": true,
+   "eskiYetki": [
+    "INSERT",
+    "SELECT",
+    "UPDATE",
+    "DELETE",
+    "TRUNCATE",
+    "REFERENCES",
+    "TRIGGER",
+    "MAINTAIN"
+   ],
+   "istenenYetkisiz": []
+  }
+ ],
+ "fonksiyonYetki": [
+  {
+   "ad": "set_updated_at",
+   "imza": "set_updated_at()",
+   "definer": false,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_iptal_talebi_klinik_id_ata",
+   "imza": "randevu_iptal_talebi_klinik_id_ata()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_hassas_klinik_id_ata",
+   "imza": "hasta_hassas_klinik_id_ata()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "derive_klinik_id_from_parent",
+   "imza": "derive_klinik_id_from_parent()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "audit_log_yaz",
+   "imza": "audit_log_yaz()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_terapist_sadece_risk_guncelle",
+   "imza": "hasta_terapist_sadece_risk_guncelle()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_on_form_dogrula",
+   "imza": "randevu_on_form_dogrula()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_iliski_klinik_dogrula",
+   "imza": "hasta_iliski_klinik_dogrula()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_belge_onam_dogrula",
+   "imza": "hasta_belge_onam_dogrula()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_belge_goruntule",
+   "imza": "hasta_belge_goruntule(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_protokol_kontrendikasyon_kontrol",
+   "imza": "hasta_protokol_kontrendikasyon_kontrol()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "odeme_olustur",
+   "imza": "odeme_olustur(uuid,numeric,boolean,text,jsonb,jsonb)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_hassas_kaydet",
+   "imza": "personel_hassas_kaydet(uuid,text,text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_hassas_maskeli_getir",
+   "imza": "personel_hassas_maskeli_getir(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_hassas_terapist_sadece_anamnez_guncelle",
+   "imza": "hasta_hassas_terapist_sadece_anamnez_guncelle()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_hassas_terapist_sadece_anamnez_ekle",
+   "imza": "hasta_hassas_terapist_sadece_anamnez_ekle()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_hassas_denetim_bilgisi_ata",
+   "imza": "hasta_hassas_denetim_bilgisi_ata()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_gelis_isaretle",
+   "imza": "randevu_gelis_isaretle(uuid,integer)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_arsiv_ice_aktar",
+   "imza": "hasta_arsiv_ice_aktar(jsonb)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_arsiv_ice_aktar",
+   "imza": "randevu_arsiv_ice_aktar(jsonb)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_bakiye_hareket_arsiv_ekle",
+   "imza": "hasta_bakiye_hareket_arsiv_ekle(jsonb)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "paket_satis_arsiv_ekle",
+   "imza": "paket_satis_arsiv_ekle(uuid,jsonb)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_qr_self_servis_mi",
+   "imza": "hasta_qr_self_servis_mi(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": true,
+   "bakim": false
+  },
+  {
+   "ad": "islem_tanimi_fiyat_gecmisi_yaz",
+   "imza": "islem_tanimi_fiyat_gecmisi_yaz()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "islem_tanimi_etkin_fiyat",
+   "imza": "islem_tanimi_etkin_fiyat(uuid,uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "resepsiyon_puantaj_gorebilir_mi",
+   "imza": "resepsiyon_puantaj_gorebilir_mi()",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_planlanan_getir",
+   "imza": "personel_puantaj_planlanan_getir(uuid,date)",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_net_dakika",
+   "imza": "personel_puantaj_net_dakika(timestamp with time zone,timestamp with time zone,integer)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_planlanan_dakika",
+   "imza": "personel_puantaj_planlanan_dakika(time without time zone,time without time zone)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_sapma_dakika",
+   "imza": "personel_puantaj_sapma_dakika(timestamp with time zone,timestamp with time zone,integer,time without time zone,time without time zone)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_varsayilanlari_doldur",
+   "imza": "personel_puantaj_varsayilanlari_doldur()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_fm_onay_denetim",
+   "imza": "personel_puantaj_fm_onay_denetim()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_donemi_acik_mi",
+   "imza": "personel_puantaj_donemi_acik_mi(uuid,date)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_donem_kapat",
+   "imza": "personel_puantaj_donem_kapat(uuid,integer,integer)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_donem_yeniden_ac",
+   "imza": "personel_puantaj_donem_yeniden_ac(uuid,integer,integer)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "seans_degerlendirme_alanlari_doldur",
+   "imza": "seans_degerlendirme_alanlari_doldur()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_anket_uygun_mu",
+   "imza": "randevu_anket_uygun_mu(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": true,
+   "bakim": false
+  },
+  {
+   "ad": "seans_degerlendirme_baglam_getir",
+   "imza": "seans_degerlendirme_baglam_getir(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": true,
+   "bakim": false
+  },
+  {
+   "ad": "qr_kodu_aktif_mi",
+   "imza": "qr_kodu_aktif_mi(uuid,text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": true,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_talebi_klinik_id_ata",
+   "imza": "randevu_talebi_klinik_id_ata()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_bakiye_hareket_borc_duzenle",
+   "imza": "hasta_bakiye_hareket_borc_duzenle(uuid,numeric,boolean,text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "mesaj_kredi_yukle",
+   "imza": "mesaj_kredi_yukle(uuid,mesaj_kanal_tipi,integer,numeric,text)",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "mesaj_kredi_senkronla",
+   "imza": "mesaj_kredi_senkronla(uuid,mesaj_kanal_tipi,integer,bigint)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_hak_gun_hesapla",
+   "imza": "personel_izin_hak_gun_hesapla(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_is_gunu_sayisi",
+   "imza": "personel_izin_is_gunu_sayisi(date,date)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_cakisanlari_getir",
+   "imza": "personel_izin_cakisanlari_getir(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_talep_olustur",
+   "imza": "personel_izin_talep_olustur(uuid,text,date,date,text,text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_talep_iptal_et",
+   "imza": "personel_izin_talep_iptal_et(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_talebi_onayla",
+   "imza": "personel_izin_talebi_onayla(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_talebi_reddet",
+   "imza": "personel_izin_talebi_reddet(uuid,text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_izin_talebi_yonetici_iptal",
+   "imza": "personel_izin_talebi_yonetici_iptal(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_hesap_hareket_donem_ekle",
+   "imza": "personel_hesap_hareket_donem_ekle(uuid,numeric,numeric)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "pozisyon_pasif_engelle",
+   "imza": "pozisyon_pasif_engelle()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "klinik_pozisyonlari_seed",
+   "imza": "klinik_pozisyonlari_seed()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "klinik_qr_kisa_kod_uret",
+   "imza": "klinik_qr_kisa_kod_uret()",
+   "definer": false,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "klinik_qr_kisa_kod_varsayilan",
+   "imza": "klinik_qr_kisa_kod_varsayilan()",
+   "definer": false,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_hesap_hareket_ekle",
+   "imza": "personel_hesap_hareket_ekle(uuid,text,numeric,date,text,text,uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "terapist_id_giris_yapan_kullaniciya_ait_mi",
+   "imza": "terapist_id_giris_yapan_kullaniciya_ait_mi(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_yorum_alanlari_doldur",
+   "imza": "hasta_yorum_alanlari_doldur()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "telefon_normalize",
+   "imza": "telefon_normalize(text)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "kasa_bakiye_once_toplam",
+   "imza": "kasa_bakiye_once_toplam(date)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "banka_bakiye_once_toplam_tumu",
+   "imza": "banka_bakiye_once_toplam_tumu(date)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "kredi_karti_bakiye_once_toplam",
+   "imza": "kredi_karti_bakiye_once_toplam(date)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "islem_tanimi_toplam_sure_guncelle",
+   "imza": "islem_tanimi_toplam_sure_guncelle()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "islem_tanimi_kaydet",
+   "imza": "islem_tanimi_kaydet(uuid,text,numeric,numeric,numeric,numeric,numeric,text,jsonb)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_seans_bedelini_isle",
+   "imza": "randevu_seans_bedelini_isle(uuid,numeric,text,uuid,text,timestamp with time zone,text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "audit_log_degisiklik_yaz",
+   "imza": "audit_log_degisiklik_yaz()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hiz_siniri_kullan",
+   "imza": "hiz_siniri_kullan(text,integer,integer,boolean)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": true,
+   "bakim": false
+  },
+  {
+   "ad": "audit_log_bolum_olustur",
+   "imza": "audit_log_bolum_olustur(integer,date)",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": true
+  },
+  {
+   "ad": "randevu_cihaz_rezervasyon_yenile",
+   "imza": "randevu_cihaz_rezervasyon_yenile(uuid)",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_cihaz_rezervasyon_tetikle",
+   "imza": "randevu_cihaz_rezervasyon_tetikle()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_puantaj_kendi_kaydet",
+   "imza": "personel_puantaj_kendi_kaydet(text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "rapor_donem_ozeti",
+   "imza": "rapor_donem_ozeti(timestamp with time zone,timestamp with time zone,date,date)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "rapor_yillik_ozet",
+   "imza": "rapor_yillik_ozet(integer)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "turkce_arama_metni",
+   "imza": "turkce_arama_metni(text)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": true,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_ara",
+   "imza": "hasta_ara(text,integer)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "gelmeme_analizi",
+   "imza": "gelmeme_analizi(timestamp with time zone,timestamp with time zone)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_iptal_talebi_gec_iptal_ata",
+   "imza": "randevu_iptal_talebi_gec_iptal_ata()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_iptal_geri_al",
+   "imza": "randevu_iptal_geri_al(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_iptal_et",
+   "imza": "randevu_iptal_et(uuid,text,boolean,boolean)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_bakiye_hareket_kredi_karti_ayari",
+   "imza": "hasta_bakiye_hareket_kredi_karti_ayari()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "tedarikci_anahtari",
+   "imza": "tedarikci_anahtari(text)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "klinik_cari_bakiyeler",
+   "imza": "klinik_cari_bakiyeler(uuid,text)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "klinik_cari_odeme_ekle",
+   "imza": "klinik_cari_odeme_ekle(text,numeric,date,text,uuid,uuid,text)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "klinik_harcama_cari_butunluk",
+   "imza": "klinik_harcama_cari_butunluk()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "kredi_karti_borc_ozetleri",
+   "imza": "kredi_karti_borc_ozetleri(uuid)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "banka_hesabi_butunluk",
+   "imza": "banka_hesabi_butunluk()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "banka_hesabi_silme_engeli",
+   "imza": "banka_hesabi_silme_engeli()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "resmi_tatil_onerisi_karar",
+   "imza": "resmi_tatil_onerisi_karar(integer,text,boolean,date[])",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "turkce_kucuk_harf",
+   "imza": "turkce_kucuk_harf(text)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "turkce_sira_anahtari",
+   "imza": "turkce_sira_anahtari(text)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_bas_harf_sayilari",
+   "imza": "hasta_bas_harf_sayilari()",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_harf_listesi",
+   "imza": "hasta_harf_listesi(text,integer,integer)",
+   "definer": false,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "randevu_gelmedi_isaretle",
+   "imza": "randevu_gelmedi_isaretle(uuid)",
+   "definer": true,
+   "uygulama": true,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "nakit_banka_hareketi_hesap_butunluk",
+   "imza": "nakit_banka_hareketi_hesap_butunluk()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "hasta_portal_alan_kisitla",
+   "imza": "hasta_portal_alan_kisitla()",
+   "definer": true,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  },
+  {
+   "ad": "personel_hesap_hareket_tutar_yuvarla",
+   "imza": "personel_hesap_hareket_tutar_yuvarla()",
+   "definer": false,
+   "uygulama": false,
+   "anonim": false,
+   "bakim": false
+  }
+ ],
+ "kodDisiTablolar": [
+  "islem_kategori",
+  "odeme",
+  "odeme_kalemi",
+  "odeme_satiri",
+  "egzersiz_kutuphanesi",
+  "ev_egzersiz_programi",
+  "ev_egzersiz_kalemi",
+  "ev_egzersiz_takip",
+  "seans_checklist_sablonu",
+  "randevu_checklist",
+  "hasta_anket",
+  "randevu_on_form",
+  "islem_tanimi_fiyat_gecmisi",
+  "vardiya_turu",
+  "personel_vardiya_atama",
+  "pozisyon_sablonlari",
+  "hiz_siniri_sayac"
+ ],
+ "cozulemeyenGomulu": []
+}

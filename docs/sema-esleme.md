@@ -27,8 +27,14 @@ Tüm `klinik_id`'li tablolar + `klinik` FORCE. İstisna (tenant'sız): `pozisyon
 
 **Sahip politikası** (`sahip_aktif_tenant`): DEFINER fonksiyon/tetikleyici sahibi `klinik_sahip` de yalnız aktif `app.tenant_id`'nin satırına dokunabilir; tenant'lar arası erişim yok. Sonuç: klinik oluşturan akış önce `app.tenant_id`'yi yeni klinik id'sine ayarlamalı (denendi, çalışıyor).
 
-## Yetkiler
-`PUBLIC`'ten tüm tablo/fonksiyon yetkisi alındı. `klinik_uygulama` = eski `authenticated` yetkilerinin aynısı (henüz daraltılmadı — izlenecek borç). `klinik_anonim` yalnız AÇIKÇA anon'a verilen politikaların tablolarında (`hasta`, `hasta_hassas`, `anket_yaniti`, `is_basvurusu`, `seans_degerlendirme`) ve QR/anket fonksiyonlarında. `bakim_rolu`: `klinik(id, ad)` SELECT, `resmi_tatil` yazma, `audit_log_bolum_olustur`; `klinik_uygulama`'ya `INHERIT FALSE, SET TRUE` üyelik.
+## Aşama 2 sertleştirmesi (2026-10-27)
+- **Roller**: `klinik_uygulama` (RLS'e tabi, daraltılmış), `klinik_anonim` (min.), `kimlik_rolu` (yalnız 4 kimlik tablosu), `klinik_tanima` (NOLOGIN; `tanima` şeması), `bakim_rolu` (BYPASSRLS değil), `klinik_yedek` (tek BYPASSRLS, yalnız SELECT — onaylandı). Varsayılan yetkiler kapalı (`ALTER DEFAULT PRIVILEGES … REVOKE`, `REVOKE ALL … FROM PUBLIC`).
+- **Tablo yetkileri koddan türetilir** (`scripts/dev/kullanim-tara.mjs` → `db/arac/kod-kullanimi.json`): 86 uygulama tablosundan 69'u klinik_uygulama'ya (52 yazma, 17 salt-okuma; 16 tabloda DELETE), 17'si hiç yetkisiz (kodda doğrudan kullanılmıyor; yalnız RPC/tetikleyici). Eski `authenticated` yetkisi üst sınırdır, aşılmaz. Matris: `docs/yetki-matrisi.md`.
+- **Değişen/eklenen nesneler**: `0004` — `tanima` şeması (`klinik_qr_bilgisi_getir`, `randevu_klinik_cozumle`), `qr_kodu_aktif_mi` ve `personel_puantaj_donemi_acik_mi` güvenli-kapalı; kaldırılan `personel_giris_epostasi`, `portal_giris_epostasi`; INVOKER'a çevrilen `personel_izin_is_gunu_sayisi`. Ayrıntı: `docs/definer-siniflama.md`.
+- **Kalan sınırlar**: yetki taraması statiktir (yeni/dinamik tablo adı eklenirse tarayıcı "belirsiz" listeler; uygulama taşınırken eksik yetki "permission denied" ile görünür ve `ELLE` tablosuna/koda eklenir). Kolon düzeyinde daraltma yalnız `klinik_muhasebe_entegrasyonu` için.
+
+## Yetkiler (ilk sürüm notu — yukarıdaki sertleştirme bunu geçersiz kılar)
+`PUBLIC`'ten tüm tablo/fonksiyon yetkisi alındı. (eski not: `klinik_uygulama` ilk sürümde `authenticated` yetkilerinin aynısıydı; artık daraltıldı.) `klinik_anonim` yalnız AÇIKÇA anon'a verilen politikaların tablolarında (`hasta`, `hasta_hassas`, `anket_yaniti`, `is_basvurusu`, `seans_degerlendirme`) ve QR/anket fonksiyonlarında. `bakim_rolu`: `klinik(id, ad)` SELECT, `resmi_tatil` yazma, `audit_log_bolum_olustur`; `klinik_uygulama`'ya `INHERIT FALSE, SET TRUE` üyelik.
 
 ## Alınmayanlar
 `audit_log_eski`, `oturum_kilidi`, `_gecici_rol_probe`, `current_musteri_id`, PIN RPC'leri ve kolonları (bekleyen migration baz alındı), aylık `audit_log_*` bölümleri (kurulumda `audit_log_bolum_olustur(3)` açar), eski `musteri_*` adları.
@@ -44,6 +50,5 @@ Tüm `klinik_id`'li tablolar + `klinik` FORCE. İstisna (tenant'sız): `pozisyon
 ## Doğrulanmadı / açık
 - **Fonksiyon gövdeleri**: 83 DEFINER fonksiyondan yalnız birkaçı çalıştırıldı. FORCE altında tenant bağlamsız veya başka kullanıcının satırını okuyan gövdeler sessizce 0 satır görebilir → Aşama 3'te modül modül denenecek (`docs/service-role-siniflama.md` (b)/(c) satırlarıyla). Özellikle: `portal_giris_epostasi`, `personel_giris_epostasi` (kimlik tablosuna bağlı, Aşama 4), `mesaj_kredi_senkronla`, `personel_puantaj_donem_kapat`, `odeme_olustur`, `randevu_*` RPC'leri.
 - `scripts/db-kur.ps1` Windows'ta `psql` ile **çalıştırılmadı** (bu makinede psql yok).
-- `klinik_uygulama` yetkileri eski `authenticated` kadar geniş.
 - Tohum veri yalnız 4 tenant'sız katalog (resmi_tatil 27, egzersiz 10, pozisyon şablonu 28, ölçek 6).
-- Üretilen şema dosyası referans veritabanına bağlı bir araçla üretilir; referansı yeniden kurmak için uyumluluk katmanı betiği repoda DEĞİL (geçici düzenekte). Şema değişiklikleri bundan sonra `db/migrations/0004+` ile elle eklenir.
+- Üretim düzeneği artık repoda: `scripts/dev/` ve `docs/sema-uretim.md`.

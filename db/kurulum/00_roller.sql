@@ -1,10 +1,16 @@
 -- Süper kullanıcıyla, `postgres` veritabanında çalışır (scripts/db-kur.ps1). Şifreler psql değişkeniyle gelir; dosyaya YAZILMAZ:
---   -v uygulama_sifre=... -v bakim_sifre=... -v yedek_sifre=...
+--   -v uygulama_sifre=... -v kimlik_sifre=... -v bakim_sifre=... -v yedek_sifre=...
 -- Rol ayrıntıları ve gerekçeler: docs/sunucu-kurulum.md "Veritabanı rolleri".
 CREATE ROLE klinik_sahip NOLOGIN NOSUPERUSER NOBYPASSRLS;     -- nesne sahibi (migration SET ROLE ile bu rolle çalışır)
 CREATE ROLE klinik_uygulama LOGIN PASSWORD :'uygulama_sifre' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+-- kimlik_rolu: Better Auth'un bağlantısı. kimlik_kullanici/oturum/kimlik_hesap/kimlik_dogrulama'nın TEK erişimcisi; başka hiçbir tabloya yetkisi yok.
+CREATE ROLE kimlik_rolu LOGIN PASSWORD :'kimlik_sifre' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+-- klinik_tanima: giriş öncesi, TENANT'SIZ çözümleme (kısa kod -> klinik, randevu -> klinik) için dar fonksiyon sahibi.
+-- Yalnız klinik(id, ad, qr_kisa_kod) ve randevu(id, klinik_id) kolonlarını okuyabilir; BYPASSRLS değil; giriş yapamaz.
+CREATE ROLE klinik_tanima NOLOGIN NOSUPERUSER NOBYPASSRLS;
 CREATE ROLE klinik_anonim NOLOGIN NOSUPERUSER NOBYPASSRLS;     -- giriş öncesi akışlar; uygulama SET LOCAL ROLE ile geçer
 GRANT klinik_anonim TO klinik_uygulama WITH INHERIT FALSE, SET TRUE;
+GRANT klinik_tanima TO klinik_sahip WITH INHERIT FALSE, SET TRUE;   -- tanima şemasını/fonksiyonlarını kurmak için
 -- bakim_rolu: BYPASSRLS DEĞİL. Yalnız klinik listesi (id, ad) + bakım fonksiyonları; klinik başına iş SET LOCAL ROLE klinik_uygulama + app.tenant_id ile.
 CREATE ROLE bakim_rolu LOGIN PASSWORD :'bakim_sifre' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
 GRANT klinik_uygulama TO bakim_rolu WITH INHERIT FALSE, SET TRUE;

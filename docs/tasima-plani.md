@@ -54,7 +54,8 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - Roller: `klinik_sahip`, `klinik_uygulama` (NOBYPASSRLS), `klinik_anonim`, **`bakim_rolu`** (BYPASSRLS; yalnız migration/bakım betikleri), `klinik_yedek`.
 - **Bitti kriteri**: boş Next.js sayfası Caddy + NSSM arkasında alan adıyla TLS'te açılıyor; VM reboot'ta servis kendiliğinden kalkıyor; `\du` çıktısında yalnız `bakim_rolu` ve `klinik_yedek` BYPASSRLS taşıyor, `klinik_uygulama` sahip değil; uygulamanın ortamında `BAKIM_DATABASE_URL` yok (kanıt: servis env dökümü, değerler gizli).
 
-### Aşama 2 — Şema taşıma (Supabase'siz düz Postgres)
+### Aşama 2 — Şema taşıma (Supabase'siz düz Postgres) — ✅ ilk sürüm + sertleştirme (2026-10-27)
+Çıktılar: `db/migrations/0001–0004`, `db/seed/`, `db/kurulum/`, `db/kontrol/`, `docs/sema-esleme.md`, `docs/sema-uretim.md`, `docs/yetki-matrisi.md`, `docs/definer-siniflama.md`, `docs/service-role-siniflama.md`, `scripts/db-kur.ps1` (Windows'ta psql ile denenmedi), `scripts/dev/` (üretim ve kontrol düzeneği). Sertleştirme: kimlik tabloları yalnız `kimlik_rolu`; `klinik_uygulama` yetkileri kodun kullandığı işlemlere daraltıldı; `klinik_anonim` minimum; giriş öncesi tenant'sız çözümleme için `klinik_tanima`/`tanima` şeması; DEFINER sınıflaması + üç durumlu duman testi.
 - 172 migration'dan baseline: `auth.*`, `storage.*`, `supabase_realtime`, Supabase rolleri çıkar; kalıntıları (`_gecici_rol_probe`, `current_musteri_id`, PIN RPC'leri) alma. `auth.uid()` → `current_setting('app.user_id', true)::uuid`; `current_klinik_id()` / `current_hasta_id()` / `is_super_admin()` bu ayarlardan türer. `auth.users` FK'ları Better Auth `user` tablosuna.
 - **FORCE ROW LEVEL SECURITY tüm tenant tablolarında**; tenant olmayan tablolar listelenip gerekçeli istisna. Anonim ve cron yolları için Risk 3'teki tasarım uygulanır. Fonksiyon/tablo sahipliği `klinik_sahip`; `bakim_rolu` migration'ı çalıştırır.
 - `audit_log` partition tuzağı (partition başına RLS+grant) korunur.
@@ -62,6 +63,11 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - **Bitti kriteri**: temiz Postgres'te baseline hatasız kurulur; `relforcerowsecurity` tüm tenant tablolarında true (sorguyla kanıt); iki klinik × her rol için `SET LOCAL` simülasyonu (ROLLBACK) geçer: başka klinik satırı görünmez/yazılamaz, bağlam yokken 0 satır döner, `klinik_uygulama` DEFINER fonksiyonlar dışında RLS'i atlayamaz; anonim akışların beklenen dar yazma/okuma sınırı doğrulanır (anon'a SELECT yok kuralı korunur).
 
 ### Aşama 3 — Veri erişim katmanı (Drizzle + pg)
+- **Anonim self-servis uçlar için zorunlu gereksinimler** (QR ön kayıt, anket, iş başvurusu, giriş öncesi sorgular; olumlu/olumsuz yol testi `db/kontrol/anonim-kayit-testi.mjs`):
+  1. **Akış sırası**: `tanima.klinik_qr_bilgisi_getir(kısa kod)` (veya `tanima.randevu_klinik_cozumle`) → dönen klinik id'si `app.tenant_id` → `SET LOCAL ROLE klinik_anonim` → `qr_kodu_aktif_mi(klinik, tip)` (bağlam yoksa/yanlışsa false) → INSERT. `INSERT … RETURNING` çalışmaz (anon'a SELECT yok): kimlik sunucuda `crypto.randomUUID()` ile üretilir.
+  2. **Hız sınırı** (her anonim yazma ve çözümleme ucunda, DB çağrısından ÖNCE): IP hash'i başına ve kısa kod başına ayrı sayaç (`hiz_siniri_kullan`); varsayılan öneri: kayıt başına IP'den 10 dk'da 5, kısa kod başına dakikada 30, iş başvurusunda IP başına saatte 3. **FAIL-CLOSED**: sayaç okunamazsa istek reddedilir (bugünkü kod fail-open; anonim yazma uçlarında değiştirilecek, yalnız giriş sonrası düşük riskli uçlarda fail-open kalabilir). Caddy katmanında ek IP başına istek sınırı (Cloudflare proxy kapalı olduğundan WAF yok).
+  3. **Veritabanı sınırı (bilinen boşluk)**: `hasta_insert_qr_kayit` politikası `klinik_id`'nin QR'ı açık bir klinik olduğunu DB'de zorlamaz (yalnız kanal/KVKK alanlarını denetler); anonim bir istemci başka bir kliniğin UUID'sini bilirse oraya kayıt ekleyebilir (test: "yanlış tenant bağlamı → kabul"). Uygulama katmanı `qrKoduAktifMi` + tenant bağlamı ile korur; ek DB sertleştirmesi (politikaya `qr_kodu_aktif_mi(klinik_id,'hasta_on_kayit')` ve `klinik_id = current_klinik_id()`) Aşama 3'te bu uçlar taşınırken yapılacak ve testle doğrulanacak.
+  4. Anonim uçlarda uzunluk sınırları (uygulama + DB CHECK) ve KVKK onayı korunur; telefon doğrulaması olmadığından `hasta_kayit_hosgeldin` bu uca bağlanmaz (mevcut karar).
 - **İlk hedef**: `docs/service-role-siniflama.md` (22 dosya) — her satır (a)/(b)/(c) çözümüne taşınır; tablo güncel tutulur.
 - `lib/db/`: havuz, `withTenant`, Drizzle şeması; modül modül sorgu taşıma. Embed → JOIN; `tumSayfalariOku`/`parcalara()` kalkar. 50 RPC → `select fn(...)`. 22 service-role kullanımı tek tek: anon akış / cron / kullanıcı yönetimi / kaldırılacak.
 - **Chatbot kapatma**: `DESTEK_CHATBOT_ACIK` (varsayılan kapalı) bayrağı; kapalıyken menü öğesi gizli, `/panel/destek/chatbot` sayfası ve `/api/destek-chatbot` 404/403 döner, LLM çağrısı hiç yapılmaz. `ai` paketi/AI Gateway çağrısı bayrak arkasında kalır, taşıma kapsamında başka iş yapılmaz.
@@ -74,6 +80,7 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - **Bitti kriteri**: 5 rol + portal hastası gerçek tarayıcıda giriş/çıkış; yetkisiz rol sayfa ve action'da reddediliyor; işten çıkarılan kullanıcı giriş yapamıyor ve açık oturumu düşüyor; anon QR akışları kimliksiz çalışıyor; sıfırlama akışı denendi; kod tabanında bcrypt/Supabase hash okuma yok (`grep`); `session` tablosunda `cihaz_kimligi` doluyor.
 
 ### Aşama 5 — Dosyalar
+- **Giriş öncesi logo**: tek amaçlı, önbellekli, tenant verisi dönmeyen `GET /api/logo/[kisaKod]` (tasarım: `docs/sunucu-kurulum.md` §3b2); oturumlu panelde yetkili `/api/dosya/logo`.
 - `DOSYA_KOKU` (web kökü dışı), yol düzeni `{klinik_id}/{hasta_id}/{kategori}/{belge_id}.{ext}`; yalnız yetkili route servis eder (`hasta_belge_goruntule` kaydı korunur); yol gezinme ve MIME doğrulaması. Kök altında kodun kullandığı adlar esas: `hasta-belge` (eski `musteri-belge` içeriği dahil), `personel-belge`, `klinik-logo`; **logo dahil hiçbir dosya public değil**, hepsi yetkili route'tan servis edilir (klinik logosu için oturumlu `/api/dosya/logo`; giriş öncesi sayfada logo gerekiyorsa dar, yalnız logoyu döndüren route). Mevcut dosyalar Supabase'ten kopyalanır.
 - **Bitti kriteri**: başka klinik/yetkisiz rol 403/404; terapist yükler+görür+silemez; yol gezinme reddedilir; taşınan dosya sayısı/boyutu kaynakla eşit (hash örneklemi).
 
@@ -104,9 +111,9 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - Kesinti penceresi: Supabase'te yazma kapat → dump → yükle → doğrulama (satır sayıları, finans toplamları, bakiye view'ları, dosya sayısı, **canlı katalog ↔ envanter farkı kapalı**) → kullanıcılara şifre belirleme bağlantıları → DNS geçişi. Önce prova (staging kopyası). Geri dönüş: DNS'i eski Vercel'e çevirme + aradaki yazmaları elle aktarma planı.
 - **Bitti kriteri**: provada tüm doğrulama sayıları eşit; gerçek geçişte kullanıcı kabul testi (resepsiyon, terapist, tablet, portal) geçti; 1–2 hafta sorunsuz çalışma sonrası Supabase/Vercel kapatılır; dal `main`'e birleştirme **kullanıcı onayıyla**.
 
-## Açık kararlar (kalan)
-- **`klinik_yedek` BYPASSRLS istisnası**: FORCE RLS altında `pg_dump` BYPASSRLS'siz tüm satırı okuyamaz. Öneri: salt-okunur, yalnız yedek betiğinin kullandığı `klinik_yedek` rolü (BYPASSRLS). Alternatif: yedeği süper kullanıcıyla almak (daha geniş yetki). Onay gerekir; `db/kontrol/bypassrls-kontrol.sql` bu rolü ayrı bir "izinli istisna" olarak raporlar.
-- **Yedeğin Türkiye içi dış kopya hedefi** (hangi sağlayıcı/konum) ve özel anahtar saklama sorumluları; yurt dışı şifreli depolama hukuk onayı.
-- Giriş öncesi sayfalarda (portal/personel girişi) klinik logosu gerekiyor mu? Gerekiyorsa yalnız logo döndüren dar route.
-- Better Auth'ta telefon/sentetik e-posta ile giriş tasarımı (Aşama 4).
-- Raporlar/finans için dönem kilidi vb. ürün kararları taşımadan bağımsız (kapsam dışı).
+## Kararlar (2026-10-27) ve kalan açık konular
+- **Onaylandı**: `klinik_yedek` BYPASSRLS istisnası (yalnız SELECT, pg_hba yalnız localhost, parola yalnız yedek hesabının okuyabildiği dosyada) — `docs/sunucu-kurulum.md`, `bypassrls-kontrol.sql` izin listesi.
+- **Tasarlandı**: giriş öncesi logo route'u (§3b2).
+- **Karar sende**: Better Auth'ta telefonla giriş (`docs/giris-akislari.md` seçenekleri A–D ve açık sorular).
+- **Açık**: yedeğin Türkiye içi dış kopya hedefi (sağlayıcı/konum) ve özel anahtar saklama sorumluları; yurt dışı şifreli depolama hukuk onayı.
+- **Açık (Aşama 3)**: DEFINER fonksiyonların anlamlı iş akışı testleri (modül taşımasında), `klinik_uygulama` yetkilerinin kodla birlikte doğrulanması (kodda kullanılmayan 17 tablo şimdilik yetkisiz — `db/arac/yetki-ozeti.json`).
