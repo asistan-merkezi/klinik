@@ -1,32 +1,23 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Settings2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function TabletOdaSecimSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
+  let odalar: { id: string; ad: string }[] = [];
+  let error = false;
+  try {
+    odalar = await withTenant(bag, (tx) => tx.select({ id: sema.oda.id, ad: sema.oda.ad }).from(sema.oda).where(eq(sema.oda.aktif, true)).orderBy(asc(sema.oda.ad)));
+  } catch (e) {
+    console.error("Odalar çekilemedi:", e);
+    error = true;
   }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-
-  const { data: odalar, error } = await supabase
-    .from("oda")
-    .select("id, ad")
-    .eq("aktif", true)
-    .order("ad");
+  const kullanici = { rol: ctx.rol };
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

@@ -1,43 +1,22 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { VARSAYILAN_TABLET_AYARLARI, type TabletAyarlari } from "@/types/tablet-ayarlari";
 import { TabletAyarlariIstemci } from "./tablet-ayarlari-istemci";
 
 export default async function TabletAyarlarSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-
-  const { data: klinikAyarlar } = await supabase
-    .from("klinik_ayarlar")
-    .select("ayarlar")
-    .eq("klinik_id", kullanici?.klinik_id ?? "")
-    .maybeSingle();
-
+  const v = await withTenant(bag, async (tx) => ({
+    ayarlar: (await tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, bag.tenantId)).limit(1))[0]?.ayarlar,
+    klinik: (await tx.select({ ad: sema.klinik.ad, logo_url: sema.klinik.logoUrl, logo_url_koyu: sema.klinik.logoUrlKoyu, marka_renkleri: sema.klinik.markaRenkleri }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0],
+  }));
+  const klinik = v.klinik as { ad: string; logo_url: string | null; logo_url_koyu: string | null; marka_renkleri: { primary?: string } | null } | undefined;
   const ayarlar: TabletAyarlari = {
     ...VARSAYILAN_TABLET_AYARLARI,
-    ...(klinikAyarlar?.ayarlar as { tablet?: Partial<TabletAyarlari> } | null)?.tablet,
+    ...(v.ayarlar as { tablet?: Partial<TabletAyarlari> } | null | undefined)?.tablet,
   };
-
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("ad, logo_url, logo_url_koyu, marka_renkleri")
-    .eq("id", kullanici?.klinik_id ?? "")
-    .maybeSingle();
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

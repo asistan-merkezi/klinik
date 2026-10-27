@@ -958,8 +958,7 @@
    "uygulama": [
     "SELECT",
     "INSERT",
-    "UPDATE",
-    "DELETE"
+    "UPDATE"
    ],
    "kolon": [],
    "anonim": [],

@@ -1,25 +1,28 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { asc } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { KaynakSatir } from "@/types/kaynak";
 import { KaynakEkleDialog } from "./kaynak-ekle-dialog";
 import { KaynakListesi } from "./kaynak-listesi";
 
 export default async function KaynaklarSayfasi() {
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
+  let odalar: KaynakSatir[] = [];
+  let cihazlar: KaynakSatir[] = [];
+  let hata = false;
+  try {
+    ({ odalar, cihazlar } = await withTenant(bag, async (tx) => ({
+      odalar: await tx.select({ id: sema.oda.id, ad: sema.oda.ad, aktif: sema.oda.aktif, kapasite: sema.oda.kapasite }).from(sema.oda).orderBy(asc(sema.oda.ad)),
+      cihazlar: await tx.select({ id: sema.cihaz.id, ad: sema.cihaz.ad, aktif: sema.cihaz.aktif, adet: sema.cihaz.adet }).from(sema.cihaz).orderBy(asc(sema.cihaz.ad)),
+    })));
+  } catch (e) {
+    console.error("Kaynaklar çekilemedi:", e);
+    hata = true;
   }
-
-  const [odaSonucu, cihazSonucu] = await Promise.all([
-    supabase.from("oda").select("id, ad, aktif, kapasite").order("ad").returns<KaynakSatir[]>(),
-    supabase.from("cihaz").select("id, ad, aktif, adet").order("ad").returns<KaynakSatir[]>(),
-  ]);
+  const odaSonucu = { error: hata, data: odalar };
+  const cihazSonucu = { error: hata, data: cihazlar };
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

@@ -6698,7 +6698,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON klinik_harcama TO klinik_uygulama;
 GRANT SELECT ON personel_hassas TO klinik_uygulama;
 GRANT SELECT, INSERT, UPDATE ON personel_acil_kisi TO klinik_uygulama;
 GRANT SELECT, INSERT, UPDATE ON personel_mesleki_belge TO klinik_uygulama;
-GRANT SELECT, INSERT, UPDATE, DELETE ON tedavi_protokolu TO klinik_uygulama;
+GRANT SELECT, INSERT, UPDATE ON tedavi_protokolu TO klinik_uygulama;
 GRANT SELECT, INSERT, DELETE ON tedavi_protokolu_adimi TO klinik_uygulama;
 GRANT SELECT, INSERT, UPDATE ON is_basvurusu TO klinik_uygulama;
 GRANT INSERT ON is_basvurusu TO klinik_anonim;

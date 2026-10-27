@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { eylemYetkisiGetir, YETKISIZ_MESAJI } from "@/lib/auth/eylem-yetkisi";
+import { and, count, eq, gte, inArray } from "drizzle-orm";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -15,8 +17,13 @@ const ETIKET: Record<KaynakTablosu, string> = {
   cihaz: "Cihaz",
 };
 
-async function klinikIdGetir() {
-  return eylemYetkisiGetir(["klinik_admin", "resepsiyon"]);
+const UUID = z.string().uuid();
+
+/** Rol kümesi RLS ile birebir (oda_yonet_resepsiyon_admin / cihaz_yonet_resepsiyon_admin). */
+async function yetkiAl() {
+  const y = await eylemYetkisi(["klinik_admin", "resepsiyon"]);
+  if (!y.yetkili || !y.bag || !y.klinikId) return null;
+  return { bag: y.bag, klinikId: y.klinikId };
 }
 
 export async function kaynakOlustur(
@@ -29,47 +36,32 @@ export async function kaynakOlustur(
     return { success: false, message: "Geçersiz kaynak türü." };
   }
 
-  const { supabase, klinikId, yetkili } = await klinikIdGetir();
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
-  if (!yetkili) {
-    return { success: false, message: YETKISIZ_MESAJI };
-  }
+  const y = await yetkiAl();
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
   const adSemasi = z.string().trim().min(2, "Ad en az 2 karakter olmalı.");
   const ayristirma = adSemasi.safeParse(formData.get("ad"));
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
+  const ad = isimBasHarfBuyukYap(ayristirma.data);
 
-  const kayit: { klinik_id: string; ad: string; adet?: number; kapasite?: number } = {
-    klinik_id: klinikId,
-    ad: isimBasHarfBuyukYap(ayristirma.data),
-  };
-
-  if (gecerliTablo.data === "cihaz") {
-    const adetSemasi = z.coerce.number().int().min(1, "Adet en az 1 olmalı.");
-    const adetAyristirma = adetSemasi.safeParse(formData.get("adet") || 1);
-    if (!adetAyristirma.success) {
-      return { success: false, message: adetAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+  try {
+    if (gecerliTablo.data === "cihaz") {
+      const adetAyristirma = z.coerce.number().int().min(1, "Adet en az 1 olmalı.").safeParse(formData.get("adet") || 1);
+      if (!adetAyristirma.success) {
+        return { success: false, message: adetAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+      }
+      await withTenant(y.bag, (tx) => tx.insert(sema.cihaz).values({ klinikId: y.klinikId, ad, adet: adetAyristirma.data }));
+    } else {
+      const kapasiteAyristirma = z.coerce.number().int().min(1, "Kapasite en az 1 olmalı.").safeParse(formData.get("kapasite") || 1);
+      if (!kapasiteAyristirma.success) {
+        return { success: false, message: kapasiteAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
+      }
+      await withTenant(y.bag, (tx) => tx.insert(sema.oda).values({ klinikId: y.klinikId, ad, kapasite: kapasiteAyristirma.data }));
     }
-    kayit.adet = adetAyristirma.data;
-  }
-
-  if (gecerliTablo.data === "oda") {
-    const kapasiteSemasi = z.coerce.number().int().min(1, "Kapasite en az 1 olmalı.");
-    const kapasiteAyristirma = kapasiteSemasi.safeParse(formData.get("kapasite") || 1);
-    if (!kapasiteAyristirma.success) {
-      return { success: false, message: kapasiteAyristirma.error.issues[0]?.message ?? "Girdi hatalı." };
-    }
-    kayit.kapasite = kapasiteAyristirma.data;
-  }
-
-  const { error } = await supabase.from(gecerliTablo.data).insert(kayit);
-
-  if (error) {
-    console.error(`${gecerliTablo.data} oluşturulamadı:`, error);
+  } catch (e) {
+    console.error(`${gecerliTablo.data} oluşturulamadı:`, pgHata(e).mesaj);
     return { success: false, message: `${ETIKET[gecerliTablo.data]} eklenemedi, lütfen tekrar deneyin.` };
   }
 
@@ -84,31 +76,27 @@ export async function kaynakAdGuncelle(
   yeniAd: string
 ): Promise<SonucDurumu> {
   const gecerliTablo = tabloSemasi.safeParse(tablo);
-  if (!gecerliTablo.success) {
+  if (!gecerliTablo.success || !UUID.safeParse(kaynakId).success) {
     return { success: false, message: "Geçersiz kaynak türü." };
   }
 
-  const { supabase, klinikId, yetkili } = await klinikIdGetir();
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
-  if (!yetkili) {
-    return { success: false, message: YETKISIZ_MESAJI };
-  }
+  const y = await yetkiAl();
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
-  const adSemasi = z.string().trim().min(2, "Ad en az 2 karakter olmalı.");
-  const ayristirma = adSemasi.safeParse(yeniAd);
+  const ayristirma = z.string().trim().min(2, "Ad en az 2 karakter olmalı.").safeParse(yeniAd);
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
+  const ad = isimBasHarfBuyukYap(ayristirma.data);
 
-  const { error } = await supabase
-    .from(gecerliTablo.data)
-    .update({ ad: isimBasHarfBuyukYap(ayristirma.data) })
-    .eq("id", kaynakId);
-
-  if (error) {
-    console.error(`${gecerliTablo.data} adı güncellenemedi:`, error);
+  try {
+    const g =
+      gecerliTablo.data === "oda"
+        ? await withTenant(y.bag, (tx) => tx.update(sema.oda).set({ ad }).where(eq(sema.oda.id, kaynakId)).returning({ id: sema.oda.id }))
+        : await withTenant(y.bag, (tx) => tx.update(sema.cihaz).set({ ad }).where(eq(sema.cihaz.id, kaynakId)).returning({ id: sema.cihaz.id }));
+    if (g.length === 0) return { success: false, message: `${ETIKET[gecerliTablo.data]} bulunamadı.` };
+  } catch (e) {
+    console.error(`${gecerliTablo.data} adı güncellenemedi:`, pgHata(e).mesaj);
     return { success: false, message: `${ETIKET[gecerliTablo.data]} adı güncellenemedi, lütfen tekrar deneyin.` };
   }
 
@@ -118,21 +106,14 @@ export async function kaynakAdGuncelle(
 }
 
 export async function kaynakAdetGuncelle(kaynakId: string, yeniAdet: number) {
-  const { supabase, klinikId, yetkili } = await klinikIdGetir();
-  if (!klinikId || !yetkili) {
-    return;
-  }
+  const y = await yetkiAl();
+  const ayristirma = z.coerce.number().int().min(1).safeParse(yeniAdet);
+  if (!y || !ayristirma.success || !UUID.safeParse(kaynakId).success) return;
 
-  const adetSemasi = z.coerce.number().int().min(1);
-  const ayristirma = adetSemasi.safeParse(yeniAdet);
-  if (!ayristirma.success) {
-    return;
-  }
-
-  const { error } = await supabase.from("cihaz").update({ adet: ayristirma.data }).eq("id", kaynakId);
-
-  if (error) {
-    console.error("Cihaz adedi güncellenemedi:", error);
+  try {
+    await withTenant(y.bag, (tx) => tx.update(sema.cihaz).set({ adet: ayristirma.data }).where(eq(sema.cihaz.id, kaynakId)));
+  } catch (e) {
+    console.error("Cihaz adedi güncellenemedi:", pgHata(e).mesaj);
     return;
   }
 
@@ -141,21 +122,14 @@ export async function kaynakAdetGuncelle(kaynakId: string, yeniAdet: number) {
 }
 
 export async function kaynakKapasiteGuncelle(kaynakId: string, yeniKapasite: number) {
-  const { supabase, klinikId, yetkili } = await klinikIdGetir();
-  if (!klinikId || !yetkili) {
-    return;
-  }
+  const y = await yetkiAl();
+  const ayristirma = z.coerce.number().int().min(1).safeParse(yeniKapasite);
+  if (!y || !ayristirma.success || !UUID.safeParse(kaynakId).success) return;
 
-  const kapasiteSemasi = z.coerce.number().int().min(1);
-  const ayristirma = kapasiteSemasi.safeParse(yeniKapasite);
-  if (!ayristirma.success) {
-    return;
-  }
-
-  const { error } = await supabase.from("oda").update({ kapasite: ayristirma.data }).eq("id", kaynakId);
-
-  if (error) {
-    console.error("Oda kapasitesi güncellenemedi:", error);
+  try {
+    await withTenant(y.bag, (tx) => tx.update(sema.oda).set({ kapasite: ayristirma.data }).where(eq(sema.oda.id, kaynakId)));
+  } catch (e) {
+    console.error("Oda kapasitesi güncellenemedi:", pgHata(e).mesaj);
     return;
   }
 
@@ -169,50 +143,40 @@ export async function kaynakAktifDurumDegistir(
   yeniDurum: boolean
 ): Promise<{ success: boolean; message: string } | null> {
   const gecerliTablo = tabloSemasi.safeParse(tablo);
-  if (!gecerliTablo.success) {
+  if (!gecerliTablo.success || !UUID.safeParse(kaynakId).success) {
     return null;
   }
 
-  const { supabase, klinikId, yetkili } = await klinikIdGetir();
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
-  if (!yetkili) {
-    return { success: false, message: YETKISIZ_MESAJI };
-  }
+  const y = await yetkiAl();
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
-  // Randevu Çizelgesi yalnız AKTİF odaları/cihazları gösterir: gelecek randevusu olan bir kaynak
-  // pasife alınırsa o randevular çizelgeden kaybolur (hasta gelir, randevu görünmez).
-  if (!yeniDurum) {
-    const simdi = new Date().toISOString();
-    const { count } =
-      gecerliTablo.data === "oda"
-        ? await supabase
-            .from("randevu")
-            .select("id", { count: "exact", head: true })
-            .eq("oda_id", kaynakId)
-            .in("durum", ["planlandi", "ertelendi", "geldi", "gecikmeli_geldi"])
-            .gte("bitis", simdi)
-        : await supabase
-            .from("randevu_cihaz_rezervasyon")
-            .select("id", { count: "exact", head: true })
-            .eq("cihaz_id", kaynakId)
-            .gte("bitis", simdi);
-    if (count) {
-      return {
-        success: false,
-        message: `Bu ${gecerliTablo.data === "oda" ? "odaya" : "cihaza"} ait ${count} gelecek randevu var; önce randevuları başka ${gecerliTablo.data === "oda" ? "odaya" : "cihaza"} aktarın ya da iptal edin.`,
-      };
-    }
-  }
-
-  const { error } = await supabase
-    .from(gecerliTablo.data)
-    .update({ aktif: yeniDurum })
-    .eq("id", kaynakId);
-
-  if (error) {
-    console.error(`${gecerliTablo.data} durumu güncellenemedi:`, error);
+  try {
+    const sonuc = await withTenant(y.bag, async (tx) => {
+      // Randevu Çizelgesi yalnız AKTİF odaları/cihazları gösterir: gelecek randevusu olan bir kaynak
+      // pasife alınırsa o randevular çizelgeden kaybolur (hasta gelir, randevu görünmez).
+      if (!yeniDurum) {
+        const simdi = new Date().toISOString();
+        const [{ n }] =
+          gecerliTablo.data === "oda"
+            ? await tx
+                .select({ n: count() })
+                .from(sema.randevu)
+                .where(and(eq(sema.randevu.odaId, kaynakId), inArray(sema.randevu.durum, ["planlandi", "ertelendi", "geldi", "gecikmeli_geldi"]), gte(sema.randevu.bitis, simdi)))
+            : await tx.select({ n: count() }).from(sema.randevuCihazRezervasyon).where(and(eq(sema.randevuCihazRezervasyon.cihazId, kaynakId), gte(sema.randevuCihazRezervasyon.bitis, simdi)));
+        if (n) {
+          const hedef = gecerliTablo.data === "oda" ? "odaya" : "cihaza";
+          return { hata: `Bu ${hedef} ait ${n} gelecek randevu var; önce randevuları başka ${hedef} aktarın ya da iptal edin.` };
+        }
+      }
+      const g =
+        gecerliTablo.data === "oda"
+          ? await tx.update(sema.oda).set({ aktif: yeniDurum }).where(eq(sema.oda.id, kaynakId)).returning({ id: sema.oda.id })
+          : await tx.update(sema.cihaz).set({ aktif: yeniDurum }).where(eq(sema.cihaz.id, kaynakId)).returning({ id: sema.cihaz.id });
+      return g.length === 0 ? { hata: "Kayıt bulunamadı." } : { tamam: true as const };
+    });
+    if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Güncellenemedi." };
+  } catch (e) {
+    console.error(`${gecerliTablo.data} durumu güncellenemedi:`, pgHata(e).mesaj);
     return { success: false, message: "Durum güncellenemedi, lütfen tekrar deneyin." };
   }
 

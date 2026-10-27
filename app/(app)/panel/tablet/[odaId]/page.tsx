@@ -1,6 +1,8 @@
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import type { RandevuSatir } from "@/types/randevu";
+import { notFound } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tabletRandevulariGetir } from "@/lib/randevu/sorgular";
 import type { Klinik } from "@/types/klinik";
 import { gunAraligi } from "@/lib/utils";
 import { VARSAYILAN_TABLET_AYARLARI, type TabletAyarlari } from "@/types/tablet-ayarlari";
@@ -13,56 +15,30 @@ export default async function TabletOdaSayfasi({
   params: Promise<{ odaId: string }>;
 }) {
   const { odaId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: oda } = await supabase.from("oda").select("id, ad").eq("id", odaId).single();
-
-  if (!oda) {
-    notFound();
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  const { data: klinikAyarlar } = await supabase
-    .from("klinik_ayarlar")
-    .select("ayarlar")
-    .eq("klinik_id", kullanici?.klinik_id ?? "")
-    .maybeSingle();
-
-  const tabletAyarlari: TabletAyarlari = {
-    ...VARSAYILAN_TABLET_AYARLARI,
-    ...(klinikAyarlar?.ayarlar as { tablet?: Partial<TabletAyarlari> } | null)?.tablet,
-  };
-
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("ad, logo_url, logo_url_koyu, marka_renkleri")
-    .eq("id", kullanici?.klinik_id ?? "")
-    .maybeSingle<Klinik>();
+  const { bag } = await panelBaglami();
+  if (!/^[0-9a-f-]{36}$/i.test(odaId)) notFound();
 
   const { baslangic, bitis } = gunAraligi();
-  const { data: randevular } = await supabase
-    .from("randevu")
-    .select(
-      "id, baslangic, bitis, durum, hasta_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi(id, ad)"
-    )
-    .eq("oda_id", odaId)
-    .gte("baslangic", baslangic)
-    .lt("baslangic", bitis)
-    .order("baslangic")
-    .returns<RandevuSatir[]>();
+  const v = await withTenant(bag, async (tx) => {
+    const oda = (await tx.select({ id: sema.oda.id, ad: sema.oda.ad }).from(sema.oda).where(eq(sema.oda.id, odaId)).limit(1))[0];
+    if (!oda) return null;
+    return {
+      oda,
+      ayarlar: (await tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, bag.tenantId)).limit(1))[0]?.ayarlar,
+      klinik: (await tx.select({ ad: sema.klinik.ad, logo_url: sema.klinik.logoUrl, logo_url_koyu: sema.klinik.logoUrlKoyu, marka_renkleri: sema.klinik.markaRenkleri }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0],
+      // DAR şekil: tanı/not/finans alanları kiosk istemcisine hiç gitmez.
+      randevular: await tabletRandevulariGetir(tx, { baslangic, bitis, odaId }),
+    };
+  });
+  if (!v) notFound();
+
+  const oda = v.oda;
+  const tabletAyarlari: TabletAyarlari = {
+    ...VARSAYILAN_TABLET_AYARLARI,
+    ...(v.ayarlar as { tablet?: Partial<TabletAyarlari> } | null | undefined)?.tablet,
+  };
+  const klinik = v.klinik as Klinik | undefined;
+  const randevular = v.randevular;
 
   return (
     <>

@@ -101,7 +101,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | resmi_tatil | S,I,D |
 | resmi_tatil_oneri | S,I,U |
 | seans_degerlendirme | S,I,U |
-| tedavi_protokolu | S,I,U,D |
+| tedavi_protokolu | S,I,U |
 | tedavi_protokolu_adimi | S,I,D |
 | terapist | S,I,U |
 | v_hasta_cari_ozet | S |

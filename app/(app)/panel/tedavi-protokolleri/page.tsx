@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
 import { ListOrdered } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -10,38 +11,39 @@ import { YeniProtokolDialog } from "./yeni-protokol-dialog";
 import { ProtokolSatiri } from "./protokol-satiri";
 
 export default async function TedaviProtokolleriSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
+  let tedaviler: SecenekSatir[] = [];
+  let protokoller: TedaviProtokoluSatir[] = [];
+  let hata = false;
+  try {
+    ({ tedaviler, protokoller } = await withTenant(bag, async (tx) => {
+      const t = await tx.select({ id: sema.islemTanimi.id, ad: sema.islemTanimi.ad }).from(sema.islemTanimi).where(eq(sema.islemTanimi.aktif, true)).orderBy(asc(sema.islemTanimi.ad));
+      const p = await tx.select().from(sema.tedaviProtokolu).orderBy(asc(sema.tedaviProtokolu.ad));
+      const adimlar = await tx
+        .select({ a: sema.tedaviProtokoluAdimi, tid: sema.islemTanimi.id, tad: sema.islemTanimi.ad })
+        .from(sema.tedaviProtokoluAdimi)
+        .leftJoin(sema.islemTanimi, eq(sema.islemTanimi.id, sema.tedaviProtokoluAdimi.islemTanimiId))
+        .orderBy(asc(sema.tedaviProtokoluAdimi.sira));
+      return {
+        tedaviler: t,
+        protokoller: p.map((x): TedaviProtokoluSatir => ({
+          id: x.id,
+          ad: x.ad,
+          aciklama: x.aciklama,
+          aktif: x.aktif,
+          tedavi_protokolu_adimi: adimlar
+            .filter((y) => y.a.tedaviProtokoluId === x.id)
+            .map((y) => ({ id: y.a.id, sira: y.a.sira, adim_notu: y.a.adimNotu, islem_tanimi: y.tid ? { id: y.tid, ad: y.tad ?? "" } : null })),
+        })),
+      };
+    }));
+  } catch (e) {
+    console.error("Tedavi protokolleri çekilemedi:", e);
+    hata = true;
   }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-
-  const [tedaviSonucu, protokolSonucu] = await Promise.all([
-    supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
-    supabase
-      .from("tedavi_protokolu")
-      .select(
-        "id, ad, aciklama, aktif, tedavi_protokolu_adimi(id, sira, adim_notu, islem_tanimi:islem_tanimi_id(id, ad))"
-      )
-      .order("ad")
-      .order("sira", { referencedTable: "tedavi_protokolu_adimi" })
-      .returns<TedaviProtokoluSatir[]>(),
-  ]);
-
-  const tedaviler: SecenekSatir[] = (tedaviSonucu.data ?? []).map((t) => ({ id: t.id, ad: t.ad }));
-  const protokoller = protokolSonucu.data ?? [];
+  const protokolSonucu = { error: hata };
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

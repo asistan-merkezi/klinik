@@ -15,12 +15,12 @@
 |---|---|---|---|---|
 | 1 | Kullanıcı/profil, klinik ayarları, ortak yardımcılar | **bitti** | 12 / 18 | 6 |
 | 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bitti** | 48 / 49 | 1 |
-| 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bekliyor** | 4 / 10 | 6 |
+| 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bitti** | 10 / 10 | 0 |
 | 4 | Ödeme / cari / finans / paket / işlem tanımları | **bekliyor** | 1 / 31 | 30 |
 | 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 1 / 20 | 19 |
 | 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 2 / 10 | 8 |
 | 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 1 / 17 | 16 |
-| | **Toplam** | | 69 / 155 | **86** |
+| | **Toplam** | | 75 / 155 | **80** |
 
 Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-baslangic.txt`, 155 dosya); sayım `@supabase`, `@/lib/supabase` ve `createAdminClient` kullanan dosyaları kapsar. `lib/supabase/*` en sonda silinir.
 
@@ -45,15 +45,9 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
 
 ## Modül 3 — Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto
 
-- Durum: **bekliyor**
-- Not: Realtime (tablet) SSE + LISTEN/NOTIFY gerektirir (Aşama 6); belge/foto dosya katmanı gerektirir (Aşama 5).
-- Kalan dosyalar (6):
-  - `app/(app)/panel/kaynaklar/page.tsx`
-  - `app/(app)/panel/tablet/ayarlar/actions.ts`
-  - `app/(app)/panel/tablet/ayarlar/page.tsx`
-  - `app/(app)/panel/tablet/page.tsx`
-  - `app/(app)/panel/tablet/[odaId]/page.tsx`
-  - `app/(app)/panel/tedavi-protokolleri/page.tsx`
+- Durum: **bitti**
+- Not: Taşındı: kaynaklar (oda/cihaz, pasife alma kontrolü), tedavi protokolleri (protokol+adımlar tek transaction), tablet (oda seçimi, ayarlar, ekran sayfası DAR veri şekliyle), belge/foto (Modül 2'de diskte). Yeni migration yok.
+- Kalan dosyalar (0): —
 
 ## Modül 4 — Ödeme / cari / finans / paket / işlem tanımları
 
@@ -152,13 +146,3 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
 ## Taşırken temizlenecekler (takip)
 
 Bkz. `scripts/dev/devam-notu.md` ve bu dosyanın modül notları. Temizlik kalemleri: QR formundaki gizli `klinik_id` alanı (tenant yalnız kısa koddan), `lib/qr/hiz-siniri.ts` (fail-closed), `ScheduledLogout`, tek oturum kilidi dosyaları (`lib/auth/oturum-kilidi.ts`, `giris-hiz-siniri.ts`), `lib/supabase/*`, `vercel.json`, `@supabase/*` paketleri.
-
-## Modül 2 — Audit (erişim izi) karşılaştırması
-
-Eski kodda `audit_log`'a yazan her yer: (1) DB tetikleyicileri `audit_log_yaz` / `audit_log_degisiklik_yaz` (hasta, hasta_hassas, hasta_bakiye_hareket, fatura, paket_satis, vücut haritası vb.) — DEĞİŞMEDİ, veritabanında durur, taşıma bunları atlayamaz; (2) `hasta_belge_goruntule` RPC'si ('select' satırı, gerçek açma anı) — korundu, artık `/api/hasta-belge/[id]` route'unda çağrılır; (3) `belgeIndir` içindeki ek 'indirme' satırı — korundu (`lib/belge/servis.ts`). Liste küçük resmi (`islem=kucuk`) eskisi gibi iz BIRAKMAZ. Test: `tests/db/modul-hasta.test.ts` (hasta açma, ödeme ekleme → audit satırı; belge indirme → select+indirme, küçük resim → iz yok). Düşen işlem YOK.
-
-## Modül 2 — taşıma notları
-
-- Büyük dosyalar yerinde taşındı (randevular/actions 7 grup, hastalar/[id]/actions 3 grup ayrı commit); bölünme yalnız okuma sorguları için (`lib/randevu/sorgular.ts`, `lib/hasta/*-sorgular.ts`, `lib/portal/sorgular.ts`, `[id]/veri-actions.ts`) — gerekçe: istemci bileşenleri doğrudan Supabase çağırıyordu, bunlar artık sunucu eylemi.
-- Bulunan hatalar: eylemlerde istemciden gelen kimliklerin (hasta/oda/terapist/tedavi/hasta-belge-hasta eşleşmesi/borç-hasta eşleşmesi) tenant ve sahiplik doğrulaması eksikti (FK RLS'i atlar) → `randevuKimlikleriniDogrula` + eşleşme kontrolleri; `hasta_ara`/RPC çağrıları `kullanim-tara` tarafından görülmüyordu (grant eksikliği) → tarayıcı genişletildi; hasta+hassas yazımları iki bağımsız çağrıydı → tek transaction; risk bayrağı oku-değiştir-yaz → atomik jsonb ekleme; QR kapalı-durumda `qrKoduAktifMi` hata olursa AÇIK sayıyordu → fail-closed; seans anketinde klinik formdan geliyordu → randevudan tanima ile.
-- Yetki genişletmeleri (hepsi dar, test'li): 0009 `terapist_uygunluk_getir` (yalnız tarih listesi döner), 0010 `hasta_kullanici` INSERT (klinik_admin/resepsiyon, kendi kliniğinin hastası), 0011 mesaj kuyruğu INSERT + kural SELECT.
