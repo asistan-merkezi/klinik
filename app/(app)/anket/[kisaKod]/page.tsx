@@ -1,5 +1,4 @@
-import { klinikQrBilgisiGetir } from "@/lib/qr/klinik-bilgisi";
-import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import { klinikQrBilgisi, qrAktifMi } from "@/lib/guvenlik/anonim-uc";
 import { KamuFormKarti, KamuFormBulunamadi } from "@/components/panel/kamu-form-karti";
 import { AnketFormu } from "./anket-formu";
 
@@ -9,13 +8,13 @@ export default async function AnketSayfasi({
   params: Promise<{ kisaKod: string }>;
 }) {
   const { kisaKod } = await params;
-  const klinik = await klinikQrBilgisiGetir(kisaKod);
+  const klinik = await klinikQrBilgisi(kisaKod);
 
   if (!klinik) {
     return <KamuFormBulunamadi />;
   }
 
-  const aktif = await qrKoduAktifMi(klinik.id, "anket");
+  const aktif = await qrAktifMi(klinik.id, "anket");
 
   if (!aktif) {
     return (
@@ -27,7 +26,7 @@ export default async function AnketSayfasi({
 
   return (
     <KamuFormKarti klinikAd={klinik.ad} baslik="Anket ve Öneriler" aciklama="Görüşleriniz bizim için değerli.">
-      <AnketFormu klinikId={klinik.id} />
+      <AnketFormu kisaKod={kisaKod} />
     </KamuFormKarti>
   );
 }

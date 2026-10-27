@@ -1,5 +1,4 @@
-import { klinikQrBilgisiGetir } from "@/lib/qr/klinik-bilgisi";
-import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import { klinikQrBilgisi, qrAktifMi } from "@/lib/guvenlik/anonim-uc";
 import { KamuFormKarti, KamuFormBulunamadi } from "@/components/panel/kamu-form-karti";
 import { HastaQrFormu } from "./hasta-qr-formu";
 
@@ -9,13 +8,13 @@ export default async function HastaQrKayitSayfasi({
   params: Promise<{ kisaKod: string }>;
 }) {
   const { kisaKod } = await params;
-  const klinik = await klinikQrBilgisiGetir(kisaKod);
+  const klinik = await klinikQrBilgisi(kisaKod);
 
   if (!klinik) {
     return <KamuFormBulunamadi />;
   }
 
-  const aktif = await qrKoduAktifMi(klinik.id, "hasta_on_kayit");
+  const aktif = await qrAktifMi(klinik.id, "hasta_on_kayit");
 
   if (!aktif) {
     return (
@@ -27,7 +26,7 @@ export default async function HastaQrKayitSayfasi({
 
   return (
     <KamuFormKarti klinikAd={klinik.ad} baslik="Hasta Ön Kayıt" aciklama="Bilgilerinizi girin, resepsiyonda sizi karşılayalım.">
-      <HastaQrFormu klinikId={klinik.id} />
+      <HastaQrFormu kisaKod={kisaKod} />
     </KamuFormKarti>
   );
 }

@@ -19,8 +19,8 @@ const KIMLIK_TIPI_SECENEKLERI = [
   { value: "pasaport", label: "Pasaport No" },
 ];
 
-export function HastaQrFormu({ klinikId }: { klinikId: string }) {
-  const [durum, formAction, isPending] = useActionState(hastaQrKayitOlustur, null);
+export function HastaQrFormu({ kisaKod }: { kisaKod: string }) {
+  const [durum, formAction, isPending] = useActionState(hastaQrKayitOlustur.bind(null, kisaKod), null);
   const [adSoyad, setAdSoyad] = useState("");
 
   if (durum?.success) {
@@ -33,7 +33,6 @@ export function HastaQrFormu({ klinikId }: { klinikId: string }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <input type="hidden" name="klinik_id" value={klinikId} />
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="ad_soyad">Ad Soyad</Label>

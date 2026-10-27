@@ -1,16 +1,16 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { sema, pgHata } from "@/lib/db";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
-import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
-import { hizSiniriTuket, ipAnahtari, klinikAnahtari, HIZ_SINIRI_MESAJI } from "@/lib/qr/hiz-siniri";
+import { anonimUcCalistir } from "@/lib/guvenlik/anonim-uc";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
+// Klinik kimliği formdan ALINMAZ: kısa kod (URL parametresi, sunucu eylemine bind edilir) tanima şemasıyla klinik'e çözülür.
 const semasi = z
   .object({
-    klinik_id: z.string().uuid("Geçersiz bağlantı."),
     puan: z.union([z.coerce.number().int().min(1).max(5), z.literal("")]).optional(),
     oneri_metni: z.string().trim().max(2000, "Öneri en fazla 2000 karakter olabilir.").optional(),
     ad_soyad: z.string().trim().max(120, "Ad soyad çok uzun.").optional(),
@@ -20,9 +20,8 @@ const semasi = z
     message: "Lütfen bir puan verin veya öneri yazın.",
   });
 
-export async function anketYanitiOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+export async function anketYanitiOlustur(kisaKod: string, _onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
   const ayristirma = semasi.safeParse({
-    klinik_id: formData.get("klinik_id"),
     puan: formData.get("puan") ?? "",
     oneri_metni: formData.get("oneri_metni") ?? "",
     ad_soyad: formData.get("ad_soyad") ?? "",
@@ -33,37 +32,25 @@ export async function anketYanitiOlustur(_onceki: SonucDurumu, formData: FormDat
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { klinik_id, puan, oneri_metni, ad_soyad, telefon } = ayristirma.data;
+  const { puan, oneri_metni, ad_soyad, telefon } = ayristirma.data;
 
-  // Kapalı QR'ın formu göstermemesi sadece page.tsx'te — server action bağımsız
-  // bir endpoint olduğu için burada da ayrıca zorlanmalı.
-  const aktif = await qrKoduAktifMi(klinik_id, "anket");
-  if (!aktif) {
-    return { success: false, message: "Bu anket bağlantısı artık aktif değil." };
-  }
-
-  const izinli = await hizSiniriTuket([
-    { anahtar: await ipAnahtari("anket"), limit: 10, pencereSn: 600 },
-    { anahtar: klinikAnahtari("anket", klinik_id), limit: 500, pencereSn: 86400 },
-  ]);
-  if (!izinli) {
-    return { success: false, message: HIZ_SINIRI_MESAJI };
-  }
-
-  const supabase = await createClient();
-
-  const { error } = await supabase.from("anket_yaniti").insert({
-    klinik_id,
-    puan: puan === "" || puan === undefined ? null : puan,
-    oneri_metni: oneri_metni || null,
-    ad_soyad: ad_soyad ? isimBasHarfBuyukYap(ad_soyad) : null,
-    telefon: telefon || null,
+  // Hız sınırı (FAIL-CLOSED), kısa kod → klinik, kapalı QR'a doğrudan POST reddi ve `klinik_anonim` ile yazma: tek kapı.
+  const sonuc = await anonimUcCalistir(
+    { ucAdi: "anket", kisaKod, basliklar: await headers(), qrTipi: "anket", ipLimiti: 10, kodGunlukLimiti: 500 },
+    (tx, klinik) =>
+      tx.insert(sema.anketYaniti).values({
+        klinikId: klinik.id,
+        puan: puan === "" || puan === undefined ? null : puan,
+        oneriMetni: oneri_metni || null,
+        adSoyad: ad_soyad ? isimBasHarfBuyukYap(ad_soyad) : null,
+        telefon: telefon || null,
+      })
+  ).catch((e) => {
+    console.error("Anket yanıtı oluşturulamadı:", pgHata(e).mesaj);
+    return null;
   });
 
-  if (error) {
-    console.error("Anket yanıtı oluşturulamadı:", error);
-    return { success: false, message: "Gönderilemedi, lütfen tekrar deneyin." };
-  }
-
+  if (!sonuc) return { success: false, message: "Gönderilemedi, lütfen tekrar deneyin." };
+  if (!sonuc.ok) return { success: false, message: sonuc.kod === "kapali" ? "Bu anket bağlantısı artık aktif değil." : sonuc.mesaj };
   return { success: true, message: "Geri bildiriminiz için teşekkür ederiz." };
 }

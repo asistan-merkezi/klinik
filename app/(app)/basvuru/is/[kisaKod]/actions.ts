@@ -1,9 +1,10 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
+import { sema, pgHata } from "@/lib/db";
+import { anonimUcCalistir } from "@/lib/guvenlik/anonim-uc";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
-import { hizSiniriTuket, ipAnahtari, klinikAnahtari, HIZ_SINIRI_MESAJI } from "@/lib/qr/hiz-siniri";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -19,7 +20,6 @@ const bosVeyaMetin = z.string().trim().max(500, "Metin çok uzun.").optional().o
 const kisaMetin = (s: string) => s.trim().slice(0, 200);
 
 const semasi = z.object({
-  klinik_id: z.string().uuid("Geçersiz bağlantı."),
   ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı.").max(120, "Ad soyad çok uzun."),
   telefon: telefonSemasi,
   eposta: z.union([z.string().trim().max(254).email("Geçersiz e-posta."), z.literal("")]).optional(),
@@ -62,9 +62,8 @@ function referanslariTopla(formData: FormData): { ad_soyad: string; telefon: str
   return satirlar;
 }
 
-export async function isBasvurusuOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+export async function isBasvurusuOlustur(kisaKod: string, _onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
   const ayristirma = semasi.safeParse({
-    klinik_id: formData.get("klinik_id"),
     ad_soyad: formData.get("ad_soyad"),
     telefon: formData.get("telefon"),
     eposta: formData.get("eposta") ?? "",
@@ -92,45 +91,36 @@ export async function isBasvurusuOlustur(_onceki: SonucDurumu, formData: FormDat
     return { success: false, message: "Devam etmek için KVKK onay kutucuğunu işaretlemeniz gerekiyor." };
   }
 
-  // Hasta ön kayıt/anket ile aynı koruma: önceden bu form sınırsızdı (otomatik doldurmayla bir
-  // kliniğe binlerce sahte, kişisel veri içeren başvuru yazılabilirdi).
-  const izinli = await hizSiniriTuket([
-    { anahtar: await ipAnahtari("is_basvurusu"), limit: 5, pencereSn: 600 },
-    { anahtar: klinikAnahtari("is_basvurusu", veri.klinik_id), limit: 100, pencereSn: 86400 },
-  ]);
-  if (!izinli) {
-    return { success: false, message: HIZ_SINIRI_MESAJI };
-  }
-
-  const supabase = await createClient();
+  // Hasta ön kayıt/anket ile aynı koruma (hız sınırı FAIL-CLOSED, kısa kod → klinik, klinik_anonim ile yazma). Klinik formdan ALINMAZ.
   const simdi = new Date().toISOString();
-
-  const { error } = await supabase.from("is_basvurusu").insert({
-    klinik_id: veri.klinik_id,
-    ad_soyad: isimBasHarfBuyukYap(veri.ad_soyad),
-    telefon: veri.telefon,
-    eposta: veri.eposta || null,
-    dogum_tarihi: veri.dogum_tarihi || null,
-    tc_kimlik_no: veri.tc_kimlik_no || null,
-    adres: veri.adres || null,
-    pozisyon: veri.pozisyon || null,
-    bizi_nereden_duydunuz: veri.bizi_nereden_duydunuz || null,
-    calismaya_baslama_tarihi: veri.calismaya_baslama_tarihi || null,
-    calisma_sekli: veri.calisma_sekli || null,
-    beklenen_ucret: veri.beklenen_ucret || null,
-    egitim_okul_bolum: veri.egitim_okul_bolum || null,
-    egitim_mezuniyet_yili: veri.egitim_mezuniyet_yili || null,
-    egitim_sertifikalar: veri.egitim_sertifikalar || null,
-    is_deneyimi: deneyimleriTopla(formData),
-    referanslar: referanslariTopla(formData),
-    kvkk_onay: true,
-    kvkk_onay_tarihi: simdi,
+  const sonuc = await anonimUcCalistir({ ucAdi: "is_basvurusu", kisaKod, basliklar: await headers(), ipLimiti: 5, kodGunlukLimiti: 100 }, (tx, klinik) =>
+    tx.insert(sema.isBasvurusu).values({
+      klinikId: klinik.id,
+      adSoyad: isimBasHarfBuyukYap(veri.ad_soyad),
+      telefon: veri.telefon,
+      eposta: veri.eposta || null,
+      dogumTarihi: veri.dogum_tarihi || null,
+      tcKimlikNo: veri.tc_kimlik_no || null,
+      adres: veri.adres || null,
+      pozisyon: veri.pozisyon || null,
+      biziNeredenDuydunuz: veri.bizi_nereden_duydunuz || null,
+      calismayaBaslamaTarihi: veri.calismaya_baslama_tarihi || null,
+      calismaSekli: veri.calisma_sekli || null,
+      beklenenUcret: veri.beklenen_ucret || null,
+      egitimOkulBolum: veri.egitim_okul_bolum || null,
+      egitimMezuniyetYili: veri.egitim_mezuniyet_yili || null,
+      egitimSertifikalar: veri.egitim_sertifikalar || null,
+      isDeneyimi: deneyimleriTopla(formData),
+      referanslar: referanslariTopla(formData),
+      kvkkOnay: true,
+      kvkkOnayTarihi: simdi,
+    })
+  ).catch((e) => {
+    console.error("İş başvurusu oluşturulamadı:", pgHata(e).mesaj);
+    return null;
   });
 
-  if (error) {
-    console.error("İş başvurusu oluşturulamadı:", error);
-    return { success: false, message: "Başvurunuz kaydedilemedi, lütfen tekrar deneyin." };
-  }
-
+  if (!sonuc) return { success: false, message: "Başvurunuz kaydedilemedi, lütfen tekrar deneyin." };
+  if (!sonuc.ok) return { success: false, message: sonuc.mesaj };
   return { success: true, message: "Başvurunuz alındı. Teşekkür ederiz." };
 }

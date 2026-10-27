@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { seansDegerlendirmeOlustur } from "./actions";
 
 export function SeansAnketFormu({ randevuId }: { randevuId: string }) {
-  const [durum, formAction, isPending] = useActionState(seansDegerlendirmeOlustur, null);
+  const [durum, formAction, isPending] = useActionState(seansDegerlendirmeOlustur.bind(null, randevuId), null);
   const [puan, setPuan] = useState<number | null>(null);
 
   if (durum?.success) {
@@ -21,7 +21,6 @@ export function SeansAnketFormu({ randevuId }: { randevuId: string }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <input type="hidden" name="randevu_id" value={randevuId} />
       <input type="hidden" name="puan" value={puan ?? ""} />
 
       <div className="flex flex-col gap-2">

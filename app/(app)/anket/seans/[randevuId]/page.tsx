@@ -1,4 +1,4 @@
-import { seansAnketBaglamGetir } from "@/lib/qr/seans-anket-baglami";
+import { seansAnketBaglamiGetir } from "@/lib/guvenlik/anonim-uc";
 import { KamuFormKarti, KamuFormBulunamadi } from "@/components/panel/kamu-form-karti";
 import { SeansAnketFormu } from "./seans-anket-formu";
 
@@ -8,7 +8,7 @@ export default async function SeansAnketSayfasi({
   params: Promise<{ randevuId: string }>;
 }) {
   const { randevuId } = await params;
-  const baglam = await seansAnketBaglamGetir(randevuId);
+  const baglam = await seansAnketBaglamiGetir(randevuId);
 
   if (!baglam) {
     return <KamuFormBulunamadi />;

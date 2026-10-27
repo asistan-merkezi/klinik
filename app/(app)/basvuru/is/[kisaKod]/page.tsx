@@ -1,4 +1,4 @@
-import { klinikQrBilgisiGetir } from "@/lib/qr/klinik-bilgisi";
+import { klinikQrBilgisi } from "@/lib/guvenlik/anonim-uc";
 import { KamuFormKarti, KamuFormBulunamadi } from "@/components/panel/kamu-form-karti";
 import { IsBasvuruFormu } from "./is-basvuru-formu";
 
@@ -8,7 +8,7 @@ export default async function IsBasvuruSayfasi({
   params: Promise<{ kisaKod: string }>;
 }) {
   const { kisaKod } = await params;
-  const klinik = await klinikQrBilgisiGetir(kisaKod);
+  const klinik = await klinikQrBilgisi(kisaKod);
 
   if (!klinik) {
     return <KamuFormBulunamadi />;
@@ -21,7 +21,7 @@ export default async function IsBasvuruSayfasi({
       aciklama="Kişisel bilgiler, eğitim, iş deneyimi ve referanslarınızı içeren başvuru formu."
       genis
     >
-      <IsBasvuruFormu klinikId={klinik.id} />
+      <IsBasvuruFormu kisaKod={kisaKod} />
     </KamuFormKarti>
   );
 }

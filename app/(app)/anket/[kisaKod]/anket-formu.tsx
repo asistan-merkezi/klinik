@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { anketYanitiOlustur } from "./actions";
 
-export function AnketFormu({ klinikId }: { klinikId: string }) {
-  const [durum, formAction, isPending] = useActionState(anketYanitiOlustur, null);
+export function AnketFormu({ kisaKod }: { kisaKod: string }) {
+  const [durum, formAction, isPending] = useActionState(anketYanitiOlustur.bind(null, kisaKod), null);
   const [puan, setPuan] = useState<number | null>(null);
 
   if (durum?.success) {
@@ -22,7 +22,6 @@ export function AnketFormu({ klinikId }: { klinikId: string }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <input type="hidden" name="klinik_id" value={klinikId} />
       <input type="hidden" name="puan" value={puan ?? ""} />
 
       <div className="flex flex-col gap-2">

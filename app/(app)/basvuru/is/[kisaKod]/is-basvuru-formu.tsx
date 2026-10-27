@@ -46,8 +46,8 @@ function ReferansSatiri({ sira }: { sira: number }) {
 // alanlar — kullanıcı kararı "webteki formla pdf aynı olsun". Alan sırası,
 // bölüm başlıkları ve İş Deneyimi/Referanslar satır sayıları (3/2) PDF'teki
 // lib/pdf/is-basvuru-formu-sablon.ts ile eşleşecek şekilde tutuldu.
-export function IsBasvuruFormu({ klinikId }: { klinikId: string }) {
-  const [durum, formAction, isPending] = useActionState(isBasvurusuOlustur, null);
+export function IsBasvuruFormu({ kisaKod }: { kisaKod: string }) {
+  const [durum, formAction, isPending] = useActionState(isBasvurusuOlustur.bind(null, kisaKod), null);
   const [adSoyad, setAdSoyad] = useState("");
 
   if (durum?.success) {
@@ -60,7 +60,6 @@ export function IsBasvuruFormu({ klinikId }: { klinikId: string }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
-      <input type="hidden" name="klinik_id" value={klinikId} />
 
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 text-sm font-semibold">Kişisel Bilgiler</legend>
