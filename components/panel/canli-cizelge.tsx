@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useCanliOlaylar } from "@/lib/realtime/use-canli-olaylar";
 import { gunAraligi } from "@/lib/utils";
 import { RANDEVU_SELECT } from "@/lib/randevu/queries";
 import { startOfDayUTC, formatDateForInput, formatTimeForInput, formatTime } from "@/lib/datetime";
@@ -108,63 +109,34 @@ export function CanliCizelge({
     kaydirildiRef.current = false;
   }, [seciliTarih]);
 
-  useEffect(() => {
+  // Veri çekimi (Modül 2'de sunucu eylemine taşınacak); olay yükünde veri yok, her olayda/yeniden bağlanmada bu çağrılır.
+  const listeyiYenile = useCallback(async () => {
     const supabase = createClient();
-    let kanal: ReturnType<typeof supabase.channel> | null = null;
-    let iptalEdildi = false;
+    const { baslangic, bitis } = gunAraligi(new Date(seciliTarih));
+    const { data } = await supabase
+      .from("randevu")
+      .select(RANDEVU_SELECT)
+      .gte("baslangic", baslangic)
+      .lt("baslangic", bitis)
+      .order("baslangic")
+      .returns<RandevuSatir[]>();
 
-    async function listeyiYenile() {
-      const { baslangic, bitis } = gunAraligi(new Date(seciliTarih));
-      const { data } = await supabase
-        .from("randevu")
-        .select(RANDEVU_SELECT)
-        .gte("baslangic", baslangic)
-        .lt("baslangic", bitis)
-        .order("baslangic")
-        .returns<RandevuSatir[]>();
-
-      if (data) {
-        setRandevular(data);
-      }
+    if (data) {
+      setRandevular(data);
     }
+  }, [seciliTarih]);
 
-    async function abonelikKur() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        supabase.realtime.setAuth(session.access_token);
-      }
-      if (iptalEdildi) return;
-
-      kanal = supabase
-        .channel("randevu-panel-canli")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "randevu" },
-          () => {
-            listeyiYenile();
-          }
-        )
-        .subscribe();
-    }
-
-    // İlk mount'ta sunucudan gelen baslangicRandevular zaten güncel; sadece
-    // tarih değiştirildiğinde (gezinme) anında tazeleme gerekir.
+  // İlk mount'ta sunucudan gelen baslangicRandevular zaten güncel; sadece
+  // tarih değiştirildiğinde (gezinme) anında tazeleme gerekir.
+  useEffect(() => {
     if (!ilkCalismaRef.current) {
-      listeyiYenile();
+      void listeyiYenile();
     }
     ilkCalismaRef.current = false;
+  }, [listeyiYenile]);
 
-    abonelikKur();
-
-    return () => {
-      iptalEdildi = true;
-      if (kanal) {
-        supabase.removeChannel(kanal);
-      }
-    };
-  }, [seciliTarih]);
+  // Canlı güncelleme: lib/realtime (SSE + LISTEN/NOTIFY). Yeniden bağlanınca kaçanlar telafi edilir (onSenkron).
+  useCanliOlaylar({ tablolar: ["randevu"], onOlay: () => void listeyiYenile(), onSenkron: () => void listeyiYenile() });
 
   const gunBaslangicMs = useMemo(() => gunBaslangiciMs(new Date(seciliTarih)), [seciliTarih]);
 

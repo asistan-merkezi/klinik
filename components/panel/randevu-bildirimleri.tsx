@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Toast } from "@base-ui/react/toast";
 import { CalendarClock, PackageOpen, UserCheck, X } from "lucide-react";
 import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { useCanliOlaylar } from "@/lib/realtime/use-canli-olaylar";
 import { gunAraligi } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 
@@ -53,16 +53,15 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
   const rolGorur = rol === "terapist" || rol === "klinik_admin" || rol === "resepsiyon";
   const tabletteMi = pathname.startsWith("/panel/tablet");
   const aktif = rolGorur && !tabletteMi;
+  const olayYoneticisi = useRef<{ olay: (randevuId: string) => void; senkron: () => void } | null>(null);
 
   useEffect(() => {
     if (!aktif) return;
 
     const supabase = createClient();
     const durumlar = new Map<string, string>();
-    let kanal: ReturnType<typeof supabase.channel> | null = null;
     let iptalEdildi = false;
     let kendiTerapistId: string | null = null;
-    let ilkAbonelik = true;
 
     async function terapistIdCoz() {
       if (rol !== "terapist") return;
@@ -135,16 +134,21 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
       });
     }
 
-    function olayGeldi(payload: RealtimePostgresChangesPayload<RandevuSatiriOlay>) {
-      if (payload.eventType === "DELETE") {
-        if (payload.old.id) durumlar.delete(payload.old.id);
+    // Olay yükünde veri yok ({t,i}): satırın güncel durumu yetkili yoldan çekilir, sonra geçiş tespiti aynı kurallarla yapılır.
+    async function olayGeldi(randevuId: string) {
+      const { data: yeni } = await supabase
+        .from("randevu")
+        .select("id, durum, terapist_id")
+        .eq("id", randevuId)
+        .maybeSingle<RandevuSatiriOlay>();
+      if (iptalEdildi) return;
+      if (!yeni) {
+        durumlar.delete(randevuId); // silinmiş (ya da görünmeyen) randevu
         return;
       }
-      const yeni = payload.new;
       const onceki = durumlar.get(yeni.id);
       durumlar.set(yeni.id, yeni.durum);
 
-      if (payload.eventType !== "UPDATE") return;
       if (onceki === undefined || onceki === yeni.durum) return;
       if (!bildirimDurumuMu(yeni.durum)) return;
       // tamamlandi → yalnız resepsiyon/klinik_admin (paket yenileme); diğer
@@ -159,40 +163,28 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
       void bildir(yeni.id, yeni.durum);
     }
 
-    async function abonelikKur() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        supabase.realtime.setAuth(session.access_token);
-      }
-      await Promise.all([terapistIdCoz(), haritayiYukle()]);
-      if (iptalEdildi) return;
-
-      kanal = supabase
-        .channel("randevu-bildirimleri")
-        .on<RandevuSatiriOlay>("postgres_changes", { event: "*", schema: "public", table: "randevu" }, olayGeldi)
-        .subscribe((durum) => {
-          if (durum !== "SUBSCRIBED") return;
-          // İlk abonelikte harita zaten yüklü; yeniden bağlanmada kesintide
-          // kaçan değişiklikleri sessizce içeri al.
-          if (ilkAbonelik) {
-            ilkAbonelik = false;
-            return;
-          }
-          void haritayiYukle();
-        });
-    }
-
-    void abonelikKur();
+    olayYoneticisi.current = {
+      olay: (id) => void olayGeldi(id),
+      // Yeniden bağlanmada kesintide kaçan değişiklikleri sessizce içeri al (bildirim atmadan).
+      senkron: () => void haritayiYukle(),
+    };
+    void Promise.all([terapistIdCoz(), haritayiYukle()]);
 
     return () => {
       iptalEdildi = true;
-      if (kanal) supabase.removeChannel(kanal);
+      olayYoneticisi.current = null;
     };
     // toastYoneticisi kararlı bir referans değil — olay içinde yalnız add() çağrılıyor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aktif, kullaniciId, rol]);
+
+  // Canlı olaylar lib/realtime'dan (SSE); yük yalnız {t,i}. Tablet ekranlarında ve izinsiz rollerde bağlanılmaz.
+  useCanliOlaylar({
+    tablolar: ["randevu"],
+    etkin: aktif,
+    onOlay: (o) => olayYoneticisi.current?.olay(o.i),
+    onSenkron: () => olayYoneticisi.current?.senkron(),
+  });
 
   return null;
 }

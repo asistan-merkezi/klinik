@@ -26,7 +26,7 @@ const eslintConfig = defineConfig([
   // withTenant dışında doğrudan sorgu çalıştırmayı engelle: havuz/pg/drizzle-pg yalnız lib/db ve lib/auth (kimlik) içinde import edilebilir.
   {
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
-    ignores: ["lib/db/**", "lib/auth/**", "scripts/dev/**", "db/kontrol/**", "tests/db/**", "tests/e2e/**", "**/*.test.ts", "**/*.test.tsx"],
+    ignores: ["lib/db/**", "lib/auth/**", "lib/realtime/dinleyici.ts", "scripts/dev/**", "db/kontrol/**", "tests/db/**", "tests/e2e/**", "**/*.test.ts", "**/*.test.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -60,6 +60,7 @@ const eslintConfig = defineConfig([
     },
   },
   // Bağlam üreticisini kullanmasına İZİN verilen tek üretim dosyaları (başka dosya import ederse eslint hata verir).
+  // lib/realtime/dinleyici.ts: yalnız LISTEN bağlantısı (sorgu yok, tablo okumaz); olay yükü olayCoz ile doğrulanır.
   { files: ["lib/auth/oturum.ts", "lib/guvenlik/anonim-uc.ts"], rules: { "no-restricted-imports": "off" } },
 ]);
 

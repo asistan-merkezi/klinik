@@ -1,0 +1,29 @@
+# Caddy yapılandırması (Windows VM). Alan adı ve yol değerleri kurulumda değiştirilir; gizli değer içermez.
+# Cloudflare proxy KAPALI (yalnız DNS): TLS doğrudan burada sonlanır (docs/sunucu-kurulum.md).
+klinik.ornek.com.tr {
+	# Güvenilen tek istemci IP kaynağı: uygulama x-real-ip başlığına güvenir (hız sınırı IP hash'i); dışarıdan gelen değer ezilir.
+	# Canlı olay akışı (SSE, /api/canli): ARABELLEK KAPALI olmalı. flush_interval -1 olmazsa Caddy olayları biriktirir,
+	# canlı çizelge/tablet güncellemeleri gecikir ya da hiç gelmez. Sıkıştırma akışı arabelleğe alabilir; bu yüzden `encode` yalnız
+	# SSE dışındaki yolda (alttaki genel handle) açıktır.
+	@canli path /api/canli
+	handle @canli {
+		reverse_proxy localhost:3000 {
+			flush_interval -1
+			header_up X-Real-IP {remote_host}
+			transport http {
+				# Yanıt başlığı hemen döner; gövde (akış) süre sınırı OLMAMALI. Sunucu bağlantıyı en fazla 10 dk sonra kendisi kapatır
+				# (lib/realtime/sse.ts SSE_OMUR_MS) ve istemci yeniden bağlanır; ping 25 sn'de bir gider.
+				response_header_timeout 30s
+				dial_timeout 5s
+				keepalive 30s
+			}
+		}
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy localhost:3000 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+}

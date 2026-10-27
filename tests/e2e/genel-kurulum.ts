@@ -55,7 +55,9 @@ export default async function kur() {
     hastaGecici: await hasta(false),
     hastaHazir: await hasta(true),
   };
-  fs.writeFileSync(path.join(__dirname, ".hesaplar.json"), JSON.stringify(hesaplar, null, 1));
+  // _ortam: gerçek zamanlı duman testi veritabanına doğrudan olay üretmek için (hesap değil)
+  const dosya = { ...hesaplar, _ortam: { port, k1: duzenek.ids.k1, k2: duzenek.ids.k2 } };
+  fs.writeFileSync(path.join(__dirname, ".hesaplar.json"), JSON.stringify(dosya, null, 1));
   return async () => {
     await duzenek.durdur();
   };

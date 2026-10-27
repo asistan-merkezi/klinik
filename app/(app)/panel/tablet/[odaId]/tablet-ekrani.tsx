@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Home } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useCanliOlaylar } from "@/lib/realtime/use-canli-olaylar";
 import { adSoyadMaskele, cn, gunAraligi } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
@@ -47,28 +48,21 @@ export function TabletEkrani({
   // "simdi"ye bağlı türetilen değerler (durum, kalan süre yüzdesi) hidrasyon
   // uyuşmazlığı yaratmasın diye, simdi hazır olana kadar iskelet gösterilir.
   const simdi = useMinuteTick();
-  const [baglantiDurumu, setBaglantiDurumu] = useState<"online" | "offline">("online");
   // Tarayıcının kendi ağ bilgisi (window online/offline) — Realtime kanalının
   // koptuğunu fark etmesi heartbeat'e bağlı ve yavaş olabilir; ağ kesilince
   // rozet hemen görünsün diye ayrı tutulur ve kanal durumuyla birleştirilir.
   const [agCevrimdisi, setAgCevrimdisi] = useState(false);
-  const cevrimdisi = agCevrimdisi || baglantiDurumu === "offline";
   const [sonGuncelleme, setSonGuncelleme] = useState(() => new Date());
   const [yenileniyor, setYenileniyor] = useState(false);
   const bosta = useIdle(5 * 60_000);
 
-  useEffect(() => {
-    if (!canliBaglanti) return;
-
-    const supabase = createClient();
-    let kanal: ReturnType<typeof supabase.channel> | null = null;
-    let iptalEdildi = false;
-
-    // sessiz=true: yeniden bağlanma / periyodik güvenlik ağı yenilemeleri —
-    // iskelet göstermez (odadaki hasta bilgisi bir anlığına kaybolmasın).
-    // Bağlantı yokken sorgu hata döner (data null) ve mevcut liste olduğu gibi
-    // kalır; ekran "son bilinen" durumu göstermeye devam eder.
-    async function gunlukListeyiYenile(sessiz = false) {
+  // sessiz=true: yeniden bağlanma / periyodik güvenlik ağı yenilemeleri —
+  // iskelet göstermez (odadaki hasta bilgisi bir anlığına kaybolmasın).
+  // Bağlantı yokken sorgu hata döner (data null) ve mevcut liste olduğu gibi
+  // kalır; ekran "son bilinen" durumu göstermeye devam eder.
+  const gunlukListeyiYenile = useCallback(
+    async (sessiz = false) => {
+      const supabase = createClient();
       if (!sessiz) setYenileniyor(true);
       const { baslangic, bitis } = gunAraligi();
       const { data } = await supabase
@@ -85,69 +79,42 @@ export function TabletEkrani({
         setSonGuncelleme(new Date());
       }
       if (!sessiz) setYenileniyor(false);
-    }
+    },
+    [odaId]
+  );
 
-    // Kesinti sırasında kaçırılan postgres_changes olayları geri gelmez —
-    // bağlantı dönünce liste sunucudan tazelenmezse ekran bayat oda durumunu
-    // (ör. kesintide check-in olan hasta yok) göstermeye devam ederdi.
-    let ilkBaglantiTamam = false;
+  // Canlı güncelleme (lib/realtime, SSE). Olay yükünde veri yok → liste yetkili yoldan çekilir (oda süzmesi çekim sorgusunda).
+  // Kesintide kaçan olaylar geri gelmez: bağlantı dönünce / sunucu dinleyicisi yeniden bağlanınca onSenkron liste tazeler.
+  const canliDurum = useCanliOlaylar({
+    tablolar: ["randevu"],
+    etkin: canliBaglanti,
+    onOlay: () => void gunlukListeyiYenile(),
+    onSenkron: () => void gunlukListeyiYenile(true),
+  });
+  const cevrimdisi = agCevrimdisi || canliDurum === "kopuk";
 
-    async function abonelikKur() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        supabase.realtime.setAuth(session.access_token);
-      }
-      if (iptalEdildi) return;
-
-      kanal = supabase
-        .channel(`randevu-oda-${odaId}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "randevu", filter: `oda_id=eq.${odaId}` },
-          () => {
-            gunlukListeyiYenile();
-          }
-        )
-        .subscribe((status) => {
-          const bagli = status === "SUBSCRIBED";
-          setBaglantiDurumu(bagli ? "online" : "offline");
-          if (bagli) {
-            // İlk SUBSCRIBED'da liste zaten sunucudan geldi; sonrakiler
-            // yeniden katılma (kopma sonrası) — kaçırılanları telafi et.
-            if (ilkBaglantiTamam) gunlukListeyiYenile(true);
-            ilkBaglantiTamam = true;
-          }
-        });
-    }
-
-    abonelikKur();
+  useEffect(() => {
+    if (!canliBaglanti) return;
 
     function agDurumuDegisti() {
       const cevrimdisiMi = !navigator.onLine;
       setAgCevrimdisi(cevrimdisiMi);
-      // Ağ geri geldi: kanal hiç kopmadıysa yeni SUBSCRIBED gelmez, bu yüzden
-      // yenileme buradan da tetiklenir.
-      if (!cevrimdisiMi) gunlukListeyiYenile(true);
+      // Ağ geri geldi: bağlantı hiç kopmadıysa yeni "hazir" gelmez, bu yüzden yenileme buradan da tetiklenir.
+      if (!cevrimdisiMi) void gunlukListeyiYenile(true);
     }
     window.addEventListener("online", agDurumuDegisti);
     window.addEventListener("offline", agDurumuDegisti);
 
-    // Güvenlik ağı: soket sessizce ölmüş ama hiçbir olay/durum değişikliği
+    // Güvenlik ağı: bağlantı sessizce ölmüş ama hiçbir olay/durum değişikliği
     // gelmemiş olabilir (duvara asılı tablet günlerce açık kalıyor).
-    const periyodikYenileme = setInterval(() => gunlukListeyiYenile(true), 5 * 60_000);
+    const periyodikYenileme = setInterval(() => void gunlukListeyiYenile(true), 5 * 60_000);
 
     return () => {
-      iptalEdildi = true;
       window.removeEventListener("online", agDurumuDegisti);
       window.removeEventListener("offline", agDurumuDegisti);
       clearInterval(periyodikYenileme);
-      if (kanal) {
-        supabase.removeChannel(kanal);
-      }
     };
-  }, [odaId, canliBaglanti]);
+  }, [canliBaglanti, gunlukListeyiYenile]);
 
   const { mevcut, sonraki } = useMemo(() => {
     const icerdeOlan = randevular.find((r) => r.durum === "geldi" || r.durum === "gecikmeli_geldi");

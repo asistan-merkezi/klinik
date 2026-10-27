@@ -130,3 +130,7 @@ Sıra: hız sınırı (IP+kod, **fail-closed**) → kısa kod → klinik (`tanim
 - Eski Supabase tabanlı sayfa/eylemler (161 dosya) henüz taşınmadı: bu dalda `gecerliKullanici`/`gecerliHasta`/`eylemYetkisiGetir` hâlâ Supabase oturumunu bekler → panel/portal sayfaları modül modül `getSessionContext` + `withTenant`'a geçirilecek (Aşama 3 devamı, `docs/service-role-siniflama.md`). `components/scheduled-logout.tsx` (gece zorla çıkış) ve `lib/qr/hiz-siniri.ts` (fail-open) bu taşımada değişecek.
 - Tek oturum kilidi yazılmadı (`oturum.cihaz_kimligi` ve `son_etkinlik` hazır).
 - E-posta göndericisi bağlı değil (varsayılan: gönderme + uyarı).
+
+## Canlı olaylar (SSE + LISTEN/NOTIFY)
+
+Sunucu: tabloya `canli_olay_bildir()` tetikleyicisi ekle (yeni migration) + `lib/realtime/olay.ts > CANLI_TABLOLAR`'a adı yaz. Yük yalnız `{t,i,k}`; veri taşıma. İstemci: `useCanliOlaylar({ tablolar: ["randevu"], onOlay, onSenkron, etkin })` — `onOlay`/`onSenkron` içinde veriyi normal yetkili yoldan (sunucu eylemi/route, `withTenant`) yeniden çek; ilk yüklemede `onSenkron` çağrılmaz. Dönen `baglanti` ("baglaniyor" | "bagli" | "kopuk") çevrimdışı rozeti için kullanılır. Route: `app/api/canli/route.ts` (tenant yalnız oturumdan). Caddy'de bu yolda `flush_interval -1` şart (`docs/sunucu-kurulum.md` §3b3).
