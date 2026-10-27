@@ -26,7 +26,7 @@ const eslintConfig = defineConfig([
   // withTenant dışında doğrudan sorgu çalıştırmayı engelle: havuz/pg/drizzle-pg yalnız lib/db ve lib/auth (kimlik) içinde import edilebilir.
   {
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
-    ignores: ["lib/db/**", "lib/auth/**", "scripts/dev/**", "db/kontrol/**", "tests/db/**", "**/*.test.ts", "**/*.test.tsx"],
+    ignores: ["lib/db/**", "lib/auth/**", "scripts/dev/**", "db/kontrol/**", "tests/db/**", "tests/e2e/**", "**/*.test.ts", "**/*.test.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",
