@@ -7,8 +7,8 @@ import { odemeAlindiMesajiTetikle } from "@/lib/mesaj/hasta-mesaji";
 import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESAJI } from "@/lib/finans/banka-hesabi-kurali";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { pgHata, sema, withTenant } from "@/lib/db";
+import { and, eq, inArray } from "drizzle-orm";
+import { pgHata, rpc, sema, withTenant, type TenantBaglami } from "@/lib/db";
 import { eylemYetkisi, YETKISIZ_MESAJI, type PersonelRolu } from "@/lib/auth/yetki";
 import { randevuKimlikleriniDogrula } from "@/lib/randevu/dogrulama";
 import { createClient } from "@/lib/supabase/server";
@@ -566,69 +566,53 @@ export async function randevuIptalEt(
   aciklama: string,
   bedelli: boolean
 ): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/giris");
+  const y = await yetkiAl(RANDEVU_ROLLERI); // bedelli iptal yetkisi RPC içinde yönetici/resepsiyonla sınırlı
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
+
+  type IptalSonucu = { hasta_id?: string; bedelli?: boolean; paket_dusuldu?: boolean; borc_yazildi?: boolean; paket_iade?: boolean } | null;
+  let sonuc: IptalSonucu;
+  try {
+    sonuc = await withTenant(y.bag, async (tx) =>
+      (await rpc<{ randevu_iptal_et: IptalSonucu }>(tx, "randevu_iptal_et", { p_randevu_id: randevuId, p_aciklama: aciklama.trim() || null, p_bedelli: bedelli, p_gec_iptal: null }))[0]?.randevu_iptal_et ?? null
+    );
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Randevu iptal edilemedi:", h.mesaj);
+    return { success: false, message: iptalHatasiMesaji(h.mesaj) ?? "Randevu iptal edilemedi, lütfen tekrar deneyin." };
   }
 
-  const { data, error } = await supabase.rpc("randevu_iptal_et", {
-    p_randevu_id: randevuId,
-    p_aciklama: aciklama.trim() || null,
-    p_bedelli: bedelli,
-    p_gec_iptal: null,
-  });
-
-  if (error) {
-    console.error("Randevu iptal edilemedi:", error);
-    return { success: false, message: iptalHatasiMesaji(error.message) ?? "Randevu iptal edilemedi, lütfen tekrar deneyin." };
-  }
-
-  const sonuc = data as {
-    hasta_id?: string;
-    bedelli?: boolean;
-    paket_dusuldu?: boolean;
-    borc_yazildi?: boolean;
-    paket_iade?: boolean;
-  } | null;
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   if (sonuc?.hasta_id) {
     revalidateHastaDetay(sonuc.hasta_id);
   }
-  after(() => randevuOlayMesajiTetikle(randevuId, "randevu_iptal"));
+  after(() => randevuOlayMesajiTetikle(y.bag, randevuId, "randevu_iptal"));
   return { success: true, message: iptalSonucMesaji(sonuc) };
 }
 
 /** Yönetici: mantıklı bir sebeple iptal edilen randevuyu geri alır (düşülen paket hakkı iade edilir). */
 export async function randevuIptalGeriAl(randevuId: string): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/giris");
-  }
+  const y = await yetkiAl(["klinik_admin"]); // RPC de yalnız klinik_admin'e izin verir
+  if (!y) return { success: false, message: "İptali yalnızca yönetici geri alabilir." };
 
-  const { data, error } = await supabase.rpc("randevu_iptal_geri_al", { p_randevu_id: randevuId });
-
-  if (error) {
-    console.error("Randevu iptali geri alınamadı:", error);
-    if (error.code === "23P01") {
+  let sonuc: { hasta_id?: string; paket_iade?: boolean; borc_silindi?: boolean } | null;
+  try {
+    sonuc = await withTenant(y.bag, async (tx) => (await rpc<{ randevu_iptal_geri_al: typeof sonuc }>(tx, "randevu_iptal_geri_al", { p_randevu_id: randevuId }))[0]?.randevu_iptal_geri_al ?? null);
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Randevu iptali geri alınamadı:", h.mesaj);
+    if (h.kod === "23P01") {
       return { success: false, message: "Bu saatte terapist, oda veya cihaz başka bir randevuya ayrılmış, geri alınamadı." };
     }
-    if (error.message?.includes("yetkisiz")) {
+    if (h.mesaj.includes("yetkisiz")) {
       return { success: false, message: "İptali yalnızca yönetici geri alabilir." };
     }
-    if (error.message?.includes("borc_faturali_geri_alinamaz")) {
+    if (h.mesaj.includes("borc_faturali_geri_alinamaz")) {
       return { success: false, message: "İptalde yazılan borç faturalanmış, geri alınamaz. Önce faturayı/borcu düzeltin." };
     }
     return { success: false, message: "İptal geri alınamadı, lütfen tekrar deneyin." };
   }
 
-  const sonuc = data as { hasta_id?: string; paket_iade?: boolean; borc_silindi?: boolean } | null;
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   if (sonuc?.hasta_id) {
@@ -657,14 +641,8 @@ const ertelemeSemasi = z.object({
  * şekilde yeniden çalışır (23P01).
  */
 export async function randevuErtele(randevuId: string, formData: FormData): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
+  const y = await yetkiAl(RANDEVU_ROLLERI); // terapist yalnız kendi randevusunu erteleyebilir (RLS)
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = ertelemeSemasi.safeParse({
     tarih: formData.get("tarih"),
@@ -675,47 +653,48 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { data: mevcut } = await supabase
-    .from("randevu")
-    .select("baslangic, bitis, hasta_id, durum, terapist_id")
-    .eq("id", randevuId)
-    .single();
-
-  if (!mevcut) {
-    return { success: false, message: "Randevu bulunamadı." };
-  }
-  if (randevuKapaliMi(mevcut.durum)) {
-    return { success: false, message: KAPALI_RANDEVU_MESAJI };
-  }
-
-  const terapistEngeli = await terapistTarihteAtanabilirMi(
-    supabase,
-    createAdminClient(),
-    mevcut.terapist_id,
-    ayristirma.data.tarih
-  );
-  if (terapistEngeli) {
-    return { success: false, message: terapistEngeli };
-  }
-
-  const sureMs = new Date(mevcut.bitis).getTime() - new Date(mevcut.baslangic).getTime();
-
   let yeniBaslangicIso: string;
   try {
     yeniBaslangicIso = toUTC(`${ayristirma.data.tarih}T${ayristirma.data.saat}:00`);
   } catch {
     return { success: false, message: "Tarih/saat geçersiz." };
   }
-  const yeniBitisIso = new Date(new Date(yeniBaslangicIso).getTime() + sureMs).toISOString();
 
-  const { error } = await supabase
-    .from("randevu")
-    .update({ baslangic: yeniBaslangicIso, bitis: yeniBitisIso, durum: "ertelendi" })
-    .eq("id", randevuId);
+  let eskiBaslangic: string;
+  let hastaId: string;
+  try {
+    const sonuc = await withTenant(y.bag, async (tx) => {
+      const mevcut = (
+        await tx
+          .select({ baslangic: sema.randevu.baslangic, bitis: sema.randevu.bitis, hastaId: sema.randevu.hastaId, durum: sema.randevu.durum, terapistId: sema.randevu.terapistId })
+          .from(sema.randevu)
+          .where(eq(sema.randevu.id, randevuId))
+          .limit(1)
+      )[0];
+      if (!mevcut) return { hata: "Randevu bulunamadı." };
+      if (randevuKapaliMi(mevcut.durum)) return { hata: KAPALI_RANDEVU_MESAJI };
 
-  if (error) {
-    console.error("Randevu ertelenemedi:", error);
-    if (error.code === "23P01") {
+      const terapistEngeli = await terapistTarihteAtanabilirMi(tx, mevcut.terapistId, ayristirma.data.tarih);
+      if (terapistEngeli) return { hata: terapistEngeli };
+
+      const sureMs = new Date(mevcut.bitis).getTime() - new Date(mevcut.baslangic).getTime();
+      const yeniBitisIso = new Date(new Date(yeniBaslangicIso).getTime() + sureMs).toISOString();
+
+      const guncellenen = await tx
+        .update(sema.randevu)
+        .set({ baslangic: yeniBaslangicIso, bitis: yeniBitisIso, durum: "ertelendi" })
+        .where(eq(sema.randevu.id, randevuId))
+        .returning({ id: sema.randevu.id });
+      if (guncellenen.length === 0) return { hata: YETKISIZ_MESAJI };
+      return { eski: new Date(mevcut.baslangic).toISOString(), hastaId: mevcut.hastaId };
+    });
+    if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Randevu ertelenemedi." };
+    eskiBaslangic = sonuc.eski;
+    hastaId = sonuc.hastaId;
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Randevu ertelenemedi:", h.mesaj);
+    if (h.kod === "23P01") {
       return { success: false, message: "Seçilen yeni saatte terapist, oda veya cihaz dolu." };
     }
     return { success: false, message: "Randevu ertelenemedi, lütfen tekrar deneyin." };
@@ -723,10 +702,8 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
-  if (mevcut.hasta_id) {
-    revalidateHastaDetay(mevcut.hasta_id);
-  }
-  after(() => randevuOlayMesajiTetikle(randevuId, "randevu_iptal", { eskiBaslangic: mevcut.baslangic }));
+  revalidateHastaDetay(hastaId);
+  after(() => randevuOlayMesajiTetikle(y.bag, randevuId, "randevu_iptal", { eskiBaslangic }));
   return {
     success: true,
     message: `Randevu ${ayristirma.data.tarih} ${ayristirma.data.saat} saatine ertelendi.`,
@@ -740,96 +717,70 @@ const seansTamamlaSemasi = z.object({
 /**
  * "Seansı Bitir" — randevu.durum='tamamlandi' yapar, açıklamayı ve
  * tamamlayanı (client'tan gelen değere göre değil, oturumdaki kullanıcının
- * auth.uid()'sine göre) kaydeder. Hasta Detay > Seans Geçmişi'ndeki mevcut
+ * kimliğine göre) kaydeder. Hasta Detay > Seans Geçmişi'ndeki mevcut
  * "Seansı Tamamla" formu (useSeansTamamla) ve Randevu Detay Paneli'ndeki
  * "Seansı Bitir" butonu artık İKİSİ DE bu tek fonksiyonu çağırıyor — hangi
- * yoldan tetiklenirse tetiklensin oda tabletindeki realtime abonelik aynı
+ * yoldan tetiklenirse tetiklensin oda tabletindeki canlı abonelik aynı
  * 'tamamlandi' durumunu görüp seans sonu anket QR'ını gösteriyor.
+ * Geliş işleme (gerekirse) ve tamamlama TEK transaction'da yapılır: paketten hak düşüp seans tamamlanmamış yarım durum kalmaz.
  */
 export async function randevuSeansiTamamla(randevuId: string, aciklama: string): Promise<SonucDurumu> {
   const ayristirma = seansTamamlaSemasi.safeParse({ aciklama });
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Açıklama gerekli." };
   }
+  const y = await yetkiAl(RANDEVU_ROLLERI);
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let veri: { hataMesaji?: string; paketMesaji: string | null; hastaId?: string; paketSatisId?: string | null };
+  try {
+    veri = await withTenant(y.bag, async (tx) => {
+      const mevcut = (await tx.select({ durum: sema.randevu.durum }).from(sema.randevu).where(eq(sema.randevu.id, randevuId)).limit(1))[0];
+      if (!mevcut) return { hataMesaji: "Randevu bulunamadı.", paketMesaji: null };
+      if (mevcut.durum === "tamamlandi") return { hataMesaji: "Bu seans zaten tamamlanmış.", paketMesaji: null };
+      if (mevcut.durum === "iptal") return { hataMesaji: KAPALI_RANDEVU_MESAJI, paketMesaji: null };
 
-  if (!user) {
-    redirect("/giris");
-  }
+      // Seans bittiyse hasta gelmiştir: check-in yapılmadan "Seansı Bitir" denirse önce geliş işlenir.
+      // Aksi halde paketli hastanın paketinden hak hiç düşmüyor, "Cariye Ekle" de seansı paketsiz sayıp
+      // tam ücreti borç yazıyordu (hasta hem paketini koruyor hem ücretlendiriliyordu).
+      let paketMesaji: string | null = null;
+      if (mevcut.durum !== "geldi" && mevcut.durum !== "gecikmeli_geldi") {
+        const gelis = (await rpc<{ randevu_gelis_isaretle: { yontem?: string; kalan_adet?: number } | null }>(tx, "randevu_gelis_isaretle", { p_randevu_id: randevuId, p_gecikme_dakika: null }))[0]?.randevu_gelis_isaretle;
+        if (gelis?.yontem === "paket") paketMesaji = `Paketten 1 hak düşüldü (kalan: ${gelis.kalan_adet}).`;
+      }
 
-  const { data: mevcut } = await supabase
-    .from("randevu")
-    .select("durum")
-    .eq("id", randevuId)
-    .maybeSingle<{ durum: string }>();
-  if (!mevcut) {
-    return { success: false, message: "Randevu bulunamadı." };
-  }
-  if (mevcut.durum === "tamamlandi") {
-    return { success: false, message: "Bu seans zaten tamamlanmış." };
-  }
-  if (mevcut.durum === "iptal") {
-    return { success: false, message: KAPALI_RANDEVU_MESAJI };
-  }
-
-  // Seans bittiyse hasta gelmiştir: check-in yapılmadan "Seansı Bitir" denirse önce geliş işlenir.
-  // Aksi halde paketli hastanın paketinden hak hiç düşmüyor, "Cariye Ekle" de seansı paketsiz sayıp
-  // tam ücreti borç yazıyordu (hasta hem paketini koruyor hem ücretlendiriliyordu).
-  let paketMesaji: string | null = null;
-  if (mevcut.durum !== "geldi" && mevcut.durum !== "gecikmeli_geldi") {
-    const { data: gelis, error: gelisHatasi } = await supabase.rpc("randevu_gelis_isaretle", {
-      p_randevu_id: randevuId,
-      p_gecikme_dakika: null,
+      const guncellenen = await tx
+        .update(sema.randevu)
+        .set({ durum: "tamamlandi", tamamlanmaAciklamasi: ayristirma.data.aciklama, tamamlayanKullaniciId: y.userId, tamamlanmaTarihi: new Date().toISOString() })
+        .where(and(eq(sema.randevu.id, randevuId), inArray(sema.randevu.durum, ["geldi", "gecikmeli_geldi"])))
+        .returning({ hastaId: sema.randevu.hastaId, paketSatisId: sema.randevu.paketSatisId });
+      if (guncellenen.length === 0) throw new Error("tamamlanamadi"); // yetkisiz (RLS) ya da durum değişmiş: geliş işlemini de geri al
+      return { paketMesaji, hastaId: guncellenen[0].hastaId, paketSatisId: guncellenen[0].paketSatisId };
     });
-    if (gelisHatasi) {
-      console.error("Seans tamamlanırken geliş işlenemedi:", gelisHatasi);
-      return {
-        success: false,
-        message:
-          gelisHatasi.code === "23P01"
-            ? "Bu saatte oda/terapist/cihaz başka bir randevuya ayrılmış; önce randevuyu düzeltin."
-            : "Seans tamamlanamadı, lütfen tekrar deneyin.",
-      };
-    }
-    const g = gelis as { yontem?: string; kalan_adet?: number } | null;
-    if (g?.yontem === "paket") paketMesaji = `Paketten 1 hak düşüldü (kalan: ${g.kalan_adet}).`;
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Seans tamamlanamadı:", h.mesaj);
+    return {
+      success: false,
+      message:
+        h.kod === "23P01"
+          ? "Bu saatte oda/terapist/cihaz başka bir randevuya ayrılmış; önce randevuyu düzeltin."
+          : "Seans tamamlanamadı, lütfen tekrar deneyin.",
+    };
   }
-
-  const { data, error } = await supabase
-    .from("randevu")
-    .update({
-      durum: "tamamlandi",
-      tamamlanma_aciklamasi: ayristirma.data.aciklama,
-      tamamlayan_kullanici_id: user.id,
-      tamamlanma_tarihi: new Date().toISOString(),
-    })
-    .eq("id", randevuId)
-    .in("durum", ["geldi", "gecikmeli_geldi"])
-    .select("hasta_id, paket_satis_id")
-    .single();
-
-  if (error) {
-    console.error("Seans tamamlanamadı:", error);
-    return { success: false, message: "Seans tamamlanamadı, lütfen tekrar deneyin." };
-  }
+  if (veri.hataMesaji) return { success: false, message: veri.hataMesaji };
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
-  if (data?.hasta_id) {
-    revalidateHastaDetay(data.hasta_id);
+  if (veri.hastaId) {
+    revalidateHastaDetay(veri.hastaId);
   }
 
-  const paketUyarisi = data?.paket_satis_id
-    ? await paketYenilemeUyarisiIsle(data.paket_satis_id, randevuId)
-    : null;
+  const paketUyarisi = veri.paketSatisId ? await paketYenilemeUyarisiIsle(y.bag, veri.paketSatisId, randevuId) : null;
 
   return {
     success: true,
-    message: ["Seans tamamlandı.", paketMesaji, paketUyarisi].filter(Boolean).join(" "),
+    message: ["Seans tamamlandı.", veri.paketMesaji, paketUyarisi].filter(Boolean).join(" "),
   };
 }
 
@@ -844,54 +795,53 @@ export async function randevuSeansiTamamla(randevuId: string, aciklama: string):
  * Mesaj idempotency anahtarı (paket + kalan hak) sayesinde aynı seviye için
  * tek kez kuyruğa girer; kural yoksa/pasifse kuyruğa hiç yazılmaz.
  */
-async function paketYenilemeUyarisiIsle(paketSatisId: string, randevuId: string): Promise<string | null> {
+async function paketYenilemeUyarisiIsle(bag: TenantBaglami, paketSatisId: string, randevuId: string): Promise<string | null> {
   try {
-    const admin = createAdminClient();
-    const { data: satis } = await admin
-      .from("paket_satis")
-      .select("kalan_adet, klinik_id, hasta:hasta_id(id, ad_soyad, telefon, eposta, whatsapp_izin_durumu), paket(ad)")
-      .eq("id", paketSatisId)
-      .maybeSingle<{
-        kalan_adet: number;
-        klinik_id: string;
-        hasta: {
-          id: string;
-          ad_soyad: string;
-          telefon: string | null;
-          eposta: string | null;
-          whatsapp_izin_durumu: boolean;
-        } | null;
-        paket: { ad: string } | null;
-      }>();
+    return await withTenant(bag, async (tx) => {
+      const satis = (
+        await tx
+          .select({
+            kalanAdet: sema.paketSatis.kalanAdet,
+            klinikId: sema.paketSatis.klinikId,
+            hastaId: sema.hasta.id,
+            hastaAd: sema.hasta.adSoyad,
+            telefon: sema.hasta.telefon,
+            eposta: sema.hasta.eposta,
+            wp: sema.hasta.whatsappIzinDurumu,
+            paketAd: sema.paket.ad,
+          })
+          .from(sema.paketSatis)
+          .leftJoin(sema.hasta, eq(sema.hasta.id, sema.paketSatis.hastaId))
+          .leftJoin(sema.paket, eq(sema.paket.id, sema.paketSatis.paketId))
+          .where(eq(sema.paketSatis.id, paketSatisId))
+          .limit(1)
+      )[0];
 
-    if (!satis || !paketYenilemeGerekliMi(satis.kalan_adet)) return null;
+      if (!satis || !paketYenilemeGerekliMi(satis.kalanAdet)) return null;
 
-    const paketAdi = satis.paket?.ad ?? "Paket";
-    const uyari = `${paketAdi} paketinde ${satis.kalan_adet} seans kaldı — hastaya yenileme hatırlatması yapın.`;
+      const paketAdi = satis.paketAd ?? "Paket";
+      const uyari = `${paketAdi} paketinde ${satis.kalanAdet} seans kaldı — hastaya yenileme hatırlatması yapın.`;
 
-    if (satis.hasta) {
-      const { data: klinik } = await admin.from("klinik").select("ad").eq("id", satis.klinik_id).maybeSingle();
-      await anlikMesajTetikle(admin, {
-        klinikId: satis.klinik_id,
-        tetikleyiciKodu: "hasta_paket_seans_azaldi",
-        aliciTipi: "hasta",
-        aliciId: satis.hasta.id,
-        adres: {
-          telefon: satis.hasta.telefon,
-          eposta: satis.hasta.eposta,
-          whatsappIzni: satis.hasta.whatsapp_izin_durumu,
-        },
-        degiskenler: {
-          hasta_adi: satis.hasta.ad_soyad,
-          paket_adi: paketAdi,
-          kalan_seans: String(satis.kalan_adet),
-          klinik_adi: klinik?.ad ?? "",
-        },
-        idempotencyTemeli: `hasta_paket_seans_azaldi:${paketSatisId}:${satis.kalan_adet}`,
-      });
-    }
+      if (satis.hastaId) {
+        const klinik = (await tx.select({ ad: sema.klinik.ad }).from(sema.klinik).where(eq(sema.klinik.id, satis.klinikId)).limit(1))[0];
+        await anlikMesajTetikle(tx, {
+          klinikId: satis.klinikId,
+          tetikleyiciKodu: "hasta_paket_seans_azaldi",
+          aliciTipi: "hasta",
+          aliciId: satis.hastaId,
+          adres: { telefon: satis.telefon, eposta: satis.eposta, whatsappIzni: satis.wp ?? false },
+          degiskenler: {
+            hasta_adi: satis.hastaAd ?? "",
+            paket_adi: paketAdi,
+            kalan_seans: String(satis.kalanAdet),
+            klinik_adi: klinik?.ad ?? "",
+          },
+          idempotencyTemeli: `hasta_paket_seans_azaldi:${paketSatisId}:${satis.kalanAdet}`,
+        });
+      }
 
-    return uyari;
+      return uyari;
+    });
   } catch (hata) {
     console.error(`Paket yenileme uyarısı işlenemedi (randevu ${randevuId}):`, hata);
     return null;
@@ -901,72 +851,61 @@ async function paketYenilemeUyarisiIsle(paketSatisId: string, randevuId: string)
 type SonucDurumu2 = { success: boolean; message: string } | null;
 
 export async function iptalTalebiOnayla(talepId: string, randevuId: string, bedelli: boolean): Promise<SonucDurumu2> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const y = await yetkiAl(YONETIM_ROLLERI); // RLS randevu_iptal_talebi_update_klinik ile aynı küme
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
-  if (!user) {
-    redirect("/giris");
-  }
+  try {
+    const sonuc = await withTenant(y.bag, async (tx) => {
+      const talep = (
+        await tx
+          .select({ randevuId: sema.randevuIptalTalebi.randevuId, durum: sema.randevuIptalTalebi.durum, aciklama: sema.randevuIptalTalebi.aciklama, gecIptal: sema.randevuIptalTalebi.gecIptal })
+          .from(sema.randevuIptalTalebi)
+          .where(eq(sema.randevuIptalTalebi.id, talepId))
+          .limit(1)
+      )[0];
 
-  const { data: talep } = await supabase
-    .from("randevu_iptal_talebi")
-    .select("randevu_id, durum, aciklama, gec_iptal")
-    .eq("id", talepId)
-    .maybeSingle<{ randevu_id: string; durum: string; aciklama: string | null; gec_iptal: boolean }>();
+      // Talep bu randevuya ait ve hâlâ bekliyor olmalı — aksi halde istemciden gelen randevuId ile
+      // başka bir randevu iptal edilebilir ya da aynı talep iki kez işlenebilirdi.
+      if (!talep || talep.randevuId !== randevuId) return { hata: "İptal talebi bulunamadı." };
+      if (talep.durum !== "bekliyor") return { hata: "Bu iptal talebi zaten yanıtlanmış (sayfayı yenileyin)." };
 
-  // Talep bu randevuya ait ve hâlâ bekliyor olmalı — aksi halde istemciden gelen randevuId ile
-  // başka bir randevu iptal edilebilir ya da aynı talep iki kez işlenebilirdi.
-  if (!talep || talep.randevu_id !== randevuId) {
-    return { success: false, message: "İptal talebi bulunamadı." };
-  }
-  if (talep.durum !== "bekliyor") {
-    return { success: false, message: "Bu iptal talebi zaten yanıtlanmış (sayfayı yenileyin)." };
-  }
-
-  // Bedelli/bedelsiz kararı onaylayan personelden gelir; talebin geç iptal bilgisi yalnız kayıt içindir.
-  const { error: iptalHatasi } = await supabase.rpc("randevu_iptal_et", {
-    p_randevu_id: randevuId,
-    p_aciklama: talep.aciklama ?? "Hasta portalı iptal talebi",
-    p_bedelli: bedelli,
-    p_gec_iptal: talep.gec_iptal ?? null,
-  });
-  const { error: talepHatasi } = iptalHatasi
-    ? { error: null }
-    : await supabase
-        .from("randevu_iptal_talebi")
-        .update({ durum: "onaylandi", yanit_kullanici_id: user.id, yanit_tarihi: new Date().toISOString() })
-        .eq("id", talepId);
-
-  if (iptalHatasi || talepHatasi) {
-    console.error("İptal talebi onaylanamadı:", iptalHatasi, talepHatasi);
+      // Bedelli/bedelsiz kararı onaylayan personelden gelir; talebin geç iptal bilgisi yalnız kayıt içindir.
+      await rpc(tx, "randevu_iptal_et", { p_randevu_id: randevuId, p_aciklama: talep.aciklama ?? "Hasta portalı iptal talebi", p_bedelli: bedelli, p_gec_iptal: talep.gecIptal ?? null });
+      const guncellenen = await tx
+        .update(sema.randevuIptalTalebi)
+        .set({ durum: "onaylandi", yanitKullaniciId: y.userId, yanitTarihi: new Date().toISOString() })
+        .where(eq(sema.randevuIptalTalebi.id, talepId))
+        .returning({ id: sema.randevuIptalTalebi.id });
+      if (guncellenen.length === 0) throw new Error("talep_guncellenemedi"); // iptal de geri alınır
+      return { tamam: true as const };
+    });
+    if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "İptal talebi onaylanamadı." };
+  } catch (e) {
+    console.error("İptal talebi onaylanamadı:", pgHata(e).mesaj);
     return { success: false, message: "İptal talebi onaylanamadı, lütfen tekrar deneyin." };
   }
 
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
-  after(() => randevuOlayMesajiTetikle(randevuId, "randevu_iptal"));
+  after(() => randevuOlayMesajiTetikle(y.bag, randevuId, "randevu_iptal"));
   return { success: true, message: "Randevu iptal edildi." };
 }
 
 export async function iptalTalebiReddet(talepId: string): Promise<SonucDurumu2> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const y = await yetkiAl(YONETIM_ROLLERI);
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { error } = await supabase
-    .from("randevu_iptal_talebi")
-    .update({ durum: "reddedildi", yanit_kullanici_id: user.id, yanit_tarihi: new Date().toISOString() })
-    .eq("id", talepId);
-
-  if (error) {
-    console.error("İptal talebi reddedilemedi:", error);
+  try {
+    const guncellenen = await withTenant(y.bag, (tx) =>
+      tx
+        .update(sema.randevuIptalTalebi)
+        .set({ durum: "reddedildi", yanitKullaniciId: y.userId, yanitTarihi: new Date().toISOString() })
+        .where(eq(sema.randevuIptalTalebi.id, talepId))
+        .returning({ id: sema.randevuIptalTalebi.id })
+    );
+    if (guncellenen.length === 0) return { success: false, message: "İptal talebi bulunamadı." };
+  } catch (e) {
+    console.error("İptal talebi reddedilemedi:", pgHata(e).mesaj);
     return { success: false, message: "İşlem başarısız, lütfen tekrar deneyin." };
   }
 
