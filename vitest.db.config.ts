@@ -9,6 +9,7 @@ export default defineConfig({
     environment: "node",
     include: ["tests/db/**/*.test.ts"],
     globalSetup: ["tests/db/genel-kurulum.ts"],
+    setupFiles: ["tests/db/oturum-mock.ts"],
     testTimeout: 60_000,
     hookTimeout: 180_000,
     fileParallelism: false,

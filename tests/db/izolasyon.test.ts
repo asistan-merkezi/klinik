@@ -1,7 +1,7 @@
 // Tenant izolasyonu ve rol sınırları (gerçek Postgres, iki klinikli düzenek).
 import { beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { kullaniciBaglami, ortamKur, reddedilmeli, tenantBaglami } from "./yardimci";
+import { kullaniciBaglami, ortamKur, reddedilmeli, tenantBaglami, tenantdaCalistir } from "./yardimci";
 import { tenantBaglamiUret } from "@/lib/db/baglam-uretici";
 
 let K1: { klinik: string; kullanici: string; hasta: string };
@@ -30,7 +30,10 @@ describe("withTenant izolasyonu", () => {
     await reddedilmeli(withTenant(ctx, (tx) => tx.insert(sema.hasta).values({ klinikId: K2.klinik, adSoyad: "Sızıntı", telefon: "5550001111" })), /row-level security/i);
     const guncel = await withTenant(ctx, (tx) => tx.update(sema.hasta).set({ adSoyad: "Ele geçirildi" }).where(eq(sema.hasta.id, K2.hasta)).returning({ id: sema.hasta.id }));
     expect(guncel).toHaveLength(0);
-    const silinen = await withTenant(ctx, (tx) => tx.delete(sema.hasta).where(eq(sema.hasta.id, K2.hasta)).returning({ id: sema.hasta.id }));
+    // (hasta artık hiçbir akışta silinmez → DELETE yetkisi yok; silme yetkisi olan `klinik_arac` ile sınanır)
+    const aracId = crypto.randomUUID();
+    await tenantdaCalistir(K2.klinik, (c) => c.query("insert into klinik_arac(id, klinik_id, marka, model, plaka) values ($1, $2, 'X', 'Y', '34 ZZ 999')", [aracId, K2.klinik]));
+    const silinen = await withTenant(ctx, (tx) => tx.delete(sema.klinikArac).where(eq(sema.klinikArac.id, aracId)).returning({ id: sema.klinikArac.id }));
     expect(silinen).toHaveLength(0);
   });
 

@@ -92,9 +92,11 @@ describe("kodda doğrudan yetkisi olmayan tablolar: yazan tetikleyici/RPC'ler ge
     try {
       const t = await yetkisizTablolar(sup);
       // odeme ve odeme_kalemi, politika bağımlılığı nedeniyle (islem_tanimi_select_portal) yalnız SELECT yetkisi aldı; yazma yolları yine RPC/tetikleyicidir.
-      expect(t).toEqual(expect.arrayContaining(["odeme_satiri", "islem_tanimi_fiyat_gecmisi", "pozisyon_sablonlari", "hiz_siniri_sayac"]));
+      expect(t).toEqual(expect.arrayContaining(["islem_tanimi_fiyat_gecmisi", "pozisyon_sablonlari", "hiz_siniri_sayac"]));
       expect(t).not.toContain("odeme");
-      expect(t.length).toBe(15);
+      // odeme_satiri artık Cari sayfasında okunduğu için SELECT yetkisi aldı (yazma yine RPC'den).
+      expect(t).not.toContain("odeme_satiri");
+      expect(t.length).toBe(14);
     } finally {
       await sup.end();
     }

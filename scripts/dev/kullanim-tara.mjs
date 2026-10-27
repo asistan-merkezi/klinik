@@ -109,7 +109,7 @@ for (const yol of TARANACAK.flatMap((y) => dosyalar(y))) {
     belirsiz.push({ dosya: yol.replace(/\\/g, "/"), satir: satirNo(m.index), ifade: m[0].trim() });
   }
   // Eski: supabase.rpc("ad"; yeni: rpc(tx, "ad" (lib/db/rpc.ts)
-  for (const m of kaynak.matchAll(/(?:[.]rpc\(|(?<![A-Za-z0-9_.])rpc\(\s*[A-Za-z_][A-Za-z0-9_.]*\s*,)\s*(["'`])([a-z_0-9]+)\1/g)) {
+  for (const m of kaynak.matchAll(/(?:[.]rpc\(|(?<![A-Za-z0-9_.])rpc(?:<[\s\S]{0,400}?>)?\(\s*[A-Za-z_][A-Za-z0-9_.]*\s*,)\s*(["'`])([a-z_0-9]+)\1/g)) {
     const liste = rpc.get(m[2]) ?? [];
     liste.push(`${yol.replace(/\\/g, "/")}:${satirNo(m.index)}`);
     rpc.set(m[2], liste);

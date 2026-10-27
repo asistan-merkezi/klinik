@@ -7,8 +7,8 @@ export const PORT_TEST = Number(process.env.DEV_TEST_PORT ?? 54331);
 const SIFRE_ROL = { klinik_uygulama: SIFRELER.uygulama_sifre, kimlik_rolu: SIFRELER.kimlik_sifre, bakim_rolu: SIFRELER.bakim_sifre, klinik_yedek: SIFRELER.yedek_sifre };
 
 const K = {
-  k1: { klinik: "11111111-1111-1111-1111-111111111111", kullanici: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1", ad: "klinikbir" },
-  k2: { klinik: "22222222-2222-2222-2222-222222222222", kullanici: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2", ad: "klinikiki" },
+  k1: { klinik: "11111111-1111-4111-8111-111111111111", kullanici: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", ad: "klinikbir" },
+  k2: { klinik: "22222222-2222-4222-8222-222222222222", kullanici: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2", ad: "klinikiki" },
 };
 
 export async function testKumesiKur() {
@@ -28,7 +28,8 @@ export async function testKumesiKur() {
   const ids = {};
   for (const [anahtar, k] of Object.entries(K)) {
     const c = await kume.baglan("klinik");
-    const v = (sira) => `${anahtar === "k1" ? "1" : "2"}0000000-0000-0000-0000-00000000000${sira}`;
+    // Geçerli (sürüm 4, varyant 8) UUID: zod `.uuid()` doğrulaması gerçek eylemlerde fixture kimliklerini de kabul etsin.
+    const v = (sira) => `${anahtar === "k1" ? "1" : "2"}0000000-0000-4000-8000-00000000000${sira}`;
     const id = { klinik: k.klinik, kullanici: k.kullanici, personel: v(1), terapist: v(2), hasta: v(3), oda: v(4), islem: v(5), randevu: v(6), paket: v(7), paketSatis: v(8), hastaKullanici: v(9) };
     try {
       await c.query("BEGIN");

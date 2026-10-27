@@ -1,6 +1,6 @@
 {
  "uretim": "scripts/dev/kullanim-tara.mjs",
- "kayitSayisi": 598,
+ "kayitSayisi": 668,
  "kayitlar": [
   {
    "dosya": "app/(app)/anket/seans/[randevuId]/actions.ts",
@@ -1625,7 +1625,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/actions.ts",
-   "satir": 85,
+   "satir": 82,
    "tablo": "hasta_hassas",
    "islemler": [
     "SELECT"
@@ -1634,7 +1634,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/actions.ts",
-   "satir": 97,
+   "satir": 89,
    "tablo": "hasta",
    "islemler": [
     "INSERT",
@@ -1644,7 +1644,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/actions.ts",
-   "satir": 115,
+   "satir": 101,
    "tablo": "hasta_hassas",
    "islemler": [
     "INSERT"
@@ -1653,17 +1653,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/actions.ts",
-   "satir": 123,
-   "tablo": "hasta",
-   "islemler": [
-    "DELETE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/actions.ts",
-   "satir": 165,
+   "satir": 145,
    "tablo": "hasta",
    "islemler": [
     "UPDATE",
@@ -1673,16 +1663,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/actions.ts",
-   "satir": 196,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/actions.ts",
-   "satir": 206,
+   "satir": 174,
    "tablo": "hasta",
    "islemler": [
     "UPDATE",
@@ -1692,7 +1673,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/actions.ts",
-   "satir": 31,
+   "satir": 32,
    "tablo": "anket_yaniti",
    "islemler": [
     "UPDATE",
@@ -1712,185 +1693,35 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 19,
+   "tablo": "randevu_iptal_talebi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 20,
+   "tablo": "randevu_talebi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 21,
+   "tablo": "anket_yaniti",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
    "satir": 22,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 23,
-   "tablo": "randevu_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 24,
-   "tablo": "anket_yaniti",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 25,
    "tablo": "seans_degerlendirme",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 40,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 41,
-   "tablo": "randevu_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 42,
-   "tablo": "anket_yaniti",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 43,
-   "tablo": "seans_degerlendirme",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/page.tsx",
-   "satir": 31,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/page.tsx",
-   "satir": 48,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "randevu_iptal_talebi",
-     "ad": "randevu",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "hasta",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/page.tsx",
-   "satir": 54,
-   "tablo": "randevu_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "randevu_talebi",
-     "ad": "hasta",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu_talebi",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/page.tsx",
-   "satir": 60,
-   "tablo": "anket_yaniti",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/page.tsx",
-   "satir": 66,
-   "tablo": "seans_degerlendirme",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "seans_degerlendirme",
-     "ad": "hasta",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "seans_degerlendirme",
-     "ad": "randevu",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "terapist",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/page.tsx",
-   "satir": 72,
-   "tablo": "oda",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/bildirimler/page.tsx",
-   "satir": 73,
-   "tablo": "cihaz",
    "islemler": [
     "SELECT"
    ],
@@ -1898,16 +1729,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/kayit-formu/page.tsx",
-   "satir": 114,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/kayit-formu/page.tsx",
-   "satir": 120,
+   "satir": 106,
    "tablo": "klinik",
    "islemler": [
     "SELECT"
@@ -1915,69 +1737,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/page.tsx",
-   "satir": 84,
-   "tablo": "hasta",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/page.tsx",
-   "satir": 88,
-   "tablo": "hasta",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/page.tsx",
-   "satir": 109,
-   "tablo": "v_hasta_ozet",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/page.tsx",
-   "satir": 110,
-   "tablo": "v_hasta_detay_ozet",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/page.tsx",
-   "satir": 112,
-   "tablo": "paket_satis",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "paket_satis",
-     "ad": "paket",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 155,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 165,
+   "satir": 35,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -1986,7 +1747,16 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 213,
+   "satir": 206,
+   "tablo": "klinik_banka_hesaplari",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 210,
    "tablo": "hasta_bakiye_hareket",
    "islemler": [
     "INSERT",
@@ -1996,7 +1766,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 290,
+   "satir": 286,
    "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "SELECT"
@@ -2005,7 +1775,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 299,
+   "satir": 289,
    "tablo": "hasta_bakiye_hareket",
    "islemler": [
     "INSERT"
@@ -2014,8 +1784,8 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 411,
-   "tablo": "kullanici",
+   "satir": 375,
+   "tablo": "hasta_bakiye_hareket",
    "islemler": [
     "SELECT"
    ],
@@ -2023,7 +1793,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 424,
+   "satir": 401,
    "tablo": "fatura",
    "islemler": [
     "SELECT"
@@ -2032,7 +1802,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 430,
+   "satir": 402,
    "tablo": "klinik_muhasebe_entegrasyonu",
    "islemler": [
     "SELECT"
@@ -2041,16 +1811,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 475,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 485,
+   "satir": 435,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -2059,16 +1820,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 515,
-   "tablo": "hasta_kullanici",
-   "islemler": [
-    "INSERT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 538,
+   "satir": 436,
    "tablo": "hasta_kullanici",
    "islemler": [
     "SELECT"
@@ -2077,7 +1829,34 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 681,
+   "satir": 452,
+   "tablo": "hasta_kullanici",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 472,
+   "tablo": "hasta_kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 603,
+   "tablo": "hasta_hassas",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 614,
    "tablo": "hasta",
    "islemler": [
     "UPDATE",
@@ -2087,7 +1866,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 693,
+   "satir": 627,
    "tablo": "hasta_hassas",
    "islemler": [
     "INSERT",
@@ -2098,7 +1877,16 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 791,
+   "satir": 713,
+   "tablo": "hasta_hassas",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 717,
    "tablo": "hasta_hassas",
    "islemler": [
     "INSERT",
@@ -2109,7 +1897,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 846,
+   "satir": 771,
    "tablo": "hasta_anamnez",
    "islemler": [
     "INSERT"
@@ -2118,25 +1906,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 868,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 878,
-   "tablo": "hasta_anamnez",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 883,
+   "satir": 799,
    "tablo": "hasta_anamnez",
    "islemler": [
     "UPDATE",
@@ -2146,7 +1916,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 904,
+   "satir": 819,
    "tablo": "hasta",
    "islemler": [
     "UPDATE",
@@ -2156,7 +1926,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 931,
+   "satir": 840,
    "tablo": "hasta",
    "islemler": [
     "UPDATE",
@@ -2166,25 +1936,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 975,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 985,
-   "tablo": "hasta",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 1024,
+   "satir": 898,
    "tablo": "hasta",
    "islemler": [
     "UPDATE",
@@ -2194,7 +1946,16 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 1080,
+   "satir": 918,
+   "tablo": "hasta_belge",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 929,
    "tablo": "hasta_kullanici",
    "islemler": [
     "UPDATE",
@@ -2204,25 +1965,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 1167,
-   "tablo": "randevu_talebi",
-   "islemler": [
-    "INSERT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 1183,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "INSERT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 1204,
+   "satir": 1001,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -2231,7 +1974,25 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
-   "satir": 1225,
+   "satir": 1018,
+   "tablo": "randevu_talebi",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 1038,
+   "tablo": "randevu_iptal_talebi",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 1074,
    "tablo": "hasta_yorum",
    "islemler": [
     "INSERT"
@@ -2240,16 +2001,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 15,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 21,
+   "satir": 16,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -2258,7 +2010,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 33,
+   "satir": 27,
    "tablo": "hasta_onam",
    "islemler": [
     "INSERT"
@@ -2267,7 +2019,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 55,
+   "satir": 46,
    "tablo": "hasta_belge",
    "islemler": [
     "UPDATE",
@@ -2277,17 +2029,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 72,
-   "tablo": "hasta_belge",
-   "islemler": [
-    "DELETE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 93,
+   "satir": 79,
    "tablo": "hasta_belge",
    "islemler": [
     "SELECT"
@@ -2296,16 +2038,16 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 124,
-   "tablo": "audit_log",
+   "satir": 92,
+   "tablo": "hasta_belge",
    "islemler": [
-    "INSERT"
+    "SELECT"
    ],
    "gomulu": []
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
-   "satir": 134,
+   "satir": 94,
    "tablo": "klinik",
    "islemler": [
     "SELECT"
@@ -2313,8 +2055,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/queries.ts",
-   "satir": 14,
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/veri-actions.ts",
+   "satir": 25,
    "tablo": "hasta_belge",
    "islemler": [
     "SELECT"
@@ -2322,8 +2064,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/queries.ts",
-   "satir": 35,
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/veri-actions.ts",
+   "satir": 63,
    "tablo": "hasta_onam",
    "islemler": [
     "SELECT"
@@ -2331,8 +2073,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/queries.ts",
-   "satir": 55,
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/veri-actions.ts",
+   "satir": 78,
    "tablo": "hasta_belge",
    "islemler": [
     "SELECT"
@@ -2341,59 +2083,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
-   "satir": 46,
-   "tablo": "paket_satis",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "paket_satis",
-     "ad": "paket",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
-   "satir": 53,
-   "tablo": "hasta_bakiye_hareket",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
-   "satir": 65,
-   "tablo": "iskonto_oranlari",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
-   "satir": 68,
-   "tablo": "v_hasta_ozet",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
-   "satir": 69,
-   "tablo": "hasta",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
-   "satir": 71,
+   "satir": 43,
    "tablo": "hasta_hassas",
    "islemler": [
     "SELECT"
@@ -2401,17 +2091,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
-   "satir": 76,
-   "tablo": "klinik_banka_hesaplari",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
    "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
-   "satir": 43,
+   "satir": 60,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -2420,7 +2101,43 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
-   "satir": 55,
+   "satir": 71,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
+   "satir": 72,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
+   "satir": 73,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
+   "satir": 77,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
+   "satir": 78,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -2429,17 +2146,8 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/[id]/kisisel/page.tsx",
-   "satir": 18,
+   "satir": 34,
    "tablo": "hasta_kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/layout.tsx",
-   "satir": 26,
-   "tablo": "v_hasta_ozet",
    "islemler": [
     "SELECT"
    ],
@@ -2482,69 +2190,71 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/page.tsx",
-   "satir": 30,
-   "tablo": "v_hasta_ozet",
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 49,
+   "tablo": "kullanici",
    "islemler": [
     "SELECT"
    ],
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/protokol-karti.tsx",
-   "satir": 108,
-   "tablo": "hasta_protokol",
-   "islemler": [
-    "INSERT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 29,
-   "tablo": "v_hasta_detay_ozet",
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 50,
+   "tablo": "kullanici",
    "islemler": [
     "SELECT"
    ],
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 46,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 54,
    "tablo": "hasta_hassas",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "hasta_hassas",
-     "ad": "kullanici",
-     "alias": "olusturan_kullanici",
-     "ipucu": [
-      "hasta_hassas_olusturan_kullanici_id_fkey"
-     ]
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 66,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 55,
+   "tablo": "hasta_hassas",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 115,
    "tablo": "hasta_iliski",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "hasta_iliski",
-     "ad": "iliskili_hasta_id",
-     "alias": "iliskili_hasta",
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 83,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 116,
+   "tablo": "hasta_iliski",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 117,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 132,
    "tablo": "hasta_sigorta",
    "islemler": [
     "SELECT"
@@ -2552,8 +2262,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 101,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 150,
    "tablo": "hasta_anamnez",
    "islemler": [
     "SELECT"
@@ -2561,8 +2271,26 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 163,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 151,
+   "tablo": "hasta_anamnez",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 152,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 190,
    "tablo": "hasta_vucut_haritasi_isareti",
    "islemler": [
     "SELECT"
@@ -2570,8 +2298,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 195,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 205,
    "tablo": "hasta_vucut_haritasi_isareti",
    "islemler": [
     "UPDATE",
@@ -2580,8 +2308,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 202,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 213,
    "tablo": "hasta_vucut_haritasi_isareti",
    "islemler": [
     "INSERT",
@@ -2590,8 +2318,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 260,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 223,
    "tablo": "hasta_vucut_haritasi_isareti",
    "islemler": [
     "DELETE",
@@ -2600,8 +2328,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 285,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 231,
    "tablo": "islem_tanimi",
    "islemler": [
     "SELECT"
@@ -2609,8 +2337,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 303,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 236,
    "tablo": "islem_kontrendikasyon",
    "islemler": [
     "SELECT"
@@ -2618,48 +2346,161 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 327,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 250,
+   "tablo": "hasta_protokol",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 251,
+   "tablo": "hasta_protokol",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 252,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 272,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 273,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 275,
+   "tablo": "hasta_protokol",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 286,
+   "tablo": "hasta_olcum",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 287,
+   "tablo": "hasta_olcum",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 288,
+   "tablo": "olcek_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 309,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 310,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 311,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 317,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "randevu",
-     "ad": "terapist",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "personel",
-     "alias": "antrenor",
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "tedavi_protokolu",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 347,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 325,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 326,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 328,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 330,
+   "tablo": "tedavi_protokolu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 337,
    "tablo": "seans_degerlendirme",
    "islemler": [
     "SELECT"
@@ -2667,134 +2508,44 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 398,
-   "tablo": "hasta_protokol",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "hasta_protokol",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 416,
-   "tablo": "hasta_olcum",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "hasta_olcum",
-     "ad": "olcek_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 456,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 371,
    "tablo": "randevu_talebi",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "randevu_talebi",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 462,
-   "tablo": "randevu",
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 372,
+   "tablo": "randevu_talebi",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "randevu",
-     "ad": "randevu_iptal_talebi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/queries.ts",
-   "satir": 507,
-   "tablo": "randevu",
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 373,
+   "tablo": "islem_tanimi",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "randevu",
-     "ad": "terapist",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/randevu/page.tsx",
-   "satir": 38,
-   "tablo": "periyodik_randevu",
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 378,
+   "tablo": "randevu_iptal_talebi",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "periyodik_randevu",
-     "ad": "terapist",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "periyodik_randevu",
-     "ad": "oda",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "periyodik_randevu",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/randevu/page.tsx",
-   "satir": 47,
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 379,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -2802,18 +2553,36 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/randevu/page.tsx",
-   "satir": 55,
-   "tablo": "oda",
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 412,
+   "tablo": "randevu",
    "islemler": [
     "SELECT"
    ],
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/hastalar/[id]/randevu/page.tsx",
-   "satir": 56,
-   "tablo": "cihaz",
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 413,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 414,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 415,
+   "tablo": "islem_tanimi",
    "islemler": [
     "SELECT"
    ],
@@ -3065,96 +2834,8 @@
   },
   {
    "dosya": "app/(app)/panel/page.tsx",
-   "satir": 39,
+   "satir": 43,
    "tablo": "klinik",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 47,
-   "tablo": "personel",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 53,
-   "tablo": "terapist",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 74,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 80,
-   "tablo": "oda",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 82,
-   "tablo": "terapist",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 85,
-   "tablo": "cihaz",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 87,
-   "tablo": "personel",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 88,
-   "tablo": "tedavi_protokolu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/page.tsx",
-   "satir": 91,
-   "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "SELECT"
    ],
@@ -4283,16 +3964,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 79,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 132,
+   "satir": 131,
    "tablo": "randevu",
    "islemler": [
     "INSERT",
@@ -4302,7 +3974,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 161,
+   "satir": 166,
    "tablo": "randevu_talebi",
    "islemler": [
     "UPDATE",
@@ -4312,7 +3984,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 193,
+   "satir": 190,
    "tablo": "randevu_talebi",
    "islemler": [
     "UPDATE",
@@ -4322,7 +3994,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 249,
+   "satir": 251,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -4331,17 +4003,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 278,
-   "tablo": "randevu",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 533,
+   "satir": 274,
    "tablo": "randevu",
    "islemler": [
     "UPDATE",
@@ -4351,7 +4013,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 701,
+   "satir": 667,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -4360,26 +4022,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 734,
-   "tablo": "randevu",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 787,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 825,
+   "satir": 681,
    "tablo": "randevu",
    "islemler": [
     "UPDATE",
@@ -4389,85 +4032,35 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 873,
+   "satir": 735,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 750,
+   "tablo": "randevu",
+   "islemler": [
+    "UPDATE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 810,
    "tablo": "paket_satis",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "paket_satis",
-     "ad": "hasta_id",
-     "alias": "hasta",
-     "ipucu": []
-    },
-    {
-     "ust": "paket_satis",
-     "ad": "paket",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 895,
-   "tablo": "klinik",
-   "islemler": [
-    "SELECT"
-   ],
    "gomulu": []
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 936,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 960,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 986,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1180,
-   "tablo": "randevu",
-   "islemler": [
-    "INSERT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1241,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1278,
+   "satir": 811,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -4476,7 +4069,72 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1308,
+   "satir": 812,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 823,
+   "tablo": "klinik",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 859,
+   "tablo": "randevu_iptal_talebi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 872,
+   "tablo": "randevu_iptal_talebi",
+   "islemler": [
+    "UPDATE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 898,
+   "tablo": "randevu_iptal_talebi",
+   "islemler": [
+    "UPDATE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1096,
+   "tablo": "randevu",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1193,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1207,
    "tablo": "periyodik_randevu",
    "islemler": [
     "INSERT",
@@ -4486,16 +4144,7 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1389,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1399,
+   "satir": 1290,
    "tablo": "periyodik_randevu",
    "islemler": [
     "UPDATE",
@@ -4505,8 +4154,46 @@
   },
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1409,
+   "satir": 1294,
    "tablo": "randevu",
+   "islemler": [
+    "UPDATE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1356,
+   "tablo": "periyodik_randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1363,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1376,
+   "tablo": "randevu",
+   "islemler": [
+    "UPDATE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1382,
+   "tablo": "periyodik_randevu",
    "islemler": [
     "UPDATE",
     "SELECT"
@@ -4516,24 +4203,43 @@
   {
    "dosya": "app/(app)/panel/randevular/actions.ts",
    "satir": 1448,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1474,
    "tablo": "periyodik_randevu",
    "islemler": [
+    "UPDATE",
     "SELECT"
    ],
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1486,
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 41,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 51,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 68,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 69,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -4541,74 +4247,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1505,
-   "tablo": "randevu",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1513,
-   "tablo": "periyodik_randevu",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1591,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/actions.ts",
-   "satir": 1597,
-   "tablo": "periyodik_randevu",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 30,
-   "tablo": "personel",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 36,
-   "tablo": "terapist",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 59,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 66,
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 70,
    "tablo": "oda",
    "islemler": [
     "SELECT"
@@ -4616,110 +4256,53 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 67,
-   "tablo": "cihaz",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 69,
-   "tablo": "personel",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 70,
-   "tablo": "tedavi_protokolu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 72,
-   "tablo": "randevu_iptal_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "randevu_iptal_talebi",
-     "ad": "randevu",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "hasta",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 78,
-   "tablo": "randevu_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "randevu_talebi",
-     "ad": "hasta",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu_talebi",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/page.tsx",
-   "satir": 84,
-   "tablo": "klinik_banka_hesaplari",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/randevular/queries.ts",
-   "satir": 27,
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 71,
    "tablo": "paket_satis",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "paket_satis",
-     "ad": "paket",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "paket",
-     "ad": "islem_tanimi",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/randevular/queries.ts",
-   "satir": 85,
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 72,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 99,
+   "tablo": "paket_satis",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 100,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 101,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 137,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -4727,9 +4310,63 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/randevular/queries.ts",
-   "satir": 97,
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 147,
    "tablo": "randevu_cihaz_rezervasyon",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 163,
+   "tablo": "v_hasta_ozet",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 174,
+   "tablo": "islem_tanimi_adim",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 175,
+   "tablo": "cihaz",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 189,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 190,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 191,
+   "tablo": "personel",
    "islemler": [
     "SELECT"
    ],
@@ -4884,15 +4521,6 @@
      "ipucu": []
     }
    ]
-  },
-  {
-   "dosya": "app/(app)/panel/tablet/[odaId]/tablet-ekrani.tsx",
-   "satir": 69,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
   },
   {
    "dosya": "app/(app)/panel/tedavi-protokolleri/actions.ts",
@@ -5337,44 +4965,6 @@
    "gomulu": []
   },
   {
-   "dosya": "app/api/hasta-belge/foto-yukle/route.ts",
-   "satir": 39,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/api/hasta-belge/foto-yukle/route.ts",
-   "satir": 65,
-   "tablo": "hasta",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/api/hasta-belge/foto-yukle/route.ts",
-   "satir": 95,
-   "tablo": "hasta_belge",
-   "islemler": [
-    "INSERT",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/api/hasta-belge/foto-yukle/route.ts",
-   "satir": 132,
-   "tablo": "hasta_belge",
-   "islemler": [
-    "UPDATE",
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
    "dosya": "app/api/hasta-cari-hareketler/pdf/route.ts",
    "satir": 32,
    "tablo": "kullanici",
@@ -5483,6 +5073,62 @@
    "gomulu": []
   },
   {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 31,
+   "tablo": "hasta_belge",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 41,
+   "tablo": "audit_log",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 93,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 95,
+   "tablo": "hasta_belge",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 130,
+   "tablo": "hasta_belge",
+   "islemler": [
+    "UPDATE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 142,
+   "tablo": "hasta_belge",
+   "islemler": [
+    "DELETE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
    "dosya": "lib/dosya/depo.test.ts",
    "satir": 16,
    "tablo": "abc",
@@ -5520,9 +5166,270 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/hasta/arama.ts",
-   "satir": 46,
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 17,
+   "tablo": "anket_yaniti",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 36,
+   "tablo": "seans_degerlendirme",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 37,
    "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 38,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 39,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 40,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 15,
+   "tablo": "paket_satis",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 16,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 29,
+   "tablo": "iskonto_oranlari",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 34,
+   "tablo": "v_hasta_ozet",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 40,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 41,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 44,
+   "tablo": "hasta_bakiye_hareket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 53,
+   "tablo": "hasta_bakiye_hareket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 54,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 55,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 57,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 59,
+   "tablo": "odeme",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 75,
+   "tablo": "odeme_kalemi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 76,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 77,
+   "tablo": "paket_satis",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 78,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 82,
+   "tablo": "odeme_satiri",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 36,
+   "tablo": "hasta_hassas",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 37,
+   "tablo": "v_hasta_ozet",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 38,
+   "tablo": "v_hasta_detay_ozet",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 41,
+   "tablo": "paket_satis",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 42,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/ozet-sorgular.ts",
+   "satir": 10,
+   "tablo": "v_hasta_ozet",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/hasta/ozet-sorgular.ts",
+   "satir": 27,
+   "tablo": "v_hasta_detay_ozet",
    "islemler": [
     "SELECT"
    ],
@@ -5539,7 +5446,7 @@
   },
   {
    "dosya": "lib/mesaj/anlik-tetikle.ts",
-   "satir": 63,
+   "satir": 65,
    "tablo": "mesaj_kurallari",
    "islemler": [
     "SELECT"
@@ -5548,7 +5455,7 @@
   },
   {
    "dosya": "lib/mesaj/anlik-tetikle.ts",
-   "satir": 75,
+   "satir": 77,
    "tablo": "klinik_ayarlar",
    "islemler": [
     "SELECT"
@@ -5557,7 +5464,7 @@
   },
   {
    "dosya": "lib/mesaj/anlik-tetikle.ts",
-   "satir": 110,
+   "satir": 112,
    "tablo": "mesaj_kuyrugu",
    "islemler": [
     "INSERT"
@@ -5566,7 +5473,7 @@
   },
   {
    "dosya": "lib/mesaj/anlik-tetikle.ts",
-   "satir": 136,
+   "satir": 206,
    "tablo": "kullanici",
    "islemler": [
     "SELECT"
@@ -5575,7 +5482,7 @@
   },
   {
    "dosya": "lib/mesaj/anlik-tetikle.ts",
-   "satir": 145,
+   "satir": 215,
    "tablo": "personel",
    "islemler": [
     "SELECT"
@@ -5590,8 +5497,35 @@
    ]
   },
   {
+   "dosya": "lib/mesaj/anlik-tetikle.ts",
+   "satir": 150,
+   "tablo": "mesaj_kurallari",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/mesaj/anlik-tetikle.ts",
+   "satir": 158,
+   "tablo": "klinik_ayarlar",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/mesaj/anlik-tetikle.ts",
+   "satir": 181,
+   "tablo": "mesaj_kuyrugu",
+   "islemler": [
+    "INSERT"
+   ],
+   "gomulu": []
+  },
+  {
    "dosya": "lib/mesaj/hasta-mesaji.ts",
-   "satir": 24,
+   "satir": 12,
    "tablo": "hasta",
    "islemler": [
     "SELECT"
@@ -5600,7 +5534,7 @@
   },
   {
    "dosya": "lib/mesaj/hasta-mesaji.ts",
-   "satir": 26,
+   "satir": 17,
    "tablo": "klinik",
    "islemler": [
     "SELECT"
@@ -5609,19 +5543,21 @@
   },
   {
    "dosya": "lib/mesaj/hasta-mesaji.ts",
-   "satir": 67,
+   "satir": 62,
    "tablo": "paket_satis",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "paket_satis",
-     "ad": "paket",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/mesaj/hasta-mesaji.ts",
+   "satir": 63,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
   },
   {
    "dosya": "lib/mesaj/kuyruk-isle.ts",
@@ -5674,8 +5610,8 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/mesaj/randevu-mesaji.ts",
-   "satir": 47,
+   "dosya": "lib/mesaj/randevu-hatirlatma-tarama.ts",
+   "satir": 48,
    "tablo": "klinik",
    "islemler": [
     "SELECT"
@@ -5683,17 +5619,8 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "dosya": "lib/mesaj/randevu-hatirlatma-tarama.ts",
    "satir": 100,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "lib/mesaj/randevu-mesaji.ts",
-   "satir": 143,
    "tablo": "mesaj_kurallari",
    "islemler": [
     "SELECT"
@@ -5701,8 +5628,8 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/mesaj/randevu-mesaji.ts",
-   "satir": 155,
+   "dosya": "lib/mesaj/randevu-hatirlatma-tarama.ts",
+   "satir": 112,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -5710,36 +5637,85 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/personel/atanabilir-terapistler.ts",
-   "satir": 24,
+   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "satir": 36,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "satir": 37,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "satir": 38,
    "tablo": "terapist",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "satir": 39,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "satir": 44,
+   "tablo": "klinik",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
   },
   {
    "dosya": "lib/personel/atanabilir-terapistler.ts",
-   "satir": 47,
+   "satir": 19,
    "tablo": "terapist",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/personel/atanabilir-terapistler.ts",
+   "satir": 20,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/personel/atanabilir-terapistler.ts",
+   "satir": 42,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/personel/atanabilir-terapistler.ts",
+   "satir": 43,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
   },
   {
    "dosya": "lib/personel/donem-maasi.ts",
@@ -5760,56 +5736,504 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/randevu/tedavi-secenekleri.ts",
-   "satir": 30,
-   "tablo": "islem_tanimi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "islem_tanimi",
-     "ad": "islem_tanimi_adim",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "islem_tanimi_adim",
-     "ad": "gerekli_cihaz_id",
-     "alias": "cihaz",
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "lib/randevu/terapist-uygunluk.ts",
-   "satir": 52,
-   "tablo": "terapist",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "lib/randevu/terapist-uygunluk.ts",
-   "satir": 60,
-   "tablo": "personel_izin_talebi",
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 16,
+   "tablo": "hasta",
    "islemler": [
     "SELECT"
    ],
    "gomulu": []
   },
   {
-   "dosya": "lib/randevu/terapist-uygunluk.ts",
-   "satir": 67,
-   "tablo": "personel_puantaj",
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 17,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 18,
+   "tablo": "oda",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 19,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 20,
+   "tablo": "cihaz",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 21,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 22,
+   "tablo": "tedavi_protokolu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 17,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 18,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 19,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 25,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 38,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 39,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 40,
+   "tablo": "oda",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 41,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 43,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 45,
+   "tablo": "tedavi_protokolu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 47,
+   "tablo": "paket_satis",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 48,
+   "tablo": "paket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 56,
+   "tablo": "hasta_bakiye_hareket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 103,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 117,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 118,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 119,
+   "tablo": "oda",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 120,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 122,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 145,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 146,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 154,
+   "tablo": "oda",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 157,
+   "tablo": "cihaz",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 161,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 164,
+   "tablo": "tedavi_protokolu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 169,
+   "tablo": "klinik_banka_hesaplari",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 176,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 177,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 194,
+   "tablo": "randevu_iptal_talebi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 195,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 196,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 224,
+   "tablo": "randevu_talebi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 225,
+   "tablo": "hasta",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 226,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 248,
+   "tablo": "periyodik_randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 253,
+   "tablo": "periyodik_randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 254,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 255,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 256,
+   "tablo": "oda",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 257,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 278,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 284,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 285,
+   "tablo": "terapist",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 286,
+   "tablo": "personel",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 287,
+   "tablo": "oda",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 288,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/tedavi-secenekleri.ts",
+   "satir": 14,
+   "tablo": "islem_tanimi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/tedavi-secenekleri.ts",
+   "satir": 30,
+   "tablo": "islem_tanimi_adim",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/randevu/tedavi-secenekleri.ts",
+   "satir": 31,
+   "tablo": "cihaz",
    "islemler": [
     "SELECT"
    ],
@@ -6063,132 +6487,6 @@
     "SELECT"
    ],
    "gomulu": []
-  },
-  {
-   "dosya": "components/hasta/aktif-paket-satiri.tsx",
-   "satir": 62,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "randevu",
-     "ad": "terapist",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "terapist",
-     "ad": "personel",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "components/panel/canli-cizelge.tsx",
-   "satir": 117,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 69,
-   "tablo": "personel",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 75,
-   "tablo": "terapist",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 88,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 99,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "randevu",
-     "ad": "hasta",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "oda",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "randevu",
-     "ad": "paket_satis",
-     "alias": null,
-     "ipucu": []
-    },
-    {
-     "ust": "paket_satis",
-     "ad": "paket",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 140,
-   "tablo": "randevu",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "components/panel/randevu-detay-paneli.tsx",
-   "satir": 81,
-   "tablo": "v_hasta_ozet",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "components/panel/randevu-detay-paneli.tsx",
-   "satir": 153,
-   "tablo": "islem_tanimi_adim",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "islem_tanimi_adim",
-     "ad": "gerekli_cihaz_id",
-     "alias": "cihaz",
-     "ipucu": []
-    }
-   ]
   }
  ],
  "belirsiz": [
@@ -6298,24 +6596,224 @@
    "ifade": ".from(sema.klinikAyarlar)"
   },
   {
+   "dosya": "app/(app)/panel/hastalar/actions.ts",
+   "satir": 82,
+   "ifade": ".from(sema.hastaHassas)"
+  },
+  {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 40,
+   "satir": 19,
    "ifade": ".from(sema.randevuIptalTalebi)"
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 41,
+   "satir": 20,
    "ifade": ".from(sema.randevuTalebi)"
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 42,
+   "satir": 21,
    "ifade": ".from(sema.anketYaniti)"
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 43,
+   "satir": 22,
    "ifade": ".from(sema.seansDegerlendirme)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/kayit-formu/page.tsx",
+   "satir": 106,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 35,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 206,
+   "ifade": ".from(sema.klinikBankaHesaplari)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 286,
+   "ifade": ".from(sema.klinikBankaHesaplari)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 375,
+   "ifade": ".from(sema.hastaBakiyeHareket)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 401,
+   "ifade": ".from(sema.fatura)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 402,
+   "ifade": ".from(sema.klinikMuhasebeEntegrasyonu)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 435,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 436,
+   "ifade": ".from(sema.hastaKullanici)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 472,
+   "ifade": ".from(sema.hastaKullanici)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 918,
+   "ifade": ".from(sema.hastaBelge)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/actions.ts",
+   "satir": 1001,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
+   "satir": 16,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
+   "satir": 79,
+   "ifade": ".from(sema.hastaBelge)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
+   "satir": 92,
+   "ifade": ".from(sema.hastaBelge)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/actions.ts",
+   "satir": 94,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/veri-actions.ts",
+   "satir": 25,
+   "ifade": ".from(sema.hastaBelge)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/veri-actions.ts",
+   "satir": 63,
+   "ifade": ".from(sema.hastaOnam)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/belgeler/veri-actions.ts",
+   "satir": 78,
+   "ifade": ".from(sema.hastaBelge)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/cari/page.tsx",
+   "satir": 43,
+   "ifade": ".from(sema.hastaHassas)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
+   "satir": 60,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/hasta-getir.ts",
+   "satir": 78,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/kisisel/page.tsx",
+   "satir": 34,
+   "ifade": ".from(sema.hastaKullanici)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 55,
+   "ifade": ".from(sema.hastaHassas)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 116,
+   "ifade": ".from(sema.hastaIliski)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 132,
+   "ifade": ".from(sema.hastaSigorta)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 151,
+   "ifade": ".from(sema.hastaAnamnez)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 190,
+   "ifade": ".from(sema.hastaVucutHaritasiIsareti)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 231,
+   "ifade": ".from(sema.islemTanimi)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 236,
+   "ifade": ".from(sema.islemKontrendikasyon)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 251,
+   "ifade": ".from(sema.hastaProtokol)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 272,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 273,
+   "ifade": ".from(sema.islemTanimi)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 287,
+   "ifade": ".from(sema.hastaOlcum)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 325,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 337,
+   "ifade": ".from(sema.seansDegerlendirme)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 372,
+   "ifade": ".from(sema.randevuTalebi)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 378,
+   "ifade": ".from(sema.randevuIptalTalebi)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/[id]/veri-actions.ts",
+   "satir": 412,
+   "ifade": ".from(sema.randevu)"
   },
   {
    "dosya": "app/(app)/panel/kaynaklar/actions.ts",
@@ -6348,6 +6846,101 @@
    "ifade": ".from(sema.personel)"
   },
   {
+   "dosya": "app/(app)/panel/page.tsx",
+   "satir": 43,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 251,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 667,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 735,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 810,
+   "ifade": ".from(sema.paketSatis)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 823,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 859,
+   "ifade": ".from(sema.randevuIptalTalebi)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1193,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1356,
+   "ifade": ".from(sema.periyodikRandevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/actions.ts",
+   "satir": 1363,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 41,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 51,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 68,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 99,
+   "ifade": ".from(sema.paketSatis)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 137,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 147,
+   "ifade": ".from(sema.randevuCihazRezervasyon)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 163,
+   "ifade": ".from(sema.vHastaOzet)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 174,
+   "ifade": ".from(sema.islemTanimiAdim)"
+  },
+  {
+   "dosya": "app/(app)/panel/randevular/veri-actions.ts",
+   "satir": 189,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
    "dosya": "lib/auth/oturum.ts",
    "satir": 57,
    "ifade": ".from(sema.kullanici)"
@@ -6356,6 +6949,246 @@
    "dosya": "lib/auth/oturum.ts",
    "satir": 70,
    "ifade": ".from(sema.hastaKullanici)"
+  },
+  {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 31,
+   "ifade": ".from(sema.hastaBelge)"
+  },
+  {
+   "dosya": "lib/belge/servis.ts",
+   "satir": 93,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 17,
+   "ifade": ".from(sema.anketYaniti)"
+  },
+  {
+   "dosya": "lib/hasta/bildirim-sorgular.ts",
+   "satir": 36,
+   "ifade": ".from(sema.seansDegerlendirme)"
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 15,
+   "ifade": ".from(sema.paketSatis)"
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 29,
+   "ifade": ".from(sema.iskontoOranlari)"
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 34,
+   "ifade": ".from(sema.vHastaOzet)"
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 53,
+   "ifade": ".from(sema.hastaBakiyeHareket)"
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 75,
+   "ifade": ".from(sema.odemeKalemi)"
+  },
+  {
+   "dosya": "lib/hasta/cari-sorgular.ts",
+   "satir": 82,
+   "ifade": ".from(sema.odemeSatiri)"
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 36,
+   "ifade": ".from(sema.hastaHassas)"
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 37,
+   "ifade": ".from(sema.vHastaOzet)"
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 38,
+   "ifade": ".from(sema.vHastaDetayOzet)"
+  },
+  {
+   "dosya": "lib/hasta/liste-sorgular.ts",
+   "satir": 41,
+   "ifade": ".from(sema.paketSatis)"
+  },
+  {
+   "dosya": "lib/hasta/ozet-sorgular.ts",
+   "satir": 10,
+   "ifade": ".from(sema.vHastaOzet)"
+  },
+  {
+   "dosya": "lib/hasta/ozet-sorgular.ts",
+   "satir": 27,
+   "ifade": ".from(sema.vHastaDetayOzet)"
+  },
+  {
+   "dosya": "lib/mesaj/anlik-tetikle.ts",
+   "satir": 150,
+   "ifade": ".from(sema.mesajKurallari)"
+  },
+  {
+   "dosya": "lib/mesaj/anlik-tetikle.ts",
+   "satir": 158,
+   "ifade": ".from(sema.klinikAyarlar)"
+  },
+  {
+   "dosya": "lib/mesaj/hasta-mesaji.ts",
+   "satir": 12,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "lib/mesaj/hasta-mesaji.ts",
+   "satir": 17,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "lib/mesaj/hasta-mesaji.ts",
+   "satir": 62,
+   "ifade": ".from(sema.paketSatis)"
+  },
+  {
+   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "satir": 36,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "lib/mesaj/randevu-mesaji.ts",
+   "satir": 44,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "lib/personel/atanabilir-terapistler.ts",
+   "satir": 19,
+   "ifade": ".from(sema.terapist)"
+  },
+  {
+   "dosya": "lib/personel/atanabilir-terapistler.ts",
+   "satir": 42,
+   "ifade": ".from(sema.terapist)"
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 16,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 17,
+   "ifade": ".from(sema.terapist)"
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 18,
+   "ifade": ".from(sema.oda)"
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 19,
+   "ifade": ".from(sema.islemTanimi)"
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 20,
+   "ifade": ".from(sema.cihaz)"
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 21,
+   "ifade": ".from(sema.personel)"
+  },
+  {
+   "dosya": "lib/randevu/dogrulama.ts",
+   "satir": 22,
+   "ifade": ".from(sema.tedaviProtokolu)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 38,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 56,
+   "ifade": ".from(sema.hastaBakiyeHareket)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 117,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 145,
+   "ifade": ".from(sema.personel)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 154,
+   "ifade": ".from(sema.oda)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 157,
+   "ifade": ".from(sema.cihaz)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 161,
+   "ifade": ".from(sema.personel)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 164,
+   "ifade": ".from(sema.tedaviProtokolu)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 169,
+   "ifade": ".from(sema.klinikBankaHesaplari)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 176,
+   "ifade": ".from(sema.terapist)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 194,
+   "ifade": ".from(sema.randevuIptalTalebi)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 224,
+   "ifade": ".from(sema.randevuTalebi)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 253,
+   "ifade": ".from(sema.periyodikRandevu)"
+  },
+  {
+   "dosya": "lib/randevu/sorgular.ts",
+   "satir": 284,
+   "ifade": ".from(sema.randevu)"
+  },
+  {
+   "dosya": "lib/randevu/tedavi-secenekleri.ts",
+   "satir": 14,
+   "ifade": ".from(sema.islemTanimi)"
+  },
+  {
+   "dosya": "lib/randevu/tedavi-secenekleri.ts",
+   "satir": 30,
+   "ifade": ".from(sema.islemTanimiAdim)"
   }
  ],
  "rpc": {
@@ -6390,7 +7223,7 @@
   ],
   "hasta_bakiye_hareket_borc_duzenle": [
    "app/(app)/panel/finans/gelirler-takibi/faturalar/actions.ts:92",
-   "app/(app)/panel/hastalar/[id]/actions.ts:384"
+   "app/(app)/panel/hastalar/[id]/actions.ts:377"
   ],
   "klinik_cari_odeme_ekle": [
    "app/(app)/panel/finans/giderler/tedarikciler/actions.ts:52"
@@ -6408,18 +7241,8 @@
   "kredi_karti_borc_ozetleri": [
    "app/(app)/panel/finans/kredi-karti/page.tsx:106"
   ],
-  "hasta_bas_harf_sayilari": [
-   "app/(app)/panel/hastalar/page.tsx:62"
-  ],
-  "hasta_harf_listesi": [
-   "app/(app)/panel/hastalar/page.tsx:74"
-  ],
   "odeme_olustur": [
-   "app/(app)/panel/hastalar/[id]/actions.ts:103"
-  ],
-  "hasta_belge_goruntule": [
-   "app/(app)/panel/hastalar/[id]/actions.ts:1051",
-   "app/(app)/panel/hastalar/[id]/belgeler/actions.ts:118"
+   "app/(app)/panel/hastalar/[id]/actions.ts:121"
   ],
   "islem_tanimi_kaydet": [
    "app/(app)/panel/islemler/actions.ts:88"
@@ -6465,25 +7288,25 @@
    "app/(app)/panel/personel/[id]/page.tsx:168"
   ],
   "randevu_gelis_isaretle": [
-   "app/(app)/panel/randevular/actions.ts:337",
-   "app/(app)/panel/randevular/actions.ts:806"
+   "app/(app)/panel/randevular/actions.ts:335",
+   "app/(app)/panel/randevular/actions.ts:745"
   ],
   "randevu_seans_bedelini_isle": [
-   "app/(app)/panel/randevular/actions.ts:400",
-   "app/(app)/panel/randevular/actions.ts:463"
+   "app/(app)/panel/randevular/actions.ts:390",
+   "app/(app)/panel/randevular/actions.ts:449"
   ],
   "randevu_gelmedi_isaretle": [
-   "app/(app)/panel/randevular/actions.ts:530"
+   "app/(app)/panel/randevular/actions.ts:512"
   ],
   "randevu_iptal_et": [
-   "app/(app)/panel/randevular/actions.ts:599",
-   "app/(app)/panel/randevular/actions.ts:951"
+   "app/(app)/panel/randevular/actions.ts:573",
+   "app/(app)/panel/randevular/actions.ts:870"
   ],
   "randevu_iptal_geri_al": [
-   "app/(app)/panel/randevular/actions.ts:637"
+   "app/(app)/panel/randevular/actions.ts:597"
   ],
   "islem_tanimi_etkin_fiyat": [
-   "app/(app)/panel/randevular/queries.ts:51"
+   "app/(app)/panel/randevular/veri-actions.ts:116"
   ],
   "gelmeme_analizi": [
    "app/(app)/panel/yonetim/gelmeme-analizi/page.tsx:112"
@@ -6494,11 +7317,20 @@
   "audit_log_bolum_olustur": [
    "app/api/cron/audit-log-bolum-olustur/route.ts:22"
   ],
+  "hasta_belge_goruntule": [
+   "lib/belge/servis.ts:39"
+  ],
   "ad": [
    "lib/db/rpc.ts:2"
   ],
   "hasta_ara": [
-   "lib/hasta/arama.ts:40"
+   "lib/hasta/arama.ts:17"
+  ],
+  "hasta_bas_harf_sayilari": [
+   "lib/hasta/liste-sorgular.ts:11"
+  ],
+  "hasta_harf_listesi": [
+   "lib/hasta/liste-sorgular.ts:16"
   ],
   "hiz_siniri_kullan": [
    "lib/qr/hiz-siniri.ts:32"
@@ -6511,6 +7343,9 @@
   ],
   "seans_degerlendirme_baglam_getir": [
    "lib/qr/seans-anket-baglami.ts:7"
+  ],
+  "terapist_uygunluk_getir": [
+   "lib/randevu/terapist-uygunluk.ts:45"
   ],
   "rapor_yillik_ozet": [
    "lib/raporlar/hesaplamalar.ts:404"

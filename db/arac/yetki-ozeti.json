@@ -93,8 +93,7 @@
    "uygulama": [
     "SELECT",
     "INSERT",
-    "UPDATE",
-    "DELETE"
+    "UPDATE"
    ],
    "kolon": [],
    "anonim": [
@@ -324,10 +323,12 @@
   },
   {
    "tablo": "odeme_satiri",
-   "uygulama": [],
+   "uygulama": [
+    "SELECT"
+   ],
    "kolon": [],
    "anonim": [],
-   "kodda": false,
+   "kodda": true,
    "eskiYetki": [
     "INSERT",
     "SELECT",
@@ -2575,7 +2576,6 @@
  ],
  "kodDisiTablolar": [
   "islem_kategori",
-  "odeme_satiri",
   "egzersiz_kutuphanesi",
   "ev_egzersiz_programi",
   "ev_egzersiz_kalemi",
@@ -2600,6 +2600,7 @@
   "islem_tanimi -> odeme_kalemi",
   "islem_tanimi -> hasta",
   "odeme_kalemi -> odeme",
+  "odeme_satiri -> odeme",
   "hasta_kullanici -> hasta",
   "periyodik_randevu -> terapist",
   "randevu_iptal_talebi -> randevu",
