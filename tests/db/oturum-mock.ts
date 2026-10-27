@@ -43,3 +43,9 @@ vi.mock("@/lib/auth/gecerli-kullanici", async (orijinal) => ({
   ...(await orijinal<typeof import("@/lib/auth/gecerli-kullanici")>()),
   oturumBaglami: async () => oturum.ctx,
 }));
+
+// next/headers: anonim uçlar IP başlığını okur (hız sınırı). Test başına IP: globalThis.__testIp.
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ "x-real-ip": (globalThis as unknown as { __testIp?: string }).__testIp ?? "198.51.100.1", "user-agent": "vitest" }),
+  cookies: async () => ({ get: () => undefined, set: () => {}, getAll: () => [] }),
+}));
