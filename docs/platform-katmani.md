@@ -35,6 +35,10 @@ import { withTenant, withKullanici, withAnonim, withGlobal, withTanima, sema } f
 | `withTanima(tx => …)` | Kısa kod/randevu → klinik çözümleme | bağlam yok, rol `klinik_anonim`, yalnız `tanima.*` fonksiyonları |
 | `withGlobal(tx => …)` | Tenant'sız global fonksiyon (`hiz_siniri_kullan`) | bağlam yok; tenant tablolarından 0 satır |
 
+**Damgalı bağlam (Aşama 4):** `withTenant`/`withKullanici`/`withAnonim` düz `{ userId, tenantId }` nesnesi KABUL ETMEZ; yalnız `lib/db/baglam-uretici.ts` üreticilerinin damgaladığı nesneleri alır (tip markası + çalışma zamanı WeakSet + dondurulmuş nesne). Üreticileri yalnız `getSessionContext()` (`tenantGerekli(ctx)` ile) ve tanima çözümleyicisi (`anonim-uc.ts`) import edebilir; başka dosyada ESLint hata verir. Sayfa/eylemlerde bağlam şöyle alınır: `const y = await eylemYetkisi([...])` (`lib/auth/yetki.ts`) → `y.bag`; sayfada `oturumBaglami()` + `tenantGerekli(ctx)`.
+
+**Dosyalar:** `lib/dosya/depo.ts` (DOSYA_KOKU, yol doğrulama, atomik yazım) + `lib/dosya/logo.ts`; logo `/api/dosya/logo` (oturumlu) ve `/api/logo/[kisaKod]` (giriş öncesi) route'larından servis edilir. **Gece zorunlu çıkış** (resepsiyon/terapist, 20:00–07:00 her tam saat) sunucu tarafında `lib/auth/gece-kapanis.ts` ile `getSessionContext` içinde uygulanır.
+
 Kurallar:
 - Her sarmalayıcı **bir transaction**'dır ve bağlamı `set_config(…, true)` (=`SET LOCAL`) ile verir: bağlam transaction bitince kaybolur, havuzdaki sonraki isteğe sızmaz (test: `tests/db/izolasyon.test.ts`). `userId`/`tenantId` UUID biçimi doğrulanır (enjeksiyon/boş değer reddedilir).
 - **ESLint `no-restricted-imports`** uygulama kodunda `pg`, `drizzle-orm/node-postgres` ve `lib/db/havuz-*`, `lib/db/bakim`, `lib/db/baglam` import'unu YASAKLAR (yalnız `lib/db`, `lib/auth`, `scripts/dev`, `db/kontrol`, `tests/db` muaf; `lib/auth` yalnız kimlik havuzunu kullanabilir). `tx`, `lib/db`'den dışarı yalnız callback parametresi olarak çıkar; havuz hiç dışarı çıkmaz.
