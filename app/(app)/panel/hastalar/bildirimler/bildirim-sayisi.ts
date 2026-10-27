@@ -1,9 +1,6 @@
 import { cache } from "react";
 import { and, count, eq, isNull } from "drizzle-orm";
-import type { createClient } from "@/lib/supabase/server";
 import { withTenant, sema, type TenantBaglami } from "@/lib/db";
-
-type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Hastalar > Bildirimler butonunun renk değiştirmesi için toplam sayı:
@@ -13,26 +10,8 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
  * sayfasının kendisi aynı sayıyı paylaşsın diye tek yerde.
  *
  * React cache() ile sarılı: panel/layout.tsx VE panel/hastalar/page.tsx aynı
- * istek içinde ikisi de çağırıyordu, ölçümde bu tek başına ~100-200ms'lik
- * tekrar eden bir round-trip olarak görüldü (createClient() de cache()'li
- * olduğu için `supabase` argümanı aynı referans, dedup güvenli çalışıyor).
- */
-export const bildirimSayisiGetir = cache(async (supabase: Supabase): Promise<number> => {
-  const [iptal, randevuTalep, anket, seansDegerlendirme] = await Promise.all([
-    supabase.from("randevu_iptal_talebi").select("id", { count: "exact", head: true }).eq("durum", "bekliyor"),
-    supabase.from("randevu_talebi").select("id", { count: "exact", head: true }).eq("durum", "bekliyor"),
-    supabase.from("anket_yaniti").select("id", { count: "exact", head: true }).is("goruldu_tarihi", null),
-    supabase.from("seans_degerlendirme").select("id", { count: "exact", head: true }).is("goruldu_tarihi", null),
-  ]);
-
-  return (
-    (iptal.count ?? 0) + (randevuTalep.count ?? 0) + (anket.count ?? 0) + (seansDegerlendirme.count ?? 0)
-  );
-});
-
-/**
- * YENİ (Drizzle + withTenant): aynı sayı. Layout bunu kullanır; Hastalar sayfası modül 2'de taşınınca eski sürüm silinir.
- * Savunma derinliği: görünürlük kuralı (klinik_admin/resepsiyon) çağıran tarafta uygulanır (layout).
+ * istek içinde ikisi de çağırıyordu. `bag` istek başına tek damgalı nesne olduğundan (oturumBaglami cache'i) dedup güvenli çalışır.
+ * Savunma derinliği: görünürlük kuralı (klinik_admin/resepsiyon) çağıran tarafta uygulanır (layout, hastalar sayfası).
  */
 export const bildirimSayisi = cache(async (bag: TenantBaglami): Promise<number> => {
   const [iptal, randevuTalep, anket, seansDeg] = await withTenant(bag, (tx) =>

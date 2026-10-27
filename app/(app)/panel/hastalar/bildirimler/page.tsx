@@ -1,15 +1,11 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { anketYanitlariGetir, seansDegerlendirmeleriGetir } from "@/lib/hasta/bildirim-sorgular";
+import { bekleyenIptalTalepleriGetir, bekleyenRandevuTalepleriGetir, cihazSecenekleriGetir, odaSecenekleriGetir } from "@/lib/randevu/sorgular";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Bell } from "lucide-react";
-import type { SecenekSatir } from "@/types/randevu";
-import type {
-  AnketYanitiSatir,
-  BekleyenIptalTalebiSatir,
-  BekleyenRandevuTalebiSatir,
-  SeansDegerlendirmeSatir,
-} from "@/types/portal";
 import { BekleyenIptalTalepleri } from "../../randevular/bekleyen-iptal-talepleri";
 import { BekleyenRandevuTalepleri } from "../../randevular/bekleyen-randevu-talepleri";
 import { AnketYanitiListesi, SeansDegerlendirmeListesi } from "./geri-bildirim-listesi";
@@ -18,69 +14,23 @@ import { atanabilirTerapistleriGetir } from "@/lib/personel/atanabilir-terapistl
 import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
 
 export default async function HastaBildirimleriSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "resepsiyon") {
+  if (ctx.rol !== "klinik_admin" && ctx.rol !== "resepsiyon") {
     redirect("/panel/hastalar");
   }
 
-  const [
-    iptalTalepleriSonucu,
-    randevuTalepleriSonucu,
-    anketSonucu,
-    seansDegerlendirmeSonucu,
-    terapistler,
-    odaSonucu,
-    cihazSonucu,
-    tedaviler,
-  ] = await Promise.all([
-    supabase
-      .from("randevu_iptal_talebi")
-      .select("id, durum, created_at, aciklama, gec_iptal, randevu(id, baslangic, durum, hasta(ad_soyad))")
-      .eq("durum", "bekliyor")
-      .order("created_at")
-      .returns<BekleyenIptalTalebiSatir[]>(),
-    supabase
-      .from("randevu_talebi")
-      .select("id, hasta_id, islem_tanimi_id, tercih_tarih, tercih_saat, not_metni, created_at, hasta(ad_soyad), islem_tanimi(ad)")
-      .eq("durum", "bekliyor")
-      .order("created_at")
-      .returns<BekleyenRandevuTalebiSatir[]>(),
-    supabase
-      .from("anket_yaniti")
-      .select("id, puan, oneri_metni, ad_soyad, telefon, created_at, goruldu_tarihi")
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .returns<AnketYanitiSatir[]>(),
-    supabase
-      .from("seans_degerlendirme")
-      .select("id, puan, oneri_metni, created_at, goruldu_tarihi, hasta(ad_soyad), randevu(baslangic, terapist(personel(ad_soyad)))")
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .returns<SeansDegerlendirmeSatir[]>(),
-    atanabilirTerapistleriGetir(supabase),
-    supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-    tedaviSecenekleriGetir(supabase),
-  ]);
-
-  const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
-  const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
-  const anketYanitlari = anketSonucu.data ?? [];
-  const seansDegerlendirmeleri = seansDegerlendirmeSonucu.data ?? [];
-
-  const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
-  const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
+  const v = await withTenant(bag, async (tx) => ({
+    bekleyenIptalTalepleri: await bekleyenIptalTalepleriGetir(tx),
+    bekleyenRandevuTalepleri: await bekleyenRandevuTalepleriGetir(tx),
+    anketYanitlari: await anketYanitlariGetir(tx, 50),
+    seansDegerlendirmeleri: await seansDegerlendirmeleriGetir(tx, 50),
+    terapistler: await atanabilirTerapistleriGetir(tx),
+    odalar: await odaSecenekleriGetir(tx),
+    cihazlar: await cihazSecenekleriGetir(tx),
+    tedaviler: await tedaviSecenekleriGetir(tx),
+  }));
+  const { bekleyenIptalTalepleri, bekleyenRandevuTalepleri, anketYanitlari, seansDegerlendirmeleri, terapistler, odalar, cihazlar, tedaviler } = v;
 
   const hicBirSeyYok =
     bekleyenIptalTalepleri.length === 0 &&
