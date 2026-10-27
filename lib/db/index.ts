@@ -6,3 +6,4 @@ export * as sema from "./sema/schema";
 export { rpc } from "./rpc";
 export { pgHata, type PgHatasi } from "./hata";
 export { isoZaman, zamanlariIsoyaCevir } from "./zaman";
+export { snakeKolonlari } from "./kolon";

@@ -34,7 +34,7 @@ Psql "klinik" "db/kurulum/02_eklentiler.sql"
 
 # 2) Şema ve tohum: nesne sahibi klinik_sahip (SET ROLE ile)
 foreach ($f in "db/migrations/0001_kimlik_ve_baglam.sql", "db/migrations/0002_temel_sema.sql",
-               "db/migrations/0003_baglam_politikalari.sql", "db/migrations/0004_tanima_ve_definer_sertlestirme.sql", "db/migrations/0005_kimlik_baglantilari_ve_anonim_kapatma.sql", "db/migrations/0006_muhasebe_secret_var.sql", "db/migrations/0007_tenant_turetme.sql", "db/migrations/0008_canli_olaylar.sql", "db/migrations/0009_terapist_uygunluk.sql", "db/seed/0001_referans_veri.sql") {
+               "db/migrations/0003_baglam_politikalari.sql", "db/migrations/0004_tanima_ve_definer_sertlestirme.sql", "db/migrations/0005_kimlik_baglantilari_ve_anonim_kapatma.sql", "db/migrations/0006_muhasebe_secret_var.sql", "db/migrations/0007_tenant_turetme.sql", "db/migrations/0008_canli_olaylar.sql", "db/migrations/0009_terapist_uygunluk.sql", "db/migrations/0010_hasta_kullanici_ekleme.sql", "db/seed/0001_referans_veri.sql") {
   $gecici = New-TemporaryFile
   try {
     "SET ROLE klinik_sahip;" | Set-Content -Path $gecici -Encoding utf8
