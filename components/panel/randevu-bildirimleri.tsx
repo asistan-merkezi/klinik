@@ -5,9 +5,8 @@ import { usePathname } from "next/navigation";
 import { Toast } from "@base-ui/react/toast";
 import { CalendarClock, PackageOpen, UserCheck, X } from "lucide-react";
 import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
-import { createClient } from "@/lib/supabase/client";
+import { bildirimBaslangicVerisiGetir, bildirimBilgisiGetir, randevuDurumGetir } from "@/app/(app)/panel/randevular/veri-actions";
 import { useCanliOlaylar } from "@/lib/realtime/use-canli-olaylar";
-import { gunAraligi } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 
 /**
@@ -58,53 +57,26 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
   useEffect(() => {
     if (!aktif) return;
 
-    const supabase = createClient();
     const durumlar = new Map<string, string>();
     let iptalEdildi = false;
     let kendiTerapistId: string | null = null;
 
-    async function terapistIdCoz() {
-      if (rol !== "terapist") return;
-      const { data: personel } = await supabase
-        .from("personel")
-        .select("id")
-        .eq("kullanici_id", kullaniciId)
-        .maybeSingle();
-      if (!personel) return;
-      const { data: terapist } = await supabase
-        .from("terapist")
-        .select("id")
-        .eq("personel_id", personel.id)
-        .maybeSingle();
-      kendiTerapistId = terapist?.id ?? null;
-    }
-
-    // Bugünün randevularının durum haritasını yeniden kurar. Bildirim ATMAZ —
-    // kesinti sırasında kaçırılan geçişler sessizce yutulur (eski olaylar için
-    // "az önce geldi" demek yanıltıcı olurdu).
+    // Bugünün randevularının durum haritasını (ve terapistse kendi terapist.id'sini) yeniden kurar. Bildirim ATMAZ —
+    // kesinti sırasında kaçırılan geçişler sessizce yutulur (eski olaylar için "az önce geldi" demek yanıltıcı olurdu).
     async function haritayiYukle() {
-      const { baslangic, bitis } = gunAraligi();
-      const { data } = await supabase
-        .from("randevu")
-        .select("id, durum")
-        .gte("baslangic", baslangic)
-        .lt("baslangic", bitis);
-      if (!data || iptalEdildi) return;
-      durumlar.clear();
-      for (const satir of data) durumlar.set(satir.id, satir.durum);
+      try {
+        const v = await bildirimBaslangicVerisiGetir();
+        if (iptalEdildi) return;
+        durumlar.clear();
+        for (const satir of v.durumlar) durumlar.set(satir.id, satir.durum);
+        kendiTerapistId = v.kendiTerapistId;
+      } catch {
+        /* oturum/bağlantı hatası: harita eski kalır */
+      }
     }
 
     async function bildir(randevuId: string, tur: BildirimDurumu) {
-      const { data } = await supabase
-        .from("randevu")
-        .select("baslangic, hasta(ad_soyad), oda(ad), paket_satis(kalan_adet, paket(ad))")
-        .eq("id", randevuId)
-        .maybeSingle<{
-          baslangic: string;
-          hasta: { ad_soyad: string } | null;
-          oda: { ad: string } | null;
-          paket_satis: { kalan_adet: number; paket: { ad: string } | null } | null;
-        }>();
+      const data = await bildirimBilgisiGetir(randevuId).catch(() => null);
       if (!data || iptalEdildi) return;
 
       if (tur === "tamamlandi") {
@@ -136,11 +108,7 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
 
     // Olay yükünde veri yok ({t,i}): satırın güncel durumu yetkili yoldan çekilir, sonra geçiş tespiti aynı kurallarla yapılır.
     async function olayGeldi(randevuId: string) {
-      const { data: yeni } = await supabase
-        .from("randevu")
-        .select("id, durum, terapist_id")
-        .eq("id", randevuId)
-        .maybeSingle<RandevuSatiriOlay>();
+      const yeni: RandevuSatiriOlay | null = await randevuDurumGetir(randevuId).catch(() => null);
       if (iptalEdildi) return;
       if (!yeni) {
         durumlar.delete(randevuId); // silinmiş (ya da görünmeyen) randevu
@@ -168,7 +136,7 @@ function BildirimDinleyici({ kullaniciId, rol }: { kullaniciId: string; rol: str
       // Yeniden bağlanmada kesintide kaçan değişiklikleri sessizce içeri al (bildirim atmadan).
       senkron: () => void haritayiYukle(),
     };
-    void Promise.all([terapistIdCoz(), haritayiYukle()]);
+    void haritayiYukle();
 
     return () => {
       iptalEdildi = true;

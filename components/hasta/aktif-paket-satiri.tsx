@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { paketKullaniminiGetir } from "@/app/(app)/panel/randevular/veri-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -56,17 +56,7 @@ function usePaketKullanimi(paketSatisId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["paket_kullanimi", paketSatisId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("randevu")
-        .select("id, baslangic, durum, gecikme_dakika, terapist(personel(ad_soyad))")
-        .eq("paket_satis_id", paketSatisId)
-        .order("baslangic", { ascending: true })
-        .returns<PaketKullanimSatir[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: (): Promise<PaketKullanimSatir[]> => paketKullaniminiGetir(paketSatisId) as Promise<PaketKullanimSatir[]>,
   });
 }
 

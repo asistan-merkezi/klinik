@@ -3,3 +3,6 @@
 export { withTenant, withKullanici, withAnonim, withGlobal, withTanima, GecersizBaglamHatasi, sql } from "./baglam";
 export type { Tx, TenantBaglami, KullaniciBaglami, AnonimBaglam } from "./baglam";
 export * as sema from "./sema/schema";
+export { rpc } from "./rpc";
+export { pgHata, type PgHatasi } from "./hata";
+export { isoZaman, zamanlariIsoyaCevir } from "./zaman";

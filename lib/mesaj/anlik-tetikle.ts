@@ -1,4 +1,6 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { and, eq } from "drizzle-orm";
+import { sema, pgHata, type Tx } from "@/lib/db";
 import { TETIKLEYICILER } from "./tetikleyiciler";
 import { SESSIZ_SAAT_MUAF_TETIKLEYICILER, gonderimZamani, sessizSaatAyariCoz } from "./sessiz-saat";
 import type { MesajKanal } from "@/types/mesajlasma";
@@ -24,7 +26,7 @@ type AliciAdres = { telefon: string | null; eposta: string | null; whatsappIzni?
  * — bu "hata" değil, mesajlaşma modülünün Faz 1'den beri kurallı davranışı
  * (bkz. lib/mesaj/kural-cozumle.ts'teki "kayıt yoksa pasif" ilkesi).
  */
-export async function anlikMesajTetikle(
+export async function anlikMesajTetikleAdmin(
   admin: AdminClient,
   params: {
     klinikId: string;
@@ -122,6 +124,74 @@ export async function anlikMesajTetikle(
     // 23505 = aynı idempotency anahtarı zaten kuyrukta: beklenen, hata değil.
     if (error && error.code !== "23505") {
       console.error(`[mesaj] mesaj_kuyrugu insert hatası (${params.tetikleyiciKodu}/${k.kanal}):`, error.message);
+    }
+  }
+}
+
+/** `anlikMesajTetikle` parametreleri (Tx ve eski admin sürümü aynı şekli paylaşır). */
+export type AnlikMesajParametreleri = Parameters<typeof anlikMesajTetikleAdmin>[1];
+
+/**
+ * Tenant bağlamlı sürüm (withTenant transaction'ı içinde ya da `after()` içinde kendi withTenant'ıyla çağrılır; RLS aynen geçerli).
+ * Davranış `anlikMesajTetikleAdmin` ile birebir aynıdır. Not: mesaj yazımı beklenen hatalarda (23505) transaction'ı ABORT ETMEMELİ —
+ * bu yüzden her kuyruk satırı kendi savepoint'inde (iç transaction) yazılır.
+ */
+export async function anlikMesajTetikle(tx: Tx, params: AnlikMesajParametreleri): Promise<void> {
+  const tanim = TETIKLEYICILER.find((t) => t.kod === params.tetikleyiciKodu);
+  if (!tanim) {
+    console.error(`[mesaj] bilinmeyen tetikleyici kodu: ${params.tetikleyiciKodu}`);
+    return;
+  }
+  if (tanim.icerikTipi === "ticari" && params.aliciTipi === "hasta" && params.adres.ticariIletiOnayi !== true) return;
+
+  const kural = (
+    await tx
+      .select({ aktif: sema.mesajKurallari.aktif, smsAktif: sema.mesajKurallari.smsAktif, whatsappAktif: sema.mesajKurallari.whatsappAktif, mailAktif: sema.mesajKurallari.mailAktif, mesajMetni: sema.mesajKurallari.mesajMetni })
+      .from(sema.mesajKurallari)
+      .where(and(eq(sema.mesajKurallari.klinikId, params.klinikId), eq(sema.mesajKurallari.tetikleyiciKodu, params.tetikleyiciKodu)))
+      .limit(1)
+  )[0];
+  if (!kural || !kural.aktif) return;
+
+  let planlananZaman: string | null = null;
+  if (!SESSIZ_SAAT_MUAF_TETIKLEYICILER.includes(params.tetikleyiciKodu)) {
+    const ayarSatiri = (await tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, params.klinikId)).limit(1))[0];
+    const ayar = sessizSaatAyariCoz((ayarSatiri?.ayarlar as Record<string, unknown> | null)?.mesaj_sessiz_saat);
+    const simdi = new Date();
+    const gonderim = gonderimZamani(simdi, ayar);
+    if (gonderim.getTime() !== simdi.getTime()) {
+      if (params.enGecGonderimZamani && gonderim > params.enGecGonderimZamani) return;
+      planlananZaman = gonderim.toISOString();
+    }
+  }
+
+  const metin = (kural.mesajMetni || tanim.varsayilanMesajMetni).replace(/\{\{(\w+)\}\}/g, (tam, ad) => params.degiskenler[ad] ?? tam);
+  const kanallar: { kanal: MesajKanal; aktif: boolean; adres: string | null }[] = [
+    { kanal: "sms", aktif: kural.smsAktif, adres: params.adres.telefon },
+    { kanal: "whatsapp", aktif: kural.whatsappAktif && params.adres.whatsappIzni !== false, adres: params.adres.telefon },
+    { kanal: "mail", aktif: kural.mailAktif, adres: params.adres.eposta },
+  ];
+
+  for (const k of kanallar) {
+    if (!k.aktif || !k.adres) continue;
+    const idempotencyAnahtari = params.idempotencyTemeli ? `${params.idempotencyTemeli}:${k.kanal}` : `${params.tetikleyiciKodu}:${params.aliciId}:${k.kanal}:${Date.now()}`;
+    try {
+      // 23505 (aynı idempotency anahtarı zaten kuyrukta) beklenen durumdur; savepoint sayesinde dış transaction bozulmaz.
+      await tx.transaction((s) =>
+        s.insert(sema.mesajKuyrugu).values({
+          klinikId: params.klinikId,
+          tetikleyiciKodu: params.tetikleyiciKodu,
+          kanal: k.kanal,
+          aliciTipi: params.aliciTipi,
+          aliciId: params.aliciId,
+          aliciAdres: k.adres!,
+          gonderilecekMetin: metin,
+          idempotencyAnahtari,
+          ...(planlananZaman ? { planlananZaman } : {}),
+        })
+      );
+    } catch (e) {
+      if (pgHata(e).kod !== "23505") console.error(`[mesaj] mesaj_kuyrugu insert hatası (${params.tetikleyiciKodu}/${k.kanal}):`, pgHata(e).mesaj);
     }
   }
 }

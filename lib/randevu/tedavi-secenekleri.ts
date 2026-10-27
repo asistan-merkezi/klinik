@@ -1,21 +1,6 @@
-import type { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { sema, type Tx } from "@/lib/db";
 import type { TedaviSecenekSatir } from "@/types/randevu";
-
-type TedaviSatir = {
-  id: string;
-  ad: string;
-  sure_dakika: number | null;
-  islem_tanimi_adim:
-    | {
-        ad: string;
-        sira: number;
-        sure_dakika: number | null;
-        uygulayici_pozisyon_id: string | null;
-        gerekli_cihaz_id: string | null;
-        cihaz: { ad: string } | null;
-      }[]
-    | null;
-};
 
 /**
  * Randevu oluşturma ekranlarındaki Tedavi seçim listesi — her tedavinin
@@ -23,29 +8,40 @@ type TedaviSatir = {
  * seçiciyi buna göre daraltmak için (bkz. randevu-formu.tsx). Hiçbir adımda
  * pozisyon tanımlı değilse pozisyon_idleri boş dizi döner = filtre uygulanmaz.
  */
-export async function tedaviSecenekleriGetir(
-  supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<TedaviSecenekSatir[]> {
-  const { data } = await supabase
-    .from("islem_tanimi")
-    .select("id, ad, sure_dakika, islem_tanimi_adim(ad, sira, sure_dakika, uygulayici_pozisyon_id, gerekli_cihaz_id, cihaz:gerekli_cihaz_id(ad))")
-    .eq("aktif", true)
-    .order("ad")
-    .returns<TedaviSatir[]>();
+export async function tedaviSecenekleriGetir(tx: Tx): Promise<TedaviSecenekSatir[]> {
+  const tedaviler = await tx
+    .select({ id: sema.islemTanimi.id, ad: sema.islemTanimi.ad, sureDakika: sema.islemTanimi.sureDakika })
+    .from(sema.islemTanimi)
+    .where(eq(sema.islemTanimi.aktif, true))
+    .orderBy(asc(sema.islemTanimi.ad));
+  if (tedaviler.length === 0) return [];
 
-  return (data ?? []).map((t) => ({
-    id: t.id,
-    ad: t.ad,
-    sure_dakika: t.sure_dakika,
-    pozisyon_idleri: Array.from(
-      new Set(
-        (t.islem_tanimi_adim ?? [])
-          .map((a) => a.uygulayici_pozisyon_id)
-          .filter((id): id is string => Boolean(id))
-      )
-    ),
-    adimlar: [...(t.islem_tanimi_adim ?? [])]
-      .sort((a, b) => a.sira - b.sira)
-      .map((a) => ({ ad: a.ad, sure_dakika: a.sure_dakika, cihaz_id: a.gerekli_cihaz_id, cihaz_ad: a.cihaz?.ad ?? null })),
-  }));
+  // FK embed yerine ayrı sorgu + Map (tedavi sayısı sınırlı; adım tablosu klinik başına küçük). Sıra: adım sırası.
+  const adimlar = await tx
+    .select({
+      islemTanimiId: sema.islemTanimiAdim.islemTanimiId,
+      ad: sema.islemTanimiAdim.ad,
+      sira: sema.islemTanimiAdim.sira,
+      sureDakika: sema.islemTanimiAdim.sureDakika,
+      pozisyonId: sema.islemTanimiAdim.uygulayiciPozisyonId,
+      cihazId: sema.islemTanimiAdim.gerekliCihazId,
+      cihazAd: sema.cihaz.ad,
+    })
+    .from(sema.islemTanimiAdim)
+    .leftJoin(sema.cihaz, eq(sema.cihaz.id, sema.islemTanimiAdim.gerekliCihazId))
+    .orderBy(asc(sema.islemTanimiAdim.sira));
+
+  const adimHaritasi = new Map<string, typeof adimlar>();
+  for (const a of adimlar) adimHaritasi.set(a.islemTanimiId, [...(adimHaritasi.get(a.islemTanimiId) ?? []), a]);
+
+  return tedaviler.map((t) => {
+    const a = adimHaritasi.get(t.id) ?? [];
+    return {
+      id: t.id,
+      ad: t.ad,
+      sure_dakika: t.sureDakika,
+      pozisyon_idleri: Array.from(new Set(a.map((x) => x.pozisyonId).filter((id): id is string => Boolean(id)))),
+      adimlar: a.map((x) => ({ ad: x.ad, sure_dakika: x.sureDakika, cihaz_id: x.cihazId, cihaz_ad: x.cihazAd ?? null })),
+    };
+  });
 }

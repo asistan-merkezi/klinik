@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Home } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { odaGunlukRandevulariGetir } from "@/app/(app)/panel/randevular/veri-actions";
 import { useCanliOlaylar } from "@/lib/realtime/use-canli-olaylar";
-import { adSoyadMaskele, cn, gunAraligi } from "@/lib/utils";
+import { adSoyadMaskele, cn } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { TabletBackground } from "@/components/tablet/TabletBackground";
@@ -21,9 +21,6 @@ import { SeansSonuAnketQr } from "./seans-sonu-anket-qr";
 import type { RandevuSatir } from "@/types/randevu";
 import type { Klinik } from "@/types/klinik";
 import type { TabletAyarlari } from "@/types/tablet-ayarlari";
-
-const RANDEVU_SELECT =
-  "id, baslangic, bitis, durum, hasta_id, hasta(ad_soyad), oda(ad), terapist(personel(ad_soyad)), islem_tanimi(id, ad)";
 
 const NOTR_RENK = "#64748B";
 
@@ -62,21 +59,12 @@ export function TabletEkrani({
   // kalır; ekran "son bilinen" durumu göstermeye devam eder.
   const gunlukListeyiYenile = useCallback(
     async (sessiz = false) => {
-      const supabase = createClient();
       if (!sessiz) setYenileniyor(true);
-      const { baslangic, bitis } = gunAraligi();
-      const { data } = await supabase
-        .from("randevu")
-        .select(RANDEVU_SELECT)
-        .eq("oda_id", odaId)
-        .gte("baslangic", baslangic)
-        .lt("baslangic", bitis)
-        .order("baslangic")
-        .returns<RandevuSatir[]>();
-
-      if (data) {
-        setRandevular(data);
+      try {
+        setRandevular(await odaGunlukRandevulariGetir(odaId));
         setSonGuncelleme(new Date());
+      } catch {
+        // Bağlantı yokken sorgu hata verir; ekran "son bilinen" durumu göstermeye devam eder.
       }
       if (!sessiz) setYenileniyor(false);
     },

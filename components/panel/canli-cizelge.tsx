@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { gunlukRandevulariGetir } from "@/app/(app)/panel/randevular/veri-actions";
 import { useCanliOlaylar } from "@/lib/realtime/use-canli-olaylar";
-import { gunAraligi } from "@/lib/utils";
-import { RANDEVU_SELECT } from "@/lib/randevu/queries";
 import { startOfDayUTC, formatDateForInput, formatTimeForInput, formatTime } from "@/lib/datetime";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { KlinikBankaHesabi } from "@/types/klinik";
@@ -109,20 +107,12 @@ export function CanliCizelge({
     kaydirildiRef.current = false;
   }, [seciliTarih]);
 
-  // Veri çekimi (Modül 2'de sunucu eylemine taşınacak); olay yükünde veri yok, her olayda/yeniden bağlanmada bu çağrılır.
+  // Veri çekimi sunucu eyleminden (oturum + withTenant); olay yükünde veri yok, her olayda/yeniden bağlanmada bu çağrılır.
   const listeyiYenile = useCallback(async () => {
-    const supabase = createClient();
-    const { baslangic, bitis } = gunAraligi(new Date(seciliTarih));
-    const { data } = await supabase
-      .from("randevu")
-      .select(RANDEVU_SELECT)
-      .gte("baslangic", baslangic)
-      .lt("baslangic", bitis)
-      .order("baslangic")
-      .returns<RandevuSatir[]>();
-
-    if (data) {
-      setRandevular(data);
+    try {
+      setRandevular(await gunlukRandevulariGetir(seciliTarih));
+    } catch {
+      /* bağlantı/oturum hatası: mevcut liste korunur, sonraki olay/yeniden bağlanma tazeler */
     }
   }, [seciliTarih]);
 

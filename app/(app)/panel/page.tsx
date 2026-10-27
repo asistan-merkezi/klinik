@@ -1,10 +1,17 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
-import type { RandevuSatir, SecenekSatir, TerapistSecenekSatir } from "@/types/randevu";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
-import { RANDEVU_SELECT } from "@/lib/randevu/queries";
-import type { KlinikBankaHesabi } from "@/types/klinik";
+import {
+  antrenorSecenekleriGetir,
+  bankaHesaplariGetir,
+  cihazSecenekleriGetir,
+  kendiTerapistIdGetir,
+  odaSecenekleriGetir,
+  protokolSecenekleriGetir,
+  randevuSatirlariGetir,
+  tumTerapistSecenekleriGetir,
+} from "@/lib/randevu/sorgular";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { gorunumDurumuHesapla } from "@/components/panel/randevu-kutusu";
@@ -25,89 +32,42 @@ const KARSILAMA_TARIH_FORMAT = new Intl.DateTimeFormat("tr-TR", {
 });
 
 export default async function PanelSayfasi() {
-  const supabase = await createClient();
-
-  const oturum = await gecerliKullanici();
-  if (!oturum) {
-    redirect("/giris");
-  }
-  const { authUser: user, kullanici } = oturum;
-  const rol = kullanici?.rol ?? null;
+  const { ctx, bag } = await panelBaglami();
+  const rol = ctx.rol;
   const finansalGorunur = rol === "klinik_admin" || rol === "resepsiyon" || rol === "super_admin";
-
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("ad")
-    .eq("id", kullanici?.klinik_id ?? "")
-    .maybeSingle();
-
-  let kendiTerapistId: string | null = null;
-  if (rol === "terapist") {
-    const { data: personel } = await supabase
-      .from("personel")
-      .select("id")
-      .eq("kullanici_id", user.id)
-      .maybeSingle();
-    if (personel) {
-      const { data: terapist } = await supabase
-        .from("terapist")
-        .select("id")
-        .eq("personel_id", personel.id)
-        .maybeSingle();
-      kendiTerapistId = terapist?.id ?? null;
-    }
-  }
-
   const { baslangic, bitis } = gunAraligi();
 
-  const [
-    randevularSonucu,
-    odaSonucu,
-    terapistSonucu,
-    cihazSonucu,
-    tedaviler,
-    personelSonucu,
-    protokolSonucu,
-    bankaHesabiSonucu,
-  ] = await Promise.all([
-    supabase
-      .from("randevu")
-      .select(RANDEVU_SELECT)
-      .gte("baslangic", baslangic)
-      .lt("baslangic", bitis)
-      .order("baslangic")
-      .returns<RandevuSatir[]>(),
-    supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
-    supabase
-      .from("terapist")
-      .select("id, personel(ad_soyad, pozisyon_id)")
-      .returns<{ id: string; personel: { ad_soyad: string; pozisyon_id: string | null } | null }[]>(),
-    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-    tedaviSecenekleriGetir(supabase),
-    supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
-    supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
-    finansalGorunur
-      ? supabase
-          .from("klinik_banka_hesaplari")
-          .select("id, banka_adi, sube")
-          .order("sort_order")
-          .returns<KlinikBankaHesabi[]>()
-      : Promise.resolve({ data: [] as KlinikBankaHesabi[] }),
-  ]);
-
-  const { data: randevular, error } = randevularSonucu;
-  const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
-  const terapistler: TerapistSecenekSatir[] = (terapistSonucu.data ?? [])
-    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—", pozisyon_id: t.personel?.pozisyon_id ?? null }))
-    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
-  const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
-  const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
-  if (error) {
-    console.error("Bugünkü randevular çekilemedi:", error);
+  let veri = null;
+  try {
+    veri = await withTenant(bag, async (tx) => ({
+      klinikAd: (await tx.select({ ad: sema.klinik.ad }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0]?.ad ?? null,
+      kendiTerapistId: rol === "terapist" ? await kendiTerapistIdGetir(tx, ctx.userId) : null,
+      randevular: await randevuSatirlariGetir(tx, { baslangic, bitis }),
+      odalar: await odaSecenekleriGetir(tx),
+      terapistler: await tumTerapistSecenekleriGetir(tx),
+      cihazlar: await cihazSecenekleriGetir(tx),
+      tedaviler: await tedaviSecenekleriGetir(tx),
+      antrenorler: await antrenorSecenekleriGetir(tx),
+      protokoller: await protokolSecenekleriGetir(tx),
+      bankaHesaplari: finansalGorunur ? await bankaHesaplariGetir(tx) : [],
+    }));
+  } catch (hata) {
+    console.error("Bugünkü randevular çekilemedi:", hata);
   }
+  const error = veri === null;
+  const klinik = { ad: veri?.klinikAd ?? null };
+  const kendiTerapistId = veri?.kendiTerapistId ?? null;
+  const randevular = veri?.randevular ?? [];
+  const odalar = veri?.odalar ?? [];
+  const terapistler = veri?.terapistler ?? [];
+  const cihazlar = veri?.cihazlar ?? [];
+  const tedaviler = veri?.tedaviler ?? [];
+  const antrenorler = veri?.antrenorler ?? [];
+  const protokoller = veri?.protokoller ?? [];
+  const bankaHesaplari = veri?.bankaHesaplari ?? [];
+  const kullanici = { ad_soyad: ctx.adSoyad };
 
-  const bugunkuRandevuSayisi = randevular?.length ?? 0;
+  const bugunkuRandevuSayisi = randevular.length;
 
   // Terapist Durumları — bugünkü randevulardan (zaten sunucuda çekildi, ayrı
   // sorgu gerekmedi) o an "seansta" olan terapistler türetiliyor. CanliCizelge
@@ -115,7 +75,7 @@ export default async function PanelSayfasi() {
   // yansıtır — ayrı bir realtime abonelik açmamak için bilinçli bir basitleştirme.
   const simdi = new Date();
   const terapistDurumu = terapistler.map((t) => {
-    const aktifRandevu = (randevular ?? []).find(
+    const aktifRandevu = randevular.find(
       (r) => r.terapist_id === t.id && gorunumDurumuHesapla(r, simdi) === "seansta"
     );
     return { terapist: t, mesgul: Boolean(aktifRandevu), oda: aktifRandevu?.oda?.ad ?? null };
@@ -130,7 +90,7 @@ export default async function PanelSayfasi() {
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <BugunkuSeanslarKarti randevular={randevular ?? []} />
+          <BugunkuSeanslarKarti randevular={randevular} />
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -139,14 +99,14 @@ export default async function PanelSayfasi() {
               <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
             ) : (
               <CanliCizelge
-                baslangicRandevular={randevular ?? []}
+                baslangicRandevular={randevular}
                 odalar={odalar}
                 terapistler={terapistler}
                 cihazlar={cihazlar}
                 tedaviler={tedaviler}
                 antrenorler={antrenorler}
                 protokoller={protokoller}
-                bankaHesaplari={bankaHesabiSonucu.data ?? []}
+                bankaHesaplari={bankaHesaplari}
                 rol={rol}
                 kendiTerapistId={kendiTerapistId}
               />

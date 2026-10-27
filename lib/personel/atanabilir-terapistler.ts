@@ -1,11 +1,7 @@
+import { eq } from "drizzle-orm";
+import { sema, type Tx } from "@/lib/db";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
-import type { createClient } from "@/lib/supabase/server";
 import type { TerapistSecenekSatir } from "@/types/randevu";
-
-type TerapistSatir = {
-  id: string;
-  personel: { ad_soyad: string; isten_cikis_tarihi: string | null; pozisyon_id: string | null } | null;
-};
 
 /**
  * Randevu/seans oluşturma ekranlarındaki terapist seçim listesi — işten
@@ -17,19 +13,17 @@ type TerapistSatir = {
  * Geçmiş/arşiv randevu içe aktarımında (ayrılmış birinin eski kayıtları
  * meşru olabilir) bu filtre KULLANILMAMALI.
  */
-export async function atanabilirTerapistleriGetir(
-  supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<TerapistSecenekSatir[]> {
-  const { data } = await supabase
-    .from("terapist")
-    .select("id, personel(ad_soyad, isten_cikis_tarihi, pozisyon_id)")
-    .returns<TerapistSatir[]>();
+export async function atanabilirTerapistleriGetir(tx: Tx): Promise<TerapistSecenekSatir[]> {
+  const satirlar = await tx
+    .select({ id: sema.terapist.id, ad: sema.personel.adSoyad, cikis: sema.personel.istenCikisTarihi, pozisyonId: sema.personel.pozisyonId })
+    .from(sema.terapist)
+    .leftJoin(sema.personel, eq(sema.personel.id, sema.terapist.personelId));
 
   const bugun = bugunIstanbulTarihi();
 
-  return (data ?? [])
-    .filter((t) => !t.personel?.isten_cikis_tarihi || t.personel.isten_cikis_tarihi >= bugun)
-    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "—", pozisyon_id: t.personel?.pozisyon_id ?? null }))
+  return satirlar
+    .filter((t) => !t.cikis || t.cikis >= bugun)
+    .map((t) => ({ id: t.id, ad: t.ad ?? "—", pozisyon_id: t.pozisyonId ?? null }))
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
 }
 
@@ -38,20 +32,19 @@ export async function atanabilirTerapistleriGetir(
  * girilip kaydedilirse veya biri eski bir sekmeden eski bir formu gönderirse
  * client'tan gelen terapist_id'yi doğrulamadan güvenmek olmaz. Randevu
  * oluşturan/güncelleyen her server action bunu çağırmalı (bkz. randevular/actions.ts).
+ * Terapist başka kliniğin ya da yoksa RLS satırı göstermez: `true` döner (eski davranış — atanabilirlik YALNIZ çıkış tarihine bakar;
+ * varlık/klinik denetimi randevu INSERT'ünün RLS/FK kontrolünde yapılır).
  */
-export async function terapistAtanabilirMi(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  terapistId: string
-): Promise<boolean> {
-  const { data } = await supabase
-    .from("terapist")
-    .select("personel(isten_cikis_tarihi)")
-    .eq("id", terapistId)
-    .maybeSingle<{ personel: { isten_cikis_tarihi: string | null } | null }>();
-
-  const cikisTarihi = data?.personel?.isten_cikis_tarihi;
+export async function terapistAtanabilirMi(tx: Tx, terapistId: string): Promise<boolean> {
+  const satir = (
+    await tx
+      .select({ cikis: sema.personel.istenCikisTarihi })
+      .from(sema.terapist)
+      .leftJoin(sema.personel, eq(sema.personel.id, sema.terapist.personelId))
+      .where(eq(sema.terapist.id, terapistId))
+      .limit(1)
+  )[0];
+  const cikisTarihi = satir?.cikis;
   if (!cikisTarihi) return true;
-
-  const bugun = bugunIstanbulTarihi();
-  return cikisTarihi >= bugun;
+  return cikisTarihi >= bugunIstanbulTarihi();
 }

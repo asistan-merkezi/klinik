@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cronYetkiliMi } from "@/lib/cron-yetki";
 import { kuyrukSatiriniIsle } from "@/lib/mesaj/kuyruk-isle";
-import { randevuHatirlatmalariniTara } from "@/lib/mesaj/randevu-mesaji";
+import { randevuHatirlatmalariniTara } from "@/lib/mesaj/randevu-hatirlatma-tarama";
 
 export const runtime = "nodejs";
 // Bir batch'te 25 satır, her biri bir ağ çağrısı (adapter) + birkaç DB

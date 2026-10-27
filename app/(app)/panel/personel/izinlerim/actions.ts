@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { anlikMesajTetikle, klinikAdminleriniGetir } from "@/lib/mesaj/anlik-tetikle";
+import { anlikMesajTetikleAdmin as anlikMesajTetikle, klinikAdminleriniGetir } from "@/lib/mesaj/anlik-tetikle";
 import { IZIN_TIP_ETIKETLERI, type IzinTip } from "@/types/izin";
 import { formatDate } from "@/lib/datetime";
 

@@ -1,6 +1,6 @@
 {
  "uretim": "scripts/dev/kullanim-tara.mjs",
- "kayitSayisi": 597,
+ "kayitSayisi": 598,
  "kayitlar": [
   {
    "dosya": "app/(app)/anket/seans/[randevuId]/actions.ts",
@@ -4887,7 +4887,7 @@
   },
   {
    "dosya": "app/(app)/panel/tablet/[odaId]/tablet-ekrani.tsx",
-   "satir": 75,
+   "satir": 69,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -6088,7 +6088,7 @@
   },
   {
    "dosya": "components/panel/canli-cizelge.tsx",
-   "satir": 119,
+   "satir": 117,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -6097,7 +6097,7 @@
   },
   {
    "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 70,
+   "satir": 69,
    "tablo": "personel",
    "islemler": [
     "SELECT"
@@ -6106,7 +6106,7 @@
   },
   {
    "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 76,
+   "satir": 75,
    "tablo": "terapist",
    "islemler": [
     "SELECT"
@@ -6115,7 +6115,7 @@
   },
   {
    "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 89,
+   "satir": 88,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -6124,7 +6124,7 @@
   },
   {
    "dosya": "components/panel/randevu-bildirimleri.tsx",
-   "satir": 100,
+   "satir": 99,
    "tablo": "randevu",
    "islemler": [
     "SELECT"
@@ -6155,6 +6155,15 @@
      "ipucu": []
     }
    ]
+  },
+  {
+   "dosya": "components/panel/randevu-bildirimleri.tsx",
+   "satir": 140,
+   "tablo": "randevu",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
   },
   {
    "dosya": "components/panel/randevu-detay-paneli.tsx",
@@ -6484,6 +6493,9 @@
   ],
   "audit_log_bolum_olustur": [
    "app/api/cron/audit-log-bolum-olustur/route.ts:22"
+  ],
+  "ad": [
+   "lib/db/rpc.ts:2"
   ],
   "hasta_ara": [
    "lib/hasta/arama.ts:40"

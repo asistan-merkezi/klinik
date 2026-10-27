@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DURUM_TONU_SINIFLARI } from "@/lib/ui/durum-tonlari";
 import { paketYenilemeGerekliMi } from "@/lib/paket/yenileme-esigi";
 import { formatDateForInput, formatDateTime, formatTimeForInput } from "@/lib/datetime";
-import { createClient } from "@/lib/supabase/client";
+import { hastaGuncelBakiyeGetir, tedaviAdimlariGetir } from "@/app/(app)/panel/randevular/veri-actions";
 import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { KlinikBankaHesabi } from "@/types/klinik";
 import { randevuGuncelle, randevuIptalGeriAl, randevuSeansBedeliniCariyeEkle } from "@/app/(app)/panel/randevular/actions";
@@ -60,8 +60,7 @@ function OdemeVeyaCariKarti({
    * Cariye Ekle/Ödeme Ekle başarıyla tamamlanınca çağrılır — Randevu
    * Çizelgesi'nin (CanliCizelge) elindeki randevu listesini ve o an açık
    * seçili randevuyu, sayfa yenilenmeden ("hasta_bakiye_hareket" değişikliği
-   * realtime'da izlenmediği için, bkz. lib/randevu/queries.ts RANDEVU_SELECT
-   * notu) optimistik olarak günceller — aksi halde dialog kapanıp yeniden
+   * realtime'da izlenmediği için, bkz. lib/randevu/sorgular.ts) optimistik olarak günceller — aksi halde dialog kapanıp yeniden
    * açıldığında ya da kutu renginde işlem "yapılmamış" gibi görünür.
    */
   onSeansBedeliIslendi?: (randevuId: string) => void;
@@ -76,14 +75,7 @@ function OdemeVeyaCariKarti({
   // Kart açılınca tek satır; önceden toplu çekilmez.
   const { data: bakiyeVerisi } = useQuery({
     queryKey: ["hasta-guncel-bakiye", hastaId],
-    queryFn: async () => {
-      const { data } = await createClient()
-        .from("v_hasta_ozet")
-        .select("bakiye")
-        .eq("hasta_id", hastaId)
-        .maybeSingle<{ bakiye: number }>();
-      return data?.bakiye ?? 0;
-    },
+    queryFn: () => hastaGuncelBakiyeGetir(hastaId),
     staleTime: 0,
     gcTime: 0,
   });
@@ -141,23 +133,12 @@ function OdemeVeyaCariKarti({
   );
 }
 
-type TedaviAdimi = { id: string; ad: string; sure_dakika: number | null; cihaz: { ad: string } | null };
-
 /** Randevudaki tedavinin yapılacak işlem adımları (sırayla) — salt-okunur. */
 function TedaviAdimlari({ islemTanimiId }: { islemTanimiId: string }) {
   const { data: adimlar, isLoading } = useQuery({
     queryKey: ["randevu-tedavi-adimlari", islemTanimiId],
     enabled: !!islemTanimiId,
-    queryFn: async () => {
-      const { data, error } = await createClient()
-        .from("islem_tanimi_adim")
-        .select("id, ad, sure_dakika, cihaz:gerekli_cihaz_id(ad)")
-        .eq("islem_tanimi_id", islemTanimiId)
-        .order("sira", { ascending: true })
-        .returns<TedaviAdimi[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => tedaviAdimlariGetir(islemTanimiId),
   });
 
   return (

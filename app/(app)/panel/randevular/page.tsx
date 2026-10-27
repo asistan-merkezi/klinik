@@ -1,99 +1,63 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { RandevuSatir, SecenekSatir } from "@/types/randevu";
-import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
-import type { KlinikBankaHesabi } from "@/types/klinik";
 import { gunAraligi } from "@/lib/utils";
 import { CanliCizelge } from "@/components/panel/canli-cizelge";
 import { YeniRandevuDialog } from "./yeni-randevu-dialog";
 import { BekleyenIptalTalepleri } from "./bekleyen-iptal-talepleri";
 import { BekleyenRandevuTalepleri } from "./bekleyen-randevu-talepleri";
-import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
+import { withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { atanabilirTerapistleriGetir } from "@/lib/personel/atanabilir-terapistler";
 import { tedaviSecenekleriGetir } from "@/lib/randevu/tedavi-secenekleri";
-import { RANDEVU_SELECT } from "@/lib/randevu/queries";
+import {
+  antrenorSecenekleriGetir,
+  bankaHesaplariGetir,
+  bekleyenIptalTalepleriGetir,
+  bekleyenRandevuTalepleriGetir,
+  cihazSecenekleriGetir,
+  kendiTerapistIdGetir,
+  odaSecenekleriGetir,
+  protokolSecenekleriGetir,
+  randevuSatirlariGetir,
+} from "@/lib/randevu/sorgular";
 
 export default async function RandevularSayfasi() {
-  const supabase = await createClient();
-
-  const oturum = await gecerliKullanici();
-  if (!oturum) {
-    redirect("/giris");
-  }
-  const { authUser: user, kullanici } = oturum;
-  const rol = kullanici?.rol ?? null;
-
-  let kendiTerapistId: string | null = null;
-  if (rol === "terapist") {
-    const { data: personel } = await supabase
-      .from("personel")
-      .select("id")
-      .eq("kullanici_id", user.id)
-      .maybeSingle();
-    if (personel) {
-      const { data: terapist } = await supabase
-        .from("terapist")
-        .select("id")
-        .eq("personel_id", personel.id)
-        .maybeSingle();
-      kendiTerapistId = terapist?.id ?? null;
-    }
-  }
-
+  const { ctx, bag } = await panelBaglami();
+  const rol = ctx.rol;
   const { baslangic, bitis } = gunAraligi();
 
-  const [
-    randevularSonucu,
-    terapistler,
-    odaSonucu,
-    cihazSonucu,
-    tedaviler,
-    personelSonucu,
-    protokolSonucu,
-    iptalTalepleriSonucu,
-    randevuTalepleriSonucu,
-    bankaHesabiSonucu,
-  ] = await Promise.all([
-      supabase
-        .from("randevu")
-        .select(RANDEVU_SELECT)
-        .gte("baslangic", baslangic)
-        .lt("baslangic", bitis)
-        .order("baslangic")
-        .returns<RandevuSatir[]>(),
-      atanabilirTerapistleriGetir(supabase),
-      supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
-      supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-      tedaviSecenekleriGetir(supabase),
-      supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad"),
-      supabase.from("tedavi_protokolu").select("id, ad").eq("aktif", true).order("ad"),
-      supabase
-        .from("randevu_iptal_talebi")
-        .select("id, durum, created_at, aciklama, gec_iptal, randevu(id, baslangic, durum, hasta(ad_soyad))")
-        .eq("durum", "bekliyor")
-        .order("created_at")
-        .returns<BekleyenIptalTalebiSatir[]>(),
-      supabase
-        .from("randevu_talebi")
-        .select("id, hasta_id, islem_tanimi_id, tercih_tarih, tercih_saat, not_metni, created_at, hasta(ad_soyad), islem_tanimi(ad)")
-        .eq("durum", "bekliyor")
-        .order("created_at")
-        .returns<BekleyenRandevuTalebiSatir[]>(),
-      supabase
-        .from("klinik_banka_hesaplari")
-        .select("id, banka_adi, sube")
-        .order("sort_order")
-        .returns<KlinikBankaHesabi[]>(),
-    ]);
-
-  const randevular = randevularSonucu.data ?? [];
-  const bekleyenIptalTalepleri = iptalTalepleriSonucu.data ?? [];
-  const bekleyenRandevuTalepleri = randevuTalepleriSonucu.data ?? [];
-  const odalar: SecenekSatir[] = (odaSonucu.data ?? []).map((o) => ({ id: o.id, ad: o.ad }));
-  const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const antrenorler: SecenekSatir[] = (personelSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad_soyad }));
-  const protokoller: SecenekSatir[] = (protokolSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
+  let veri;
+  try {
+    veri = await withTenant(bag, async (tx) => ({
+      kendiTerapistId: rol === "terapist" ? await kendiTerapistIdGetir(tx, ctx.userId) : null,
+      randevular: await randevuSatirlariGetir(tx, { baslangic, bitis }),
+      terapistler: await atanabilirTerapistleriGetir(tx),
+      odalar: await odaSecenekleriGetir(tx),
+      cihazlar: await cihazSecenekleriGetir(tx),
+      tedaviler: await tedaviSecenekleriGetir(tx),
+      antrenorler: await antrenorSecenekleriGetir(tx),
+      protokoller: await protokolSecenekleriGetir(tx),
+      bekleyenIptalTalepleri: await bekleyenIptalTalepleriGetir(tx),
+      bekleyenRandevuTalepleri: await bekleyenRandevuTalepleriGetir(tx),
+      bankaHesaplari: await bankaHesaplariGetir(tx),
+    }));
+  } catch (hata) {
+    console.error("Randevular sayfası verisi çekilemedi:", hata);
+    veri = null;
+  }
+  const { kendiTerapistId, randevular, terapistler, odalar, cihazlar, tedaviler, antrenorler, protokoller, bekleyenIptalTalepleri, bekleyenRandevuTalepleri, bankaHesaplari } =
+    veri ?? {
+      kendiTerapistId: null,
+      randevular: [],
+      terapistler: [],
+      odalar: [],
+      cihazlar: [],
+      tedaviler: [],
+      antrenorler: [],
+      protokoller: [],
+      bekleyenIptalTalepleri: [],
+      bekleyenRandevuTalepleri: [],
+      bankaHesaplari: [],
+    };
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -143,7 +107,7 @@ export default async function RandevularSayfasi() {
           </Card>
         )}
 
-        {randevularSonucu.error ? (
+        {!veri ? (
           <p className="text-sm text-destructive">Bir hata oluştu, lütfen tekrar deneyin.</p>
         ) : (
           <CanliCizelge
@@ -154,7 +118,7 @@ export default async function RandevularSayfasi() {
             tedaviler={tedaviler}
             antrenorler={antrenorler}
             protokoller={protokoller}
-            bankaHesaplari={bankaHesabiSonucu.data ?? []}
+            bankaHesaplari={bankaHesaplari}
             tarihNavigasyonuGoster
             rol={rol}
             kendiTerapistId={kendiTerapistId}

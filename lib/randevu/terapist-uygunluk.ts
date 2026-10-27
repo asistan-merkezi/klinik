@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { rpc, type Tx } from "@/lib/db";
 
 /**
  * Randevu yazılırken terapistin O GÜN çalışabilir olup olmadığı:
@@ -37,60 +37,23 @@ export function aralikGunleri(bas: string, bit: string, sinirBas: string, sinirB
 }
 
 /**
- * `supabase` kullanıcının RLS'li client'ı: terapist kliniğin değilse null döner.
- * İzin/puantaj kayıtları rol bazlı RLS'e (resepsiyon/terapist göremeyebilir) takılıp kontrolü
- * sessizce geçmesin diye `admin` (servis rolü) ile, yalnız RLS'ten geçmiş personel_id için okunur.
+ * Terapist kliniğin değilse / bulunamazsa null döner. İzin/puantaj kayıtları rol bazlı RLS'e takılabileceğinden (resepsiyon/terapist başka
+ * personelin izin kaydını göremez) okuma DAR bir DEFINER fonksiyondan yapılır (`terapist_uygunluk_getir`, migration 0009): yalnız tarih bilgisi
+ * döner (izin türü/gerekçe/belge ve "izinli mi raporlu mu" ayrımı dışarı çıkmaz), çağıranın tenant'ı ve rolü fonksiyon içinde doğrulanır.
  */
-export async function terapistUygunlukGetir(
-  supabase: SupabaseClient,
-  admin: SupabaseClient,
-  terapistId: string,
-  basTarih: string,
-  bitTarih: string
-): Promise<TerapistUygunluk | null> {
-  const { data: terapist } = await supabase
-    .from("terapist")
-    .select("personel_id, personel(isten_cikis_tarihi)")
-    .eq("id", terapistId)
-    .maybeSingle<{ personel_id: string; personel: { isten_cikis_tarihi: string | null } | null }>();
-  if (!terapist) return null;
-
-  const [izinSonucu, puantajSonucu] = await Promise.all([
-    admin
-      .from("personel_izin_talebi")
-      .select("baslangic_tarih, bitis_tarih")
-      .eq("personel_id", terapist.personel_id)
-      .eq("durum", "onaylandi")
-      .lte("baslangic_tarih", bitTarih)
-      .gte("bitis_tarih", basTarih),
-    admin
-      .from("personel_puantaj")
-      .select("tarih")
-      .eq("personel_id", terapist.personel_id)
-      .in("durum", ["izinli", "raporlu"])
-      .gte("tarih", basTarih)
-      .lte("tarih", bitTarih),
-  ]);
-  if (izinSonucu.error) throw new Error(izinSonucu.error.message);
-  if (puantajSonucu.error) throw new Error(puantajSonucu.error.message);
-
-  const izinliGunler = new Set<string>();
-  for (const i of izinSonucu.data ?? []) {
-    for (const g of aralikGunleri(i.baslangic_tarih, i.bitis_tarih, basTarih, bitTarih)) izinliGunler.add(g);
-  }
-  for (const p of puantajSonucu.data ?? []) izinliGunler.add(p.tarih as string);
-
-  return { cikisTarihi: terapist.personel?.isten_cikis_tarihi ?? null, izinliGunler };
+export async function terapistUygunlukGetir(tx: Tx, terapistId: string, basTarih: string, bitTarih: string): Promise<TerapistUygunluk | null> {
+  const satir = (await rpc<{ terapist_uygunluk_getir: { cikis_tarihi: string | null; izinli_gunler: string[] } | null }>(tx, "terapist_uygunluk_getir", {
+    p_terapist_id: terapistId,
+    p_bas: basTarih,
+    p_bit: bitTarih,
+  }))[0]?.terapist_uygunluk_getir;
+  if (!satir) return null;
+  return { cikisTarihi: satir.cikis_tarihi ?? null, izinliGunler: new Set(satir.izinli_gunler ?? []) };
 }
 
 /** Tek gün için kısayol: engel mesajı ya da null. Terapist bulunamazsa da mesaj döner. */
-export async function terapistTarihteAtanabilirMi(
-  supabase: SupabaseClient,
-  admin: SupabaseClient,
-  terapistId: string,
-  tarih: string
-): Promise<string | null> {
-  const u = await terapistUygunlukGetir(supabase, admin, terapistId, tarih, tarih);
+export async function terapistTarihteAtanabilirMi(tx: Tx, terapistId: string, tarih: string): Promise<string | null> {
+  const u = await terapistUygunlukGetir(tx, terapistId, tarih, tarih);
   if (!u) return "Terapist bulunamadı.";
   return terapistGunEngeli(u, tarih);
 }

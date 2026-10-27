@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
+import { anlikMesajTetikleAdmin as anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
 import { IZIN_DURUM_ETIKETLERI, type IzinDurum } from "@/types/izin";
 
 type SonucDurumu = { success: boolean; message: string } | null;
