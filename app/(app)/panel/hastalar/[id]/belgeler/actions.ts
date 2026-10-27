@@ -1,45 +1,33 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { and, eq, isNull } from "drizzle-orm";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi } from "@/lib/auth/yetki";
+import { belgeKaliciSil as belgeKaliciSilServis, BELGE_OKUMA_ROLLERI, BELGE_SILME_ROLLERI } from "@/lib/belge/servis";
+
+// Dosyalar web kökü dışındadır; indirme/görüntüleme/küçük resim bağlantıları YETKİLİ route'a (/api/hasta-belge/[id]) işaret eder ve her istekte
+// oturum + rol + tenant yeniden doğrulanır (imzalı/süreli URL yok). Erişim izi (audit_log) route'ta, gerçek açma anında yazılır.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function yetkiliBaglamGetir(hastaId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { supabase, yetkisiz: true as const };
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  if (!kullanici || !["klinik_admin", "resepsiyon", "terapist"].includes(kullanici.rol)) {
-    return { supabase, yetkisiz: true as const };
-  }
-
-  const { data: hasta } = await supabase.from("hasta").select("id, klinik_id").eq("id", hastaId).single();
-  if (!hasta) {
-    return { supabase, yetkisiz: true as const };
-  }
-
-  return { supabase, userId: user.id, rol: kullanici.rol as string, hasta, yetkisiz: false as const };
+  const y = await eylemYetkisi(BELGE_OKUMA_ROLLERI);
+  if (!y.yetkili || !y.bag || !UUID.test(hastaId)) return { yetkisiz: true as const };
+  // RLS: hasta çağıranın kliniğinde görünüyorsa var.
+  const hasta = (await withTenant(y.bag, (tx) => tx.select({ id: sema.hasta.id }).from(sema.hasta).where(eq(sema.hasta.id, hastaId)).limit(1)))[0];
+  if (!hasta) return { yetkisiz: true as const };
+  return { bag: y.bag, userId: y.ctx.userId, rol: y.ctx.rol as string, klinikId: y.klinikId!, yetkisiz: false as const };
 }
 
 export async function klinikFotoOnamKaydet(hastaId: string): Promise<{ success: true } | { error: string }> {
   const ctx = await yetkiliBaglamGetir(hastaId);
   if (ctx.yetkisiz) return { error: "Bu işlem için yetkiniz yok." };
 
-  const { error } = await ctx.supabase.from("hasta_onam").insert({
-    hasta_id: hastaId,
-    onam_tipi: "klinik_foto",
-    imzalayan: "hasta",
-    imza_storage_path: null,
-    olusturan_kullanici_id: ctx.userId,
-  });
-
-  if (error) {
-    console.error("Klinik foto onamı kaydedilemedi:", error);
+  try {
+    await withTenant(ctx.bag, (tx) =>
+      tx.insert(sema.hastaOnam).values({ klinikId: ctx.klinikId, hastaId, onamTipi: "klinik_foto", imzalayan: "hasta", imzaStoragePath: null, olusturanKullaniciId: ctx.userId })
+    );
+  } catch (e) {
+    console.error("Klinik foto onamı kaydedilemedi:", pgHata(e).mesaj);
     return { error: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
   return { success: true };
@@ -47,17 +35,22 @@ export async function klinikFotoOnamKaydet(hastaId: string): Promise<{ success: 
 
 export async function belgeSil(belgeId: string, hastaId: string): Promise<{ success: true } | { error: string }> {
   const ctx = await yetkiliBaglamGetir(hastaId);
-  if (ctx.yetkisiz || ctx.rol === "terapist") {
+  if (ctx.yetkisiz || !(BELGE_SILME_ROLLERI as readonly string[]).includes(ctx.rol) || !UUID.test(belgeId)) {
     return { error: "Bu işlem için yetkiniz yok." };
   }
 
-  const { error } = await ctx.supabase
-    .from("hasta_belge")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", belgeId);
-
-  if (error) {
-    console.error("Belge silinemedi:", error);
+  try {
+    // Belge gerçekten BU hastanın mı (istemci hastaId'si ile belgeId'nin eşleşmesi doğrulanır) ve zaten silinmemiş mi.
+    const guncellenen = await withTenant(ctx.bag, (tx) =>
+      tx
+        .update(sema.hastaBelge)
+        .set({ deletedAt: new Date().toISOString() })
+        .where(and(eq(sema.hastaBelge.id, belgeId), eq(sema.hastaBelge.hastaId, hastaId), isNull(sema.hastaBelge.deletedAt)))
+        .returning({ id: sema.hastaBelge.id })
+    );
+    if (guncellenen.length === 0) return { error: "Belge bulunamadı." };
+  } catch (e) {
+    console.error("Belge silinemedi:", pgHata(e).mesaj);
     return { error: "Silinemedi, lütfen tekrar deneyin." };
   }
   return { success: true };
@@ -65,76 +58,41 @@ export async function belgeSil(belgeId: string, hastaId: string): Promise<{ succ
 
 export async function belgeKaliciSil(belgeId: string, hastaId: string): Promise<{ success: true } | { error: string }> {
   const ctx = await yetkiliBaglamGetir(hastaId);
-  if (ctx.yetkisiz || ctx.rol !== "klinik_admin") {
+  if (ctx.yetkisiz || ctx.rol !== "klinik_admin" || !UUID.test(belgeId)) {
     return { error: "Bu işlem için yetkiniz yok." };
   }
-
-  const { error } = await ctx.supabase.from("hasta_belge").delete().eq("id", belgeId);
-
-  if (error) {
-    console.error("Belge kalıcı silinemedi:", error);
+  try {
+    const tamam = await belgeKaliciSilServis({ bag: ctx.bag, rol: ctx.rol, belgeId });
+    if (!tamam) return { error: "Belge bulunamadı." };
+  } catch (e) {
+    console.error("Belge kalıcı silinemedi:", pgHata(e).mesaj);
     return { error: "Silinemedi, lütfen tekrar deneyin." };
   }
   return { success: true };
 }
 
+/** Liste/galeri küçük resmi: erişim izi yazılmaz (rutin yükleme). Küçük resmi olmayan belgede url null. */
 export async function belgeThumbnailUrlAl(belgeId: string): Promise<{ url: string | null } | { error: string }> {
-  // Liste/galeri görünümündeki rutin thumbnail yüklemeleri audit_log'a
-  // yazılmaz (hasta_belge_goruntule RPC'si SADECE gerçek "aç/görüntüle"
-  // anı için kullanılır) — burada düz RLS'li SELECT + Signed URL yeterli.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const y = await eylemYetkisi(BELGE_OKUMA_ROLLERI);
+  if (!y.yetkili || !y.bag || !UUID.test(belgeId)) return { error: "Oturum bulunamadı." };
 
-  if (!user) return { error: "Oturum bulunamadı." };
-
-  const { data: belge, error } = await supabase
-    .from("hasta_belge")
-    .select("storage_path, thumbnail_path")
-    .eq("id", belgeId)
-    .single<{ storage_path: string; thumbnail_path: string | null }>();
-
-  if (error || !belge) return { error: "Belge bulunamadı." };
-  if (!belge.thumbnail_path) return { url: null };
-
-  const { data: signed, error: signError } = await supabase.storage
-    .from("hasta-belge")
-    .createSignedUrl(belge.thumbnail_path, 300);
-
-  if (signError || !signed) return { error: "Önizleme oluşturulamadı." };
-  return { url: signed.signedUrl };
+  const belge = (await withTenant(y.bag, (tx) => tx.select({ thumbnailPath: sema.hastaBelge.thumbnailPath }).from(sema.hastaBelge).where(eq(sema.hastaBelge.id, belgeId)).limit(1)))[0];
+  if (!belge) return { error: "Belge bulunamadı." };
+  if (!belge.thumbnailPath) return { url: null };
+  return { url: `/api/hasta-belge/${belgeId}?islem=kucuk` };
 }
 
+/** Gerçek "indir" eylemi: bağlantı açıldığında route hem 'select' hem 'indirme' izini yazar. */
 export async function belgeIndir(belgeId: string): Promise<{ url: string; klinikAdi: string } | { error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const y = await eylemYetkisi(BELGE_OKUMA_ROLLERI);
+  if (!y.yetkili || !y.bag || !UUID.test(belgeId)) return { error: "Oturum bulunamadı." };
+  const bag = y.bag;
 
-  if (!user) return { error: "Oturum bulunamadı." };
-
-  const { data: belge, error: rpcError } = await supabase
-    .rpc("hasta_belge_goruntule", { p_id: belgeId })
-    .single<{ id: string; klinik_id: string; storage_path: string }>();
-
-  if (rpcError || !belge) return { error: "Belge bulunamadı veya erişim yetkiniz yok." };
-
-  // İndirme, görüntülemeden ayrı ve daha hassas bir eylem — kendi audit satırı.
-  await supabase.from("audit_log").insert({
-    klinik_id: belge.klinik_id,
-    kullanici_id: user.id,
-    eylem: "indirme",
-    hedef_tablo: "hasta_belge",
-    hedef_id: belge.id,
+  const bilgi = await withTenant(bag, async (tx) => {
+    const b = (await tx.select({ id: sema.hastaBelge.id }).from(sema.hastaBelge).where(eq(sema.hastaBelge.id, belgeId)).limit(1))[0];
+    if (!b) return null;
+    return (await tx.select({ ad: sema.klinik.ad }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0] ?? { ad: "" };
   });
-
-  const [{ data: signed, error: signError }, { data: klinik }] = await Promise.all([
-    supabase.storage.from("hasta-belge").createSignedUrl(belge.storage_path, 300),
-    supabase.from("klinik").select("ad").eq("id", belge.klinik_id).single(),
-  ]);
-
-  if (signError || !signed) return { error: "İndirme bağlantısı oluşturulamadı." };
-
-  return { url: signed.signedUrl, klinikAdi: klinik?.ad ?? "" };
+  if (!bilgi) return { error: "Belge bulunamadı veya erişim yetkiniz yok." };
+  return { url: `/api/hasta-belge/${belgeId}?islem=indir`, klinikAdi: bilgi.ad };
 }

@@ -1,18 +1,10 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import sharp from "sharp";
-import { createClient } from "@/lib/supabase/server";
-import { MAX_DOSYA_BOYUTU_BYTE, type BelgeAsama, type BelgeKategori, type BelgeTuru } from "@/types/hasta-belge";
+import { getSessionContext, tenantGerekli } from "@/lib/auth/oturum";
+import { belgeYukle } from "@/lib/belge/servis";
+import type { BelgeAsama, BelgeKategori, BelgeTuru } from "@/types/hasta-belge";
 
 // sharp native binary gerektirdiği için Node runtime zorunlu (Edge'de çalışmaz).
 export const runtime = "nodejs";
-
-const UZANTI_BY_MIME: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "application/pdf": "pdf",
-};
 
 function bosIseNull(deger: FormDataEntryValue | null): string | null {
   if (deger == null) return null;
@@ -20,24 +12,15 @@ function bosIseNull(deger: FormDataEntryValue | null): string | null {
   return s === "" ? null : s;
 }
 
-// Tek POST'ta: yetki kontrolü + Storage'a yükleme + hasta_belge satırı +
-// thumbnail üretimi. Öncesinde bu 3 adım (belgeYuklemeBaslat signed-URL +
-// client'tan doğrudan Storage'a yükleme + belgeKaydet) ayrı ayrı, üç round-
-// trip'te yapılıyordu; thumbnail için de dosya Storage'dan tekrar indirilip
-// okunuyordu. Burada dosya zaten bellekte olduğu için o indirme adımı da
-// kalktı.
+const KATEGORILER: readonly string[] = ["radyoloji", "klinik_foto", "dokuman"];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Tek POST'ta: yetki kontrolü + diske yükleme (içerik imzası doğrulanır) + hasta_belge satırı + thumbnail üretimi.
+// Tenant YALNIZ oturumdan gelir; dosya yolu sunucuda üretilir (istemci yol veremez).
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 401 });
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-  if (!kullanici || !["klinik_admin", "resepsiyon", "terapist"].includes(kullanici.rol)) {
+  const ctx = await getSessionContext(req.headers);
+  if (!ctx) return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 401 });
+  if (ctx.tur !== "personel" || !ctx.tenantId || ctx.sifreDegistirmeli) {
     return NextResponse.json({ error: "Bu işlem için yetkiniz yok." }, { status: 403 });
   }
 
@@ -51,90 +34,33 @@ export async function POST(req: Request) {
   if (!(file instanceof File) || typeof hastaId !== "string" || !kategori || !belgeTuru || typeof cekimTarihi !== "string") {
     return NextResponse.json({ error: "Eksik veri." }, { status: 400 });
   }
-  if (file.size > MAX_DOSYA_BOYUTU_BYTE) {
-    return NextResponse.json({ error: "Dosya boyutu çok büyük." }, { status: 400 });
+  if (!UUID.test(hastaId) || !KATEGORILER.includes(kategori) || !/^\d{4}-\d{2}-\d{2}$/.test(cekimTarihi)) {
+    return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
   }
-  // İstemci görselleri WebP'ye çevirir; sunucu yine de türü zorlar ve uzantıyı
-  // dosya adından değil türden türetir (adı "x.html" olan bir dosya yüklenmesin).
-  const uzanti = UZANTI_BY_MIME[file.type];
-  if (!uzanti) {
-    return NextResponse.json({ error: "Desteklenmeyen dosya türü." }, { status: 400 });
-  }
-
-  // RLS klinik_id = current_klinik_id() ile sınırlar; satır dönerse kendi kliniğindendir.
-  const { data: hasta } = await supabase.from("hasta").select("id, klinik_id").eq("id", hastaId).single();
-  if (!hasta) {
-    return NextResponse.json({ error: "Hasta bulunamadı." }, { status: 404 });
-  }
-
-  const bolge = bosIseNull(formData.get("bolge"));
-  const karsilastirmaGrubuId = bosIseNull(formData.get("karsilastirmaGrubuId"));
-  const asama = bosIseNull(formData.get("asama")) as BelgeAsama | null;
   const onamId = bosIseNull(formData.get("onamId"));
-  const not = bosIseNull(formData.get("not"));
-  const cekenKurum = bosIseNull(formData.get("cekenKurum"));
-
-  const belgeId = randomUUID();
-  const path = `${hasta.klinik_id}/${hastaId}/${kategori}/${belgeId}.${uzanti}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  const { error: yuklemeHatasi } = await supabase.storage
-    .from("hasta-belge")
-    .upload(path, buffer, { contentType: file.type });
-
-  if (yuklemeHatasi) {
-    console.error("Belge yüklenemedi:", yuklemeHatasi);
-    return NextResponse.json({ error: "Yükleme başarısız, lütfen tekrar deneyin." }, { status: 500 });
+  const karsilastirmaGrubuId = bosIseNull(formData.get("karsilastirmaGrubuId"));
+  if ((onamId && !UUID.test(onamId)) || (karsilastirmaGrubuId && !UUID.test(karsilastirmaGrubuId))) {
+    return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
   }
 
-  const metadata: Record<string, unknown> = {};
-  if (not) metadata.not = not;
-  if (cekenKurum) metadata.ceken_kurum = cekenKurum;
-
-  const { data: belge, error: kayitHatasi } = await supabase
-    .from("hasta_belge")
-    .insert({
-      id: belgeId,
-      hasta_id: hastaId,
-      kategori,
-      belge_turu: belgeTuru,
-      bolge,
-      cekim_tarihi: cekimTarihi,
-      karsilastirma_grubu_id: karsilastirmaGrubuId,
-      asama,
-      onam_id: onamId,
-      storage_path: path,
-      dosya_mime: file.type,
-      dosya_boyut_byte: file.size,
-      yukleyen_kullanici_id: user.id,
-      metadata,
-    })
-    .select("id")
-    .single();
-
-  if (kayitHatasi || !belge) {
-    console.error("Belge kaydedilemedi:", kayitHatasi);
-    // Satırı olmayan dosya Storage'da sahipsiz kalmasın.
-    await supabase.storage.from("hasta-belge").remove([path]);
-    return NextResponse.json({ error: "Belge kaydedilemedi, lütfen tekrar deneyin." }, { status: 500 });
-  }
-
-  // Thumbnail sadece görseller için üretilir — PDF rasterize etmek sharp'ın
-  // kapsamı dışında, PDF'ler görüntülemede generic ikonla gösterilir.
-  if (file.type !== "application/pdf") {
-    try {
-      const kucukResim = await sharp(buffer).rotate().resize(300, 300, { fit: "inside" }).jpeg({ quality: 80 }).toBuffer();
-      const thumbPath = path.replace(/(\.[^./]+)$/, "_thumb.jpg");
-      const { error: thumbHatasi } = await supabase.storage
-        .from("hasta-belge")
-        .upload(thumbPath, kucukResim, { contentType: "image/jpeg", upsert: true });
-      if (!thumbHatasi) {
-        await supabase.from("hasta_belge").update({ thumbnail_path: thumbPath }).eq("id", belge.id);
-      }
-    } catch (e) {
-      console.error("Thumbnail üretilemedi (belge yine de kaydedildi):", e);
-    }
-  }
-
-  return NextResponse.json({ id: belge.id });
+  const sonuc = await belgeYukle({
+    bag: tenantGerekli(ctx),
+    rol: ctx.rol,
+    girdi: {
+      hastaId,
+      kategori: kategori as "radyoloji" | "klinik_foto" | "dokuman",
+      belgeTuru,
+      cekimTarihi,
+      bolge: bosIseNull(formData.get("bolge")),
+      karsilastirmaGrubuId,
+      asama: bosIseNull(formData.get("asama")) as BelgeAsama | null,
+      onamId,
+      not: bosIseNull(formData.get("not")),
+      cekenKurum: bosIseNull(formData.get("cekenKurum")),
+      mime: file.type,
+      veri: Buffer.from(await file.arrayBuffer()),
+    },
+  });
+  if (sonuc.tur === "hata") return NextResponse.json({ error: sonuc.mesaj }, { status: sonuc.durum });
+  return NextResponse.json({ id: sonuc.id });
 }

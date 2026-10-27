@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft, TriangleAlert, Droplet } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { Button } from "@/components/ui/button";
 import { KayitFormuPdfButonu } from "@/components/panel/kayit-formu-pdf-butonu";
 import { ONAY_ACIKLAMALARI } from "@/lib/onay-metinleri";
@@ -100,30 +101,12 @@ function EvetHayirSatiri({
 }
 
 export default async function KayitFormuSayfasi() {
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("ad, logo_url")
-    .eq("id", kullanici?.klinik_id ?? "")
-    .maybeSingle();
+  const klinik = (await withTenant(bag, (tx) => tx.select({ ad: sema.klinik.ad, logoUrl: sema.klinik.logoUrl }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1)))[0];
 
   const klinikAdi = klinik?.ad ?? "Klinik";
-  const logoUrl = klinik?.logo_url ?? null;
+  const logoUrl = klinik?.logoUrl ?? null;
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

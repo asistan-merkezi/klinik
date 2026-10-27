@@ -10,6 +10,20 @@ import { fileURLToPath } from "node:url";
 
 const KOK = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
+const EL_ILE_EKLENEN = `
+/** EL İLE EKLENDİ (scripts/dev/sema-duzelt.mjs): drizzle-kit bölümlü (PARTITION BY RANGE) ana tabloyu üretmiyor. Yazma/okuma ana tablo üzerinden yapılır. */
+export const auditLog = pgTable("audit_log", {
+	id: uuid().defaultRandom().notNull(),
+	klinikId: uuid("klinik_id"),
+	kullaniciId: uuid("kullanici_id"),
+	eylem: text().notNull(),
+	hedefTablo: text("hedef_tablo"),
+	hedefId: uuid("hedef_id"),
+	detay: jsonb(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+})
+`;
+
 export function semaDuzelt(metin) {
   let s = metin.replace(/\r\n/g, "\n").split(".default(')").join('.default("")');
   // foreignKey({ ... }) ve ardındaki .onDelete()/.onUpdate() zinciri
@@ -20,6 +34,7 @@ export function semaDuzelt(metin) {
     s = s.split("unknown(").join("tstzrange(");
     s = s.replace('import { sql } from "drizzle-orm"', 'import { sql } from "drizzle-orm"\nimport { customType } from "drizzle-orm/pg-core"\n\n/** drizzle-kit tanımadığı türü unknown yazar; veritabanındaki tür tstzrange (randevu.zaman_araligi, üretilmiş kolon). */\nconst tstzrange = customType<{ data: string }>({ dataType: () => "tstzrange" })');
   }
+  if (!s.includes("export const auditLog =")) s += EL_ILE_EKLENEN;
   return s;
 }
 

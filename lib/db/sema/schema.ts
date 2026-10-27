@@ -1987,3 +1987,14 @@ export const vPersonelIzinBakiye = pgView("v_personel_izin_bakiye", {	personelId
 	beklemedeGun: numeric("beklemede_gun"),
 	kalanGun: numeric("kalan_gun"),
 }).with({"securityInvoker":true}).as(sql`SELECT id AS personel_id, klinik_id, personel_izin_hak_gun_hesapla(id) AS hak_gun, izin_devir_gun AS devir_gun, izin_duzeltme_gun AS duzeltme_gun, COALESCE(( SELECT sum(t.gun_sayisi) AS sum FROM personel_izin_talebi t WHERE t.personel_id = p.id AND t.tip = 'yillik'::text AND t.durum = 'onaylandi'::text), 0::numeric) AS onaylanan_gun, COALESCE(( SELECT sum(t.gun_sayisi) AS sum FROM personel_izin_talebi t WHERE t.personel_id = p.id AND t.tip = 'yillik'::text AND t.durum = 'beklemede'::text), 0::numeric) AS beklemede_gun, personel_izin_hak_gun_hesapla(id) + izin_devir_gun + izin_duzeltme_gun - COALESCE(( SELECT sum(t.gun_sayisi) AS sum FROM personel_izin_talebi t WHERE t.personel_id = p.id AND t.tip = 'yillik'::text AND t.durum = 'onaylandi'::text), 0::numeric) - COALESCE(( SELECT sum(t.gun_sayisi) AS sum FROM personel_izin_talebi t WHERE t.personel_id = p.id AND t.tip = 'yillik'::text AND t.durum = 'beklemede'::text), 0::numeric) AS kalan_gun FROM personel p`);
+/** EL İLE EKLENDİ (scripts/dev/sema-duzelt.mjs): drizzle-kit bölümlü (PARTITION BY RANGE) ana tabloyu üretmiyor. Yazma/okuma ana tablo üzerinden yapılır. */
+export const auditLog = pgTable("audit_log", {
+	id: uuid().defaultRandom().notNull(),
+	klinikId: uuid("klinik_id"),
+	kullaniciId: uuid("kullanici_id"),
+	eylem: text().notNull(),
+	hedefTablo: text("hedef_tablo"),
+	hedefId: uuid("hedef_id"),
+	detay: jsonb(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+})
