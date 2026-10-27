@@ -1,6 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { withTenant } from "@/lib/db";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
+import { hastaOzetGetir } from "@/lib/hasta/ozet-sorgular";
 import { Button } from "@/components/ui/button";
 import { RiskBandi } from "./risk-bandi";
 import { OzetKart } from "./ozet-kart";
@@ -14,17 +17,8 @@ export default async function HastaDetayLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  // Üç sorgu birbirinden bağımsız (hiçbiri diğerinin sonucuna ihtiyaç
-  // duymuyor) — Promise.all ile paralel. `rol` auth sonucuna bağlı olduğu
-  // için ayrı kalıyor, ama kullaniciRolGetir zaten gecerliKullanici()'ye
-  // delege ettiğinden (bkz. hasta-getir.ts) burada yeni bir round-trip AÇMAZ.
-  const [user, hasta, ozetSonucu] = await Promise.all([
-    getAuthUser(),
-    hastaTemelGetir(id),
-    supabase.from("v_hasta_ozet").select("kalan_paket_hakki").eq("hasta_id", id).maybeSingle(),
-  ]);
+  const [user, hasta] = await Promise.all([getAuthUser(), hastaTemelGetir(id)]);
 
   if (!user) {
     redirect("/giris");
@@ -38,7 +32,8 @@ export default async function HastaDetayLayout({
   const terapistMi = rol === "terapist";
 
   const riskEklenebilir = duzenlenebilir || terapistMi;
-  const ozet = ozetSonucu.data;
+  const ctx = await oturumBaglami();
+  const ozet = ctx ? await withTenant(tenantGerekli(ctx), (tx) => hastaOzetGetir(tx, id)) : null;
 
   return (
     <div className="flex-1 bg-background">

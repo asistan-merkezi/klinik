@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import type { HastaOzet } from "@/types/hasta-detay";
+import { withTenant } from "@/lib/db";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
+import { hastaOzetGetir } from "@/lib/hasta/ozet-sorgular";
 import { SekmeKartlari } from "./sekme-kartlari";
 import { SEKMELER } from "./sekme-tanimlari";
 import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "./hasta-getir";
@@ -25,14 +27,10 @@ export default async function HastaDetaySayfasi({
   const rol = await kullaniciRolGetir(user.id);
   const terapistMi = rol === "terapist";
 
-  const supabase = await createClient();
-  const { data: ozet } = await supabase
-    .from("v_hasta_ozet")
-    .select("*")
-    .eq("hasta_id", id)
-    .maybeSingle<HastaOzet>();
+  const ctx = await oturumBaglami();
+  const ozet = ctx ? await withTenant(tenantGerekli(ctx), (tx) => hastaOzetGetir(tx, id)) : null;
 
   const gorunurSekmeler = SEKMELER.filter((s) => !(s.terapisteKapali && terapistMi));
 
-  return <SekmeKartlari hasta={hasta} ozet={ozet ?? null} gorunurSekmeler={gorunurSekmeler} />;
+  return <SekmeKartlari hasta={hasta} ozet={ozet} gorunurSekmeler={gorunurSekmeler} />;
 }

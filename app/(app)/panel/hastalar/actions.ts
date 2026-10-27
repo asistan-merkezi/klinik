@@ -1,16 +1,19 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { hastaHosgeldinTetikle } from "@/lib/mesaj/hasta-mesaji";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
+import { and, eq } from "drizzle-orm";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI, type PersonelRolu } from "@/lib/auth/yetki";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { revalidateHastaDetay } from "./[id]/revalidate";
 
 type SonucDurumu = { success: boolean; message: string } | null;
+
+// Rol kümeleri RLS ile birebir: hasta kaydı/güncellemesi yönetim rolleri (hasta_yonet_resepsiyon_admin), KVKK onayı da aynı küme.
+const HASTA_YONETIM_ROLLERI: readonly PersonelRolu[] = ["klinik_admin", "resepsiyon"];
 
 const telefonSemasi = z
   .string()
@@ -32,29 +35,18 @@ const kimlikOlusturSemasi = z.object({
   ticari_ileti_onay: z.coerce.boolean().optional(),
 });
 
-async function klinikIdGetir() {
-  const oturum = await gecerliKullanici();
-  if (!oturum) {
-    redirect("/giris");
-  }
-
-  const supabase = await createClient();
-  return {
-    supabase,
-    klinikId: oturum.kullanici?.klinik_id ?? null,
-    userId: oturum.authUser.id,
-  };
+async function yetkiAl() {
+  const y = await eylemYetkisi(HASTA_YONETIM_ROLLERI);
+  if (!y.yetkili || !y.bag || !y.klinikId) return null;
+  return { bag: y.bag, klinikId: y.klinikId, userId: y.ctx.userId };
 }
 
 export async function hastaOlustur(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
-
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
+  const y = await yetkiAl();
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = hastaSemasi.safeParse({
     ad_soyad: formData.get("ad_soyad"),
@@ -80,60 +72,49 @@ export async function hastaOlustur(
   const { ad_soyad, telefon, dogum_tarihi, whatsapp_izin_durumu } = ayristirma.data;
   const { kimlik_no, kimlik_no_tipi, ticari_ileti_onay } = kimlikAyristirma.data;
 
-  if (kimlik_no) {
-    const { data: mevcutKimlik } = await supabase
-      .from("hasta_hassas")
-      .select("hasta_id")
-      .eq("klinik_id", klinikId)
-      .eq("kimlik_no", kimlik_no)
-      .maybeSingle();
+  let yeniHastaId: string;
+  try {
+    // Hasta + kimlik satırı TEK transaction: eşzamanlı çakışmada (23505) yarım kalmış kimliksiz hasta bırakılmaz (eskiden elle silinirdi).
+    const sonuc = await withTenant(y.bag, async (tx) => {
+      if (kimlik_no) {
+        const mevcut = await tx
+          .select({ hastaId: sema.hastaHassas.hastaId })
+          .from(sema.hastaHassas)
+          .where(and(eq(sema.hastaHassas.klinikId, y.klinikId), eq(sema.hastaHassas.kimlikNo, kimlik_no)))
+          .limit(1);
+        if (mevcut.length > 0) return { hata: "Bu kimlik numarasına sahip bir hasta zaten kayıtlı." };
+      }
 
-    if (mevcutKimlik) {
-      return { success: false, message: "Bu kimlik numarasına sahip bir hasta zaten kayıtlı." };
-    }
-  }
+      const [yeni] = await tx
+        .insert(sema.hasta)
+        .values({
+          klinikId: y.klinikId,
+          adSoyad: isimBasHarfBuyukYap(ad_soyad),
+          telefon,
+          dogumTarihi: dogum_tarihi ? dogum_tarihi : null,
+          whatsappIzinDurumu: whatsapp_izin_durumu ?? false,
+          ticariIletiOnayTarihi: ticari_ileti_onay ? new Date().toISOString() : null,
+        })
+        .returning({ id: sema.hasta.id });
 
-  const { data: yeniHasta, error } = await supabase
-    .from("hasta")
-    .insert({
-      klinik_id: klinikId,
-      ad_soyad: isimBasHarfBuyukYap(ad_soyad),
-      telefon,
-      dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
-      whatsapp_izin_durumu: whatsapp_izin_durumu ?? false,
-      ticari_ileti_onay_tarihi: ticari_ileti_onay ? new Date().toISOString() : null,
-    })
-    .select("id")
-    .single();
-
-  if (error || !yeniHasta) {
-    console.error("Hasta oluşturulamadı:", error);
-    return { success: false, message: "Hasta oluşturulamadı, lütfen tekrar deneyin." };
-  }
-
-  if (kimlik_no) {
-    const { error: hassasError } = await supabase.from("hasta_hassas").insert({
-      hasta_id: yeniHasta.id,
-      kimlik_no,
-      kimlik_no_tipi: kimlik_no_tipi ?? "tc",
+      if (kimlik_no) {
+        await tx.insert(sema.hastaHassas).values({ hastaId: yeni.id, klinikId: y.klinikId, kimlikNo: kimlik_no, kimlikNoTipi: kimlik_no_tipi ?? "tc" });
+      }
+      return { id: yeni.id };
     });
-    if (hassasError) {
-      // Ön kontrole rağmen eşzamanlı kayıt yüzünden yine de çakıştıysa, yarım kalmış
-      // (kimliksiz) hasta kaydını bırakmamak için oluşturulan hasta satırı geri alınır.
-      await supabase.from("hasta").delete().eq("id", yeniHasta.id);
-      console.error("Kimlik bilgisi kaydedilemedi:", hassasError);
-      return {
-        success: false,
-        message:
-          hassasError.code === "23505"
-            ? "Bu kimlik numarasına sahip bir hasta zaten kayıtlı."
-            : "Hasta oluşturulamadı, lütfen tekrar deneyin.",
-      };
-    }
+    if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Hasta oluşturulamadı." };
+    yeniHastaId = sonuc.id;
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Hasta oluşturulamadı:", h.mesaj);
+    return {
+      success: false,
+      message: h.kod === "23505" ? "Bu kimlik numarasına sahip bir hasta zaten kayıtlı." : "Hasta oluşturulamadı, lütfen tekrar deneyin.",
+    };
   }
 
   revalidatePath("/panel/hastalar");
-  after(() => hastaHosgeldinTetikle(yeniHasta.id));
+  after(() => hastaHosgeldinTetikle(y.bag, yeniHastaId));
   return { success: true, message: "Hasta kaydedildi." };
 }
 
@@ -142,11 +123,8 @@ export async function hastaGuncelle(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await klinikIdGetir();
-
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
+  const y = await yetkiAl();
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = hastaSemasi.safeParse({
     ad_soyad: formData.get("ad_soyad"),
@@ -161,18 +139,22 @@ export async function hastaGuncelle(
 
   const { ad_soyad, telefon, dogum_tarihi, whatsapp_izin_durumu } = ayristirma.data;
 
-  const { error } = await supabase
-    .from("hasta")
-    .update({
-      ad_soyad: isimBasHarfBuyukYap(ad_soyad),
-      telefon,
-      dogum_tarihi: dogum_tarihi ? dogum_tarihi : null,
-      whatsapp_izin_durumu: whatsapp_izin_durumu ?? false,
-    })
-    .eq("id", hastaId);
-
-  if (error) {
-    console.error("Hasta güncellenemedi:", error);
+  try {
+    const guncellenen = await withTenant(y.bag, (tx) =>
+      tx
+        .update(sema.hasta)
+        .set({
+          adSoyad: isimBasHarfBuyukYap(ad_soyad),
+          telefon,
+          dogumTarihi: dogum_tarihi ? dogum_tarihi : null,
+          whatsappIzinDurumu: whatsapp_izin_durumu ?? false,
+        })
+        .where(eq(sema.hasta.id, hastaId))
+        .returning({ id: sema.hasta.id })
+    );
+    if (guncellenen.length === 0) return { success: false, message: "Hasta bulunamadı." };
+  } catch (e) {
+    console.error("Hasta güncellenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Hasta güncellenemedi, lütfen tekrar deneyin." };
   }
 
@@ -183,36 +165,20 @@ export async function hastaGuncelle(
 }
 
 export async function kvkkOnayVer(hastaId: string): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const y = await yetkiAl();
+  if (!y) return { success: false, message: YETKISIZ_MESAJI };
 
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  if (!kullanici?.klinik_id || (kullanici.rol !== "klinik_admin" && kullanici.rol !== "resepsiyon")) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-
-  const { error } = await supabase
-    .from("hasta")
-    .update({
-      kvkk_onay_tarihi: new Date().toISOString(),
-      kvkk_onaylayan_tip: "personel",
-      kvkk_onaylayan_kullanici_id: user.id,
-    })
-    .eq("id", hastaId);
-
-  if (error) {
-    console.error("KVKK onayı kaydedilemedi:", error);
+  try {
+    const guncellenen = await withTenant(y.bag, (tx) =>
+      tx
+        .update(sema.hasta)
+        .set({ kvkkOnayTarihi: new Date().toISOString(), kvkkOnaylayanTip: "personel", kvkkOnaylayanKullaniciId: y.userId })
+        .where(eq(sema.hasta.id, hastaId))
+        .returning({ id: sema.hasta.id })
+    );
+    if (guncellenen.length === 0) return { success: false, message: "Hasta bulunamadı." };
+  } catch (e) {
+    console.error("KVKK onayı kaydedilemedi:", pgHata(e).mesaj);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 

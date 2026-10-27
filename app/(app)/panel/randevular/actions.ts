@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { randevuOlayMesajiTetikle } from "@/lib/mesaj/randevu-mesaji";
 import { odemeAlindiMesajiTetikle } from "@/lib/mesaj/hasta-mesaji";

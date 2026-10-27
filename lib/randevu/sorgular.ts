@@ -2,12 +2,13 @@
 // karşılığıdır ve `types/randevu.ts > RandevuSatir` şeklini üretir — yeni kolon eklenirse ikisi birlikte değişir. Tek kaynak: panel, randevular,
 // canlı çizelge yenilemesi hep `randevuSatirlariGetir`i kullanır (eskiden 3 kopya vardı, biri ayrışınca kolon sessizce kayboldu).
 // Zaman damgaları ISO'ya ÇEVRİLMİŞ döner (istemciye giden veri sınırı).
-import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sema, zamanlariIsoyaCevir, type Tx } from "@/lib/db";
 import type { RandevuDurum, RandevuSatir, SecenekSatir } from "@/types/randevu";
 import type { BekleyenIptalTalebiSatir, BekleyenRandevuTalebiSatir } from "@/types/portal";
 import type { KlinikBankaHesabi } from "@/types/klinik";
+import type { HaftaninGunu, PeriyodikRandevuSatir } from "@/types/periyodik-randevu";
 
 type Aralik = { baslangic: string; bitis: string; odaId?: string };
 
@@ -236,6 +237,70 @@ export async function bekleyenRandevuTalepleriGetir(tx: Tx): Promise<BekleyenRan
       created_at: x.createdAt,
       hasta: x.hastaAd == null ? null : { ad_soyad: x.hastaAd },
       islem_tanimi: x.islemAd == null ? null : { ad: x.islemAd },
+    }))
+  );
+}
+
+/** Hasta Detayı > Randevu & Seans: hastanın aktif periyodik randevu serileri. */
+export async function hastaPeriyodikRandevulariGetir(tx: Tx, hastaId: string): Promise<PeriyodikRandevuSatir[]> {
+  const s = await tx
+    .select({
+      p: sema.periyodikRandevu,
+      terapistAd: sema.personel.adSoyad,
+      odaAd: sema.oda.ad,
+      islemAd: sema.islemTanimi.ad,
+    })
+    .from(sema.periyodikRandevu)
+    .leftJoin(sema.terapist, eq(sema.terapist.id, sema.periyodikRandevu.terapistId))
+    .leftJoin(sema.personel, eq(sema.personel.id, sema.terapist.personelId))
+    .leftJoin(sema.oda, eq(sema.oda.id, sema.periyodikRandevu.odaId))
+    .leftJoin(sema.islemTanimi, eq(sema.islemTanimi.id, sema.periyodikRandevu.islemTanimiId))
+    .where(and(eq(sema.periyodikRandevu.hastaId, hastaId), eq(sema.periyodikRandevu.durum, "aktif")))
+    .orderBy(asc(sema.periyodikRandevu.haftaninGunu));
+  return s.map(({ p, ...e }): PeriyodikRandevuSatir => ({
+    id: p.id,
+    haftanin_gunu: p.haftaninGunu as HaftaninGunu,
+    saat: p.saat,
+    sure_dakika: p.sureDakika,
+    durum: p.durum as "aktif" | "iptal",
+    bitis_tarihi: p.bitisTarihi,
+    otomatik_yenile: p.otomatikYenile,
+    terapist: e.terapistAd == null ? null : { personel: { ad_soyad: e.terapistAd } },
+    oda: e.odaAd == null ? null : { ad: e.odaAd },
+    islem_tanimi: e.islemAd == null ? null : { ad: e.islemAd },
+  }));
+}
+
+/** Hasta Detayı > Randevu & Seans listesi: hastanın son `limit` randevusu (arşivden aktarılanlar dahil; `kaynak` ile). */
+export async function hastaRandevuListesiGetir(tx: Tx, hastaId: string, limit = 100): Promise<RandevuSatir[]> {
+  const s = await tx
+    .select({
+      r: sema.randevu,
+      terapistAd: sema.personel.adSoyad,
+      odaAd: sema.oda.ad,
+      islemId: sema.islemTanimi.id,
+      islemAd: sema.islemTanimi.ad,
+    })
+    .from(sema.randevu)
+    .leftJoin(sema.terapist, eq(sema.terapist.id, sema.randevu.terapistId))
+    .leftJoin(sema.personel, eq(sema.personel.id, sema.terapist.personelId))
+    .leftJoin(sema.oda, eq(sema.oda.id, sema.randevu.odaId))
+    .leftJoin(sema.islemTanimi, eq(sema.islemTanimi.id, sema.randevu.islemTanimiId))
+    .where(eq(sema.randevu.hastaId, hastaId))
+    .orderBy(desc(sema.randevu.baslangic))
+    .limit(limit);
+  return zamanlariIsoyaCevir(
+    s.map(({ r, ...e }): RandevuSatir => ({
+      id: r.id,
+      baslangic: r.baslangic,
+      bitis: r.bitis,
+      durum: r.durum as RandevuDurum,
+      gecikme_dakika: r.gecikmeDakika,
+      kaynak: r.kaynak as "uygulama" | "arsiv",
+      hasta: null,
+      terapist: e.terapistAd == null ? null : { personel: { ad_soyad: e.terapistAd } },
+      oda: e.odaAd == null ? null : { ad: e.odaAd },
+      islem_tanimi: e.islemId ? { id: e.islemId, ad: e.islemAd ?? "" } : null,
     }))
   );
 }

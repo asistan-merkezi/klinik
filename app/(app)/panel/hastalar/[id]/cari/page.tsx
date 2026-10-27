@@ -1,10 +1,11 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import type { PaketSatisSatir } from "@/types/odeme";
-import type { HastaBakiyeHareket } from "@/types/hasta-detay";
-import type { IskontoOranlariYuzde } from "@/lib/fiyat/etkin-fiyat-hesapla";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
-import type { KlinikBankaHesabi } from "@/types/klinik";
+import { aktifPaketSatislariGetir, bakiyeHareketleriGetir, hastaBakiyesiGetir, iskontoOranlariGetir } from "@/lib/hasta/cari-sorgular";
+import { bankaHesaplariGetir } from "@/lib/randevu/sorgular";
 import { GeriLink } from "../geri-link";
 import { CariOdemeSekmesi } from "../sekmeler/cari-odeme-sekmesi";
 import { getAuthUser, hastaTemelGetir, kullaniciRolGetir } from "../hasta-getir";
@@ -32,62 +33,22 @@ export default async function CariOdemeSayfasi({
   }
   const duzenlenebilir = rol === "klinik_admin" || rol === "resepsiyon";
 
-  const supabase = await createClient();
-  const [
-    paketSatisSonucu,
-    bakiyeHareketSonucu,
-    oranlarSonucu,
-    ozetSonucu,
-    epostaSonucu,
-    hassasSonucu,
-    bankaHesabiSonucu,
-  ] = await Promise.all([
-    supabase
-      .from("paket_satis")
-      .select("id, kalan_adet, durum, satis_tarihi, paket(ad, seans_sayisi)")
-      .eq("hasta_id", id)
-      .eq("durum", "aktif")
-      .order("satis_tarihi")
-      .returns<PaketSatisSatir[]>(),
-    supabase
-      .from("hasta_bakiye_hareket")
-      .select(
-        "id, tur, tutar, iskonto_tutari, aciklama, created_at, odeme_id, " +
-          "randevu(terapist(personel(ad_soyad)), islem_tanimi(ad, vita_fiyat)), " +
-          "odeme(iskonto_tutari, odeme_kalemi(miktar, birim_fiyat, islem_tanimi(ad, vita_fiyat), paket_satis(paket(ad))), odeme_satiri(yontem)), " +
-          "iskonto_uygulayan:iskonto_uygulayan_kullanici_id(ad_soyad)"
-      )
-      .eq("hasta_id", id)
-      .order("created_at", { ascending: false })
-      .limit(30)
-      .returns<HastaBakiyeHareket[]>(),
-    supabase
-      .from("iskonto_oranlari")
-      .select("plus_pct, elit_pct, prime_pct")
-      .maybeSingle<IskontoOranlariYuzde>(),
-    supabase.from("v_hasta_ozet").select("bakiye").eq("hasta_id", id).maybeSingle<{ bakiye: number }>(),
-    supabase.from("hasta").select("eposta").eq("id", id).single<{ eposta: string | null }>(),
-    supabase
-      .from("hasta_hassas")
-      .select("kimlik_no, adres")
-      .eq("hasta_id", id)
-      .maybeSingle<{ kimlik_no: string | null; adres: string | null }>(),
-    supabase
-      .from("klinik_banka_hesaplari")
-      .select("id, banka_adi, sube")
-      .order("sort_order")
-      .returns<KlinikBankaHesabi[]>(),
-  ]);
+  const ctx = await oturumBaglami();
+  if (!ctx) redirect("/giris");
+  const v = await withTenant(tenantGerekli(ctx), async (tx) => ({
+    aktifPaketler: await aktifPaketSatislariGetir(tx, id),
+    bakiyeHareketleri: await bakiyeHareketleriGetir(tx, id, 30),
+    oranlar: await iskontoOranlariGetir(tx),
+    guncelBakiye: await hastaBakiyesiGetir(tx, id),
+    hassas: (await tx.select({ kimlikNo: sema.hastaHassas.kimlikNo, adres: sema.hastaHassas.adres }).from(sema.hastaHassas).where(eq(sema.hastaHassas.hastaId, id)).limit(1))[0] ?? null,
+    bankaHesaplari: await bankaHesaplariGetir(tx),
+  }));
 
-  const aktifPaketler = paketSatisSonucu.data ?? [];
-  const bakiyeHareketleri = bakiyeHareketSonucu.data ?? [];
-  const oranlar = oranlarSonucu.data ?? null;
-  const guncelBakiye = ozetSonucu.data?.bakiye ?? 0;
   const faturaBilgisi: FaturaBilgisiKontrol = {
     adSoyad: hasta.ad_soyad,
-    eposta: epostaSonucu.data?.eposta ?? null,
-    adres: hassasSonucu.data?.adres ?? null,
-    kimlikNo: hassasSonucu.data?.kimlik_no ?? null,
+    eposta: hasta.eposta ?? null,
+    adres: v.hassas?.adres ?? null,
+    kimlikNo: v.hassas?.kimlikNo ?? null,
   };
 
   return (
@@ -97,13 +58,13 @@ export default async function CariOdemeSayfasi({
         hastaId={hasta.id}
         hastaAdSoyad={hasta.ad_soyad}
         hastaKategori={hasta.kategori}
-        iskontoOranlari={oranlar}
-        guncelBakiye={guncelBakiye}
+        iskontoOranlari={v.oranlar}
+        guncelBakiye={v.guncelBakiye}
         duzenlenebilir={duzenlenebilir}
-        aktifPaketler={aktifPaketler}
-        bakiyeHareketleri={bakiyeHareketleri}
+        aktifPaketler={v.aktifPaketler}
+        bakiyeHareketleri={v.bakiyeHareketleri}
         faturaBilgisi={faturaBilgisi}
-        bankaHesaplari={bankaHesabiSonucu.data ?? []}
+        bankaHesaplari={v.bankaHesaplari}
       />
     </div>
   );
