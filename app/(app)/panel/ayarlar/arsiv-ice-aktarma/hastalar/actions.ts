@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { pgHata, rpc, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { tarihiIsoyaCevir } from "@/lib/ice-aktarma/normallestir";
 import type { ArsivSonucSatiri } from "@/components/panel/ice-aktarma/onizleme-tablosu";
 
@@ -45,29 +46,28 @@ export async function hastalariArsivdenIceAktar(
   kayitlar: Record<string, string>[],
   baslangicSatirNo: number
 ): Promise<SonucDurumu> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Oturum bulunamadı." };
-  }
+  // Arşiv içe aktarma yalnız klinik_admin (RPC de aynı kuralı içeride zorlar); tenant oturumdan gelir.
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag) return { success: false, message: YETKISIZ_MESAJI };
 
   const normallestirilmis = kayitlar.map(hastaKaydiniNormallestir);
 
-  const { data, error } = await supabase.rpc("hasta_arsiv_ice_aktar", { p_kayitlar: normallestirilmis });
-
-  if (error) {
-    console.error("Hasta arşiv içe aktarma hatası:", error);
-    if (error.message === "yetkisiz") {
+  let data: ArsivSonucSatiri[];
+  try {
+    data = await withTenant(y.bag, async (tx) => {
+      const satir = (await rpc<Record<string, ArsivSonucSatiri[] | null>>(tx, "hasta_arsiv_ice_aktar", { p_kayitlar: normallestirilmis }))[0];
+      return satir?.hasta_arsiv_ice_aktar ?? [];
+    });
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Hasta arşiv içe aktarma hatası:", h.mesaj);
+    if (h.mesaj === "yetkisiz") {
       return { success: false, message: "Bu işlem için yetkiniz yok (sadece klinik yöneticisi kullanabilir)." };
     }
     return { success: false, message: "İçe aktarma başarısız oldu, lütfen tekrar deneyin." };
   }
 
-  const sonuclar = ((data ?? []) as ArsivSonucSatiri[]).map((s) => ({
+  const sonuclar = data.map((s) => ({
     ...s,
     satir_no: s.satir_no + baslangicSatirNo - 1,
   }));

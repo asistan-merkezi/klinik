@@ -40,23 +40,22 @@ export default async function HastalarSayfasi({
   // Arama yoksa: ada göre harf çubuğu + 50'lik sayfalar (hasta_harf_listesi, Türkçe alfabe sırası).
   let hastalar: HastaListeSatiri[] = [];
   let error: { message: string } | null = null;
-  let harfSayilari = null as Map<string, number> | null; // (kapanış içinde atanır: TS daralmasını önlemek için tür iddiası)
+  let harfSayilari: Map<string, number> | null = null;
   let toplamKayit = 0;
   let sayfa = 1;
 
   try {
-    await withTenant(bag, async (tx) => {
+    const v = await withTenant(bag, async (tx) => {
       if (arama) {
-        hastalar = await listeEkVerisiGetir(tx, await hastaAra(tx, arama, 50));
-        return;
+        return { hastalar: await listeEkVerisiGetir(tx, await hastaAra(tx, arama, 50)), harfSayilari: null, toplamKayit: 0, sayfa: 1 };
       }
       const { sayilar, toplam } = harfSayilariniTopla(await harfSayilariGetir(tx));
-      harfSayilari = sayilar;
-      toplamKayit = harf ? (sayilar.get(harf) ?? 0) : toplam;
-      sayfa = sayfaParametresiCoz(sayfaParam, toplamKayit);
-      const satirlar = await harfListesiGetir(tx, harf === null ? null : harf === DIGER ? DIGER : harfAnahtari(harf), (sayfa - 1) * SAYFA_BOYUTU, SAYFA_BOYUTU);
-      hastalar = await listeEkVerisiGetir(tx, satirlar);
+      const toplamK = harf ? (sayilar.get(harf) ?? 0) : toplam;
+      const sayfaNo = sayfaParametresiCoz(sayfaParam, toplamK);
+      const satirlar = await harfListesiGetir(tx, harf === null ? null : harf === DIGER ? DIGER : harfAnahtari(harf), (sayfaNo - 1) * SAYFA_BOYUTU, SAYFA_BOYUTU);
+      return { hastalar: await listeEkVerisiGetir(tx, satirlar), harfSayilari: sayilar, toplamKayit: toplamK, sayfa: sayfaNo };
     });
+    ({ hastalar, harfSayilari, toplamKayit, sayfa } = v);
   } catch (e) {
     console.error("Hasta listesi çekilemedi:", e);
     error = { message: "Liste çekilemedi." };

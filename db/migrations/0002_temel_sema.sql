@@ -6766,7 +6766,6 @@ GRANT EXECUTE ON FUNCTION randevu_anket_uygun_mu(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION randevu_anket_uygun_mu(uuid) TO klinik_anonim;
 GRANT EXECUTE ON FUNCTION seans_degerlendirme_baglam_getir(uuid) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION seans_degerlendirme_baglam_getir(uuid) TO klinik_anonim;
-GRANT EXECUTE ON FUNCTION qr_kodu_aktif_mi(uuid,text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION qr_kodu_aktif_mi(uuid,text) TO klinik_anonim;
 GRANT EXECUTE ON FUNCTION hasta_bakiye_hareket_borc_duzenle(uuid,numeric,boolean,text) TO klinik_uygulama;
 GRANT EXECUTE ON FUNCTION mesaj_kredi_senkronla(uuid,mesaj_kanal_tipi,integer,bigint) TO klinik_uygulama;

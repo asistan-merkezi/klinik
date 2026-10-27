@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cronYetkiliMi } from "@/lib/cron-yetki";
-import { resmiTatilleriGuncelle } from "@/lib/tatil/oneri-uret";
+import { resmiTatilleriGuncelle } from "@/lib/tatil/oneri-uret-admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

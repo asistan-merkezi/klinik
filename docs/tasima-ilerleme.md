@@ -4,7 +4,7 @@
 
 ## NEREDEN DEVAM EDİLECEK (bir sonraki oturum için)
 
-**Durum (2026-10-27, oturum 2):** Aşama 4 ön adımları tamam. **Tenant DB'de türetme (Seçenek A, 0007) UYGULANDI** (`kullanici_tenant` eşlemesi; `app.tenant_id` yalnız super_admin/klinik_anonim/bakım/süper kullanıcı oturumunda geçerli; 13 yeni test, performans farkı ölçüm gürültüsünde — `docs/tasima-plani.md`). **Modül 2a (realtime altyapısı) BİTTİ**: `lib/realtime/` + `/api/canli` SSE + `useCanliOlaylar` + 0008 NOTIFY tetikleyicileri; 3 tüketici Supabase realtime'sız (veri çekimleri hâlâ supabase-js — Modül 2'de sunucuya taşınacak). **Modül 1 BİTTİ** (kalıntı: `lib/auth/eylem-yetkisi.ts` 8 çağıran bitene kadar, `lib/supabase/*` en sonda). Sıradaki: **Modül 2 (hasta ve randevu)** — `lib/randevu/queries.ts` + `RANDEVU_SELECT` Drizzle karşılığı (canli-cizelge/tablet-ekrani/randevu-bildirimleri'ndeki `createClient()` veri çekimlerini sunucu eylemi/route'a taşı; `useCanliOlaylar`'ın `onOlay/onSenkron` geri çağrıları bu yeni çekimi tetikler), QR kayıt/anket (gizli `klinik_id` kaldır, `anonimUcCalistir`), `lib/qr/hiz-siniri.ts` sil.
+**Durum (2026-10-27, oturum 2):** Aşama 4 ön adımları tamam. **Tenant DB'de türetme (Seçenek A, 0007) UYGULANDI** (`kullanici_tenant` eşlemesi; `app.tenant_id` yalnız super_admin/klinik_anonim/bakım/süper kullanıcı oturumunda geçerli; 13 yeni test, performans farkı ölçüm gürültüsünde — `docs/tasima-plani.md`). **Modül 2a (realtime altyapısı) BİTTİ**: `lib/realtime/` + `/api/canli` SSE + `useCanliOlaylar` + 0008 NOTIFY tetikleyicileri; 3 tüketici Supabase realtime'sız (veri çekimleri hâlâ supabase-js — Modül 2'de sunucuya taşınacak). **Modül 1 BİTTİ** (kalıntı: `lib/auth/eylem-yetkisi.ts` 8 çağıran bitene kadar, `lib/supabase/*` en sonda). **Modül 2 (hasta ve randevu) BİTTİ.** Sıradaki: **Modül 3 (muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto)** — belge/foto yükleme Modül 2'de büyük ölçüde yapıldı. (Eski not:) — `lib/randevu/queries.ts` + `RANDEVU_SELECT` Drizzle karşılığı (canli-cizelge/tablet-ekrani/randevu-bildirimleri'ndeki `createClient()` veri çekimlerini sunucu eylemi/route'a taşı; `useCanliOlaylar`'ın `onOlay/onSenkron` geri çağrıları bu yeni çekimi tetikler), QR kayıt/anket (gizli `klinik_id` kaldır, `anonimUcCalistir`), `lib/qr/hiz-siniri.ts` sil.
 **Yöntem:** `eylemYetkisiGetir` (eski, supabase döndürür) taşınmamış modüller için KALIYOR; taşınan modüller `lib/auth/yetki.ts > eylemYetkisi` (bağlam döndürür) kullanır. Sayfalarda `oturumBaglami()` + `tenantGerekli(ctx)` + `withTenant`. Tenant türetme Seçenek A uygulandı; Seçenek B (oturum jetonunu DB'de doğrulama) üretim öncesi karar noktası.
 **Test yöntemi:** her modül için `tests/db/modul-<ad>.test.ts` (izolasyon + rol + gerçek yazma). Eylemler Next istek bağlamı istediğinden testler eylemlerin kullandığı Drizzle ifadelerini birebir sınar.
 
@@ -14,13 +14,13 @@
 | # | Modül | Durum | Taşınan / Toplam | Kalan Supabase import'lu dosya |
 |---|---|---|---|---|
 | 1 | Kullanıcı/profil, klinik ayarları, ortak yardımcılar | **bitti** | 12 / 18 | 6 |
-| 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bekliyor** | 0 / 49 | 49 |
-| 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bekliyor** | 0 / 10 | 10 |
-| 4 | Ödeme / cari / finans / paket / işlem tanımları | **bekliyor** | 0 / 31 | 31 |
-| 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 0 / 20 | 20 |
-| 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 1 / 10 | 9 |
-| 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 0 / 17 | 17 |
-| | **Toplam** | | 13 / 155 | **142** |
+| 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bitti** | 48 / 49 | 1 |
+| 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bekliyor** | 4 / 10 | 6 |
+| 4 | Ödeme / cari / finans / paket / işlem tanımları | **bekliyor** | 1 / 31 | 30 |
+| 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 1 / 20 | 19 |
+| 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 2 / 10 | 8 |
+| 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 1 / 17 | 16 |
+| | **Toplam** | | 69 / 155 | **86** |
 
 Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-baslangic.txt`, 155 dosya); sayım `@supabase`, `@/lib/supabase` ve `createAdminClient` kullanan dosyaları kapsar. `lib/supabase/*` en sonda silinir.
 
@@ -38,79 +38,27 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
 
 ## Modül 2 — Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil)
 
-- Durum: **bekliyor**
-- Not: canli-cizelge/randevu-bildirimleri realtime (Aşama 6).
-- Kalan dosyalar (49):
-  - `app/(app)/anket/seans/[randevuId]/actions.ts`
-  - `app/(app)/anket/[kisaKod]/actions.ts`
-  - `app/(app)/kayit/hasta/[kisaKod]/actions.ts`
-  - `app/(app)/panel/ayarlar/arsiv-ice-aktarma/hastalar/actions.ts`
-  - `app/(app)/panel/ayarlar/arsiv-ice-aktarma/randevular/actions.ts`
-  - `app/(app)/panel/ayarlar/arsiv-ice-aktarma/randevular/page.tsx`
-  - `app/(app)/panel/ayarlar/qr-kodlar/actions.ts`
-  - `app/(app)/panel/ayarlar/qr-kodlar/anket-yanitlari/page.tsx`
-  - `app/(app)/panel/ayarlar/qr-kodlar/page.tsx`
-  - `app/(app)/panel/ayarlar/resmi-tatiller/actions.ts`
-  - `app/(app)/panel/ayarlar/resmi-tatiller/page.tsx`
-  - `app/(app)/panel/hastalar/actions.ts`
-  - `app/(app)/panel/hastalar/bildirimler/actions.ts`
-  - `app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts`
-  - `app/(app)/panel/hastalar/bildirimler/page.tsx`
-  - `app/(app)/panel/hastalar/kayit-formu/page.tsx`
-  - `app/(app)/panel/hastalar/page.tsx`
-  - `app/(app)/panel/hastalar/[id]/actions.ts`
-  - `app/(app)/panel/hastalar/[id]/cari/page.tsx`
-  - `app/(app)/panel/hastalar/[id]/hasta-getir.ts`
-  - `app/(app)/panel/hastalar/[id]/kisisel/page.tsx`
-  - `app/(app)/panel/hastalar/[id]/layout.tsx`
-  - `app/(app)/panel/hastalar/[id]/mesaj-actions.ts`
-  - `app/(app)/panel/hastalar/[id]/page.tsx`
-  - `app/(app)/panel/hastalar/[id]/protokol-karti.tsx`
-  - `app/(app)/panel/hastalar/[id]/queries.ts`
-  - `app/(app)/panel/hastalar/[id]/randevu/page.tsx`
-  - `app/(app)/panel/page.tsx`
-  - `app/(app)/panel/randevular/actions.ts`
-  - `app/(app)/panel/randevular/page.tsx`
-  - `app/(app)/panel/randevular/queries.ts`
-  - `app/(app)/portal/actions.ts`
-  - `app/(app)/portal/bilgilerim/page.tsx`
-  - `app/(app)/portal/page.tsx`
-  - `app/(app)/portal/randevu-talep/page.tsx`
-  - `app/api/hasta-arama/route.ts`
-  - `lib/hasta/arama.ts`
-  - `lib/qr/hiz-siniri.ts`
-  - `lib/qr/klinik-bilgisi.ts`
-  - `lib/qr/qr-kod-aktif-mi.ts`
-  - `lib/qr/seans-anket-baglami.ts`
-  - `lib/randevu/tedavi-secenekleri.ts`
-  - `lib/randevu/terapist-uygunluk.ts`
-  - `lib/tatil/durum.ts`
-  - `lib/tatil/oneri-uret.ts`
-  - `components/hasta/aktif-paket-satiri.tsx`
-  - `components/panel/canli-cizelge.tsx`
-  - `components/panel/randevu-bildirimleri.tsx`
-  - `components/panel/randevu-detay-paneli.tsx`
+- Durum: **bitti**
+- Not: Taşındı: randevu (actions, sorgular, canlı çizelge/tablet/bildirimler sunucu verisiyle), hasta (liste, detay, actions, veri-actions), portal, QR ön kayıt/anket/iş başvurusu/seans anketi (kısa kod + anonim kapı, gizli klinik_id kalktı, lib/qr/hiz-siniri silindi), hasta belgeleri (diskte, yetkili route /api/hasta-belge/[id], imza doğrulama), arşiv içe aktarma (hasta/randevu), QR yönetimi, resmi tatiller, elle mesaj. Yeni migration: 0009 (terapist_uygunluk_getir), 0010 (hasta_kullanici INSERT), 0011 (mesaj kuyruğu INSERT + kural SELECT). KALINTI (bilinçli, sonraki modüller): lib/qr/{klinik-bilgisi,qr-kod-aktif-mi}.ts ince sarmalayıcı (puantaj, Modül 5), lib/mesaj/randevu-hatirlatma-tarama.ts + lib/tatil/oneri-uret-admin.ts (cron, Modül 7), odeme-paket arşiv sihirbazı (Modül 4), PDF route'ları (Modül 7). KARAR BEKLEYEN: (1) resmi tatil `Şimdi kontrol et` butonu artık yazmıyor (global resmi_tatil/öneri yazımı yalnız aylık betikte; kullanıcıya yazma yetkisi verilmedi); (2) elle hasta mesajı anında göndermiyor, kuyruğa alıyor (kuyruk işçisi gönderir); (3) 0011 politikaları (mesaj_kurallari SELECT + mesaj_kuyrugu INSERT, klinik_admin/resepsiyon/terapist) service-role-siniflama (b) kararının gerektirdiği dar yetkilerdir.
+- Kalan dosyalar (1):
+  - `lib/tatil/oneri-uret-admin.ts`
 
 ## Modül 3 — Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto
 
 - Durum: **bekliyor**
 - Not: Realtime (tablet) SSE + LISTEN/NOTIFY gerektirir (Aşama 6); belge/foto dosya katmanı gerektirir (Aşama 5).
-- Kalan dosyalar (10):
-  - `app/(app)/panel/hastalar/[id]/belgeler/actions.ts`
-  - `app/(app)/panel/hastalar/[id]/belgeler/queries.ts`
+- Kalan dosyalar (6):
   - `app/(app)/panel/kaynaklar/page.tsx`
   - `app/(app)/panel/tablet/ayarlar/actions.ts`
   - `app/(app)/panel/tablet/ayarlar/page.tsx`
   - `app/(app)/panel/tablet/page.tsx`
   - `app/(app)/panel/tablet/[odaId]/page.tsx`
-  - `app/(app)/panel/tablet/[odaId]/tablet-ekrani.tsx`
   - `app/(app)/panel/tedavi-protokolleri/page.tsx`
-  - `app/api/hasta-belge/foto-yukle/route.ts`
 
 ## Modül 4 — Ödeme / cari / finans / paket / işlem tanımları
 
 - Durum: **bekliyor**
-- Kalan dosyalar (31):
+- Kalan dosyalar (30):
   - `app/(app)/panel/ayarlar/arsiv-ice-aktarma/odeme-paket/actions.ts`
   - `app/(app)/panel/ayarlar/arsiv-ice-aktarma/odeme-paket/page.tsx`
   - `app/(app)/panel/finans/banka/actions.ts`
@@ -140,13 +88,12 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
   - `app/(app)/panel/islemler/tanimlamalar/page.tsx`
   - `app/(app)/panel/paketler/page.tsx`
   - `lib/finans/nakit-banka-hareketi.ts`
-  - `lib/ice-aktarma/hasta-eslestirme.actions.ts`
   - `lib/raporlar/hesaplamalar.ts`
 
 ## Modül 5 — Personel ve puantaj (QR akışı dahil)
 
 - Durum: **bekliyor**
-- Kalan dosyalar (20):
+- Kalan dosyalar (19):
   - `app/(app)/panel/ayarlar/personel-tanimlama/actions.ts`
   - `app/(app)/panel/ayarlar/personel-tanimlama/page.tsx`
   - `app/(app)/panel/personel/actions.ts`
@@ -164,15 +111,13 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
   - `app/(app)/panel/personel/[id]/actions.ts`
   - `app/(app)/panel/personel/[id]/page.tsx`
   - `app/(app)/puantaj/[kisaKod]/[tur]/actions.ts`
-  - `lib/personel/atanabilir-terapistler.ts`
   - `lib/personel/donem-maasi.ts`
   - `lib/personel/seans-sayisi.ts`
 
 ## Modül 6 — Kalan modüller (destek, yönetim, vb.)
 
 - Durum: **bekliyor**
-- Kalan dosyalar (9):
-  - `app/(app)/basvuru/is/[kisaKod]/actions.ts`
+- Kalan dosyalar (8):
   - `app/(app)/panel/destek/chatbot/page.tsx`
   - `app/(app)/panel/destek/kullanim-kilavuzu/page.tsx`
   - `app/(app)/panel/destek/page.tsx`
@@ -186,7 +131,7 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
 
 - Durum: **bekliyor**
 - Not: Cron route'ları scripts/'e (bakim_rolu) taşınıp silinecek; PDF -> CHROMIUM_PATH; mesaj merkezi istemcisi withTenant; chatbot bayrakla kapalı.
-- Kalan dosyalar (17):
+- Kalan dosyalar (16):
   - `app/(app)/panel/ayarlar/mesajlasma/actions.ts`
   - `app/(app)/panel/ayarlar/mesajlasma/kredi/[kanal]/actions.ts`
   - `app/(app)/panel/ayarlar/mesajlasma/kredi/[kanal]/page.tsx`
@@ -201,10 +146,19 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
   - `app/api/hasta-kayit-formu/pdf/route.ts`
   - `app/api/is-basvuru-formu/pdf/route.ts`
   - `lib/mesaj/anlik-tetikle.ts`
-  - `lib/mesaj/hasta-mesaji.ts`
   - `lib/mesaj/kuyruk-isle.ts`
-  - `lib/mesaj/randevu-mesaji.ts`
+  - `lib/mesaj/randevu-hatirlatma-tarama.ts`
 
 ## Taşırken temizlenecekler (takip)
 
 Bkz. `scripts/dev/devam-notu.md` ve bu dosyanın modül notları. Temizlik kalemleri: QR formundaki gizli `klinik_id` alanı (tenant yalnız kısa koddan), `lib/qr/hiz-siniri.ts` (fail-closed), `ScheduledLogout`, tek oturum kilidi dosyaları (`lib/auth/oturum-kilidi.ts`, `giris-hiz-siniri.ts`), `lib/supabase/*`, `vercel.json`, `@supabase/*` paketleri.
+
+## Modül 2 — Audit (erişim izi) karşılaştırması
+
+Eski kodda `audit_log`'a yazan her yer: (1) DB tetikleyicileri `audit_log_yaz` / `audit_log_degisiklik_yaz` (hasta, hasta_hassas, hasta_bakiye_hareket, fatura, paket_satis, vücut haritası vb.) — DEĞİŞMEDİ, veritabanında durur, taşıma bunları atlayamaz; (2) `hasta_belge_goruntule` RPC'si ('select' satırı, gerçek açma anı) — korundu, artık `/api/hasta-belge/[id]` route'unda çağrılır; (3) `belgeIndir` içindeki ek 'indirme' satırı — korundu (`lib/belge/servis.ts`). Liste küçük resmi (`islem=kucuk`) eskisi gibi iz BIRAKMAZ. Test: `tests/db/modul-hasta.test.ts` (hasta açma, ödeme ekleme → audit satırı; belge indirme → select+indirme, küçük resim → iz yok). Düşen işlem YOK.
+
+## Modül 2 — taşıma notları
+
+- Büyük dosyalar yerinde taşındı (randevular/actions 7 grup, hastalar/[id]/actions 3 grup ayrı commit); bölünme yalnız okuma sorguları için (`lib/randevu/sorgular.ts`, `lib/hasta/*-sorgular.ts`, `lib/portal/sorgular.ts`, `[id]/veri-actions.ts`) — gerekçe: istemci bileşenleri doğrudan Supabase çağırıyordu, bunlar artık sunucu eylemi.
+- Bulunan hatalar: eylemlerde istemciden gelen kimliklerin (hasta/oda/terapist/tedavi/hasta-belge-hasta eşleşmesi/borç-hasta eşleşmesi) tenant ve sahiplik doğrulaması eksikti (FK RLS'i atlar) → `randevuKimlikleriniDogrula` + eşleşme kontrolleri; `hasta_ara`/RPC çağrıları `kullanim-tara` tarafından görülmüyordu (grant eksikliği) → tarayıcı genişletildi; hasta+hassas yazımları iki bağımsız çağrıydı → tek transaction; risk bayrağı oku-değiştir-yaz → atomik jsonb ekleme; QR kapalı-durumda `qrKoduAktifMi` hata olursa AÇIK sayıyordu → fail-closed; seans anketinde klinik formdan geliyordu → randevudan tanima ile.
+- Yetki genişletmeleri (hepsi dar, test'li): 0009 `terapist_uygunluk_getir` (yalnız tarih listesi döner), 0010 `hasta_kullanici` INSERT (klinik_admin/resepsiyon, kendi kliniğinin hastası), 0011 mesaj kuyruğu INSERT + kural SELECT.

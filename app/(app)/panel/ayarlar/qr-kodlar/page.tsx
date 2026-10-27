@@ -1,5 +1,7 @@
 import { Smartphone, QrCode } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { QrKart } from "@/components/panel/qr-kart";
 import { QrKartYonetilebilir } from "@/components/panel/qr-kart-yonetilebilir";
@@ -7,26 +9,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QR_KOD_TANIMLARI, type QrKodTipi } from "@/lib/qr/qr-kod-tanimlari";
 
 export default async function QrKodlariSayfasi() {
-  const { kullanici } = await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
-  const supabase = await createClient();
-
-  const klinikId = kullanici.klinik_id;
-
-  if (!klinikId) {
-    return (
-      <div className="flex-1 bg-background p-4 sm:p-8">
-        <p className="text-sm text-muted-foreground">Klinik bilgisi bulunamadı.</p>
-      </div>
-    );
-  }
-
-  // Tablet Görünümü ayarlarıyla aynı desen: klinik_ayarlar.ayarlar tek jsonb
-  // kolonu, admin zaten RLS'ten geçtiği için doğrudan .select() yeterli
-  // (anonim public sayfalardaki gibi RPC'ye gerek yok).
-  const [{ data: klinikAyarlar }, { data: klinik }] = await Promise.all([
-    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId).maybeSingle(),
-    supabase.from("klinik").select("qr_kisa_kod").eq("id", klinikId).single(),
-  ]);
+  await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
+  const { bag } = await panelBaglami();
+  const klinikId = bag.tenantId;
+  const { klinikAyarlar, klinik } = await withTenant(bag, async (tx) => ({
+    klinikAyarlar: (await tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, klinikId)).limit(1))[0] ?? null,
+    klinik: (await tx.select({ qr_kisa_kod: sema.klinik.qrKisaKod }).from(sema.klinik).where(eq(sema.klinik.id, klinikId)).limit(1))[0] ?? null,
+  }));
 
   const kisaKod = klinik?.qr_kisa_kod;
 

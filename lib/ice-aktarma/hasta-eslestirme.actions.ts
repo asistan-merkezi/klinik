@@ -1,8 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { sema, withTenant } from "@/lib/db";
+import { eylemYetkisi } from "@/lib/auth/yetki";
 import { telefonAnahtari } from "@/lib/ice-aktarma/normallestir";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 
 export type TelefonEslesmesi =
   | { durum: "bulundu"; hasta_id: string; ad_soyad: string }
@@ -18,28 +18,16 @@ export type TelefonEslesmesi =
 // hedefli `.in()` yerine klinik'in TÜM hastaları (RLS zaten current_klinik_id()'ye
 // kısıtlıyor) çekilip anahtar bazında gruplanıyor.
 export async function hastaTelefonlariniEslestir(telefonlar: string[]): Promise<Record<string, TelefonEslesmesi>> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user || telefonlar.length === 0) {
+  // Arşiv içe aktarma yalnız klinik_admin; tenant oturumdan gelir.
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || telefonlar.length === 0) {
     return {};
   }
 
-  // 1000'lik sayfalarla TÜMÜ okunur — tek sorgu PostgREST max_rows'ta sessizce kesilir ve
-  // 1000. hastadan sonrakiler "bulunamadı" sayılıp arşiv satırları yanlış atlanırdı.
+  // Drizzle'da PostgREST'in 1000 satır sınırı yoktur; klinik'in TÜM hastaları (RLS tenant'a kısıtlar) tek sorguda okunur.
   let data: { id: string; ad_soyad: string; telefon: string | null }[];
   try {
-    data = await tumSayfalariOku((bas, son) =>
-      supabase
-        .from("hasta")
-        .select("id, ad_soyad, telefon")
-        .order("id")
-        .range(bas, son)
-        .returns<{ id: string; ad_soyad: string; telefon: string | null }[]>()
-    );
+    data = await withTenant(y.bag, (tx) => tx.select({ id: sema.hasta.id, ad_soyad: sema.hasta.adSoyad, telefon: sema.hasta.telefon }).from(sema.hasta).orderBy(sema.hasta.id));
   } catch (hata) {
     console.error("Hasta telefon eşleştirme hatası:", hata);
     return {};

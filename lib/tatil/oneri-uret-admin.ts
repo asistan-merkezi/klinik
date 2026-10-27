@@ -1,3 +1,4 @@
+// GEÇİCİ (Modül 7): cron route servis rolüyle çalışır; betiğe (bakım rolü) taşınınca silinir. Kullanıcı butonu artık oneri-uret.ts (withTenant) kullanır.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { nagerBayramlariniAyikla, sabitTatiller, tatilAdiBayrami, type Bayram, type BayramOnerisi } from "./kurallar";

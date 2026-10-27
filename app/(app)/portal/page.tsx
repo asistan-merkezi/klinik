@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { withTenant } from "@/lib/db";
 import { gecerliHastaBaglami } from "@/lib/auth/gecerli-hasta";
-import { portalAnaVeriGetir, type PortalOdemeSatiri } from "@/lib/portal/sorgular";
+import { portalAnaVeriGetir } from "@/lib/portal/sorgular";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatDateTime } from "@/lib/datetime";

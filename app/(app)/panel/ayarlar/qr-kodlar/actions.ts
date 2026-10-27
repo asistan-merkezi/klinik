@@ -1,37 +1,15 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import type { QrKodTipi } from "@/lib/qr/qr-kod-tanimlari";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
 const tipSemasi = z.enum(["hasta_on_kayit", "anket", "puantaj_giris", "puantaj_cikis"]);
-
-async function yetkiliKlinikAdminGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  if (kullanici?.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { supabase, klinikId: null as string | null, yetkisiz: true as const };
-  }
-
-  return { supabase, klinikId: kullanici.klinik_id, yetkisiz: false as const };
-}
 
 /**
  * QR Kodları yönetim listesindeki aktif/pasif checkbox'ı — Tablet Görünümü
@@ -46,34 +24,23 @@ export async function qrKoduDurumGuncelle(tip: QrKodTipi, aktif: boolean): Promi
     return { success: false, message: "Geçersiz QR kodu." };
   }
 
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || !y.klinikId || y.ctx.rol !== "klinik_admin") {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
+  const { bag, klinikId } = y;
 
-  const { data: mevcutSatir } = await supabase
-    .from("klinik_ayarlar")
-    .select("ayarlar")
-    .eq("klinik_id", klinikId)
-    .maybeSingle();
-
-  const mevcutAyarlar = (mevcutSatir?.ayarlar as Record<string, unknown> | null) ?? {};
-  const mevcutQrKodlari = (mevcutAyarlar.qr_kodlari as Record<string, { aktif: boolean }> | undefined) ?? {};
-
-  const guncelAyarlar = {
-    ...mevcutAyarlar,
-    qr_kodlari: {
-      ...mevcutQrKodlari,
-      [ayristirma.data]: { aktif },
-    },
-  };
-
-  const { error } = await supabase
-    .from("klinik_ayarlar")
-    .upsert({ klinik_id: klinikId, ayarlar: guncelAyarlar }, { onConflict: "klinik_id" });
-
-  if (error) {
-    console.error("QR kodu durumu güncellenemedi:", error);
+  try {
+    // Okuma-değiştirme-yazma TEK transaction'da: eşzamanlı iki güncelleme diğer ayar anahtarlarını (tablet vb.) ezmesin diye satır kilitlenir.
+    await withTenant(bag, async (tx) => {
+      const mevcutSatir = (await tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, klinikId)).for("update").limit(1))[0];
+      const mevcutAyarlar = (mevcutSatir?.ayarlar as Record<string, unknown> | null) ?? {};
+      const mevcutQrKodlari = (mevcutAyarlar.qr_kodlari as Record<string, { aktif: boolean }> | undefined) ?? {};
+      const guncelAyarlar = { ...mevcutAyarlar, qr_kodlari: { ...mevcutQrKodlari, [ayristirma.data]: { aktif } } };
+      await tx.insert(sema.klinikAyarlar).values({ klinikId, ayarlar: guncelAyarlar }).onConflictDoUpdate({ target: sema.klinikAyarlar.klinikId, set: { ayarlar: guncelAyarlar } });
+    });
+  } catch (e) {
+    console.error("QR kodu durumu güncellenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 

@@ -10,7 +10,8 @@ import { hakedisHesapla, hakedisKapaliDonemToplami } from "@/lib/personel/hakedi
 import { puantajSatirToplamiHesapla } from "@/lib/personel/puantaj-cetveli";
 import { seansSayilariniGetir } from "@/lib/personel/seans-sayisi";
 import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
-import { resmiTatilUyarilariGetir, type TatilUyarisi } from "@/lib/tatil/durum";
+import type { TatilUyarisi } from "@/lib/tatil/durum";
+import { tatilUyarilariniGetir } from "@/lib/tatil/uyari-oturum";
 import { donemMaasi, maasGecmisiGetir, type MaasGecmisiSatiri } from "@/lib/personel/donem-maasi";
 import type { PersonelPuantajSatir } from "@/types/puantaj";
 import { PuantajCetveliIstemci, type PuantajCetveliSatir } from "./puantaj-cetveli-istemci";
@@ -49,7 +50,7 @@ export default async function PuantajCetveliSayfasi({
         .eq("durum", "beklemede"),
       // Bayram tarihi onaylanmamışsa o günler izin/puantajda iş günü sayılır — yöneticiye hatırlat.
       // Tablo henüz yoksa (migration uygulanmadan deploy) uyarı gösterilmez, sayfa düşmez.
-      resmiTatilUyarilariGetir(supabase).catch(() => []),
+      tatilUyarilariniGetir().catch(() => []),
     ]);
     bekleyenIzinSayisi = count ?? 0;
     tatilUyarilari = uyarilar;

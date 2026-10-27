@@ -1,41 +1,34 @@
 import { Star, MessageSquareHeart } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { count, desc, eq, sum } from "drizzle-orm";
+import { sema, withTenant, zamanlariIsoyaCevir } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { formatDateTime } from "@/lib/datetime";
 import { cn, telefonGoster } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 
 const LISTE_LIMITI = 200;
 
 export default async function AnketYanitlariSayfasi() {
   const { kullanici } = await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
-  // Liste son 200 yanıtla sınırlı; ortalama ise TÜM puanlardan (yalnız puan kolonu, sayfalı) —
-  // tek sorgu yıllar içinde 1000. yanıtta sessizce kesilir, ortalama da yanlış çıkardı.
-  const [{ data: yanitlar }, tumPuanlar] = await Promise.all([
-    supabase
-      .from("anket_yaniti")
-      .select("id, puan, oneri_metni, ad_soyad, telefon, created_at")
-      .eq("klinik_id", kullanici.klinik_id)
-      .order("created_at", { ascending: false })
-      .limit(LISTE_LIMITI),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("anket_yaniti")
-        .select("id, puan")
-        .eq("klinik_id", kullanici.klinik_id)
-        .not("puan", "is", null)
-        .order("id")
-        .range(bas, son)
-        .returns<{ id: string; puan: number | null }[]>()
+  // Liste son 200 yanıtla sınırlı; ortalama ise TÜM puanlardan (tek toplama sorgusu — sayfalama/1000 satır kesilmesi sorunu yok).
+  const { yanitlar, ozet } = await withTenant(bag, async (tx) => ({
+    yanitlar: zamanlariIsoyaCevir(
+      await tx
+        .select({ id: sema.anketYaniti.id, puan: sema.anketYaniti.puan, oneri_metni: sema.anketYaniti.oneriMetni, ad_soyad: sema.anketYaniti.adSoyad, telefon: sema.anketYaniti.telefon, created_at: sema.anketYaniti.createdAt })
+        .from(sema.anketYaniti)
+        .where(eq(sema.anketYaniti.klinikId, kullanici.klinik_id!))
+        .orderBy(desc(sema.anketYaniti.createdAt))
+        .limit(LISTE_LIMITI)
     ),
-  ]);
+    ozet: (await tx.select({ adet: count(sema.anketYaniti.puan), toplam: sum(sema.anketYaniti.puan) }).from(sema.anketYaniti).where(eq(sema.anketYaniti.klinikId, kullanici.klinik_id!)))[0],
+  }));
 
-  const puanlar = tumPuanlar.map((y) => y.puan).filter((p): p is number => p !== null);
-  const ortalama = puanlar.length > 0 ? (puanlar.reduce((a, b) => a + b, 0) / puanlar.length).toFixed(1) : null;
+  const oyAdedi = Number(ozet?.adet ?? 0);
+  const ortalama = oyAdedi > 0 ? (Number(ozet?.toplam ?? 0) / oyAdedi).toFixed(1) : null;
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -43,7 +36,7 @@ export default async function AnketYanitlariSayfasi() {
         <PageHeader
           icon={MessageSquareHeart}
           title="Anket ve Öneriler"
-          description={`QR kod üzerinden gelen hasta geri bildirimleri.${ortalama ? ` Ortalama puan: ${ortalama} / 5 (${puanlar.length} oy)` : ""}`}
+          description={`QR kod üzerinden gelen hasta geri bildirimleri.${ortalama ? ` Ortalama puan: ${ortalama} / 5 (${oyAdedi} oy)` : ""}`}
         />
 
         {(!yanitlar || yanitlar.length === 0) && (

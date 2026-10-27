@@ -1,15 +1,16 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { eylemYetkisiGetir, YETKISIZ_MESAJI } from "@/lib/auth/eylem-yetkisi";
-import { kuyrukSatiriniIsle } from "@/lib/mesaj/kuyruk-isle";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { manuelGonderilebilirTetikleyiciler, manuelMetniDoldur } from "@/lib/mesaj/manuel-mesaj";
 import type { MesajKanal } from "@/types/mesajlasma";
 
 // Hastaya elle mesaj: yalnız resepsiyon + yönetici (RLS'teki hasta yönetimi kümesiyle aynı).
 const IZINLI_ROLLER = ["klinik_admin", "resepsiyon"] as const;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type HastaMesajSecenegi = {
   kod: string;
@@ -27,45 +28,40 @@ export type HastaMesajSecenekleri = {
 
 export type HastaMesajGonderSonucu = { success: boolean; message: string };
 
-type HastaSatiri = {
-  id: string;
-  klinik_id: string;
-  ad_soyad: string;
-  telefon: string | null;
-  eposta: string | null;
-  whatsapp_izin_durumu: boolean;
-  ticari_ileti_onay_tarihi: string | null;
-};
-
-const HASTA_SELECT = "id, klinik_id, ad_soyad, telefon, eposta, whatsapp_izin_durumu, ticari_ileti_onay_tarihi";
-
 async function yetkiliHastaGetir(hastaId: string) {
-  const { supabase, yetkili } = await eylemYetkisiGetir(IZINLI_ROLLER);
-  if (!yetkili) return { ok: false as const, hata: YETKISIZ_MESAJI };
+  const y = await eylemYetkisi(IZINLI_ROLLER);
+  if (!y.yetkili || !y.bag || !y.klinikId) return { ok: false as const, hata: YETKISIZ_MESAJI };
+  if (!UUID.test(hastaId)) return { ok: false as const, hata: "Hasta bulunamadı." };
 
   // Kullanıcı oturumuyla (RLS) okunur: başka kliniğin hastası burada hiç dönmez.
-  const { data: hasta } = await supabase.from("hasta").select(HASTA_SELECT).eq("id", hastaId).maybeSingle<HastaSatiri>();
+  const hasta = (
+    await withTenant(y.bag, (tx) =>
+      tx
+        .select({ id: sema.hasta.id, klinikId: sema.hasta.klinikId, adSoyad: sema.hasta.adSoyad, telefon: sema.hasta.telefon, eposta: sema.hasta.eposta, wp: sema.hasta.whatsappIzinDurumu, ticari: sema.hasta.ticariIletiOnayTarihi })
+        .from(sema.hasta)
+        .where(eq(sema.hasta.id, hastaId))
+        .limit(1)
+    )
+  )[0];
   if (!hasta) return { ok: false as const, hata: "Hasta bulunamadı." };
 
-  const admin = createAdminClient();
-  const { data: klinik } = await admin.from("klinik").select("ad").eq("id", hasta.klinik_id).maybeSingle();
-  return { ok: true as const, admin, hasta, klinikAdi: (klinik?.ad as string | undefined) ?? "" };
+  const klinik = (await withTenant(y.bag, (tx) => tx.select({ ad: sema.klinik.ad }).from(sema.klinik).where(eq(sema.klinik.id, hasta.klinikId)).limit(1)))[0];
+  return { ok: true as const, bag: y.bag, hasta, klinikAdi: klinik?.ad ?? "" };
 }
 
 /** Modal açılınca: gönderilebilecek şablonlar (kliniğin kendi metni varsa o, yoksa varsayılan) + hastanın erişilebilir kanalları. */
 export async function hastaMesajSecenekleriGetir(hastaId: string): Promise<HastaMesajSecenekleri | { hata: string }> {
   const bag = await yetkiliHastaGetir(hastaId);
   if (!bag.ok) return { hata: bag.hata };
-  const { admin, hasta, klinikAdi } = bag;
+  const { hasta, klinikAdi } = bag;
 
-  const { data: kurallar } = await admin
-    .from("mesaj_kurallari")
-    .select("tetikleyici_kodu, mesaj_metni")
-    .eq("klinik_id", hasta.klinik_id);
-  const ozelMetin = new Map((kurallar ?? []).map((k) => [k.tetikleyici_kodu as string, (k.mesaj_metni as string | null) ?? ""]));
+  const kurallar = await withTenant(bag.bag, (tx) =>
+    tx.select({ kod: sema.mesajKurallari.tetikleyiciKodu, metin: sema.mesajKurallari.mesajMetni }).from(sema.mesajKurallari).where(eq(sema.mesajKurallari.klinikId, hasta.klinikId))
+  );
+  const ozelMetin = new Map(kurallar.map((k) => [k.kod, k.metin ?? ""]));
 
-  const ticariOnayi = !!hasta.ticari_ileti_onay_tarihi;
-  const degiskenler = { hasta_adi: hasta.ad_soyad, klinik_adi: klinikAdi };
+  const ticariOnayi = !!hasta.ticari;
+  const degiskenler = { hasta_adi: hasta.adSoyad, klinik_adi: klinikAdi };
 
   return {
     secenekler: manuelGonderilebilirTetikleyiciler().map((t) => ({
@@ -77,7 +73,7 @@ export async function hastaMesajSecenekleriGetir(hastaId: string): Promise<Hasta
     })),
     kanallar: {
       sms: !!hasta.telefon,
-      whatsapp: !!hasta.telefon && hasta.whatsapp_izin_durumu,
+      whatsapp: !!hasta.telefon && hasta.wp,
       mail: !!hasta.eposta,
     },
   };
@@ -104,70 +100,53 @@ export async function hastaMesajiGonder(
 
   const bag = await yetkiliHastaGetir(hastaId);
   if (!bag.ok) return { success: false, message: bag.hata };
-  const { admin, hasta } = bag;
+  const { hasta } = bag;
 
   // KVKK/İYS: ticari ileti onayı yoksa gönderilmez; WhatsApp yalnız izinli hastaya.
-  if (tanim.icerikTipi === "ticari" && !hasta.ticari_ileti_onay_tarihi) {
+  if (tanim.icerikTipi === "ticari" && !hasta.ticari) {
     return { success: false, message: "Hastanın ticari ileti onayı yok, bu mesaj gönderilemez." };
   }
 
   const adresler: Record<MesajKanal, string | null> = {
     sms: hasta.telefon,
-    whatsapp: hasta.whatsapp_izin_durumu ? hasta.telefon : null,
+    whatsapp: hasta.wp ? hasta.telefon : null,
     mail: hasta.eposta,
   };
 
-  const eklenenler: { id: string; kanal: MesajKanal }[] = [];
   const atlananlar: MesajKanal[] = [];
+  const eklenecekler: { kanal: MesajKanal; adres: string }[] = [];
   for (const kanal of new Set(kanallar)) {
     const adres = adresler[kanal];
-    if (!adres) {
-      atlananlar.push(kanal);
-      continue;
-    }
-    const { data, error } = await admin
-      .from("mesaj_kuyrugu")
-      .insert({
-        klinik_id: hasta.klinik_id,
-        tetikleyici_kodu: kod,
-        kanal,
-        alici_tipi: "hasta",
-        alici_id: hasta.id,
-        alici_adres: adres,
-        gonderilecek_metin: metin,
-        // Elle gönderimde her tıklama ayrı bir mesajdır; aynı metin bilerek tekrar gönderilebilir.
-        idempotency_anahtari: `manuel:${hasta.id}:${kod}:${kanal}:${randomUUID()}`,
-      })
-      .select("id")
-      .single();
-    if (error || !data) {
-      console.error(`[mesaj] elle mesaj kuyruğa yazılamadı (hasta ${hasta.id}/${kanal}):`, error?.message);
-      return { success: false, message: "Mesaj kuyruğa alınamadı, lütfen tekrar deneyin." };
-    }
-    eklenenler.push({ id: data.id as string, kanal });
+    if (!adres) atlananlar.push(kanal);
+    else eklenecekler.push({ kanal, adres });
   }
-
-  if (eklenenler.length === 0) {
+  if (eklenecekler.length === 0) {
     return { success: false, message: "Seçilen kanallar için hastanın iletişim bilgisi/izni yok." };
   }
 
-  // Hemen göndermeyi dene; olmazsa (merkez yapılandırılmamış/geçici hata) kuyruk kendi yeniden deneme düzeniyle devam eder.
-  let gonderilen = 0;
-  for (const e of eklenenler) {
-    try {
-      const sonuc = await kuyrukSatiriniIsle(admin, e.id);
-      if (sonuc.durum === "gonderildi") gonderilen++;
-    } catch (hata) {
-      console.error(`[mesaj] elle mesaj anlık işlenemedi (${e.id}):`, hata);
-    }
+  try {
+    // Tüm kanallar tek transaction'da kuyruğa yazılır. Gönderimi kuyruk işçisi (zamanlanmış betik) yapar; kullanıcı oturumu kuyruk satırını
+    // işleyemez/güncelleyemez (yalnız ekleyebilir) — eskiden burada servis rolüyle anında gönderim denenirdi.
+    await withTenant(bag.bag, (tx) =>
+      tx.insert(sema.mesajKuyrugu).values(
+        eklenecekler.map((e) => ({
+          klinikId: hasta.klinikId,
+          tetikleyiciKodu: kod,
+          kanal: e.kanal,
+          aliciTipi: "hasta" as const,
+          aliciId: hasta.id,
+          aliciAdres: e.adres,
+          gonderilecekMetin: metin,
+          // Elle gönderimde her tıklama ayrı bir mesajdır; aynı metin bilerek tekrar gönderilebilir.
+          idempotencyAnahtari: `manuel:${hasta.id}:${kod}:${e.kanal}:${randomUUID()}`,
+        }))
+      )
+    );
+  } catch (e) {
+    console.error(`[mesaj] elle mesaj kuyruğa yazılamadı (hasta ${hasta.id}):`, pgHata(e).mesaj);
+    return { success: false, message: "Mesaj kuyruğa alınamadı, lütfen tekrar deneyin." };
   }
 
   const atlandiNotu = atlananlar.length > 0 ? ` (${atlananlar.join(", ")} için iletişim bilgisi/izni yok, atlandı)` : "";
-  if (gonderilen === eklenenler.length) {
-    return { success: true, message: `Mesaj gönderildi.${atlandiNotu}` };
-  }
-  return {
-    success: true,
-    message: `Mesaj kuyruğa alındı, birazdan gönderilecek.${atlandiNotu}`,
-  };
+  return { success: true, message: `Mesaj kuyruğa alındı, birazdan gönderilecek.${atlandiNotu}` };
 }

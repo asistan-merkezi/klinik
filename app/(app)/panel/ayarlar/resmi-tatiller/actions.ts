@@ -1,11 +1,10 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { resmiTatilleriGuncelle } from "@/lib/tatil/oneri-uret";
+import { and, eq } from "drizzle-orm";
+import { pgHata, rpc, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi } from "@/lib/auth/yetki";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -17,17 +16,9 @@ function sayfalariYenile() {
 }
 
 async function yetkiliKlinikAdminGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/giris");
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-  if (kullanici?.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { supabase, klinikId: null };
-  }
-  return { supabase, klinikId: kullanici.klinik_id as string };
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || !y.klinikId || y.ctx.rol !== "klinik_admin") return { bag: null, klinikId: null };
+  return { bag: y.bag, klinikId: y.klinikId };
 }
 
 const tarihSemasi = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tarih seçilmeli.");
@@ -39,8 +30,8 @@ const tatilEkleSemasi = z.object({
 
 /** Kliniğe özel tatil (idari izin, bayram uzatması, kliniğin kapalı olduğu gün vb.). */
 export async function tatilEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await yetkiliKlinikAdminGetir();
-  if (!klinikId) return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const { bag, klinikId } = await yetkiliKlinikAdminGetir();
+  if (!bag || !klinikId) return { success: false, message: "Bu işlem için yetkiniz yok." };
 
   const ayristirma = tatilEkleSemasi.safeParse({ tarih: formData.get("tarih"), ad: formData.get("ad") });
   if (!ayristirma.success) {
@@ -48,14 +39,16 @@ export async function tatilEkle(_onceki: SonucDurumu, formData: FormData): Promi
   }
   const { tarih, ad } = ayristirma.data;
 
-  const { data: mevcut } = await supabase.from("resmi_tatil").select("ad").eq("tarih", tarih).limit(1).maybeSingle();
-  if (mevcut) {
-    return { success: false, message: `Bu gün zaten tatil olarak kayıtlı (${mevcut.ad}).` };
-  }
-
-  const { error } = await supabase.from("resmi_tatil").insert({ klinik_id: klinikId, tarih, ad });
-  if (error) {
-    console.error("Resmi tatil eklenemedi:", error);
+  try {
+    const sonuc = await withTenant(bag, async (tx) => {
+      const mevcut = (await tx.select({ ad: sema.resmiTatil.ad }).from(sema.resmiTatil).where(eq(sema.resmiTatil.tarih, tarih)).limit(1))[0];
+      if (mevcut) return { hata: `Bu gün zaten tatil olarak kayıtlı (${mevcut.ad}).` };
+      await tx.insert(sema.resmiTatil).values({ klinikId, tarih, ad });
+      return { tamam: true as const };
+    });
+    if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Tatil eklenemedi." };
+  } catch (e) {
+    console.error("Resmi tatil eklenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Tatil eklenemedi, lütfen tekrar deneyin." };
   }
 
@@ -65,22 +58,16 @@ export async function tatilEkle(_onceki: SonucDurumu, formData: FormData): Promi
 
 /** Yalnız kliniğin kendi eklediği/onayladığı satırlar silinir; sistem (global) tatilleri RLS'le korunur. */
 export async function tatilSil(id: string): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await yetkiliKlinikAdminGetir();
-  if (!klinikId) return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const { bag, klinikId } = await yetkiliKlinikAdminGetir();
+  if (!bag || !klinikId) return { success: false, message: "Bu işlem için yetkiniz yok." };
   if (!z.string().uuid().safeParse(id).success) return { success: false, message: "Tatil bulunamadı." };
 
-  const { data, error } = await supabase
-    .from("resmi_tatil")
-    .delete()
-    .eq("id", id)
-    .eq("klinik_id", klinikId)
-    .select("id");
-  if (error) {
-    console.error("Resmi tatil silinemedi:", error);
+  try {
+    const silinen = await withTenant(bag, (tx) => tx.delete(sema.resmiTatil).where(and(eq(sema.resmiTatil.id, id), eq(sema.resmiTatil.klinikId, klinikId))).returning({ id: sema.resmiTatil.id }));
+    if (silinen.length === 0) return { success: false, message: "Sistem tatilleri silinemez; yalnız kliniğe özel tatiller silinebilir." };
+  } catch (e) {
+    console.error("Resmi tatil silinemedi:", pgHata(e).mesaj);
     return { success: false, message: "Tatil silinemedi, lütfen tekrar deneyin." };
-  }
-  if (!data || data.length === 0) {
-    return { success: false, message: "Sistem tatilleri silinemez; yalnız kliniğe özel tatiller silinebilir." };
   }
 
   sayfalariYenile();
@@ -102,8 +89,8 @@ const KARAR_HATALARI: Record<string, string> = {
 
 /** Bir bayramın önerisini (gerekirse düzeltilmiş tarihlerle) onaylar ya da reddeder. */
 export async function bayramOnerisiKarar(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId } = await yetkiliKlinikAdminGetir();
-  if (!klinikId) return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const { bag, klinikId } = await yetkiliKlinikAdminGetir();
+  if (!bag || !klinikId) return { success: false, message: "Bu işlem için yetkiniz yok." };
 
   const ayristirma = kararSemasi.safeParse({
     yil: formData.get("yil"),
@@ -117,15 +104,12 @@ export async function bayramOnerisiKarar(_onceki: SonucDurumu, formData: FormDat
   const { yil, bayram, karar, tarihler } = ayristirma.data;
   const onay = karar === "onayla";
 
-  const { error } = await supabase.rpc("resmi_tatil_onerisi_karar", {
-    p_yil: yil,
-    p_bayram: bayram,
-    p_onay: onay,
-    p_tarihler: onay ? tarihler : null,
-  });
-  if (error) {
-    console.error("Bayram önerisi kararı kaydedilemedi:", error);
-    const anahtar = Object.keys(KARAR_HATALARI).find((k) => error.message?.includes(k));
+  try {
+    await withTenant(bag, (tx) => rpc(tx, "resmi_tatil_onerisi_karar", { p_yil: yil, p_bayram: bayram, p_onay: onay, p_tarihler: onay ? tarihler : null }));
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Bayram önerisi kararı kaydedilemedi:", h.mesaj);
+    const anahtar = Object.keys(KARAR_HATALARI).find((k) => h.mesaj.includes(k));
     return { success: false, message: anahtar ? KARAR_HATALARI[anahtar] : "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
@@ -138,29 +122,12 @@ export async function bayramOnerisiKarar(_onceki: SonucDurumu, formData: FormDat
   };
 }
 
-/** Cron'u beklemeden bu klinik için sabit tatilleri ve bayram önerilerini şimdi günceller. */
+/**
+ * Eskiden "şimdi kontrol et" servis rolüyle global tatil + klinik önerisi yazardı. Global `resmi_tatil` ve `resmi_tatil_oneri` yazımı artık YALNIZ
+ * aylık bakım betiğindedir (bakim_rolu); kullanıcı oturumunun bu tablolara yazma yetkisi YOKTUR (yetki genişletmesi ürün kararı bekliyor — docs/tasima-ilerleme.md).
+ */
 export async function onerileriKontrolEt(): Promise<SonucDurumu> {
-  const { klinikId } = await yetkiliKlinikAdminGetir();
-  if (!klinikId) return { success: false, message: "Bu işlem için yetkiniz yok." };
-
-  try {
-    const sonuc = await resmiTatilleriGuncelle(createAdminClient(), [klinikId]);
-    sayfalariYenile();
-    if (sonuc.nagerHatasi.length > 0 && sonuc.oneriEklenen === 0) {
-      return {
-        success: false,
-        message: "Bayram tarihleri kaynağına şu an ulaşılamadı. Tarihleri elle ekleyebilir ya da daha sonra tekrar deneyebilirsiniz.",
-      };
-    }
-    return {
-      success: true,
-      message:
-        sonuc.oneriEklenen > 0
-          ? "Yeni bayram önerileri eklendi; aşağıdan kontrol edip onaylayın."
-          : "Güncel — eklenecek yeni tatil ya da öneri yok.",
-    };
-  } catch (hata) {
-    console.error("Resmi tatil kontrolü başarısız:", hata);
-    return { success: false, message: "Kontrol yapılamadı, lütfen tekrar deneyin." };
-  }
+  const { bag } = await yetkiliKlinikAdminGetir();
+  if (!bag) return { success: false, message: "Bu işlem için yetkiniz yok." };
+  return { success: false, message: "Bayram önerileri her ay otomatik güncellenir. Acil bir tarih için aşağıdaki formdan elle tatil ekleyebilirsiniz." };
 }

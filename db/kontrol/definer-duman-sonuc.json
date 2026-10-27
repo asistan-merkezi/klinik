@@ -124,14 +124,14 @@
    },
    "b": {
     "durum": "veri",
-    "ornek": "{\"current_klinik_id\":\"22222222-2222-2222-2222-222222222222\"}"
+    "ornek": "{\"current_klinik_id\":\"22222222-2222-4222-8222-222222222222\"}"
    },
    "c": {
     "durum": "veri",
-    "ornek": "{\"current_klinik_id\":\"11111111-1111-1111-1111-111111111111\"}"
+    "ornek": "{\"current_klinik_id\":\"11111111-1111-4111-8111-111111111111\"}"
    },
    "sonuc": "TASARIM_GEREGI",
-   "ayrinti": "A:bos {\"current_klinik_id\":null} · B:veri {\"current_klinik_id\":\"22222222-2222-2222-2222-222222222222\"}"
+   "ayrinti": "A:bos {\"current_klinik_id\":null} · B:veri {\"current_klinik_id\":\"22222222-2222-4222-8222-222222222222\"}"
   },
   {
    "ad": "current_rol",
@@ -1028,7 +1028,7 @@
    "imza": "qr_kodu_aktif_mi(uuid,text)",
    "donus": "boolean",
    "tur": "cagrilabilir",
-   "uygulamaCagirir": true,
+   "uygulamaCagirir": false,
    "anonCagirir": true,
    "a": {
     "durum": "bos",
@@ -1123,7 +1123,7 @@
    },
    "c": {
     "durum": "degisiklik",
-    "ornek": "{\"randevu_gelis_isaretle\":{\"yontem\":\"yok\",\"hasta_id\":\"10000000-0000-0000-0000-00"
+    "ornek": "{\"randevu_gelis_isaretle\":{\"yontem\":\"yok\",\"hasta_id\":\"10000000-0000-4000-8000-00"
    },
    "sonuc": "GECTI"
   },
@@ -1144,7 +1144,7 @@
    },
    "c": {
     "durum": "degisiklik",
-    "ornek": "{\"randevu_gelmedi_isaretle\":{\"hasta_id\":\"10000000-0000-0000-0000-000000000003\",\""
+    "ornek": "{\"randevu_gelmedi_isaretle\":{\"hasta_id\":\"10000000-0000-4000-8000-000000000003\",\""
    },
    "sonuc": "GECTI"
   },
@@ -1165,7 +1165,7 @@
    },
    "c": {
     "durum": "degisiklik",
-    "ornek": "{\"randevu_iptal_et\":{\"bedelli\":false,\"hasta_id\":\"10000000-0000-0000-0000-0000000"
+    "ornek": "{\"randevu_iptal_et\":{\"bedelli\":false,\"hasta_id\":\"10000000-0000-4000-8000-0000000"
    },
    "sonuc": "GECTI"
   },
@@ -1340,6 +1340,27 @@
    "c": {
     "durum": "bos",
     "ornek": "{\"terapist_id_giris_yapan_kullaniciya_ait_mi\":false}"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "terapist_uygunluk_getir",
+   "imza": "terapist_uygunluk_getir(uuid,date,date)",
+   "donus": "jsonb",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos",
+    "ornek": "{\"terapist_uygunluk_getir\":null}"
+   },
+   "b": {
+    "durum": "bos",
+    "ornek": "{\"terapist_uygunluk_getir\":null}"
+   },
+   "c": {
+    "durum": "bos",
+    "ornek": "{\"terapist_uygunluk_getir\":{\"cikis_tarihi\":null,\"izinli_gunler\":[]}}"
    },
    "sonuc": "GECTI"
   }

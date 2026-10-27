@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { CalendarClock } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { odaSecenekleriGetir, tumTerapistSecenekleriGetir } from "@/lib/randevu/sorgular";
 import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -8,19 +11,14 @@ import { RandevularSihirbazi } from "./sihirbaz";
 
 export default async function RandevularArsivIceAktarmaSayfasi() {
   await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar/arsiv-ice-aktarma" });
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
-  const [terapistSonucu, odaSonucu, islemSonucu] = await Promise.all([
-    supabase.from("terapist").select("id, personel(ad_soyad)").returns<{ id: string; personel: { ad_soyad: string } | null }[]>(),
-    supabase.from("oda").select("id, ad").eq("aktif", true).order("ad"),
-    supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
-  ]);
-
-  const terapistler = (terapistSonucu.data ?? [])
-    .map((t) => ({ id: t.id, ad: t.personel?.ad_soyad ?? "İsimsiz terapist" }))
-    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
-  const odalar = odaSonucu.data ?? [];
-  const islemler = islemSonucu.data ?? [];
+  const { terapistler, odalar, islemler } = await withTenant(bag, async (tx) => ({
+    // Arşivde ayrılmış terapistin eski kayıtları meşru olabilir: çıkış tarihi süzülmez (eski davranış).
+    terapistler: (await tumTerapistSecenekleriGetir(tx)).map((t) => ({ id: t.id, ad: t.ad === "—" ? "İsimsiz terapist" : t.ad })),
+    odalar: await odaSecenekleriGetir(tx),
+    islemler: await tx.select({ id: sema.islemTanimi.id, ad: sema.islemTanimi.ad }).from(sema.islemTanimi).where(eq(sema.islemTanimi.aktif, true)).orderBy(asc(sema.islemTanimi.ad)),
+  }));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

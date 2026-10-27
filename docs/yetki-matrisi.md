@@ -27,7 +27,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | is_basvurusu | I |
 | seans_degerlendirme | I |
 
-## klinik_uygulama (78 tablo/görünüm)
+## klinik_uygulama (79 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
@@ -36,7 +36,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | cihaz | S,I,U |
 | destek_talebi | S,I,U |
 | fatura | S |
-| hasta | S,I,U,D |
+| hasta | S,I,U |
 | hasta_anamnez | S,I,U |
 | hasta_bakiye_hareket | S,I |
 | hasta_belge | S,I,U,D |
@@ -78,6 +78,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | oda | S,I,U |
 | odeme | S |
 | odeme_kalemi | S |
+| odeme_satiri | S |
 | olcek_tanimi | S |
 | paket | S,I,U |
 | paket_satis | S |
@@ -216,7 +217,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | v_personel_izin_bakiye | S |
 | vardiya_turu | S |
 
-## Kodda doğrudan yetkisi olmayan tablolar (15) ve onlara yazan yollar
+## Kodda doğrudan yetkisi olmayan tablolar (14) ve onlara yazan yollar
 
 `klinik_uygulama`nın bu tablolarda hiçbir tablo/kolon yetkisi yok: kodda doğrudan sorgulanmıyorlar. Yazma yalnız aşağıdaki SECURITY DEFINER fonksiyonlar/tetikleyicilerle olur (gövde taraması: `db/kontrol/yetkisiz-tablo-yazanlar.mjs`). `odeme` ve `odeme_kalemi` politika bağımlılığı nedeniyle (`islem_tanimi_select_portal`) yalnız SELECT yetkisi alır; yazma yolları RPC'dir. İlk sürümde bu bağımlılık gözden kaçmış, gerçek yazma testi `permission denied for table odeme` ile yakalamıştır.
 
@@ -230,7 +231,6 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | hiz_siniri_sayac | `hiz_siniri_kullan(text,integer,integer,boolean)` (RPC, DEFINER) | — |
 | islem_kategori | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_islem_kategori_updated_at` |
 | islem_tanimi_fiyat_gecmisi | `islem_tanimi_fiyat_gecmisi_yaz()` (tetikleyici fonksiyonu, DEFINER) | — |
-| odeme_satiri | `odeme_olustur(uuid,numeric,boolean,text,jsonb,jsonb)` (RPC, DEFINER)<br>`hasta_bakiye_hareket_borc_duzenle(uuid,numeric,boolean,text)` (RPC, DEFINER) | — |
 | personel_vardiya_atama | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_personel_vardiya_atama_audit`, `trg_personel_vardiya_atama_klinik_id`, `trg_personel_vardiya_atama_updated_at` |
 | pozisyon_sablonlari | — (yazan yok: kullanılmayan/gelecek özellik) | — |
 | randevu_checklist | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_randevu_checklist_klinik_id`, `trg_randevu_checklist_updated_at` |

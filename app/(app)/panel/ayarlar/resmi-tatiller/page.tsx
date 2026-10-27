@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { and, asc, eq, gte, lt } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { BAYRAM_ADLARI, tatilTarihiGoster, type Bayram } from "@/lib/tatil/kurallar";
 import { resmiTatilUyarilariGetir } from "@/lib/tatil/durum";
@@ -16,40 +17,31 @@ type TatilSatiri = { id: string; klinik_id: string | null; tarih: string; ad: st
 type OneriSatiri = { yil: number; bayram: Bayram; tarih: string; ad: string };
 
 export default async function ResmiTatillerSayfasi({ searchParams }: { searchParams: Promise<{ yil?: string }> }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/giris");
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-  const yonetici = kullanici?.rol === "klinik_admin";
+  const { ctx, bag } = await panelBaglami();
+  const yonetici = ctx.rol === "klinik_admin";
 
   const bugun = bugunIstanbulTarihi();
   const buYil = Number(bugun.slice(0, 4));
   const istenenYil = Number((await searchParams).yil);
   const yil = Number.isInteger(istenenYil) && istenenYil >= 2020 && istenenYil <= buYil + 5 ? istenenYil : buYil;
 
-  const [{ data: tatilHam }, { data: oneriHam }, uyarilar] = await Promise.all([
-    supabase
-      .from("resmi_tatil")
-      .select("id, klinik_id, tarih, ad")
-      .gte("tarih", `${yil}-01-01`)
-      .lt("tarih", `${yil + 1}-01-01`)
-      .order("tarih")
-      .returns<TatilSatiri[]>(),
-    yonetici
-      ? supabase
-          .from("resmi_tatil_oneri")
-          .select("yil, bayram, tarih, ad")
-          .eq("durum", "bekliyor")
-          .order("tarih")
-          .returns<OneriSatiri[]>()
-      : Promise.resolve({ data: [] as OneriSatiri[] }),
-    yonetici ? resmiTatilUyarilariGetir(supabase) : Promise.resolve([]),
-  ]);
+  const { tatilHam, oneriHam, uyarilar } = await withTenant(bag, async (tx) => ({
+    tatilHam: (await tx
+      .select({ id: sema.resmiTatil.id, klinik_id: sema.resmiTatil.klinikId, tarih: sema.resmiTatil.tarih, ad: sema.resmiTatil.ad })
+      .from(sema.resmiTatil)
+      .where(and(gte(sema.resmiTatil.tarih, `${yil}-01-01`), lt(sema.resmiTatil.tarih, `${yil + 1}-01-01`)))
+      .orderBy(asc(sema.resmiTatil.tarih))) as TatilSatiri[],
+    oneriHam: yonetici
+      ? ((await tx
+          .select({ yil: sema.resmiTatilOneri.yil, bayram: sema.resmiTatilOneri.bayram, tarih: sema.resmiTatilOneri.tarih, ad: sema.resmiTatilOneri.ad })
+          .from(sema.resmiTatilOneri)
+          .where(eq(sema.resmiTatilOneri.durum, "bekliyor"))
+          .orderBy(asc(sema.resmiTatilOneri.tarih))) as OneriSatiri[])
+      : ([] as OneriSatiri[]),
+    uyarilar: yonetici ? await resmiTatilUyarilariGetir(tx) : [],
+  }));
 
-  const tatiller = tatilHam ?? [];
+  const tatiller = tatilHam;
   const oneriGruplari = new Map<string, { yil: number; bayram: Bayram; gunler: { tarih: string; ad: string }[] }>();
   for (const o of oneriHam ?? []) {
     const anahtar = `${o.yil}|${o.bayram}`;

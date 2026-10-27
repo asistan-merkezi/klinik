@@ -2105,7 +2105,7 @@
    "ad": "qr_kodu_aktif_mi",
    "imza": "qr_kodu_aktif_mi(uuid,text)",
    "definer": true,
-   "uygulama": true,
+   "uygulama": false,
    "anonim": true,
    "bakim": false
   },
