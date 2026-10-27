@@ -228,7 +228,8 @@ e("");
 // FORCE altında DEFINER fonksiyonlar/tetikleyiciler (sahip: klinik_sahip) YALNIZ aktif tenant'ın satırlarına dokunabilir.
 e("-- Sahip politikası: FORCE altında klinik_sahip (DEFINER fonksiyon/tetikleyici sahibi) da yalnız aktif tenant'ı görür; tenant'lar arası erişim YOK.");
 for (const t of forceTablolar) {
-  const koşul = t.ad === "klinik" ? "id = current_klinik_id()" : t.bosOlabilir && t.ad !== "kullanici" ? "(klinik_id IS NULL OR klinik_id = current_klinik_id())" : "klinik_id = current_klinik_id()";
+  // (SELECT current_klinik_id()) = InitPlan: ifade başına bir kez hesaplanır (Seçenek A'da fonksiyon eşleme tablosuna bakar; satır başına çağrı pahalı olurdu).
+  const koşul = t.ad === "klinik" ? "id = (SELECT current_klinik_id())" : t.bosOlabilir && t.ad !== "kullanici" ? "(klinik_id IS NULL OR klinik_id = (SELECT current_klinik_id()))" : "klinik_id = (SELECT current_klinik_id())";
   e(`CREATE POLICY sahip_aktif_tenant ON ${ad(t.ad)} AS PERMISSIVE FOR ALL TO klinik_sahip USING (${koşul}) WITH CHECK (${koşul});`);
 }
 e("");

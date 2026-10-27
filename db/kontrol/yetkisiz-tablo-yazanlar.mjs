@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 /** Yetkisiz tablo listesi katalogdan hesaplanır: klinik_uygulama'nın hiçbir tablo/kolon yetkisi olmayan public tabloları. */
 export async function yetkisizTablolar(sup) {
   return (await sup.query(`select c.relname from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in ('r','p') and not c.relispartition
-    and c.relname not in ('kimlik_kullanici','oturum','kimlik_hesap','kimlik_dogrulama') and c.relname not like 'audit_log%'
+    and c.relname not in ('kimlik_kullanici','oturum','kimlik_hesap','kimlik_dogrulama','kullanici_tenant') and c.relname not like 'audit_log%'
     and not has_any_column_privilege('klinik_uygulama', c.oid, 'SELECT,INSERT,UPDATE')
     and not has_table_privilege('klinik_uygulama', c.oid, 'DELETE') order by 1`)).rows.map((r) => r.relname);
 }

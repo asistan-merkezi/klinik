@@ -1,6 +1,6 @@
 {
  "uretim": "scripts/dev/kullanim-tara.mjs",
- "kayitSayisi": 592,
+ "kayitSayisi": 597,
  "kayitlar": [
   {
    "dosya": "app/(app)/anket/seans/[randevuId]/actions.ts",
@@ -26,15 +26,6 @@
    "tablo": "is_basvurusu",
    "islemler": [
     "INSERT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/giris/actions.ts",
-   "satir": 46,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
    ],
    "gomulu": []
   },
@@ -232,16 +223,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/muhasebe-sync/actions.ts",
-   "satir": 22,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/ayarlar/muhasebe-sync/actions.ts",
-   "satir": 73,
+   "satir": 51,
    "tablo": "klinik_muhasebe_entegrasyonu",
    "islemler": [
     "SELECT"
@@ -250,7 +232,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/muhasebe-sync/actions.ts",
-   "satir": 81,
+   "satir": 64,
    "tablo": "klinik_muhasebe_entegrasyonu",
    "islemler": [
     "INSERT",
@@ -261,16 +243,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/muhasebe-sync/page.tsx",
-   "satir": 23,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/ayarlar/muhasebe-sync/page.tsx",
-   "satir": 32,
+   "satir": 33,
    "tablo": "klinik_muhasebe_entegrasyonu",
    "islemler": [
     "SELECT"
@@ -482,16 +455,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 29,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 142,
+   "satir": 149,
    "tablo": "klinik",
    "islemler": [
     "UPDATE",
@@ -501,7 +465,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 179,
+   "satir": 176,
    "tablo": "klinik_arac",
    "islemler": [
     "INSERT"
@@ -510,7 +474,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 202,
+   "satir": 199,
    "tablo": "klinik_arac",
    "islemler": [
     "DELETE",
@@ -520,7 +484,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 255,
+   "satir": 252,
    "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "SELECT"
@@ -529,7 +493,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 263,
+   "satir": 257,
    "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "INSERT"
@@ -538,7 +502,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 298,
+   "satir": 292,
    "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "UPDATE",
@@ -548,7 +512,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 336,
+   "satir": 333,
    "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "SELECT"
@@ -557,7 +521,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 347,
+   "satir": 339,
    "tablo": "klinik",
    "islemler": [
     "UPDATE",
@@ -567,7 +531,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 396,
+   "satir": 391,
    "tablo": "klinik_kredi_kartlari",
    "islemler": [
     "SELECT"
@@ -576,7 +540,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 403,
+   "satir": 395,
    "tablo": "klinik_kredi_kartlari",
    "islemler": [
     "INSERT"
@@ -585,7 +549,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 438,
+   "satir": 430,
    "tablo": "klinik_kredi_kartlari",
    "islemler": [
     "UPDATE",
@@ -595,7 +559,34 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 478,
+   "satir": 459,
+   "tablo": "klinik_harcama",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 460,
+   "tablo": "klinik_cari_odeme",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 461,
+   "tablo": "klinik_kredi_karti_odeme",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 464,
    "tablo": "klinik_kredi_kartlari",
    "islemler": [
     "DELETE",
@@ -605,7 +596,52 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 508,
+   "satir": 493,
+   "tablo": "hasta_bakiye_hareket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 494,
+   "tablo": "klinik_harcama",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 495,
+   "tablo": "personel_hesap_hareket",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 496,
+   "tablo": "klinik_cari_odeme",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 497,
+   "tablo": "klinik_kredi_karti_odeme",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 500,
    "tablo": "nakit_banka_hareketi",
    "islemler": [
     "SELECT"
@@ -614,7 +650,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 519,
+   "satir": 504,
    "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "DELETE",
@@ -624,16 +660,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
-   "satir": 24,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
-   "satir": 32,
+   "satir": 60,
    "tablo": "klinik",
    "islemler": [
     "SELECT"
@@ -642,7 +669,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
-   "satir": 40,
+   "satir": 65,
    "tablo": "klinik_arac",
    "islemler": [
     "SELECT"
@@ -651,7 +678,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
-   "satir": 49,
+   "satir": 77,
    "tablo": "klinik_banka_hesaplari",
    "islemler": [
     "SELECT"
@@ -660,7 +687,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
-   "satir": 59,
+   "satir": 89,
    "tablo": "klinik_kredi_kartlari",
    "islemler": [
     "SELECT"
@@ -668,26 +695,8 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
-   "satir": 68,
-   "tablo": "klinik",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
    "dosya": "app/(app)/panel/ayarlar/yetkilendirme/actions.ts",
-   "satir": 46,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/ayarlar/yetkilendirme/actions.ts",
-   "satir": 57,
+   "satir": 50,
    "tablo": "klinik_ayarlar",
    "islemler": [
     "SELECT"
@@ -696,7 +705,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/yetkilendirme/actions.ts",
-   "satir": 78,
+   "satir": 67,
    "tablo": "klinik_ayarlar",
    "islemler": [
     "INSERT",
@@ -707,16 +716,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/yetkilendirme/page.tsx",
-   "satir": 21,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/ayarlar/yetkilendirme/page.tsx",
-   "satir": 28,
+   "satir": 29,
    "tablo": "pozisyonlar",
    "islemler": [
     "SELECT"
@@ -725,7 +725,7 @@
   },
   {
    "dosya": "app/(app)/panel/ayarlar/yetkilendirme/page.tsx",
-   "satir": 32,
+   "satir": 31,
    "tablo": "klinik_ayarlar",
    "islemler": [
     "SELECT"
@@ -1712,7 +1712,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 20,
+   "satir": 22,
    "tablo": "randevu_iptal_talebi",
    "islemler": [
     "SELECT"
@@ -1721,7 +1721,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 21,
+   "satir": 23,
    "tablo": "randevu_talebi",
    "islemler": [
     "SELECT"
@@ -1730,7 +1730,7 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 22,
+   "satir": 24,
    "tablo": "anket_yaniti",
    "islemler": [
     "SELECT"
@@ -1739,7 +1739,43 @@
   },
   {
    "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
-   "satir": 23,
+   "satir": 25,
+   "tablo": "seans_degerlendirme",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 40,
+   "tablo": "randevu_iptal_talebi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 41,
+   "tablo": "randevu_talebi",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 42,
+   "tablo": "anket_yaniti",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 43,
    "tablo": "seans_degerlendirme",
    "islemler": [
     "SELECT"
@@ -2993,7 +3029,7 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 27,
+   "satir": 34,
    "tablo": "klinik",
    "islemler": [
     "SELECT"
@@ -3002,7 +3038,7 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 32,
+   "satir": 38,
    "tablo": "klinik_ayarlar",
    "islemler": [
     "SELECT"
@@ -3011,19 +3047,21 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 36,
+   "satir": 43,
    "tablo": "personel",
    "islemler": [
     "SELECT"
    ],
-   "gomulu": [
-    {
-     "ust": "personel",
-     "ad": "pozisyonlar",
-     "alias": null,
-     "ipucu": []
-    }
-   ]
+   "gomulu": []
+  },
+  {
+   "dosya": "app/(app)/panel/layout.tsx",
+   "satir": 44,
+   "tablo": "pozisyonlar",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
   },
   {
    "dosya": "app/(app)/panel/page.tsx",
@@ -5030,7 +5068,7 @@
   },
   {
    "dosya": "app/(app)/portal/actions.ts",
-   "satir": 210,
+   "satir": 211,
    "tablo": "hasta_kullanici",
    "islemler": [
     "SELECT"
@@ -5039,7 +5077,7 @@
   },
   {
    "dosya": "app/(app)/portal/actions.ts",
-   "satir": 219,
+   "satir": 220,
    "tablo": "randevu_iptal_talebi",
    "islemler": [
     "INSERT"
@@ -5048,7 +5086,7 @@
   },
   {
    "dosya": "app/(app)/portal/actions.ts",
-   "satir": 282,
+   "satir": 283,
    "tablo": "randevu_talebi",
    "islemler": [
     "SELECT"
@@ -5057,7 +5095,7 @@
   },
   {
    "dosya": "app/(app)/portal/actions.ts",
-   "satir": 293,
+   "satir": 294,
    "tablo": "randevu_talebi",
    "islemler": [
     "INSERT"
@@ -5427,17 +5465,8 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/auth/gecerli-hasta.ts",
-   "satir": 29,
-   "tablo": "hasta_kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "lib/auth/gecerli-kullanici.ts",
-   "satir": 53,
+   "dosya": "lib/auth/oturum.ts",
+   "satir": 57,
    "tablo": "kullanici",
    "islemler": [
     "SELECT"
@@ -5445,9 +5474,27 @@
    "gomulu": []
   },
   {
-   "dosya": "lib/auth/oturum-kilidi.ts",
-   "satir": 62,
-   "tablo": "oturum_kilidi",
+   "dosya": "lib/auth/oturum.ts",
+   "satir": 70,
+   "tablo": "hasta_kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/dosya/depo.test.ts",
+   "satir": 16,
+   "tablo": "abc",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/dosya/depo.test.ts",
+   "satir": 37,
+   "tablo": "x",
    "islemler": [
     "SELECT"
    ],
@@ -6133,27 +6180,133 @@
      "ipucu": []
     }
    ]
-  },
-  {
-   "dosya": "components/scheduled-logout.tsx",
-   "satir": 66,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
   }
  ],
  "belirsiz": [
   {
-   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 468,
-   "ifade": ".from(tablo)"
+   "dosya": "app/(app)/panel/ayarlar/muhasebe-sync/actions.ts",
+   "satir": 51,
+   "ifade": ".from(sema.klinikMuhasebeEntegrasyonu)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/muhasebe-sync/page.tsx",
+   "satir": 33,
+   "ifade": ".from(sema.klinikMuhasebeEntegrasyonu)"
   },
   {
    "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
-   "satir": 505,
-   "ifade": ".from(tablo)"
+   "satir": 252,
+   "ifade": ".from(sema.klinikBankaHesaplari)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 333,
+   "ifade": ".from(sema.klinikBankaHesaplari)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 391,
+   "ifade": ".from(sema.klinikKrediKartlari)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 459,
+   "ifade": ".from(sema.klinikHarcama)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 460,
+   "ifade": ".from(sema.klinikCariOdeme)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 461,
+   "ifade": ".from(sema.klinikKrediKartiOdeme)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 493,
+   "ifade": ".from(sema.hastaBakiyeHareket)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 494,
+   "ifade": ".from(sema.klinikHarcama)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 495,
+   "ifade": ".from(sema.personelHesapHareket)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 496,
+   "ifade": ".from(sema.klinikCariOdeme)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 497,
+   "ifade": ".from(sema.klinikKrediKartiOdeme)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts",
+   "satir": 500,
+   "ifade": ".from(sema.nakitBankaHareketi)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
+   "satir": 60,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
+   "satir": 65,
+   "ifade": ".from(sema.klinikArac)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
+   "satir": 77,
+   "ifade": ".from(sema.klinikBankaHesaplari)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx",
+   "satir": 89,
+   "ifade": ".from(sema.klinikKrediKartlari)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/yetkilendirme/actions.ts",
+   "satir": 50,
+   "ifade": ".from(sema.klinikAyarlar)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/yetkilendirme/page.tsx",
+   "satir": 29,
+   "ifade": ".from(sema.pozisyonlar)"
+  },
+  {
+   "dosya": "app/(app)/panel/ayarlar/yetkilendirme/page.tsx",
+   "satir": 31,
+   "ifade": ".from(sema.klinikAyarlar)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 40,
+   "ifade": ".from(sema.randevuIptalTalebi)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 41,
+   "ifade": ".from(sema.randevuTalebi)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 42,
+   "ifade": ".from(sema.anketYaniti)"
+  },
+  {
+   "dosya": "app/(app)/panel/hastalar/bildirimler/bildirim-sayisi.ts",
+   "satir": 43,
+   "ifade": ".from(sema.seansDegerlendirme)"
   },
   {
    "dosya": "app/(app)/panel/kaynaklar/actions.ts",
@@ -6171,20 +6324,32 @@
    "ifade": ".from(gecerliTablo.data)"
   },
   {
+   "dosya": "app/(app)/panel/layout.tsx",
+   "satir": 34,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
+   "dosya": "app/(app)/panel/layout.tsx",
+   "satir": 38,
+   "ifade": ".from(sema.klinikAyarlar)"
+  },
+  {
+   "dosya": "app/(app)/panel/layout.tsx",
+   "satir": 43,
+   "ifade": ".from(sema.personel)"
+  },
+  {
    "dosya": "lib/auth/oturum.ts",
-   "satir": 53,
+   "satir": 57,
    "ifade": ".from(sema.kullanici)"
   },
   {
    "dosya": "lib/auth/oturum.ts",
-   "satir": 64,
+   "satir": 70,
    "ifade": ".from(sema.hastaKullanici)"
   }
  ],
  "rpc": {
-  "personel_giris_epostasi": [
-   "app/(app)/giris/actions.ts:63"
-  ],
   "hasta_arsiv_ice_aktar": [
    "app/(app)/panel/ayarlar/arsiv-ice-aktarma/hastalar/actions.ts:60"
   ],
@@ -6314,17 +6479,11 @@
   "gelmeme_analizi": [
    "app/(app)/panel/yonetim/gelmeme-analizi/page.tsx:112"
   ],
-  "portal_giris_epostasi": [
-   "app/(app)/portal/giris/actions.ts:27"
-  ],
   "personel_puantaj_kendi_kaydet": [
    "app/(app)/puantaj/[kisaKod]/[tur]/actions.ts:62"
   ],
   "audit_log_bolum_olustur": [
    "app/api/cron/audit-log-bolum-olustur/route.ts:22"
-  ],
-  "oturum_anahtari_yenile": [
-   "lib/auth/oturum-kilidi.ts:27"
   ],
   "hasta_ara": [
    "lib/hasta/arama.ts:40"

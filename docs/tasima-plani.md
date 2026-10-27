@@ -112,20 +112,32 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - Kesinti penceresi: Supabase'te yazma kapat → dump → yükle → doğrulama (satır sayıları, finans toplamları, bakiye view'ları, dosya sayısı, **canlı katalog ↔ envanter farkı kapalı**) → kullanıcılara şifre belirleme bağlantıları → DNS geçişi. Önce prova (staging kopyası). Geri dönüş: DNS'i eski Vercel'e çevirme + aradaki yazmaları elle aktarma planı.
 - **Bitti kriteri**: provada tüm doğrulama sayıları eşit; gerçek geçişte kullanıcı kabul testi (resepsiyon, terapist, tablet, portal) geçti; 1–2 hafta sorunsuz çalışma sonrası Supabase/Vercel kapatılır; dal `main`'e birleştirme **kullanıcı onayıyla**.
 
-## Bağlam güvenliği: tenant'ı DB tarafında türetmek (öneri — KARAR BEKLİYOR, uygulanmadı)
+## Bağlam güvenliği: tenant'ı DB tarafında türetme — SEÇENEK A UYGULANDI (2026-10-27)
 
-**Bugün (Aşama 4 ön adımı, uygulandı)**: `withTenant` yalnız damgalı bağlam kabul eder (tip + çalışma zamanı WeakSet + ESLint); bağlamı yalnız `getSessionContext()` (`tenantGerekli`), `withKullanici` için aynı dosya ve tanima çözümleyicisi (`anonim-uc.ts`) üretebilir. Kalan güven noktası: DB, `app.tenant_id` ve `app.user_id` değerlerini **uygulamadan** alır; uygulamadaki bir hata `getSessionContext` dışında bir değer koyamaz ama koyabilseydi DB fark etmezdi.
+**Karar**: Seçenek A uygulandı (`db/migrations/0007_tenant_turetme.sql`); B (oturum jetonunu DB'de doğrulama) üretim öncesi karar noktası olarak duruyor, C artık geçerli değil.
 
-**Seçenekler**
-- **A — Tenant'ı kullanıcının kendi `kullanici` satırından türet** (`current_klinik_id()` GUC yerine DB'den). `app.tenant_id` yalnız şu üç istisnada dikkate alınır: (1) `super_admin` (klinik bağlamı yok, destek amaçlı seçilen klinik; rol DB'den doğrulanır), (2) `klinik_anonim` rolü (tanima çözümlemesi sonrası; `current_user` kontrolüyle), (3) `bakim_rolu` oturumu (`sistem_baglami()`).
-  - *Uygulanabilirlik*: EVET, ama doğrudan `kullanici`'dan okumak **FORCE RLS özyinelemesi** doğurur: `kullanici` üzerindeki `sahip_aktif_tenant` politikası `current_klinik_id()` çağırır, o da `kullanici`'yı okur (OR'lanan tüm izin verici politikalar değerlendirilir; `sahip_kendi_satir` tek başına yetmez → "stack depth exceeded"). Çözüm: RLS'siz, yalnız sahibin (ve DEFINER fonksiyonun) erişebildiği küçük bir eşleme tablosu `kullanici_tenant(kullanici_id pk, klinik_id, rol)` — `kullanici` ve `hasta_kullanici` üzerindeki tetikleyicilerle beslenir; `current_klinik_id()`/`current_rol()` bunu okur. Hasta için `hasta_kullanici`'ya `klinik_id` (değişmez, `hasta`'dan türetilir) eklenir.
-  - *Performans*: politikalarda çoğu çağrı `(SELECT current_klinik_id())` InitPlan olarak sarılı (ifade başına bir kez); PK araması ~0,05 ms. plpgsql içi tekrarlı çağrılar (STABLE) sorgu başına birkaç ek PK araması; ölçülebilir etki beklenmiyor (uygulanırsa `pgbench`/EXPLAIN ile doğrulanır).
-  - *Kazanç*: yanlış `tenantId` + geçerli `userId` eşleşmesi (uygulama hatası) DB'de **imkânsız** olur. *Kazanç olmayan*: yanlış `userId` (kimliğe bürünme) hâlâ uygulamaya güvenir.
-  - *Maliyet*: 1 migration (eşleme tablosu + tetikleyiciler + 2 fonksiyon), `withTenant` aynı kalır, tanima/anonim testleri güncellenir, izolasyon testlerine "yanlış tenant GUC'u yok sayılır" testi eklenir. Tahmin: yarım gün.
-- **B — Bağlamı oturum jetonuyla DB'de doğrula** (`app.oturum_jetonu`; dar bir DEFINER fonksiyon `oturum` tablosunda jetonu/bitişi doğrular, `app_kullanici_id()` bundan türer, `oturum` okuması için ayrı dar rol). Kimliğe bürünmeyi de kapatır (geçerli canlı oturum jetonu gerekir). Maliyet: ham jeton DB'ye gider (günlük/kopya riski), her istekte `oturum` sorgusu, kimlik şemasıyla sıkı bağ, Better Auth sürüm değişimlerine duyarlılık. Fayda/maliyet A'dan düşük; üretime çıkmadan önce yeniden değerlendirilir.
-- **C — Mevcut durum** (damga + ESLint + RLS + testler): yeterli kabul edilebilir; kalan risk "uygulama kodu getSessionContext dışında bağlam ürettiremez ama DB bunu bilmez".
+**Nasıl çalışıyor**
+- `kullanici_tenant` eşleme tablosu (`kullanici_id, tur, klinik_id, rol, hasta_id, aktif`): **RLS'siz** ve **hiçbir uygulama rolüne yetki verilmemiş** (klinik_uygulama, klinik_anonim, bakim_rolu, kimlik_rolu, klinik_tanima: SELECT/INSERT/UPDATE/DELETE/REFERENCES yok; `yetki-matrisi.sql` kural 8 denetler). Tek yazan yol `kullanici` ve `hasta_kullanici` üzerindeki DEFINER tetikleyicilerdir (`kullanici_tenant_kullanici_esle`, `kullanici_tenant_hasta_esle`).
+- `current_klinik_id()` (DEFINER, STABLE): oturumlu kullanıcıda (`app.user_id` dolu) tenant = eşleme satırındaki klinik; **`app.tenant_id` YOK SAYILIR**; eşlemesi olmayan/pasif kullanıcı → NULL. `current_rol()`, `is_super_admin()`, `current_hasta_id()` de aynı tablodan okur.
+- `app.tenant_id` yalnız şu istisnalarda dikkate alınır: (1) **super_admin** (rol DB'den doğrulanır; klinik seçer), (2) **klinik_anonim** (tanima sonrası; `current_setting('role')` ile — SECURITY DEFINER içinde `current_user` sahip olduğundan GUC `role` okunur) ve kullanıcı yoksa, (3) **bakim_rolu** oturumu (sistem bağlamı) — ek olarak (4) **süper kullanıcı oturumu** (kurulum/sağlama/test tohumlaması). Kullanıcısız `klinik_uygulama` bağlantısı tenant GUC'uyla tenant KAZANAMAZ.
+- Hasta tarafında `hasta_kullanici` tetikleyicisi, hastanın kliniğini çağıranın tenant'ında okur: **başka kliniğin hastasına portal hesabı açılamaz**.
 
-**Öneri**: **A'yı** uygula (düşük maliyet, "tenant uygulamadan gelir" varsayımını ortadan kaldırır), B'yi üretim öncesi karar noktası olarak sakla. A uygulanacaksa modül taşımadan ÖNCE yapılması daha ucuzdur (testlerin yarısı bağlam kurar). **Sana soru: A'yı şimdi (modül taşımadan önce) mi, taşımadan sonra mı, hiç mi uygulayayım?** Cevaba kadar modül taşıma mevcut modelle (damgalı bağlam) ilerliyor; A sonradan eklenirse kod değişmez (yalnız DB tarafı).
+**FORCE RLS özyinelemesi yok — kanıt**: `current_klinik_id()` yalnız RLS'siz eşleme tablosunu okur, `kullanici`/`hasta_kullanici` politikalarına hiç girmez. Kanıt olarak 0003'teki `sahip_kendi_satir` politikaları (eskiden rol çözümü için gerekliydi) **0007'de kaldırıldı** ve tüm izolasyon testleri (60) geçti; ayrıca `kullanici`, `hasta_kullanici`, `hasta`, `klinik`, `randevu` sorguları ve `EXPLAIN` derinlik hatası vermiyor (`tenant-turetme.test.ts`).
+
+**Performans** (`scripts/dev/tenant-performans.mjs`, klinik başına 100 bin `hasta` satırı, 15 tekrarın ortancası, ms):
+
+| Sorgu | Önce (GUC) | Sonra (türetme) |
+|---|---|---|
+| count(*) from hasta (tüm klinik satırları, RLS filtresi her satırda) | 16.01 | 16.16 |
+| hasta + telefon filtresi (aralık taraması) | 19.45 | 19.23 |
+| PK ile tek satır | 1.18 | 1.35 |
+| randevu ⨝ hasta (iki RLS'li tablo) | 1.22 | 1.19 |
+
+Değerlendirme: fark ölçüm gürültüsü sınırında (toplu sorgularda ~%1, tek satır PK aramasında ≈ +0,15 ms). Neden: politikalardaki `(SELECT current_klinik_id())` ifadeleri **InitPlan** olarak ifade başına BİR kez çalışıyor (EXPLAIN'de her InitPlan eşleme tablosuna ~2 buffer erişimi); satır başına çağrı yok. Bunu korumak için `klinik_sahip` politikaları da `(SELECT current_klinik_id())` biçiminde üretilir (aksi hâlde DEFINER fonksiyonlar tablo taramalarında satır başına arama yapardı). Ham veri ve planlar: `db/kontrol/tenant-performans.json`.
+
+**Testler** (`tests/db/tenant-turetme.test.ts`, 13): yanlış tenant GUC'u yok sayılır (okuma/yazma); eşlemesiz kullanıcı ve kullanıcısız GUC tenant kazanamaz; hasta tenant'ı ve `aktif=false`; super_admin klinik seçer; klinik_anonim (kullanıcı varsa türetme kazanır); bakım bağlamı; süper kullanıcı oturumu; `kullanici.klinik_id`/`rol` güncelleme ve silme ile klinik silme (CASCADE) sonrası eşleme tutarlılığı; eşleme tablosuna doğrudan yazma denemeleri reddedilir; başka kliniğin hastasına portal hesabı reddedilir; özyineleme yok.
+
+**Kalan**: kimliğe bürünme (geçerli bir `app.user_id` değerini uygulamanın koyması) hâlâ uygulamaya güvenir → Seçenek B (üretim öncesi karar). Dolu bir veritabanına 0007 uygulanırken eşleme doldurması tenant başına ya da süper kullanıcıyla yapılmalı (FORCE RLS); şu an canlı veri yok.
 
 ## Kararlar (2026-10-27) ve kalan açık konular
 - **Onaylandı**: `klinik_yedek` BYPASSRLS istisnası (yalnız SELECT, pg_hba yalnız localhost, parola yalnız yedek hesabının okuyabildiği dosyada) — `docs/sunucu-kurulum.md`, `bypassrls-kontrol.sql` izin listesi.

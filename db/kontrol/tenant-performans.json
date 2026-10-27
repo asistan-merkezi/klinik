@@ -1,0 +1,22 @@
+{
+ "once_guc": {
+  "satirSayisiKlinikBasina": 100000,
+  "ortancaMs": {
+   "count(*) from hasta (tüm klinik satırları, RLS filtresi her satırda)": 16.01,
+   "hasta + telefon filtresi (aralık taraması)": 19.45,
+   "PK ile tek satır": 1.18,
+   "randevu ⨝ hasta (iki RLS'li tablo)": 1.22
+  },
+  "plan": "Aggregate (actual rows=1.00 loops=1)\n  Buffers: shared hit=3287\n  InitPlan 1\n    ->  Result (actual rows=1.00 loops=1)\n  InitPlan 2\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 3\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 4\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 5\n    ->  Result (actual rows=1.00 loops=1)\n  InitPlan 6\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  ->  Seq Scan on hasta (actual rows=100001.00 loops=1)\n        Filter: (((klinik_id = (InitPlan 1).col1) AND ((InitPlan 2).col1 = ANY ('{klinik_admin,resepsiyon}'::kullanici_rol_tipi[]))) OR (InitPlan 3).col1 OR (id = (InitPlan 4).col1) OR (klinik_id = (InitPlan 5).col1) OR (InitPlan 6).col1)\n        Rows Removed by Filter: 100001\n        Buffers: shared hit=3287\nPlanning Time: 0.236 ms\nExecution Time: 16.113 ms"
+ },
+ "once_turetme": {
+  "satirSayisiKlinikBasina": 100000,
+  "ortancaMs": {
+   "count(*) from hasta (tüm klinik satırları, RLS filtresi her satırda)": 16.4,
+   "hasta + telefon filtresi (aralık taraması)": 20.11,
+   "PK ile tek satır": 1.12,
+   "randevu ⨝ hasta (iki RLS'li tablo)": 1.24
+  },
+  "plan": "Aggregate (actual rows=1.00 loops=1)\n  Buffers: shared hit=3291\n  InitPlan 1\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 2\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 3\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 4\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 5\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  InitPlan 6\n    ->  Result (actual rows=1.00 loops=1)\n          Buffers: shared hit=2\n  ->  Seq Scan on hasta (actual rows=100001.00 loops=1)\n        Filter: (((klinik_id = (InitPlan 1).col1) AND ((InitPlan 2).col1 = ANY ('{klinik_admin,resepsiyon}'::kullanici_rol_tipi[]))) OR (InitPlan 3).col1 OR (id = (InitPlan 4).col1) OR (klinik_id = (InitPlan 5).col1) OR (InitPlan 6).col1)\n        Rows Removed by Filter: 100001\n        Buffers: shared hit=3291\nPlanning Time: 0.289 ms\nExecution Time: 16.116 ms"
+ }
+}

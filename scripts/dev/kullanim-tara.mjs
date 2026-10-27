@@ -42,6 +42,35 @@ function gomulu(metin, kok) {
   return sonuc;
 }
 
+// ---- Drizzle kullanımı (sema.<tablo>) ----
+// lib/db/sema/schema.ts: camelCase ad -> gerçek tablo/görünüm adı
+const semaMetni = fs.readFileSync(path.join(KOK, "lib/db/sema/schema.ts"), "utf8");
+const camelTablo = new Map();
+for (const m of semaMetni.matchAll(/export const (\w+) = (?:pgTable|pgView|pgMaterializedView)\(\s*["']([a-z_0-9]+)["']/g)) camelTablo.set(m[1], m[2]);
+
+function drizzleKayitlari(kaynak, yol, satirNo) {
+  const sonuc = [];
+  // Tablo başvurusu: sema.<ad> ve ARDINDAN nokta YOK (sema.klinik.id gibi kolon başvuruları ve $inferInsert tür başvuruları hariç)
+  for (const m of kaynak.matchAll(/(?<![A-Za-z0-9_])sema[.]([A-Za-z0-9_]+)(?![A-Za-z0-9_.])/g)) {
+    const tablo = camelTablo.get(m[1]);
+    if (!tablo) continue;
+    const once = kaynak.slice(Math.max(0, m.index - 40), m.index).replace(/\s+/g, " ");
+    const sonra = kaynak.slice(m.index, m.index + 700);
+    const zincirSonu = sonra.search(/;\s*\n|\n\s*\n/);
+    const zincir = zincirSonu === -1 ? sonra : sonra.slice(0, zincirSonu);
+    const op = new Set();
+    if (/[.](insert)\(\s*$/.test(once)) {
+      op.add("INSERT");
+      if (/[.]onConflictDo(Update|Nothing)\(/.test(zincir)) { op.add("UPDATE"); op.add("SELECT"); }
+      if (/[.]returning\(/.test(zincir)) op.add("SELECT");
+    } else if (/[.]update\(\s*$/.test(once)) { op.add("UPDATE"); op.add("SELECT"); }
+    else if (/[.]delete\(\s*$/.test(once)) { op.add("DELETE"); op.add("SELECT"); }
+    else op.add("SELECT"); // from(...), *Join(...), alt sorgu vb.
+    sonuc.push({ dosya: yol.split(path.sep).join("/"), satir: satirNo(m.index), tablo, islemler: [...op], gomulu: [] });
+  }
+  return sonuc;
+}
+
 const kayitlar = [];
 const belirsiz = [];
 const rpc = new Map();
@@ -73,6 +102,7 @@ for (const yol of TARANACAK.flatMap((y) => dosyalar(y))) {
     for (const sm of zincir.matchAll(/[.]select\(\s*(["'`])([^"'`]*)\1/g)) gom.push(...gomulu(sm[2], m[2]));
     kayitlar.push({ dosya: yol.replace(/\\/g, "/"), satir: satirNo(m.index), tablo: m[2], islemler: [...op], gomulu: gom });
   }
+  kayitlar.push(...drizzleKayitlari(kaynak, yol, satirNo));
   // Değişkenle verilen .from(
   for (const m of kaynak.matchAll(/[.]from\(\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*[,)]/g)) {
     if (/Array$|Buffer$|Object$|Uint8Array$/.test(kaynak.slice(Math.max(0, m.index - 12), m.index))) continue;

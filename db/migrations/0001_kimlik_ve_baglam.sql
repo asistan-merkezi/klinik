@@ -6,7 +6,8 @@ SET search_path = public, extensions;
 -- Varsayılan yetkiler KAPALI: klinik_sahip'in bundan sonra yaratacağı hiçbir nesne PUBLIC'e açık gelmez (özellikle fonksiyonlarda EXECUTE).
 ALTER DEFAULT PRIVILEGES FOR ROLE klinik_sahip IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES FOR ROLE klinik_sahip IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC;
-ALTER DEFAULT PRIVILEGES FOR ROLE klinik_sahip IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+-- NOT: fonksiyonlardaki PUBLIC EXECUTE varsayılanı ŞEMA-bağımsız (global) olduğundan 'IN SCHEMA' kullanılmaz; aksi hâlde etkisizdir.
+ALTER DEFAULT PRIVILEGES FOR ROLE klinik_sahip REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 CREATE TABLE kimlik_kullanici (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

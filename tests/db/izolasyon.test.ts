@@ -41,10 +41,12 @@ describe("withTenant izolasyonu", () => {
     expect(await withGlobal((tx) => tx.select().from(sema.randevu))).toHaveLength(0);
   });
 
-  it("yalnız kullanıcı bağlamı (tenant yok) kullanici tablosunda yalnız KENDİ satırını gösterir", async () => {
+  it("yalnız kullanıcı bağlamı (tenant verilmeden): tenant kullanıcının kendi kaydından türetilir, başka kliniğin kullanıcısı görünmez", async () => {
     const { withKullanici, sema } = await import("@/lib/db");
-    const satirlar = await withKullanici(kullaniciBaglami(K1.kullanici), (tx) => tx.select({ id: sema.kullanici.id }).from(sema.kullanici));
-    expect(satirlar.map((s) => s.id)).toEqual([K1.kullanici]);
+    const satirlar = await withKullanici(kullaniciBaglami(K1.kullanici), (tx) => tx.select({ id: sema.kullanici.id, klinik: sema.kullanici.klinikId }).from(sema.kullanici));
+    expect(satirlar.map((s) => s.id)).toContain(K1.kullanici);
+    expect(satirlar.every((s) => s.klinik === K1.klinik)).toBe(true);
+    expect(satirlar.map((s) => s.id)).not.toContain(K2.kullanici);
   });
 
   it("bağlam yalnız damgalı üreticiyle kurulur: düz nesne (as ile zorlansa bile), geçersiz biçim ve boş değer reddedilir", async () => {

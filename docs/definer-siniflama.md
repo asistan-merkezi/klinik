@@ -7,9 +7,9 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 - Başlangıç: **83** SECURITY DEFINER fonksiyon (temel şemanın ilk üretimi).
 - **3 kaldırıldı/taşındı** (`personel_giris_epostasi`, `portal_giris_epostasi` kaldırıldı; `klinik_qr_bilgisi_getir` `tanima` şemasına taşındı), **1 INVOKER'a çevrildi** (`personel_izin_is_gunu_sayisi`).
 - **2 yeni** DEFINER (`tanima.klinik_qr_bilgisi_getir`, `tanima.randevu_klinik_cozumle`; sahibi RLS atlamayan, dar `klinik_tanima` rolü).
-- Sonuç: **79 public + 2 tanima = 81 DEFINER** kalır. Hiçbirinin sahibi BYPASSRLS/süper kullanıcı değildir (`db/kontrol/bypassrls-kontrol.sql`).
-- Tetikleyici fonksiyonlar: 30; doğrudan çağrılabilen: 49.
-- Duman testi (A bağlam yok / B yanlış tenant / C doğru tenant): {"IC":4,"TETIKLEYICI":30,"GECTI":43,"TASARIM_GEREGI":2}. **SIZINTI = 0.**
+- Sonuç: **82 public + 2 tanima = 84 DEFINER** kalır. Hiçbirinin sahibi BYPASSRLS/süper kullanıcı değildir (`db/kontrol/bypassrls-kontrol.sql`).
+- Tetikleyici fonksiyonlar: 32; doğrudan çağrılabilen: 50.
+- Duman testi (A bağlam yok / B yanlış tenant / C doğru tenant): {"IC":4,"TETIKLEYICI":32,"GECTI":43,"TASARIM_GEREGI":3}. **SIZINTI = 0.**
 - 0004 ile bağlamsızken "güvenli açık" davranan iki fonksiyon kapatıldı (`qr_kodu_aktif_mi`, `personel_puantaj_donemi_acik_mi`).
 
 **Test sınırı**: duman testi argümanları ad/tür sezgisiyle bağlar; çoğu RPC'de C durumu iş kuralı hatasıyla düşer (anlamlı iş akışı testi DEĞİL). A/B'de "veri döndürmedi ve satır değiştirmedi" kanıtı yalnız denenen argümanlar için geçerlidir.
@@ -37,7 +37,8 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 | `banka_bakiye_once_toplam_tumu` | Dönem başı banka bakiyesi (tüm hesaplar/hesap bazında), net kart komisyonu dahil. | toplam | DEFINER kalacak | boş / false / NULL |
 | `banka_hesabi_butunluk` | havale satırı banka_hesap_id'siz veya başka kliniğin hesabıyla yazılamaz. | butunluk | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |
 | `banka_hesabi_silme_engeli` | Bağlı kaydı olan banka hesabının silinmesini engeller. | butunluk | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |
-| `current_hasta_id` | Portal oturumundaki hastanın id'si (hasta_kullanici, aktif). | baglam | DEFINER kalacak | boş / false / NULL |
+| `current_hasta_id` | Portal oturumundaki hastanın id'si (kullanici_tenant eşlemesinden, aktif). | baglam | DEFINER kalacak | boş / false / NULL |
+| `current_klinik_id` | Çağıranın tenant'ı: oturumlu kullanıcıda kendi eşleme satırından (app.tenant_id YOK SAYILIR); yalnız super_admin / klinik_anonim / bakım / süper kullanıcı oturumunda app.tenant_id (0007). | baglam | DEFINER kalacak | boş / false / NULL (tasarım gereği) |
 | `current_rol` | Çağıranın rolü (kullanici kendi satırı). | baglam | DEFINER kalacak | boş / false / NULL (tasarım gereği) |
 | `derive_klinik_id_from_parent` | Alt tablo satırına klinik_id'yi üst satırdan türetir (genel). | turet | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |
 | `hasta_arsiv_ice_aktar` | Hasta arşiv içe aktarma (dedup'lu). | arsiv | DEFINER kalacak | hata: yetkisiz |
@@ -67,6 +68,8 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 | `klinik_harcama_cari_butunluk` | Ödemelerin altına düşüren harcama değişikliğini reddeder. | butunluk | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |
 | `klinik_pozisyonlari_seed` | Yeni klinik için pozisyon şablonlarını kopyalar. | denetim | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |
 | `kredi_karti_bakiye_once_toplam` | Dönem başı kredi kartı (POS mutabakat) bakiyesi. | toplam | DEFINER kalacak | boş / false / NULL |
+| `kullanici_tenant_hasta_esle` | hasta_kullanici değişince eşlemeyi günceller; başka kliniğin hastasına portal hesabı açılmasını reddeder. | denetim | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |
+| `kullanici_tenant_kullanici_esle` | kullanici değişince kullanici_tenant eşlemesini günceller (tek yazan yol). | denetim | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |
 | `mesaj_kredi_senkronla` | Merkezden gelen (bakiye, versiyon) çiftini yerel mesaj_kredileri'ne yazar; eski versiyon ezmez. | sistem Çağıran: sistem_baglami() veya super_admin; (b) sınıfı sayfa çağrısı Aşama 3'te tenant doğrulamalı hâle gelir. | DEFINER kalacak | hata: mismatched parentheses at or near ")" |
 | `mesaj_kredi_yukle` | Kredi yükler (yalnız super_admin). | sistem Hiçbir uygulama rolüne EXECUTE verilmedi (iç). | DEFINER kalacak | çağrılamaz (uygulama/anonim EXECUTE yok) |
 | `nakit_banka_hareketi_hesap_butunluk` | Nakit/banka hareketinde hesap bütünlüğü. | butunluk | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer |

@@ -11,7 +11,7 @@ import { SIFRELER } from "../../scripts/dev/test-kur.mjs";
 // Tasarım gereği tenant'sız / giriş öncesi çalışan fonksiyonlar: A/B'de veri dönmesi sızıntı sayılmaz, ama sonuç raporda görünür.
 const TASARIM_GEREGI = new Set([
   "hiz_siniri_kullan",                                   // global sayaç
-  "current_rol", "is_super_admin", "current_hasta_id",   // ÇAĞIRANIN kendi rolü/kimliği (kendi satırından), başkasınınki değil
+  "current_rol", "is_super_admin", "current_hasta_id", "current_klinik_id",   // ÇAĞIRANIN kendi rolü/kimliği (kendi satırından), başkasınınki değil
 ]);
 
 const ADAYLAR = ["hasta", "klinik", "randevu", "personel", "kullanici", "paket", "paketSatis", "islem", "oda", "terapist"];

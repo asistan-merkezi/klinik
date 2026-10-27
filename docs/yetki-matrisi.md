@@ -110,7 +110,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | v_personel_hesap_bakiye | S |
 | v_personel_izin_bakiye | S |
 
-## klinik_yedek (100 tablo/görünüm)
+## klinik_yedek (101 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
@@ -164,6 +164,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | klinik_kredi_kartlari | S |
 | klinik_muhasebe_entegrasyonu | S |
 | kullanici | S |
+| kullanici_tenant | S |
 | mesaj_kredi_hareketleri | S |
 | mesaj_kredileri | S |
 | mesaj_kurallari | S |

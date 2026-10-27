@@ -82,6 +82,15 @@ WHERE c.relnamespace = 'public'::regnamespace AND a.attnum > 0 AND NOT a.attisdr
   AND has_column_privilege('klinik_tanima', c.oid, a.attnum, 'SELECT')
   AND (c.relname, a.attname) NOT IN (('klinik', 'id'), ('klinik', 'ad'), ('klinik', 'qr_kisa_kod'), ('randevu', 'id'), ('randevu', 'klinik_id'));
 
+-- 8) kullanici_tenant (tenant türetme eşlemesi): HİÇBİR uygulama rolünün yetkisi olmamalı (yalnız sahibi ve DEFINER tetikleyici/fonksiyonlar; klinik_yedek yalnız okur)
+INSERT INTO yetki_hata
+SELECT 'kullanici_tenant_yetkisi', r.rolname || ' (' || p.p || ')'
+FROM (VALUES ('klinik_uygulama'), ('klinik_anonim'), ('bakim_rolu'), ('kimlik_rolu'), ('klinik_tanima')) r(rolname)
+CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) p(p)
+WHERE has_table_privilege(r.rolname, 'public.kullanici_tenant', p.p) OR (p.p IN ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES') AND has_any_column_privilege(r.rolname, 'public.kullanici_tenant', p.p));
+INSERT INTO yetki_hata
+SELECT 'kullanici_tenant_rls_var', 'kullanici_tenant' FROM pg_class WHERE relname = 'kullanici_tenant' AND relrowsecurity;  -- RLS olmamalı: özyineleme çözümünün dayanağı
+
 -- Matris (bilgi): rol x tablo -> yetkiler
 SELECT r.rolname AS rol, c.relname AS tablo,
        concat_ws(',', CASE WHEN has_table_privilege(r.rolname, c.oid, 'SELECT') THEN 'S' END,
