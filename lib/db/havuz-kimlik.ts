@@ -14,6 +14,8 @@ export function kimlikHavuzu(): Pool {
       statement_timeout: 15_000,
       application_name: "klinik-kimlik",
     });
+    // Boşta bekleyen bağlantı kopunca (sunucu yeniden başlatma vb.) pg Pool "error" olayını yakalanmazsa süreç çöker.
+    global.__klinikKimlikHavuzu.on("error", (e) => console.error("[db] kimlik havuzu boşta bağlantı hatası:", e.message));
   }
   return global.__klinikKimlikHavuzu;
 }

@@ -1,7 +1,8 @@
 // Tenant izolasyonu ve rol sınırları (gerçek Postgres, iki klinikli düzenek).
 import { beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { ortamKur, reddedilmeli } from "./yardimci";
+import { kullaniciBaglami, ortamKur, reddedilmeli, tenantBaglami } from "./yardimci";
+import { tenantBaglamiUret } from "@/lib/db/baglam-uretici";
 
 let K1: { klinik: string; kullanici: string; hasta: string };
 let K2: { klinik: string; kullanici: string; hasta: string };
@@ -15,17 +16,17 @@ beforeAll(() => {
 describe("withTenant izolasyonu", () => {
   it("tenant A kullanıcısı yalnız kendi hastalarını görür, B'nin verisini göremez", async () => {
     const { withTenant, sema } = await import("@/lib/db");
-    const a = await withTenant({ userId: K1.kullanici, tenantId: K1.klinik }, (tx) => tx.select({ id: sema.hasta.id, klinik: sema.hasta.klinikId }).from(sema.hasta));
+    const a = await withTenant(tenantBaglami(K1), (tx) => tx.select({ id: sema.hasta.id, klinik: sema.hasta.klinikId }).from(sema.hasta));
     expect(a.length).toBeGreaterThan(0);
     expect(a.every((h) => h.klinik === K1.klinik)).toBe(true);
     expect(a.some((h) => h.id === K2.hasta)).toBe(false);
-    const b = await withTenant({ userId: K1.kullanici, tenantId: K1.klinik }, (tx) => tx.select().from(sema.hasta).where(eq(sema.hasta.id, K2.hasta)));
+    const b = await withTenant(tenantBaglami(K1), (tx) => tx.select().from(sema.hasta).where(eq(sema.hasta.id, K2.hasta)));
     expect(b).toHaveLength(0);
   });
 
   it("tenant A, B kliniğine yazamaz (RLS WITH CHECK) ve B'nin satırını güncelleyemez/silemez", async () => {
     const { withTenant, sema } = await import("@/lib/db");
-    const ctx = { userId: K1.kullanici, tenantId: K1.klinik };
+    const ctx = tenantBaglami(K1);
     await reddedilmeli(withTenant(ctx, (tx) => tx.insert(sema.hasta).values({ klinikId: K2.klinik, adSoyad: "Sızıntı", telefon: "5550001111" })), /row-level security/i);
     const guncel = await withTenant(ctx, (tx) => tx.update(sema.hasta).set({ adSoyad: "Ele geçirildi" }).where(eq(sema.hasta.id, K2.hasta)).returning({ id: sema.hasta.id }));
     expect(guncel).toHaveLength(0);
@@ -42,19 +43,29 @@ describe("withTenant izolasyonu", () => {
 
   it("yalnız kullanıcı bağlamı (tenant yok) kullanici tablosunda yalnız KENDİ satırını gösterir", async () => {
     const { withKullanici, sema } = await import("@/lib/db");
-    const satirlar = await withKullanici(K1.kullanici, (tx) => tx.select({ id: sema.kullanici.id }).from(sema.kullanici));
+    const satirlar = await withKullanici(kullaniciBaglami(K1.kullanici), (tx) => tx.select({ id: sema.kullanici.id }).from(sema.kullanici));
     expect(satirlar.map((s) => s.id)).toEqual([K1.kullanici]);
   });
 
-  it("geçersiz kimlik biçimi bağlam olarak kabul edilmez (SQL enjeksiyonu / boş değer)", async () => {
-    const { withTenant, GecersizBaglamHatasi } = await import("@/lib/db");
-    await expect(withTenant({ userId: "x'; drop table hasta;--", tenantId: K1.klinik }, async () => 1)).rejects.toBeInstanceOf(GecersizBaglamHatasi);
-    await expect(withTenant({ userId: K1.kullanici, tenantId: "" }, async () => 1)).rejects.toBeInstanceOf(GecersizBaglamHatasi);
+  it("bağlam yalnız damgalı üreticiyle kurulur: düz nesne (as ile zorlansa bile), geçersiz biçim ve boş değer reddedilir", async () => {
+    const { withTenant, withKullanici, withAnonim, GecersizBaglamHatasi } = await import("@/lib/db");
+    // çalışma zamanı: tipi aşılmış (as never) düz nesne damgasız -> reddedilir
+    await expect(withTenant({ userId: K1.kullanici, tenantId: K1.klinik } as never, async () => 1)).rejects.toBeInstanceOf(GecersizBaglamHatasi);
+    await expect(withKullanici({ userId: K1.kullanici } as never, async () => 1)).rejects.toBeInstanceOf(GecersizBaglamHatasi);
+    await expect(withAnonim({ tenantId: K1.klinik } as never, async () => 1)).rejects.toBeInstanceOf(GecersizBaglamHatasi);
+    // üretici: enjeksiyon / boş / yanlış tip
+    expect(() => tenantBaglamiUret({ userId: "x'; drop table hasta;--", tenantId: K1.klinik })).toThrowError(GecersizBaglamHatasi);
+    expect(() => tenantBaglamiUret({ userId: K1.kullanici, tenantId: "" })).toThrowError(GecersizBaglamHatasi);
+    // damgalı nesne dondurulmuştur: sonradan değiştirilemez
+    const b = tenantBaglamiUret({ userId: K1.kullanici, tenantId: K1.klinik });
+    expect(() => {
+      (b as { tenantId: string }).tenantId = K2.klinik;
+    }).toThrow();
   });
 
   it("bağlam transaction bitince kaybolur (havuzdaki sonraki istege sızmaz)", async () => {
     const { withTenant, withGlobal, sema, sql } = await import("@/lib/db");
-    await withTenant({ userId: K1.kullanici, tenantId: K1.klinik }, (tx) => tx.select().from(sema.hasta));
+    await withTenant(tenantBaglami(K1), (tx) => tx.select().from(sema.hasta));
     for (let i = 0; i < 12; i++) {
       const r = await withGlobal((tx) => tx.execute(sql`select current_setting('app.tenant_id', true) as t, current_setting('app.user_id', true) as u`));
       const satir = r.rows[0] as { t: string | null; u: string | null };
@@ -67,7 +78,7 @@ describe("withTenant izolasyonu", () => {
 describe("uygulama rolünün kimlik tablolarına erişimi yok", () => {
   it.each(["kimlik_kullanici", "kimlik_hesap", "oturum", "kimlik_dogrulama"])("klinik_uygulama %s tablosunu okuyamaz/yazamaz", async (tablo) => {
     const { withTenant, sql } = await import("@/lib/db");
-    const ctx = { userId: K1.kullanici, tenantId: K1.klinik };
+    const ctx = tenantBaglami(K1);
     await reddedilmeli(withTenant(ctx, (tx) => tx.execute(sql.raw(`select * from ${tablo} limit 1`))), /permission denied/i);
     await reddedilmeli(withTenant(ctx, (tx) => tx.execute(sql.raw(`delete from ${tablo}`))), /permission denied/i);
   });

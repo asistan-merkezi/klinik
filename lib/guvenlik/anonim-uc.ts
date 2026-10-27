@@ -6,6 +6,7 @@
 //      eşleşmesini ve QR'ın açık olmasını DB düzeyinde de zorlar: başka kliniğin UUID'siyle kayıt eklenemez.
 import { klinikCozumle } from "@/lib/auth/giris";
 import { withAnonim, sql, type Tx } from "@/lib/db";
+import { anonimBaglamUret } from "@/lib/db/baglam-uretici";
 import { HizSiniriHatasi, hizAnahtari, hizSiniriKaydet, istemciImzasi } from "./hiz-siniri";
 
 export type AnonimUcSonucu<T> =
@@ -43,7 +44,7 @@ export async function anonimUcCalistir<T>(s: AnonimUcSecenekleri, is: (tx: Tx, k
   }
   if (!klinik) return { ok: false, kod: "klinik_yok", mesaj: "Bu bağlantı geçerli değil." };
   const k = klinik;
-  return withAnonim({ tenantId: k.id }, async (tx) => {
+  return withAnonim(anonimBaglamUret(k.id), async (tx) => {
     if (s.qrTipi) {
       const r = await tx.execute(sql`select qr_kodu_aktif_mi(${k.id}::uuid, ${s.qrTipi}) as aktif`);
       if ((r.rows[0] as { aktif: boolean } | undefined)?.aktif !== true) return { ok: false as const, kod: "kapali" as const, mesaj: "Bu form şu anda kapalı." };

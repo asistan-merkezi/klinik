@@ -12,24 +12,15 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as sema from "./sema/schema";
 import * as iliskiler from "./sema/relations";
 import { uygulamaHavuzu } from "./havuz-uygulama";
+import { damgaliMi, GecersizBaglamHatasi, type AnonimBaglam, type KullaniciBaglami, type TenantBaglami } from "./baglam-uretici";
+
+function damgaDogrula(alan: string, ctx: unknown): void {
+  if (!damgaliMi(ctx)) throw new GecersizBaglamHatasi(`${alan} (damgasız bağlam: yalnız getSessionContext()/tanima çözümleyicisi bağlam üretebilir)`);
+}
 
 const semaTumu = { ...sema, ...iliskiler };
 export type UygulamaVeritabani = NodePgDatabase<typeof semaTumu>;
 export type Tx = Parameters<Parameters<UygulamaVeritabani["transaction"]>[0]>[0];
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export class GecersizBaglamHatasi extends Error {
-  constructor(alan: string) {
-    super(`Geçersiz veritabanı bağlamı: ${alan}`);
-    this.name = "GecersizBaglamHatasi";
-  }
-}
-
-function uuidDogrula(alan: string, deger: string): string {
-  if (!UUID.test(deger)) throw new GecersizBaglamHatasi(alan);
-  return deger.toLowerCase();
-}
 
 let _db: UygulamaVeritabani | undefined;
 /** Havuza bağlı drizzle örneği. DIŞARIYA AÇILMAZ: yalnız bu dosyadaki sarmalayıcılar kullanır. */
@@ -42,11 +33,12 @@ export function dbOnbelleginiSifirla(): void {
   _db = undefined;
 }
 
-export type TenantBaglami = { userId: string; tenantId: string };
+export type { TenantBaglami, KullaniciBaglami, AnonimBaglam };
+export { GecersizBaglamHatasi };
 
 export async function withTenant<T>(ctx: TenantBaglami, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  const userId = uuidDogrula("userId", ctx.userId);
-  const tenantId = uuidDogrula("tenantId", ctx.tenantId);
+  damgaDogrula("withTenant", ctx);
+  const { userId, tenantId } = ctx;
   return db().transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.user_id', ${userId}, true), set_config('app.tenant_id', ${tenantId}, true)`);
     return fn(tx);
@@ -54,8 +46,9 @@ export async function withTenant<T>(ctx: TenantBaglami, fn: (tx: Tx) => Promise<
 }
 
 /** Tenant bilinmeden kullanıcının kendi kullanici/hasta_kullanici satırını okumak için (oturum çözümleme). */
-export async function withKullanici<T>(userId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  const id = uuidDogrula("userId", userId);
+export async function withKullanici<T>(ctx: KullaniciBaglami, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  damgaDogrula("withKullanici", ctx);
+  const id = ctx.userId;
   return db().transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.user_id', ${id}, true)`);
     return fn(tx);
@@ -63,8 +56,9 @@ export async function withKullanici<T>(userId: string, fn: (tx: Tx) => Promise<T
 }
 
 /** Giriş öncesi anonim yazma: bağlam = QR kısa kodundan çözülen klinik; rol klinik_anonim. */
-export async function withAnonim<T>(ctx: { tenantId: string }, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  const tenantId = uuidDogrula("tenantId", ctx.tenantId);
+export async function withAnonim<T>(ctx: AnonimBaglam, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  damgaDogrula("withAnonim", ctx);
+  const tenantId = ctx.tenantId;
   return db().transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.tenant_id', ${tenantId}, true)`);
     await tx.execute(sql`set local role klinik_anonim`);

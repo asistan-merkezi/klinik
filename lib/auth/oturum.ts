@@ -2,7 +2,8 @@
 //   personel : kullanici satırından (klinik_id, rol) — withKullanici ile (tenant bilinmeden, yalnız KENDİ satırı görünür)
 //   hasta    : kimlik_kullanici.klinik_id + hasta_kullanici.aktif (withTenant ile doğrulanır)
 import { eq } from "drizzle-orm";
-import { withKullanici, withTenant, sema } from "@/lib/db";
+import { withKullanici, withTenant, sema, type TenantBaglami } from "@/lib/db";
+import { kullaniciBaglamiUret, tenantBaglamiUret } from "@/lib/db/baglam-uretici";
 import { kimlik } from "./auth";
 
 export type OturumRolu = "super_admin" | "klinik_admin" | "resepsiyon" | "terapist" | "muhasebe" | "hasta";
@@ -49,7 +50,7 @@ export async function getSessionContext(basliklar: Headers): Promise<OturumBagla
   const ortak = { userId: user.id, eposta: user.email, sifreDegistirmeli: Boolean(user.sifreDegistirmeli), cihazKimligi: o.cihazKimligi };
 
   if (tur === "personel") {
-    const satir = await withKullanici(user.id, (tx) =>
+    const satir = await withKullanici(kullaniciBaglamiUret(user.id), (tx) =>
       tx.select({ klinikId: sema.kullanici.klinikId, rol: sema.kullanici.rol }).from(sema.kullanici).where(eq(sema.kullanici.id, user.id)).limit(1)
     );
     const k = satir[0];
@@ -60,7 +61,7 @@ export async function getSessionContext(basliklar: Headers): Promise<OturumBagla
   // hasta: tenant kimlik kaydından gelir (giriş sırasında tanima ile çözülmüş klinik), hasta_kullanici aktif olmalı
   if (!user.klinikId) return null;
   const tenantId = user.klinikId;
-  const satir = await withTenant({ userId: user.id, tenantId }, (tx) =>
+  const satir = await withTenant(tenantBaglamiUret({ userId: user.id, tenantId }), (tx) =>
     tx.select({ hastaId: sema.hastaKullanici.hastaId, aktif: sema.hastaKullanici.aktif }).from(sema.hastaKullanici).where(eq(sema.hastaKullanici.id, user.id)).limit(1)
   );
   const h = satir[0];
@@ -82,7 +83,7 @@ export function rolGerekli(ctx: OturumBaglami, roller: readonly OturumRolu[]): v
 }
 
 /** Tenant bağlamı gereken işler için: super_admin gibi klinik bağlamı olmayan oturumlarda 403. */
-export function tenantGerekli(ctx: OturumBaglami): { userId: string; tenantId: string } {
+export function tenantGerekli(ctx: OturumBaglami): TenantBaglami {
   if (!ctx.tenantId) throw new OturumHatasi(403, "Bu işlem bir klinik bağlamı gerektirir.");
-  return { userId: ctx.userId, tenantId: ctx.tenantId };
+  return tenantBaglamiUret({ userId: ctx.userId, tenantId: ctx.tenantId });
 }

@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { inject } from "vitest";
 import pg from "pg";
+import { tenantBaglamiUret, kullaniciBaglamiUret } from "@/lib/db/baglam-uretici";
 import { hastaHesabiOlustur, personelHesabiOlustur, type PersonelRolu } from "@/lib/auth/hesap";
 
 export const SUPER_SIFRE = "yerel-deneme";
@@ -97,3 +98,7 @@ export function duzenekOlustur() {
   };
   return { ids, baglanRol: (rol: string) => baglan(rol, parolalar[rol] ?? "yok"), baglanSuper: () => baglan("postgres", SUPER_SIFRE) };
 }
+
+/** Test bağlamı üreticileri (üretim kodunda yalnız getSessionContext() / tanima üretir; testler muaf). */
+export const tenantBaglami = (k: { klinik: string; kullanici: string }) => tenantBaglamiUret({ userId: k.kullanici, tenantId: k.klinik });
+export const kullaniciBaglami = (kullaniciId: string) => kullaniciBaglamiUret(kullaniciId);

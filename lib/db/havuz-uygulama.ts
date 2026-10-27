@@ -14,6 +14,8 @@ export function uygulamaHavuzu(): Pool {
       statement_timeout: 30_000,
       application_name: "klinik-uygulama",
     });
+    // Boşta bekleyen bağlantı kopunca (sunucu yeniden başlatma vb.) pg Pool "error" olayını yakalanmazsa süreç çöker.
+    global.__klinikUygulamaHavuzu.on("error", (e) => console.error("[db] uygulama havuzu boşta bağlantı hatası:", e.message));
   }
   return global.__klinikUygulamaHavuzu;
 }
