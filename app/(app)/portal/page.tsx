@@ -1,24 +1,14 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { gecerliHasta } from "@/lib/auth/gecerli-hasta";
+import { withTenant } from "@/lib/db";
+import { gecerliHastaBaglami } from "@/lib/auth/gecerli-hasta";
+import { portalAnaVeriGetir, type PortalOdemeSatiri } from "@/lib/portal/sorgular";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatDateTime } from "@/lib/datetime";
 import { telefonGoster } from "@/lib/utils";
-import type { PaketSatisSatir, OdemeYontemi } from "@/types/odeme";
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
 
-// Gerçek tahsilat/iade defteri hasta_bakiye_hareket'tir (Kasa/Banka/Raporlar ile aynı kaynak).
-// `odeme` tablosuna yalnız bir borç "faturalı" işaretlenince satır düşer — ödeme geçmişi
-// oradan okunursa hastanın gerçek ödemeleri görünmez, faturalı ama ödenmemiş borç ödeme gibi görünür.
-type PortalOdemeSatiri = {
-  id: string;
-  created_at: string;
-  tur: "odeme" | "iade";
-  tutar: number;
-  odeme_yontemi: OdemeYontemi | null;
-};
 import type { PortalRandevuSatir, PortalRandevuTalebiSatir } from "@/types/portal";
 import { AktifPaketSatiri } from "@/components/hasta/aktif-paket-satiri";
 import { portalCikisYap } from "./actions";
@@ -41,66 +31,15 @@ const DURUM_ETIKET: Record<PortalRandevuSatir["durum"], string> = {
 };
 
 export default async function PortalSayfasi() {
-  const oturum = await gecerliHasta();
+  const oturum = await gecerliHastaBaglami();
   if (!oturum) {
     redirect("/portal/giris");
   }
 
-  const supabase = await createClient();
-  const hastaId = oturum.hastaId;
-  const simdi = new Date().toISOString();
-
-  const [hastaSonucu, yaklasanSonucu, gecmisSonucu, paketSonucu, odemeSonucu, randevuTalepleriSonucu] = await Promise.all([
-    supabase.from("hasta").select("ad_soyad, telefon").eq("id", hastaId).single(),
-    supabase
-      .from("randevu")
-      .select(
-        "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), oda(ad), randevu_iptal_talebi(id, durum)"
-      )
-      .eq("hasta_id", hastaId)
-      .gte("bitis", simdi)
-      .order("baslangic")
-      .returns<PortalRandevuSatir[]>(),
-    supabase
-      .from("randevu")
-      .select(
-        "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), oda(ad), randevu_iptal_talebi(id, durum)"
-      )
-      .eq("hasta_id", hastaId)
-      .lt("bitis", simdi)
-      .order("baslangic", { ascending: false })
-      .limit(10)
-      .returns<PortalRandevuSatir[]>(),
-    supabase
-      .from("paket_satis")
-      .select("id, kalan_adet, durum, satis_tarihi, paket(ad, seans_sayisi)")
-      .eq("hasta_id", hastaId)
-      .eq("durum", "aktif")
-      .order("satis_tarihi")
-      .returns<PaketSatisSatir[]>(),
-    supabase
-      .from("hasta_bakiye_hareket")
-      .select("id, created_at, tur, tutar, odeme_yontemi")
-      .eq("hasta_id", hastaId)
-      .in("tur", ["odeme", "iade"])
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .returns<PortalOdemeSatiri[]>(),
-    supabase
-      .from("randevu_talebi")
-      .select("id, islem_tanimi(ad), tercih_tarih, tercih_saat, not_metni, durum, created_at")
-      .eq("hasta_id", hastaId)
-      .order("created_at", { ascending: false })
-      .limit(10)
-      .returns<PortalRandevuTalebiSatir[]>(),
-  ]);
-
-  const hasta = hastaSonucu.data;
-  const yaklasanRandevular = yaklasanSonucu.data ?? [];
-  const gecmisRandevular = gecmisSonucu.data ?? [];
-  const aktifPaketler = paketSonucu.data ?? [];
-  const odemeGecmisi = odemeSonucu.data ?? [];
-  const randevuTalepleri = randevuTalepleriSonucu.data ?? [];
+  // hastaId ve tenant OTURUMDAN gelir; RLS ayrıca yalnız bu hastanın kayıtlarını gösterir.
+  const { hasta, yaklasan: yaklasanRandevular, gecmis: gecmisRandevular, aktifPaketler, odemeGecmisi, randevuTalepleri } = await withTenant(oturum.bag, (tx) =>
+    portalAnaVeriGetir(tx, oturum.hastaId)
+  );
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

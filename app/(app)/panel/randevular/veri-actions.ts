@@ -7,6 +7,8 @@ import { and, asc, eq, gt, gte, inArray, lt, notInArray, or } from "drizzle-orm"
 import { z } from "zod";
 import { rpc, sema, withTenant, zamanlariIsoyaCevir } from "@/lib/db";
 import { panelBaglami } from "@/lib/auth/yetki";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
 import { gunAraligi } from "@/lib/utils";
 import { randevuSatirlariGetir, kendiTerapistIdGetir, tabletRandevulariGetir } from "@/lib/randevu/sorgular";
 import type { MesgulAraliklar } from "@/lib/randevu/musait-saatler";
@@ -179,18 +181,27 @@ export async function tedaviAdimlariGetir(islemTanimiId: string): Promise<{ id: 
   return s.map((x) => ({ id: x.id, ad: x.ad, sure_dakika: x.sure, cihaz: x.cihazAd == null ? null : { ad: x.cihazAd } }));
 }
 
-/** Paket kullanım geçmişi: bu paket satışından fiilen düşülen (check-in yapılmış) seanslar. */
+/**
+ * Paket kullanım geçmişi: bu paket satışından fiilen düşülen (check-in yapılmış) seanslar. Hem personel (panel) hem HASTA (portal, kendi paketi) çağırır:
+ * hasta oturumunda paket satışı ctx.hastaId'ye ait olmalıdır (başka hastanın paket id'siyle istek reddedilir; RLS de ikinci kilittir).
+ */
 export async function paketKullaniminiGetir(paketSatisId: string): Promise<{ id: string; baslangic: string; durum: string; gecikme_dakika: number | null; terapist: { personel: { ad_soyad: string } | null } | null }[]> {
   const id = uuid.parse(paketSatisId);
-  const { bag } = await panelBaglami();
-  const s = await withTenant(bag, (tx) =>
-    tx
+  const ctx = await oturumBaglami();
+  if (!ctx || !ctx.tenantId) throw new Error("Oturum bulunamadı.");
+  const bag = tenantGerekli(ctx);
+  const s = await withTenant(bag, async (tx) => {
+    if (ctx.tur === "hasta") {
+      const ps = (await tx.select({ hastaId: sema.paketSatis.hastaId }).from(sema.paketSatis).where(eq(sema.paketSatis.id, id)).limit(1))[0];
+      if (!ps || ps.hastaId !== ctx.hastaId) return [];
+    }
+    return tx
       .select({ id: sema.randevu.id, baslangic: sema.randevu.baslangic, durum: sema.randevu.durum, gecikme: sema.randevu.gecikmeDakika, terapistAd: sema.personel.adSoyad })
       .from(sema.randevu)
       .leftJoin(sema.terapist, eq(sema.terapist.id, sema.randevu.terapistId))
       .leftJoin(sema.personel, eq(sema.personel.id, sema.terapist.personelId))
       .where(eq(sema.randevu.paketSatisId, id))
-      .orderBy(asc(sema.randevu.baslangic))
-  );
+      .orderBy(asc(sema.randevu.baslangic));
+  });
   return zamanlariIsoyaCevir(s.map((x) => ({ id: x.id, baslangic: x.baslangic, durum: x.durum as string, gecikme_dakika: x.gecikme, terapist: x.terapistAd == null ? null : { personel: { ad_soyad: x.terapistAd } } })));
 }

@@ -7,6 +7,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { pgHata, sema, withTenant, zamanlariIsoyaCevir, type TenantBaglami } from "@/lib/db";
 import { eylemYetkisi, type PersonelRolu } from "@/lib/auth/yetki";
 import { hastaDetayOzetGetir } from "@/lib/hasta/ozet-sorgular";
+import { hassasSatiriCevir } from "@/lib/hasta/hassas-satir";
 import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import type {
   HastaAnamnezKaydi,
@@ -60,52 +61,7 @@ export async function hastaHassasGetir(hastaId: string): Promise<HastaHassasSati
     )
   )[0];
   if (!s) return null;
-  const h = s.h;
-  return zamanlariIsoyaCevir({
-    hasta_id: h.hastaId,
-    kimlik_no: h.kimlikNo,
-    kimlik_no_tipi: h.kimlikNoTipi as HastaHassasSatir["kimlik_no_tipi"],
-    il: h.il,
-    ilce: h.ilce,
-    mahalle: h.mahalle,
-    adres: h.adres,
-    acil_durum_ad_soyad: h.acilDurumAdSoyad,
-    acil_durum_yakinlik: h.acilDurumYakinlik,
-    acil_durum_telefon: h.acilDurumTelefon,
-    alerji_var: h.alerjiVar,
-    alerjiler: h.alerjiler,
-    kan_sulandirici_kullanimi: h.kanSulandiriciKullanimi,
-    kan_sulandirici_detay: h.kanSulandiriciDetay,
-    kronik_hastalik_var: h.kronikHastalikVar,
-    kronik_hastaliklar: h.kronikHastaliklar,
-    surekli_ilac_var: h.surekliIlacVar,
-    surekli_ilaclar: h.surekliIlaclar,
-    ameliyat_var: h.ameliyatVar,
-    gecirilmis_ameliyatlar: h.gecirilmisAmeliyatlar,
-    bulasici_hastalik_var: h.bulasiciHastalikVar,
-    bulasici_hastalik_detay: h.bulasiciHastalikDetay,
-    protez_implant_var: h.protezImplantVar,
-    protez_implant_detay: h.protezImplantDetay,
-    hamilelik_emzirme_var: h.hamilelikEmzirmeVar,
-    hamilelik_emzirme_detay: h.hamilelikEmzirmeDetay,
-    sigara_alkol_madde_var: h.sigaraAlkolMaddeVar,
-    sigara_alkol_madde_detay: h.sigaraAlkolMaddeDetay,
-    gelis_sebebi: h.gelisSebebi,
-    oncelik_durumu: h.oncelikDurumu as HastaHassasSatir["oncelik_durumu"],
-    anne_adi: h.anneAdi,
-    anne_telefon: h.anneTelefon,
-    baba_adi: h.babaAdi,
-    baba_telefon: h.babaTelefon,
-    diger_yakini_ad_soyad: h.digerYakiniAdSoyad,
-    diger_yakini_telefon: h.digerYakiniTelefon,
-    diger_yakini_yakinlik: h.digerYakiniYakinlik,
-    created_at: h.createdAt,
-    updated_at: h.updatedAt,
-    olusturan_tip: h.olusturanTip as HastaHassasSatir["olusturan_tip"],
-    olusturan_kullanici: s.olusturanAd == null ? null : { ad_soyad: s.olusturanAd },
-    son_guncelleyen_tip: h.sonGuncelleyenTip as HastaHassasSatir["son_guncelleyen_tip"],
-    son_guncelleyen_kullanici: s.guncelleyenAd == null ? null : { ad_soyad: s.guncelleyenAd },
-  });
+  return hassasSatiriCevir(s.h, s.olusturanAd, s.guncelleyenAd);
 }
 
 export async function hastaIliskileriGetir(hastaId: string): Promise<HastaIliski[]> {

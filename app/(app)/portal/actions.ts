@@ -3,7 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { count, and, eq } from "drizzle-orm";
+import { pgHata, sema, snakeKolonlari, withTenant } from "@/lib/db";
+import { gecerliHastaBaglami } from "@/lib/auth/gecerli-hasta";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -37,30 +39,18 @@ const bilgilerSemasi = z.object({
   saglik_riza: z.coerce.boolean(),
 });
 
-async function hastaIdGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/portal/giris");
-  }
-
-  const { data: mk } = await supabase
-    .from("hasta_kullanici")
-    .select("hasta_id")
-    .eq("id", user.id)
-    .single();
-
-  return { supabase, hastaId: mk?.hasta_id ?? null };
+/**
+ * Portal hastasının kimliği ve tenant bağlamı OTURUMDAN gelir; hiçbir eylem istemciden hasta/klinik kimliği ALMAZ.
+ * (Başka hastanın id'siyle istek yapmanın yolu yoktur; ayrıca RLS `current_hasta_id()` ikinci kilittir.)
+ */
+async function hastaOturumu() {
+  const o = await gecerliHastaBaglami();
+  if (!o) redirect("/portal/giris");
+  return o;
 }
 
 export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, hastaId } = await hastaIdGetir();
-  if (!hastaId) {
-    return { success: false, message: "Hasta bilgisi bulunamadı." };
-  }
+  const { bag, hastaId } = await hastaOturumu();
 
   const ayristirma = bilgilerSemasi.safeParse({
     cinsiyet: bosIseNull(formData.get("cinsiyet")),
@@ -112,65 +102,67 @@ export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData
     saglik_riza,
   } = ayristirma.data;
 
-  const { data: mevcutHasta } = await supabase
-    .from("hasta")
-    .select("ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi")
-    .eq("id", hastaId)
-    .single();
+  let saglikRizaVar = false;
+  try {
+    await withTenant(bag, async (tx) => {
+      const mevcutHasta = (
+        await tx
+          .select({ ozel: sema.hasta.ozelNitelikliVeriOnayTarihi, ticari: sema.hasta.ticariIletiOnayTarihi, klinikId: sema.hasta.klinikId })
+          .from(sema.hasta)
+          .where(eq(sema.hasta.id, hastaId))
+          .limit(1)
+      )[0];
+      if (!mevcutHasta) throw new Error("hasta_bulunamadi");
 
-  const saglikRizaVar = saglik_riza || Boolean(mevcutHasta?.ozel_nitelikli_veri_onay_tarihi);
-  // Onaylayan sadece bu onay İLK KEZ (daha önce personel tarafından verilmemişken)
-  // hastanın kendisi tarafından verildiğinde 'hasta' olarak işaretlenir — personelin
-  // daha önce kağıt formla aldığı bir onayın üzerine hastanın portaldan tekrar
-  // "onaylıyorum" göndermesi mevcut onaylayan kaydını değiştirmez.
-  const yeniTicariOnay = ticari_ileti_onay && !mevcutHasta?.ticari_ileti_onay_tarihi;
-  const yeniSaglikRizasi = saglik_riza && !mevcutHasta?.ozel_nitelikli_veri_onay_tarihi;
+      saglikRizaVar = saglik_riza || Boolean(mevcutHasta.ozel);
+      // Onaylayan sadece bu onay İLK KEZ (daha önce personel tarafından verilmemişken)
+      // hastanın kendisi tarafından verildiğinde 'hasta' olarak işaretlenir — personelin
+      // daha önce kağıt formla aldığı bir onayın üzerine hastanın portaldan tekrar
+      // "onaylıyorum" göndermesi mevcut onaylayan kaydını değiştirmez.
+      const yeniTicariOnay = ticari_ileti_onay && !mevcutHasta.ticari;
+      const yeniSaglikRizasi = saglik_riza && !mevcutHasta.ozel;
 
-  const hassasKayit: Record<string, string | boolean | null> = {
-    hasta_id: hastaId,
-    kimlik_no,
-    kimlik_no_tipi,
-    il,
-    ilce,
-    mahalle,
-    adres,
-    acil_durum_ad_soyad,
-    acil_durum_yakinlik,
-    acil_durum_telefon,
-  };
-  if (saglikRizaVar) {
-    hassasKayit.kronik_hastaliklar = kronik_hastaliklar;
-    hassasKayit.surekli_ilaclar = surekli_ilaclar;
-    hassasKayit.alerjiler = alerjiler;
-    hassasKayit.gecirilmis_ameliyatlar = gecirilmis_ameliyatlar;
-    hassasKayit.gelis_sebebi = gelis_sebebi;
-    hassasKayit.kan_sulandirici_kullanimi = kan_sulandirici_kullanimi;
-  }
+      const hassasKayit: Record<string, string | boolean | null> = {
+        kimlik_no,
+        kimlik_no_tipi,
+        il,
+        ilce,
+        mahalle,
+        adres,
+        acil_durum_ad_soyad,
+        acil_durum_yakinlik,
+        acil_durum_telefon,
+      };
+      if (saglikRizaVar) {
+        hassasKayit.kronik_hastaliklar = kronik_hastaliklar;
+        hassasKayit.surekli_ilaclar = surekli_ilaclar;
+        hassasKayit.alerjiler = alerjiler;
+        hassasKayit.gecirilmis_ameliyatlar = gecirilmis_ameliyatlar;
+        hassasKayit.gelis_sebebi = gelis_sebebi;
+        hassasKayit.kan_sulandirici_kullanimi = kan_sulandirici_kullanimi;
+      }
+      const hassasDegerler = snakeKolonlari(sema.hastaHassas, hassasKayit);
 
-  const [hastaSonucu, hassasSonucu] = await Promise.all([
-    supabase
-      .from("hasta")
-      .update({
-        cinsiyet,
-        eposta,
-        referans_kanali,
-        ticari_ileti_onay_tarihi: ticari_ileti_onay
-          ? mevcutHasta?.ticari_ileti_onay_tarihi ?? new Date().toISOString()
-          : null,
-        ozel_nitelikli_veri_onay_tarihi: saglikRizaVar
-          ? mevcutHasta?.ozel_nitelikli_veri_onay_tarihi ?? new Date().toISOString()
-          : mevcutHasta?.ozel_nitelikli_veri_onay_tarihi ?? null,
-        ...(yeniTicariOnay ? { ticari_ileti_onaylayan_tip: "hasta", ticari_ileti_onaylayan_kullanici_id: null } : {}),
-        ...(yeniSaglikRizasi
-          ? { ozel_nitelikli_onaylayan_tip: "hasta", ozel_nitelikli_onaylayan_kullanici_id: null }
-          : {}),
-      })
-      .eq("id", hastaId),
-    supabase.from("hasta_hassas").upsert(hassasKayit, { onConflict: "hasta_id" }),
-  ]);
-
-  if (hastaSonucu.error || hassasSonucu.error) {
-    console.error("Bilgiler güncellenemedi:", hastaSonucu.error, hassasSonucu.error);
+      // hasta + hasta_hassas TEK transaction (eskiden iki bağımsız çağrı). Portal hastası yalnız portal formunun alanlarını güncelleyebilir (DB tetikleyicisi).
+      await tx
+        .update(sema.hasta)
+        .set({
+          cinsiyet,
+          eposta,
+          referansKanali: referans_kanali,
+          ticariIletiOnayTarihi: ticari_ileti_onay ? mevcutHasta.ticari ?? new Date().toISOString() : null,
+          ozelNitelikliVeriOnayTarihi: saglikRizaVar ? mevcutHasta.ozel ?? new Date().toISOString() : mevcutHasta.ozel ?? null,
+          ...(yeniTicariOnay ? { ticariIletiOnaylayanTip: "hasta", ticariIletiOnaylayanKullaniciId: null } : {}),
+          ...(yeniSaglikRizasi ? { ozelNitelikliOnaylayanTip: "hasta", ozelNitelikliOnaylayanKullaniciId: null } : {}),
+        })
+        .where(eq(sema.hasta.id, hastaId));
+      await tx
+        .insert(sema.hastaHassas)
+        .values({ hastaId, klinikId: mevcutHasta.klinikId, ...hassasDegerler })
+        .onConflictDoUpdate({ target: sema.hastaHassas.hastaId, set: hassasDegerler });
+    });
+  } catch (e) {
+    console.error("Bilgiler güncellenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Bilgiler kaydedilemedi, lütfen tekrar deneyin." };
   }
 
@@ -198,34 +190,26 @@ export async function portalCikisYap() {
 }
 
 export async function iptalTalebiOlustur(randevuId: string, aciklama: string = ""): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { bag, hastaId } = await hastaOturumu();
+  if (!z.string().uuid().safeParse(randevuId).success) return { success: false, message: "Randevu bulunamadı." };
 
-  if (!user) {
-    redirect("/portal/giris");
-  }
-
-  const { data: mk } = await supabase
-    .from("hasta_kullanici")
-    .select("hasta_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!mk?.hasta_id) {
-    return { success: false, message: "Hasta bilgisi bulunamadı." };
-  }
-
-  const { error } = await supabase.from("randevu_iptal_talebi").insert({
-    randevu_id: randevuId,
-    hasta_id: mk.hasta_id,
-    aciklama: aciklama.trim() ? aciklama.trim().slice(0, 1000) : null,
-  });
-
-  if (error) {
-    console.error("İptal talebi oluşturulamadı:", error);
-    if (error.code === "23505") {
+  try {
+    await withTenant(bag, async (tx) => {
+      // Randevu gerçekten BU hastanın mı (RLS portal politikası + kod): başka hastanın randevu id'siyle talep açılamaz.
+      const r = (await tx.select({ hastaId: sema.randevu.hastaId, klinikId: sema.randevu.klinikId }).from(sema.randevu).where(eq(sema.randevu.id, randevuId)).limit(1))[0];
+      if (!r || r.hastaId !== hastaId) throw new Error("randevu_bulunamadi");
+      await tx.insert(sema.randevuIptalTalebi).values({
+        klinikId: r.klinikId,
+        randevuId,
+        hastaId,
+        aciklama: aciklama.trim() ? aciklama.trim().slice(0, 1000) : null,
+      });
+    });
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("İptal talebi oluşturulamadı:", h.mesaj);
+    if (h.mesaj.includes("randevu_bulunamadi")) return { success: false, message: "Randevu bulunamadı." };
+    if (h.kod === "23505") {
       return { success: false, message: "Bu randevu için zaten bir talep gönderilmiş." };
     }
     return { success: false, message: "İptal talebi gönderilemedi, lütfen tekrar deneyin." };
@@ -252,10 +236,7 @@ const BEKLEYEN_TALEP_SINIRI = 5;
  * randevuyu oluşturur.
  */
 export async function randevuTalebiOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, hastaId } = await hastaIdGetir();
-  if (!hastaId) {
-    return { success: false, message: "Hasta bilgisi bulunamadı." };
-  }
+  const { bag, hastaId } = await hastaOturumu();
 
   const ayristirma = randevuTalebiSemasi.safeParse({
     islem_tanimi_id: formData.get("islem_tanimi_id"),
@@ -279,28 +260,28 @@ export async function randevuTalebiOlustur(_onceki: SonucDurumu, formData: FormD
     return { success: false, message: "En fazla bir yıl sonrası için talep edilebilir." };
   }
 
-  const { count: bekleyen } = await supabase
-    .from("randevu_talebi")
-    .select("id", { count: "exact", head: true })
-    .eq("hasta_id", hastaId)
-    .eq("durum", "bekliyor");
-  if ((bekleyen ?? 0) >= BEKLEYEN_TALEP_SINIRI) {
-    return {
-      success: false,
-      message: "Yanıt bekleyen talepleriniz var. Kliniğiniz bunları yanıtladıktan sonra yeni talep gönderebilirsiniz.",
-    };
-  }
-
-  const { error } = await supabase.from("randevu_talebi").insert({
-    hasta_id: hastaId,
-    islem_tanimi_id,
-    tercih_tarih,
-    tercih_saat: tercih_saat ? tercih_saat : null,
-    not_metni: not_metni ? not_metni : null,
-  });
-
-  if (error) {
-    console.error("Randevu talebi oluşturulamadı:", error);
+  try {
+    const sonuc = await withTenant(bag, async (tx) => {
+      const [{ n }] = await tx.select({ n: count() }).from(sema.randevuTalebi).where(and(eq(sema.randevuTalebi.hastaId, hastaId), eq(sema.randevuTalebi.durum, "bekliyor")));
+      if (n >= BEKLEYEN_TALEP_SINIRI) {
+        return { hata: "Yanıt bekleyen talepleriniz var. Kliniğiniz bunları yanıtladıktan sonra yeni talep gönderebilirsiniz." };
+      }
+      // Tedavi bu kliniğin ve aktif mi (RLS ile kliniğe ait olanlar görünür).
+      const tedavi = (await tx.select({ id: sema.islemTanimi.id, klinikId: sema.islemTanimi.klinikId }).from(sema.islemTanimi).where(and(eq(sema.islemTanimi.id, islem_tanimi_id), eq(sema.islemTanimi.aktif, true))).limit(1))[0];
+      if (!tedavi) return { hata: "Seçilen tedavi bulunamadı." };
+      await tx.insert(sema.randevuTalebi).values({
+        klinikId: tedavi.klinikId,
+        hastaId,
+        islemTanimiId: islem_tanimi_id,
+        tercihTarih: tercih_tarih,
+        tercihSaat: tercih_saat ? tercih_saat : null,
+        notMetni: not_metni ? not_metni : null,
+      });
+      return { tamam: true as const };
+    });
+    if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Randevu talebi gönderilemedi." };
+  } catch (e) {
+    console.error("Randevu talebi oluşturulamadı:", pgHata(e).mesaj);
     return { success: false, message: "Randevu talebi gönderilemedi, lütfen tekrar deneyin." };
   }
 

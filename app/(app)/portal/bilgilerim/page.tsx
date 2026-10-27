@@ -1,35 +1,20 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { gecerliHasta } from "@/lib/auth/gecerli-hasta";
+import { withTenant } from "@/lib/db";
+import { gecerliHastaBaglami } from "@/lib/auth/gecerli-hasta";
+import { portalBilgilerimGetir } from "@/lib/portal/sorgular";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { HastaDetay } from "@/types/hasta";
-import type { HastaHassasSatir } from "@/types/hasta-hassas";
 import { BilgilerFormu } from "./bilgiler-formu";
 
 export default async function PortalBilgilerimSayfasi() {
-  const oturum = await gecerliHasta();
+  const oturum = await gecerliHastaBaglami();
   if (!oturum) {
     redirect("/portal/giris");
   }
 
-  const supabase = await createClient();
-  const hastaId = oturum.hastaId;
-
-  const [hastaSonucu, hassasSonucu] = await Promise.all([
-    supabase
-      .from("hasta")
-      .select(
-        "id, ad_soyad, telefon, dogum_tarihi, kvkk_onay_tarihi, whatsapp_izin_durumu, cinsiyet, eposta, referans_kanali, ozel_nitelikli_veri_onay_tarihi, ticari_ileti_onay_tarihi, updated_at, son_guncelleyen_tip"
-      )
-      .eq("id", hastaId)
-      .single<HastaDetay>(),
-    supabase.from("hasta_hassas").select("*").eq("hasta_id", hastaId).maybeSingle<HastaHassasSatir>(),
-  ]);
-
-  const hasta = hastaSonucu.data;
-  const hassas = hassasSonucu.data;
+  // hastaId oturumdan; RLS yalnız bu hastanın satırlarını gösterir.
+  const { hasta, hassas } = await withTenant(oturum.bag, (tx) => portalBilgilerimGetir(tx, oturum.hastaId));
 
   if (!hasta) {
     redirect("/portal");

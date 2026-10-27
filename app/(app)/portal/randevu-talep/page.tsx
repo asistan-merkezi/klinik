@@ -1,26 +1,19 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { gecerliHasta } from "@/lib/auth/gecerli-hasta";
+import { withTenant } from "@/lib/db";
+import { gecerliHastaBaglami } from "@/lib/auth/gecerli-hasta";
+import { portalTedaviSecenekleriGetir } from "@/lib/portal/sorgular";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { SecenekSatir } from "@/types/randevu";
 import { RandevuTalepFormu } from "./randevu-talep-formu";
 
 export default async function RandevuTalepSayfasi() {
-  const oturum = await gecerliHasta();
+  const oturum = await gecerliHastaBaglami();
   if (!oturum) {
     redirect("/portal/giris");
   }
 
-  const supabase = await createClient();
-
-  const { data: tedaviler } = await supabase
-    .from("islem_tanimi")
-    .select("id, ad")
-    .eq("aktif", true)
-    .order("ad")
-    .returns<SecenekSatir[]>();
+  const tedaviler = await withTenant(oturum.bag, (tx) => portalTedaviSecenekleriGetir(tx));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -41,7 +34,7 @@ export default async function RandevuTalepSayfasi() {
             <CardTitle>Talep</CardTitle>
           </CardHeader>
           <CardContent>
-            <RandevuTalepFormu tedaviler={tedaviler ?? []} />
+            <RandevuTalepFormu tedaviler={tedaviler} />
           </CardContent>
         </Card>
       </div>

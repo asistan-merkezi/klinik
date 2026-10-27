@@ -10,8 +10,8 @@ vi.mock("next/server", async (orijinal) => ({
   ...(await orijinal<typeof import("next/server")>()),
   // after(): isteğin sonrasında çalışacak iş — testte hemen başlatılır, `sonrasiniBekle()` ile beklenir.
   after: (fn: () => unknown) => {
-    (globalThis as { __afterIsleri?: Promise<unknown>[] }).__afterIsleri ??= [];
-    (globalThis as { __afterIsleri: Promise<unknown>[] }).__afterIsleri.push(Promise.resolve().then(fn));
+    const g = globalThis as unknown as { __afterIsleri?: Promise<unknown>[] };
+    (g.__afterIsleri ??= []).push(Promise.resolve().then(fn));
   },
 }));
 vi.mock("next/navigation", () => ({
