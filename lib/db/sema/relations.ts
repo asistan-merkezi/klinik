@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { klinik, kimlikKullanici, hasta, oturum, islemKategori, odeme, kullanici, odemeKalemi, islemTanimi, paketSatis, odemeSatiri, egzersizKutuphanesi, evEgzersizProgrami, terapist, evEgzersizKalemi, evEgzersizTakip, seansChecklistSablonu, kimlikHesap, randevuChecklist, randevu, hastaAnket, randevuOnForm, islemTanimiFiyatGecmisi, vardiyaTuru, personelVardiyaAtama, personel, klinikBankaHesaplari, pozisyonlar, oda, cihaz, periyodikRandevu, tedaviProtokolu, klinikAyarlar, paket, hastaBakiyeHareket, fatura, hastaKullanici, randevuIptalTalebi, hastaHassas, klinikMuhasebeEntegrasyonu, islemKontrendikasyon, hastaHedef, olcekTanimi, hastaOlcum, hastaIletisimLog, hastaIliski, hastaSigorta, hastaBelge, hastaOnam, hastaVucutHaritasiIsareti, hastaProtokol, klinikHarcama, klinikArac, klinikKrediKartlari, personelHassas, personelAcilKisi, personelMeslekiBelge, tedaviProtokoluAdimi, isBasvurusu, anketYaniti, iskontoOranlari, personelPuantajDonem, personelPuantaj, personelIzinTalebi, personelUcret, kamusalOdeme, seansDegerlendirme, randevuTalebi, destekTalebi, mesajKurallari, mesajKuyrugu, mesajKredileri, mesajKrediHareketleri, hastaAnamnez, personelHesapHareket, pozisyonSablonlari, nakitBankaHareketi, personelEgitim, hastaYorum, islemTanimiAdim, islemAdimiSablonu, randevuCihazRezervasyon, kasaDengeleme, klinikCariOdeme, klinikKrediKartiOdeme, resmiTatilOneri, resmiTatil, auditLogVarsayilan, auditLog202610, auditLog202611, auditLog202612, auditLog202701 } from "./schema";
+import { klinik, kimlikKullanici, hasta, oturum, islemKategori, odeme, odemeSatiri, egzersizKutuphanesi, evEgzersizProgrami, terapist, evEgzersizKalemi, evEgzersizTakip, seansChecklistSablonu, kimlikHesap, randevuChecklist, randevu, hastaAnket, randevuOnForm, islemTanimi, islemTanimiFiyatGecmisi, kullanici, vardiyaTuru, personelVardiyaAtama, personel, klinikBankaHesaplari, pozisyonlar, oda, cihaz, periyodikRandevu, paketSatis, tedaviProtokolu, klinikAyarlar, paket, odemeKalemi, hastaBakiyeHareket, fatura, hastaKullanici, randevuIptalTalebi, hastaHassas, islemKontrendikasyon, hastaHedef, olcekTanimi, hastaOlcum, hastaIletisimLog, hastaIliski, hastaSigorta, hastaBelge, hastaOnam, hastaVucutHaritasiIsareti, hastaProtokol, klinikHarcama, klinikArac, klinikKrediKartlari, personelHassas, personelAcilKisi, personelMeslekiBelge, tedaviProtokoluAdimi, klinikMuhasebeEntegrasyonu, isBasvurusu, anketYaniti, iskontoOranlari, personelPuantajDonem, personelPuantaj, personelIzinTalebi, personelUcret, kamusalOdeme, seansDegerlendirme, randevuTalebi, destekTalebi, mesajKurallari, mesajKuyrugu, mesajKredileri, mesajKrediHareketleri, hastaAnamnez, personelHesapHareket, pozisyonSablonlari, nakitBankaHareketi, personelEgitim, hastaYorum, islemTanimiAdim, islemAdimiSablonu, randevuCihazRezervasyon, kasaDengeleme, klinikCariOdeme, klinikKrediKartiOdeme, resmiTatil, resmiTatilOneri, auditLogVarsayilan, auditLog202610, auditLog202611, auditLog202612, auditLog202701 } from "./schema";
 
 export const kimlikKullaniciRelations = relations(kimlikKullanici, ({one, many}) => ({
 	klinik: one(klinik, {
@@ -19,7 +19,6 @@ export const kimlikKullaniciRelations = relations(kimlikKullanici, ({one, many})
 export const klinikRelations = relations(klinik, ({one, many}) => ({
 	kimlikKullanicis: many(kimlikKullanici),
 	islemKategoris: many(islemKategori),
-	odemes: many(odeme),
 	egzersizKutuphanesis: many(egzersizKutuphanesi),
 	evEgzersizProgramis: many(evEgzersizProgrami),
 	evEgzersizTakips: many(evEgzersizTakip),
@@ -45,12 +44,12 @@ export const klinikRelations = relations(klinik, ({one, many}) => ({
 	klinikAyarlars: many(klinikAyarlar),
 	islemTanimis: many(islemTanimi),
 	pakets: many(paket),
+	odemes: many(odeme),
 	paketSatis: many(paketSatis),
 	hastaBakiyeHarekets: many(hastaBakiyeHareket),
 	faturas: many(fatura),
 	randevuIptalTalebis: many(randevuIptalTalebi),
 	hastaHassas: many(hastaHassas),
-	klinikMuhasebeEntegrasyonus: many(klinikMuhasebeEntegrasyonu),
 	periyodikRandevus: many(periyodikRandevu),
 	islemKontrendikasyons: many(islemKontrendikasyon),
 	hastaHedefs: many(hastaHedef),
@@ -66,6 +65,7 @@ export const klinikRelations = relations(klinik, ({one, many}) => ({
 	klinikHarcamas: many(klinikHarcama),
 	tedaviProtokolus: many(tedaviProtokolu),
 	tedaviProtokoluAdimis: many(tedaviProtokoluAdimi),
+	klinikMuhasebeEntegrasyonus: many(klinikMuhasebeEntegrasyonu),
 	isBasvurusus: many(isBasvurusu),
 	anketYanitis: many(anketYaniti),
 	iskontoOranlaris: many(iskontoOranlari),
@@ -97,8 +97,8 @@ export const klinikRelations = relations(klinik, ({one, many}) => ({
 	klinikKrediKartlaris: many(klinikKrediKartlari),
 	klinikCariOdemes: many(klinikCariOdeme),
 	klinikKrediKartiOdemes: many(klinikKrediKartiOdeme),
-	resmiTatilOneris: many(resmiTatilOneri),
 	resmiTatils: many(resmiTatil),
+	resmiTatilOneris: many(resmiTatilOneri),
 	auditLogVarsayilans: many(auditLogVarsayilan),
 	auditLog202610s: many(auditLog202610),
 	auditLog202611s: many(auditLog202611),
@@ -108,7 +108,6 @@ export const klinikRelations = relations(klinik, ({one, many}) => ({
 
 export const hastaRelations = relations(hasta, ({one, many}) => ({
 	kimlikKullanicis: many(kimlikKullanici),
-	odemes: many(odeme),
 	evEgzersizProgramis: many(evEgzersizProgrami),
 	hastaAnkets: many(hastaAnket),
 	randevuOnForms: many(randevuOnForm),
@@ -132,6 +131,7 @@ export const hastaRelations = relations(hasta, ({one, many}) => ({
 		relationName: "hasta_ticariIletiOnaylayanKullaniciId_kullanici_id"
 	}),
 	randevus: many(randevu),
+	odemes: many(odeme),
 	paketSatis: many(paketSatis),
 	hastaBakiyeHarekets: many(hastaBakiyeHareket),
 	hastaKullanicis: many(hastaKullanici),
@@ -173,7 +173,15 @@ export const islemKategoriRelations = relations(islemKategori, ({one, many}) => 
 	islemTanimis: many(islemTanimi),
 }));
 
+export const odemeSatiriRelations = relations(odemeSatiri, ({one}) => ({
+	odeme: one(odeme, {
+		fields: [odemeSatiri.odemeId],
+		references: [odeme.id]
+	}),
+}));
+
 export const odemeRelations = relations(odeme, ({one, many}) => ({
+	odemeSatiris: many(odemeSatiri),
 	klinik: one(klinik, {
 		fields: [odeme.klinikId],
 		references: [klinik.id]
@@ -186,155 +194,10 @@ export const odemeRelations = relations(odeme, ({one, many}) => ({
 		fields: [odeme.olusturanKullaniciId],
 		references: [kullanici.id]
 	}),
-	odemeKalemis: many(odemeKalemi),
-	odemeSatiris: many(odemeSatiri),
 	paketSatis: many(paketSatis),
+	odemeKalemis: many(odemeKalemi),
 	hastaBakiyeHarekets: many(hastaBakiyeHareket),
 	faturas: many(fatura),
-}));
-
-export const kullaniciRelations = relations(kullanici, ({one, many}) => ({
-	odemes: many(odeme),
-	islemTanimiFiyatGecmisis: many(islemTanimiFiyatGecmisi),
-	kimlikKullanici: one(kimlikKullanici, {
-		fields: [kullanici.id],
-		references: [kimlikKullanici.id]
-	}),
-	klinik: one(klinik, {
-		fields: [kullanici.klinikId],
-		references: [klinik.id]
-	}),
-	personels: many(personel),
-	hastas_kvkkOnaylayanKullaniciId: many(hasta, {
-		relationName: "hasta_kvkkOnaylayanKullaniciId_kullanici_id"
-	}),
-	hastas_ozelNitelikliOnaylayanKullaniciId: many(hasta, {
-		relationName: "hasta_ozelNitelikliOnaylayanKullaniciId_kullanici_id"
-	}),
-	hastas_ticariIletiOnaylayanKullaniciId: many(hasta, {
-		relationName: "hasta_ticariIletiOnaylayanKullaniciId_kullanici_id"
-	}),
-	randevus_olusturanKullaniciId: many(randevu, {
-		relationName: "randevu_olusturanKullaniciId_kullanici_id"
-	}),
-	randevus_tamamlayanKullaniciId: many(randevu, {
-		relationName: "randevu_tamamlayanKullaniciId_kullanici_id"
-	}),
-	randevus_iptalEdenKullaniciId: many(randevu, {
-		relationName: "randevu_iptalEdenKullaniciId_kullanici_id"
-	}),
-	hastaBakiyeHarekets: many(hastaBakiyeHareket),
-	randevuIptalTalebis: many(randevuIptalTalebi),
-	hastaHassas_olusturanKullaniciId: many(hastaHassas, {
-		relationName: "hastaHassas_olusturanKullaniciId_kullanici_id"
-	}),
-	hastaHassas_sonGuncelleyenKullaniciId: many(hastaHassas, {
-		relationName: "hastaHassas_sonGuncelleyenKullaniciId_kullanici_id"
-	}),
-	periyodikRandevus: many(periyodikRandevu),
-	hastaHedefs: many(hastaHedef),
-	hastaOlcums: many(hastaOlcum),
-	hastaBelges: many(hastaBelge),
-	hastaOnams: many(hastaOnam),
-	hastaVucutHaritasiIsaretis: many(hastaVucutHaritasiIsareti),
-	klinikHarcamas: many(klinikHarcama),
-	isBasvurusus: many(isBasvurusu),
-	personelPuantajDonems: many(personelPuantajDonem),
-	personelPuantajs: many(personelPuantaj),
-	personelUcrets: many(personelUcret),
-	klinikAracs: many(klinikArac),
-	kamusalOdemes: many(kamusalOdeme),
-	randevuTalebis: many(randevuTalebi),
-	destekTalebis: many(destekTalebi),
-	mesajKrediHareketleris: many(mesajKrediHareketleri),
-	hastaAnamnezs_olusturanKullaniciId: many(hastaAnamnez, {
-		relationName: "hastaAnamnez_olusturanKullaniciId_kullanici_id"
-	}),
-	hastaAnamnezs_sonGuncelleyenKullaniciId: many(hastaAnamnez, {
-		relationName: "hastaAnamnez_sonGuncelleyenKullaniciId_kullanici_id"
-	}),
-	personelIzinTalebis_degerlendirenKullaniciId: many(personelIzinTalebi, {
-		relationName: "personelIzinTalebi_degerlendirenKullaniciId_kullanici_id"
-	}),
-	personelIzinTalebis_iptalEdenKullaniciId: many(personelIzinTalebi, {
-		relationName: "personelIzinTalebi_iptalEdenKullaniciId_kullanici_id"
-	}),
-	personelHesapHarekets: many(personelHesapHareket),
-	nakitBankaHareketis: many(nakitBankaHareketi),
-	hastaYorums: many(hastaYorum),
-	kasaDengelemes: many(kasaDengeleme),
-	klinikCariOdemes: many(klinikCariOdeme),
-	klinikKrediKartiOdemes: many(klinikKrediKartiOdeme),
-	resmiTatilOneris: many(resmiTatilOneri),
-	auditLogVarsayilans: many(auditLogVarsayilan),
-	auditLog202610s: many(auditLog202610),
-	auditLog202611s: many(auditLog202611),
-	auditLog202612s: many(auditLog202612),
-	auditLog202701s: many(auditLog202701),
-}));
-
-export const odemeKalemiRelations = relations(odemeKalemi, ({one}) => ({
-	odeme: one(odeme, {
-		fields: [odemeKalemi.odemeId],
-		references: [odeme.id]
-	}),
-	islemTanimi: one(islemTanimi, {
-		fields: [odemeKalemi.islemTanimiId],
-		references: [islemTanimi.id]
-	}),
-	paketSati: one(paketSatis, {
-		fields: [odemeKalemi.paketSatisId],
-		references: [paketSatis.id]
-	}),
-}));
-
-export const islemTanimiRelations = relations(islemTanimi, ({one, many}) => ({
-	odemeKalemis: many(odemeKalemi),
-	islemTanimiFiyatGecmisis: many(islemTanimiFiyatGecmisi),
-	randevus: many(randevu),
-	islemKategori: one(islemKategori, {
-		fields: [islemTanimi.islemKategoriId],
-		references: [islemKategori.id]
-	}),
-	klinik: one(klinik, {
-		fields: [islemTanimi.klinikId],
-		references: [klinik.id]
-	}),
-	pakets: many(paket),
-	periyodikRandevus: many(periyodikRandevu),
-	islemKontrendikasyons: many(islemKontrendikasyon),
-	hastaProtokols: many(hastaProtokol),
-	tedaviProtokoluAdimis: many(tedaviProtokoluAdimi),
-	randevuTalebis: many(randevuTalebi),
-	islemTanimiAdims: many(islemTanimiAdim),
-}));
-
-export const paketSatisRelations = relations(paketSatis, ({one, many}) => ({
-	odemeKalemis: many(odemeKalemi),
-	randevus: many(randevu),
-	klinik: one(klinik, {
-		fields: [paketSatis.klinikId],
-		references: [klinik.id]
-	}),
-	hasta: one(hasta, {
-		fields: [paketSatis.hastaId],
-		references: [hasta.id]
-	}),
-	paket: one(paket, {
-		fields: [paketSatis.paketId],
-		references: [paket.id]
-	}),
-	odeme: one(odeme, {
-		fields: [paketSatis.odemeId],
-		references: [odeme.id]
-	}),
-}));
-
-export const odemeSatiriRelations = relations(odemeSatiri, ({one}) => ({
-	odeme: one(odeme, {
-		fields: [odemeSatiri.odemeId],
-		references: [odeme.id]
-	}),
 }));
 
 export const egzersizKutuphanesiRelations = relations(egzersizKutuphanesi, ({one, many}) => ({
@@ -545,6 +408,107 @@ export const islemTanimiFiyatGecmisiRelations = relations(islemTanimiFiyatGecmis
 	}),
 }));
 
+export const islemTanimiRelations = relations(islemTanimi, ({one, many}) => ({
+	islemTanimiFiyatGecmisis: many(islemTanimiFiyatGecmisi),
+	randevus: many(randevu),
+	islemKategori: one(islemKategori, {
+		fields: [islemTanimi.islemKategoriId],
+		references: [islemKategori.id]
+	}),
+	klinik: one(klinik, {
+		fields: [islemTanimi.klinikId],
+		references: [klinik.id]
+	}),
+	pakets: many(paket),
+	odemeKalemis: many(odemeKalemi),
+	periyodikRandevus: many(periyodikRandevu),
+	islemKontrendikasyons: many(islemKontrendikasyon),
+	hastaProtokols: many(hastaProtokol),
+	tedaviProtokoluAdimis: many(tedaviProtokoluAdimi),
+	randevuTalebis: many(randevuTalebi),
+	islemTanimiAdims: many(islemTanimiAdim),
+}));
+
+export const kullaniciRelations = relations(kullanici, ({one, many}) => ({
+	islemTanimiFiyatGecmisis: many(islemTanimiFiyatGecmisi),
+	kimlikKullanici: one(kimlikKullanici, {
+		fields: [kullanici.id],
+		references: [kimlikKullanici.id]
+	}),
+	klinik: one(klinik, {
+		fields: [kullanici.klinikId],
+		references: [klinik.id]
+	}),
+	personels: many(personel),
+	hastas_kvkkOnaylayanKullaniciId: many(hasta, {
+		relationName: "hasta_kvkkOnaylayanKullaniciId_kullanici_id"
+	}),
+	hastas_ozelNitelikliOnaylayanKullaniciId: many(hasta, {
+		relationName: "hasta_ozelNitelikliOnaylayanKullaniciId_kullanici_id"
+	}),
+	hastas_ticariIletiOnaylayanKullaniciId: many(hasta, {
+		relationName: "hasta_ticariIletiOnaylayanKullaniciId_kullanici_id"
+	}),
+	randevus_olusturanKullaniciId: many(randevu, {
+		relationName: "randevu_olusturanKullaniciId_kullanici_id"
+	}),
+	randevus_tamamlayanKullaniciId: many(randevu, {
+		relationName: "randevu_tamamlayanKullaniciId_kullanici_id"
+	}),
+	randevus_iptalEdenKullaniciId: many(randevu, {
+		relationName: "randevu_iptalEdenKullaniciId_kullanici_id"
+	}),
+	odemes: many(odeme),
+	hastaBakiyeHarekets: many(hastaBakiyeHareket),
+	randevuIptalTalebis: many(randevuIptalTalebi),
+	hastaHassas_olusturanKullaniciId: many(hastaHassas, {
+		relationName: "hastaHassas_olusturanKullaniciId_kullanici_id"
+	}),
+	hastaHassas_sonGuncelleyenKullaniciId: many(hastaHassas, {
+		relationName: "hastaHassas_sonGuncelleyenKullaniciId_kullanici_id"
+	}),
+	periyodikRandevus: many(periyodikRandevu),
+	hastaHedefs: many(hastaHedef),
+	hastaOlcums: many(hastaOlcum),
+	hastaBelges: many(hastaBelge),
+	hastaOnams: many(hastaOnam),
+	hastaVucutHaritasiIsaretis: many(hastaVucutHaritasiIsareti),
+	klinikHarcamas: many(klinikHarcama),
+	isBasvurusus: many(isBasvurusu),
+	personelPuantajDonems: many(personelPuantajDonem),
+	personelPuantajs: many(personelPuantaj),
+	personelUcrets: many(personelUcret),
+	klinikAracs: many(klinikArac),
+	kamusalOdemes: many(kamusalOdeme),
+	randevuTalebis: many(randevuTalebi),
+	destekTalebis: many(destekTalebi),
+	mesajKrediHareketleris: many(mesajKrediHareketleri),
+	hastaAnamnezs_olusturanKullaniciId: many(hastaAnamnez, {
+		relationName: "hastaAnamnez_olusturanKullaniciId_kullanici_id"
+	}),
+	hastaAnamnezs_sonGuncelleyenKullaniciId: many(hastaAnamnez, {
+		relationName: "hastaAnamnez_sonGuncelleyenKullaniciId_kullanici_id"
+	}),
+	personelIzinTalebis_degerlendirenKullaniciId: many(personelIzinTalebi, {
+		relationName: "personelIzinTalebi_degerlendirenKullaniciId_kullanici_id"
+	}),
+	personelIzinTalebis_iptalEdenKullaniciId: many(personelIzinTalebi, {
+		relationName: "personelIzinTalebi_iptalEdenKullaniciId_kullanici_id"
+	}),
+	personelHesapHarekets: many(personelHesapHareket),
+	nakitBankaHareketis: many(nakitBankaHareketi),
+	hastaYorums: many(hastaYorum),
+	kasaDengelemes: many(kasaDengeleme),
+	klinikCariOdemes: many(klinikCariOdeme),
+	klinikKrediKartiOdemes: many(klinikKrediKartiOdeme),
+	resmiTatilOneris: many(resmiTatilOneri),
+	auditLogVarsayilans: many(auditLogVarsayilan),
+	auditLog202610s: many(auditLog202610),
+	auditLog202611s: many(auditLog202611),
+	auditLog202612s: many(auditLog202612),
+	auditLog202701s: many(auditLog202701),
+}));
+
 export const vardiyaTuruRelations = relations(vardiyaTuru, ({one, many}) => ({
 	klinik: one(klinik, {
 		fields: [vardiyaTuru.klinikId],
@@ -687,6 +651,27 @@ export const periyodikRandevuRelations = relations(periyodikRandevu, ({one, many
 	}),
 }));
 
+export const paketSatisRelations = relations(paketSatis, ({one, many}) => ({
+	randevus: many(randevu),
+	klinik: one(klinik, {
+		fields: [paketSatis.klinikId],
+		references: [klinik.id]
+	}),
+	hasta: one(hasta, {
+		fields: [paketSatis.hastaId],
+		references: [hasta.id]
+	}),
+	paket: one(paket, {
+		fields: [paketSatis.paketId],
+		references: [paket.id]
+	}),
+	odeme: one(odeme, {
+		fields: [paketSatis.odemeId],
+		references: [odeme.id]
+	}),
+	odemeKalemis: many(odemeKalemi),
+}));
+
 export const tedaviProtokoluRelations = relations(tedaviProtokolu, ({one, many}) => ({
 	randevus: many(randevu),
 	klinik: one(klinik, {
@@ -713,6 +698,21 @@ export const paketRelations = relations(paket, ({one, many}) => ({
 		references: [islemTanimi.id]
 	}),
 	paketSatis: many(paketSatis),
+}));
+
+export const odemeKalemiRelations = relations(odemeKalemi, ({one}) => ({
+	odeme: one(odeme, {
+		fields: [odemeKalemi.odemeId],
+		references: [odeme.id]
+	}),
+	islemTanimi: one(islemTanimi, {
+		fields: [odemeKalemi.islemTanimiId],
+		references: [islemTanimi.id]
+	}),
+	paketSati: one(paketSatis, {
+		fields: [odemeKalemi.paketSatisId],
+		references: [paketSatis.id]
+	}),
 }));
 
 export const hastaBakiyeHareketRelations = relations(hastaBakiyeHareket, ({one}) => ({
@@ -801,13 +801,6 @@ export const hastaHassasRelations = relations(hastaHassas, ({one}) => ({
 		fields: [hastaHassas.sonGuncelleyenKullaniciId],
 		references: [kullanici.id],
 		relationName: "hastaHassas_sonGuncelleyenKullaniciId_kullanici_id"
-	}),
-}));
-
-export const klinikMuhasebeEntegrasyonuRelations = relations(klinikMuhasebeEntegrasyonu, ({one}) => ({
-	klinik: one(klinik, {
-		fields: [klinikMuhasebeEntegrasyonu.klinikId],
-		references: [klinik.id]
 	}),
 }));
 
@@ -1075,6 +1068,13 @@ export const tedaviProtokoluAdimiRelations = relations(tedaviProtokoluAdimi, ({o
 	islemTanimi: one(islemTanimi, {
 		fields: [tedaviProtokoluAdimi.islemTanimiId],
 		references: [islemTanimi.id]
+	}),
+}));
+
+export const klinikMuhasebeEntegrasyonuRelations = relations(klinikMuhasebeEntegrasyonu, ({one}) => ({
+	klinik: one(klinik, {
+		fields: [klinikMuhasebeEntegrasyonu.klinikId],
+		references: [klinik.id]
 	}),
 }));
 
@@ -1486,6 +1486,13 @@ export const klinikKrediKartiOdemeRelations = relations(klinikKrediKartiOdeme, (
 	}),
 }));
 
+export const resmiTatilRelations = relations(resmiTatil, ({one}) => ({
+	klinik: one(klinik, {
+		fields: [resmiTatil.klinikId],
+		references: [klinik.id]
+	}),
+}));
+
 export const resmiTatilOneriRelations = relations(resmiTatilOneri, ({one}) => ({
 	klinik: one(klinik, {
 		fields: [resmiTatilOneri.klinikId],
@@ -1494,13 +1501,6 @@ export const resmiTatilOneriRelations = relations(resmiTatilOneri, ({one}) => ({
 	kullanici: one(kullanici, {
 		fields: [resmiTatilOneri.kararVerenId],
 		references: [kullanici.id]
-	}),
-}));
-
-export const resmiTatilRelations = relations(resmiTatil, ({one}) => ({
-	klinik: one(klinik, {
-		fields: [resmiTatil.klinikId],
-		references: [klinik.id]
 	}),
 }));
 

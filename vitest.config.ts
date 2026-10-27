@@ -10,6 +10,6 @@ export default defineConfig({
   test: {
     environment: "node",
     // Gerçek Postgres gerektiren veritabanı/kimlik testleri ayrı çalışır: npm run test:db (vitest.db.config.ts)
-    exclude: [...configDefaults.exclude, "tests/db/**"],
+    exclude: [...configDefaults.exclude, "tests/db/**", "tests/e2e/**"],
   },
 });

@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
+import { sema, withTenant } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import type { Pozisyon } from "@/types/pozisyon";
@@ -8,29 +11,29 @@ import { SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN } from "@/lib/panel/menu-gruplari";
 import { SidebarYetkiFormu } from "./sidebar-yetki-formu";
 
 export default async function YetkilendirmeSayfasi() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const ctx = await oturumBaglami();
+  if (!ctx || ctx.tur !== "personel") {
     redirect("/giris");
   }
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-
-  const [{ data: pozisyonlar }, { data: klinikAyarlar }] = await Promise.all([
-    // Departman sekmeleri Personel Tanımlama'daki departmanlarla birebir
-    // aynı olsun diye aynı kaynaktan (pozisyonlar.grup) türetiliyor.
-    supabase
-      .from("pozisyonlar")
-      .select("ad, grup, sira, aktif")
-      .order("sira")
-      .returns<Pick<Pozisyon, "ad" | "grup" | "sira" | "aktif">[]>(),
-    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", kullanici?.klinik_id ?? "").maybeSingle(),
-  ]);
+  let pozisyonlar: Pick<Pozisyon, "ad" | "grup" | "sira" | "aktif">[] = [];
+  let klinikAyarlar: { ayarlar: unknown } | null = null;
+  if (ctx.tenantId) {
+    const klinikId = ctx.tenantId;
+    const [poz, ayar] = await withTenant(tenantGerekli(ctx), (tx) =>
+      Promise.all([
+        // Departman sekmeleri Personel Tanımlama'daki departmanlarla birebir aynı olsun diye aynı kaynaktan (pozisyonlar.grup) türetiliyor.
+        tx
+          .select({ ad: sema.pozisyonlar.ad, grup: sema.pozisyonlar.grup, sira: sema.pozisyonlar.sira, aktif: sema.pozisyonlar.aktif })
+          .from(sema.pozisyonlar)
+          .orderBy(asc(sema.pozisyonlar.sira)),
+        tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, klinikId)).limit(1),
+      ])
+    );
+    pozisyonlar = poz;
+    klinikAyarlar = ayar[0] ?? null;
+  }
 
   const liste = pozisyonlar ?? [];
 

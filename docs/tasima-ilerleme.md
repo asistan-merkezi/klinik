@@ -4,54 +4,43 @@
 
 ## NEREDEN DEVAM EDİLECEK (bir sonraki oturum için)
 
-**Durum (2026-10-27, oturum 1):** Aşama 4 ön adımları tamam (damgalı bağlam, Playwright giriş duman testi 9/9, ilerleme dosyası). Modül 1 başlıyor. `docs/tasima-plani.md` içindeki "tenant'ı DB tarafında türetme" önerisi (A/B/C) kullanıcı kararı bekliyor — modül taşıma mevcut damgalı bağlamla ilerliyor, A sonradan eklenirse uygulama kodu değişmez.
-**Yöntem:** `eylemYetkisiGetir` (eski, supabase döndürür) taşınmamış modüller için KALIYOR; taşınan modüller yeni `eylemYetkisi` (bağlam döndürür) kullanır. Son modülde eski sürüm silinir. `gecerliKullanici()` yeni kimlik katmanına bağlandı (aynı dönüş şekli).
+**Durum (2026-10-27, oturum 1):** Aşama 4 ön adımları tamam (damgalı bağlam, Playwright giriş duman testi 9/9). **Modül 1 BİTTİ** (kalıntı: `lib/auth/eylem-yetkisi.ts` 8 çağıran bitene kadar, `lib/supabase/*` en sonda). Sıradaki: **Modül 2 (hasta ve randevu)** — önce `lib/randevu/queries.ts` + `RANDEVU_SELECT` Drizzle karşılığı, `components/panel/canli-cizelge` realtime (Aşama 6: SSE+LISTEN/NOTIFY gerekir; geçici çözüm veya önce SSE altyapısı için kullanıcıya sor), QR kayıt/anket (gizli `klinik_id` kaldır, `anonimUcCalistir`), `lib/qr/hiz-siniri.ts` sil.
+**Yöntem:** `eylemYetkisiGetir` (eski, supabase döndürür) taşınmamış modüller için KALIYOR; taşınan modüller `lib/auth/yetki.ts > eylemYetkisi` (bağlam döndürür) kullanır. Sayfalarda `oturumBaglami()` + `tenantGerekli(ctx)` + `withTenant`. `docs/tasima-plani.md`'deki "tenant'ı DB'de türetme (A/B/C)" önerisi kullanıcı kararı bekliyor; modül taşıma damgalı bağlamla ilerliyor.
+**Test yöntemi:** her modül için `tests/db/modul-<ad>.test.ts` (izolasyon + rol + gerçek yazma). Eylemler Next istek bağlamı istediğinden testler eylemlerin kullandığı Drizzle ifadelerini birebir sınar.
 
 
 ## Özet
 
 | # | Modül | Durum | Taşınan / Toplam | Kalan Supabase import'lu dosya |
 |---|---|---|---|---|
-| 1 | Kullanıcı/profil, klinik ayarları, ortak yardımcılar | **sürüyor** | 0 / 19 | 19 |
-| 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bekliyor** | 0 / 48 | 48 |
+| 1 | Kullanıcı/profil, klinik ayarları, ortak yardımcılar | **bitti** | 12 / 18 | 6 |
+| 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bekliyor** | 0 / 49 | 49 |
 | 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bekliyor** | 0 / 10 | 10 |
 | 4 | Ödeme / cari / finans / paket / işlem tanımları | **bekliyor** | 0 / 31 | 31 |
 | 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 0 / 20 | 20 |
 | 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 1 / 10 | 9 |
 | 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 0 / 17 | 17 |
-| | **Toplam** | | 1 / 155 | **154** |
+| | **Toplam** | | 13 / 155 | **142** |
 
 Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-baslangic.txt`, 155 dosya); sayım `@supabase`, `@/lib/supabase` ve `createAdminClient` kullanan dosyaları kapsar. `lib/supabase/*` en sonda silinir.
 
 ## Modül 1 — Kullanıcı/profil, klinik ayarları, ortak yardımcılar
 
-- Durum: **sürüyor**
-- Kalan dosyalar (19):
-  - `app/(app)/panel/ayarlar/muhasebe-sync/actions.ts`
-  - `app/(app)/panel/ayarlar/muhasebe-sync/page.tsx`
-  - `app/(app)/panel/ayarlar/page.tsx`
-  - `app/(app)/panel/ayarlar/sirket-bilgileri/actions.ts`
-  - `app/(app)/panel/ayarlar/sirket-bilgileri/page.tsx`
-  - `app/(app)/panel/ayarlar/yetkilendirme/actions.ts`
-  - `app/(app)/panel/ayarlar/yetkilendirme/page.tsx`
-  - `app/(app)/panel/layout.tsx`
-  - `app/(app)/panel/page.tsx`
+- Durum: **bitti**
+- Not: Taşınan: lib/auth (oturum bağlamı, gecerliKullanici/gecerliHasta, yetki.ts), panel layout/actions, ayarlar (şirket bilgileri, yetkilendirme, muhasebe sync), dosya deposu (lib/dosya, logo route'ları), gece zorunlu çıkış (sunucu tarafı, ScheduledLogout silindi), oturum kilidi dosyaları silindi. KALINTI (bilinçli): lib/auth/eylem-yetkisi.ts (8 taşınmamış çağıran var) ve lib/supabase/* son modülde silinecek; yeni migration 0006 (parasut_secret_var).
+- Kalan dosyalar (6):
   - `lib/auth/eylem-yetkisi.ts`
-  - `lib/auth/gecerli-hasta.ts`
-  - `lib/auth/gecerli-kullanici.ts`
-  - `lib/auth/oturum-kilidi.ts`
   - `lib/supabase/admin.ts`
   - `lib/supabase/client.ts`
   - `lib/supabase/middleware.ts`
   - `lib/supabase/sayfali-okuma.ts`
   - `lib/supabase/server.ts`
-  - `components/scheduled-logout.tsx`
 
 ## Modül 2 — Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil)
 
 - Durum: **bekliyor**
 - Not: canli-cizelge/randevu-bildirimleri realtime (Aşama 6).
-- Kalan dosyalar (48):
+- Kalan dosyalar (49):
   - `app/(app)/anket/seans/[randevuId]/actions.ts`
   - `app/(app)/anket/[kisaKod]/actions.ts`
   - `app/(app)/kayit/hasta/[kisaKod]/actions.ts`
@@ -79,6 +68,7 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
   - `app/(app)/panel/hastalar/[id]/protokol-karti.tsx`
   - `app/(app)/panel/hastalar/[id]/queries.ts`
   - `app/(app)/panel/hastalar/[id]/randevu/page.tsx`
+  - `app/(app)/panel/page.tsx`
   - `app/(app)/panel/randevular/actions.ts`
   - `app/(app)/panel/randevular/page.tsx`
   - `app/(app)/panel/randevular/queries.ts`

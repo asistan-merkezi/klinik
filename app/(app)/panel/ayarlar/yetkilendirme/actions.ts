@@ -1,9 +1,10 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN, SIDEBAR_YETKI_OGELERI } from "@/lib/panel/menu-gruplari";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -34,51 +35,40 @@ export async function sidebarMenuGorunurlukDegistir(
   const departman = departmanAyristirma.data;
   const anahtar = anahtarAyristirma.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/giris");
+  // Yalnız klinik_admin (super_admin klinik bağlamı olmadığından eleniyor).
+  const yetki = await eylemYetkisi(["klinik_admin"]);
+  if (!yetki.yetkili || !yetki.bag || !yetki.klinikId || yetki.ctx.rol !== "klinik_admin") {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
+  const { bag, klinikId } = yetki;
 
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
+  try {
+    // Read-modify-write TEK transaction'da ve satır kilidiyle (FOR UPDATE): eşzamanlı iki değişiklik birbirini ezmesin.
+    await withTenant(bag, async (tx) => {
+      const mevcutSatir = await tx
+        .select({ ayarlar: sema.klinikAyarlar.ayarlar })
+        .from(sema.klinikAyarlar)
+        .where(eq(sema.klinikAyarlar.klinikId, klinikId))
+        .for("update")
+        .limit(1);
 
-  if (!kullanici || kullanici.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-  const klinikId = kullanici.klinik_id;
+      const mevcutAyarlar = (mevcutSatir[0]?.ayarlar as Record<string, unknown> | null) ?? {};
+      const mevcutSidebarGizli = (mevcutAyarlar.sidebar_gizli as Record<string, string[]> | undefined) ?? {};
+      const mevcutListe = mevcutSidebarGizli[departman] ?? SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN[departman] ?? [];
 
-  const { data: mevcutSatir } = await supabase
-    .from("klinik_ayarlar")
-    .select("ayarlar")
-    .eq("klinik_id", klinikId)
-    .maybeSingle();
+      const yeniListe = gorunur
+        ? mevcutListe.filter((k) => k !== anahtar)
+        : mevcutListe.includes(anahtar)
+          ? mevcutListe
+          : [...mevcutListe, anahtar];
 
-  const mevcutAyarlar = (mevcutSatir?.ayarlar as Record<string, unknown> | null) ?? {};
-  const mevcutSidebarGizli = (mevcutAyarlar.sidebar_gizli as Record<string, string[]> | undefined) ?? {};
-  const mevcutListe = mevcutSidebarGizli[departman] ?? SIDEBAR_GIZLI_VARSAYILAN_DEPARTMAN[departman] ?? [];
-
-  const yeniListe = gorunur
-    ? mevcutListe.filter((k) => k !== anahtar)
-    : mevcutListe.includes(anahtar)
-      ? mevcutListe
-      : [...mevcutListe, anahtar];
-
-  const guncelAyarlar = {
-    ...mevcutAyarlar,
-    sidebar_gizli: { ...mevcutSidebarGizli, [departman]: yeniListe },
-  };
-
-  const { error } = await supabase
-    .from("klinik_ayarlar")
-    .upsert({ klinik_id: klinikId, ayarlar: guncelAyarlar }, { onConflict: "klinik_id" });
-
-  if (error) {
+      const guncelAyarlar = { ...mevcutAyarlar, sidebar_gizli: { ...mevcutSidebarGizli, [departman]: yeniListe } };
+      await tx
+        .insert(sema.klinikAyarlar)
+        .values({ klinikId, ayarlar: guncelAyarlar })
+        .onConflictDoUpdate({ target: sema.klinikAyarlar.klinikId, set: { ayarlar: guncelAyarlar } });
+    });
+  } catch (error) {
     console.error("Sidebar menü görünürlüğü güncellenemedi:", error);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }

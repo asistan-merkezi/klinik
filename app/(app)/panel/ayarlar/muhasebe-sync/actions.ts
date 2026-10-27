@@ -1,35 +1,12 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 
 type SonucDurumu = { success: boolean; message: string } | null;
-
-async function yetkiliKlinikAdminGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  if (kullanici?.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { supabase, klinikId: null as string | null, yetkisiz: true as const };
-  }
-
-  return { supabase, klinikId: kullanici.klinik_id, yetkisiz: false as const };
-}
 
 function bosIseNull(deger: FormDataEntryValue | null) {
   if (deger == null) return null;
@@ -43,14 +20,13 @@ const muhasebeSyncSemasi = z.object({
   parasut_company_id: z.string().trim().min(1, "Şirket (Company) ID gerekli."),
 });
 
-export async function muhasebeSyncGuncelle(
-  _onceki: SonucDurumu,
-  formData: FormData
-): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
+export async function muhasebeSyncGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  // Yalnız klinik_admin (super_admin klinik bağlamı olmadığından zaten eleniyor: bag null).
+  const yetki = await eylemYetkisi(["klinik_admin"]);
+  if (!yetki.yetkili || !yetki.bag || !yetki.klinikId || yetki.ctx.rol !== "klinik_admin") {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
+  const { bag, klinikId } = yetki;
 
   const ayristirma = muhasebeSyncSemasi.safeParse({
     parasut_client_id: formData.get("parasut_client_id"),
@@ -64,32 +40,32 @@ export async function muhasebeSyncGuncelle(
 
   const { parasut_client_id, parasut_client_secret, parasut_company_id } = ayristirma.data;
 
-  // Secret alanı boş bırakılırsa mevcut değer korunur (formda hiçbir zaman gösterilmediği için
-  // "boş = değiştirme"). Secret kolonu kullanıcı rollerine SELECT'e kapalı (migration
-  // 20261012190000) — var olup olmadığı yalnız sunucuda servis rolüyle kontrol edilir.
-  let secretVar = Boolean(parasut_client_secret);
-  if (!secretVar) {
-    const { data: mevcut } = await createAdminClient()
-      .from("klinik_muhasebe_entegrasyonu")
-      .select("parasut_client_secret")
-      .eq("klinik_id", klinikId)
-      .maybeSingle();
-    secretVar = Boolean(mevcut?.parasut_client_secret);
-  }
-  const baglandiMi = Boolean(parasut_client_id && parasut_company_id && secretVar);
-
-  const { error } = await supabase.from("klinik_muhasebe_entegrasyonu").upsert(
-    {
-      klinik_id: klinikId,
-      parasut_client_id,
-      ...(parasut_client_secret ? { parasut_client_secret } : {}),
-      parasut_company_id,
-      baglanti_durumu: baglandiMi ? "baglandi" : "bekliyor",
-    },
-    { onConflict: "klinik_id" }
-  );
-
-  if (error) {
+  try {
+    await withTenant(bag, async (tx) => {
+      // Secret alanı boş bırakılırsa mevcut değer korunur (formda hiçbir zaman gösterilmediği için "boş = değiştirme").
+      // Secret kolonu uygulama rolüne SELECT'e kapalı: var olup olmadığı üretilmiş boolean kolondan (parasut_secret_var, migration 0006) okunur.
+      let secretVar = Boolean(parasut_client_secret);
+      if (!secretVar) {
+        const mevcut = await tx
+          .select({ var: sema.klinikMuhasebeEntegrasyonu.parasutSecretVar })
+          .from(sema.klinikMuhasebeEntegrasyonu)
+          .where(eq(sema.klinikMuhasebeEntegrasyonu.klinikId, klinikId))
+          .limit(1);
+        secretVar = Boolean(mevcut[0]?.var);
+      }
+      const baglandiMi = Boolean(parasut_client_id && parasut_company_id && secretVar);
+      const degerler = {
+        parasutClientId: parasut_client_id,
+        ...(parasut_client_secret ? { parasutClientSecret: parasut_client_secret } : {}),
+        parasutCompanyId: parasut_company_id,
+        baglantiDurumu: baglandiMi ? "baglandi" : "bekliyor",
+      };
+      await tx
+        .insert(sema.klinikMuhasebeEntegrasyonu)
+        .values({ klinikId, ...degerler })
+        .onConflictDoUpdate({ target: sema.klinikMuhasebeEntegrasyonu.klinikId, set: degerler });
+    });
+  } catch (error) {
     console.error("Muhasebe Sync ayarları kaydedilemedi:", error);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }

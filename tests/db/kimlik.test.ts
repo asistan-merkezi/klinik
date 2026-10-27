@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { basliklar, cerezBasligi, hastaKur, ortamKur, personelKur, superBaglan } from "./yardimci";
 import { proxyKarari } from "@/lib/auth/proxy-karari";
+import { testGeceKapanisiDevreDisi, testSaatiAyarla } from "@/lib/auth/gece-kapanis";
 
 let K1: Record<string, string>;
 let K2: Record<string, string>;
@@ -11,6 +12,7 @@ const yeniIp = () => `198.51.100.${++ipSayac}`;
 const cihaz = () => randomUUID();
 
 beforeAll(() => {
+  testGeceKapanisiDevreDisi(true); // testler günün her saatinde aynı sonucu versin; gece kuralı kendi testinde açıkça sınanır
   const { ids } = ortamKur();
   K1 = ids.k1;
   K2 = ids.k2;
@@ -394,5 +396,33 @@ describe("işten çıkış: devre_disi + açık oturumların iptali", () => {
 
     await hesabiYenidenEtkinlestir(p.id);
     expect((await personelGirisi({ girisAdi: p.telefon, sifre: p.sifre, basliklar: basliklar(yeniIp()), cihazKimligi: cihaz() })).ok).toBe(true);
+  });
+});
+
+describe("gece zorunlu çıkış (resepsiyon/terapist)", () => {
+  it("kapanış anından önce açılmış oturum resepsiyon/terapistte geçersiz olur; yönetici ve hasta etkilenmez", async () => {
+    const { personelGirisi, hastaGirisi } = await giris();
+    const { getSessionContext } = await oturum();
+    const resepsiyon = await personelKur({ klinikId: K1.klinik, rol: "resepsiyon" });
+    const terapist = await personelKur({ klinikId: K1.klinik, rol: "terapist" });
+    const admin = await personelKur({ klinikId: K1.klinik, rol: "klinik_admin" });
+    const hasta = await hastaKur({ klinikId: K1.klinik });
+    const r = await personelGirisi({ girisAdi: resepsiyon.telefon, sifre: resepsiyon.sifre, basliklar: basliklar(yeniIp()), cihazKimligi: cihaz() });
+    const t = await personelGirisi({ girisAdi: terapist.telefon, sifre: terapist.sifre, basliklar: basliklar(yeniIp()), cihazKimligi: cihaz() });
+    const a = await personelGirisi({ girisAdi: admin.eposta, sifre: admin.sifre, basliklar: basliklar(yeniIp()), cihazKimligi: cihaz() });
+    const h = await hastaGirisi({ klinikKodu: "klinikbir", telefon: hasta.telefon, sifre: hasta.sifre, basliklar: basliklar(yeniIp()), cihazKimligi: cihaz() });
+    if (!r.ok || !t.ok || !a.ok || !h.ok) throw new Error("giriş başarısız");
+    // Saati ertesi gün 03:00 İstanbul'a (UTC 00:00) ilerlet: tüm bugün açılmış oturumlar bir gece kapanışı geçmiştir
+    const yarin = new Date(Date.now() + 24 * 3600_000);
+    yarin.setUTCHours(0, 0, 0, 0);
+    testSaatiAyarla(() => yarin);
+    try {
+      expect(await getSessionContext(cerezBasligi(r.cerezler))).toBeNull();
+      expect(await getSessionContext(cerezBasligi(t.cerezler))).toBeNull();
+      expect(await getSessionContext(cerezBasligi(a.cerezler))).not.toBeNull();
+      expect(await getSessionContext(cerezBasligi(h.cerezler))).not.toBeNull();
+    } finally {
+      testSaatiAyarla(null);
+    }
   });
 });

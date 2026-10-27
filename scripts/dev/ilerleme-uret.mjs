@@ -9,7 +9,7 @@ const KOK = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 // Kurallar SIRALIDIR: ilk eşleşen kazanır (özel olan genelden önce).
 const MODULLER = [
   { id: 7, ad: "Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot", durum: "bekliyor", not: "Cron route'ları scripts/'e (bakim_rolu) taşınıp silinecek; PDF -> CHROMIUM_PATH; mesaj merkezi istemcisi withTenant; chatbot bayrakla kapalı." },
-  { id: 1, ad: "Kullanıcı/profil, klinik ayarları, ortak yardımcılar", durum: "sürüyor", not: "" },
+  { id: 1, ad: "Kullanıcı/profil, klinik ayarları, ortak yardımcılar", durum: "bitti", not: "Taşınan: lib/auth (oturum bağlamı, gecerliKullanici/gecerliHasta, yetki.ts), panel layout/actions, ayarlar (şirket bilgileri, yetkilendirme, muhasebe sync), dosya deposu (lib/dosya, logo route'ları), gece zorunlu çıkış (sunucu tarafı, ScheduledLogout silindi), oturum kilidi dosyaları silindi. KALINTI (bilinçli): lib/auth/eylem-yetkisi.ts (8 taşınmamış çağıran var) ve lib/supabase/* son modülde silinecek; yeni migration 0006 (parasut_secret_var)." },
   { id: 4, ad: "Ödeme / cari / finans / paket / işlem tanımları", durum: "bekliyor", not: "" },
   { id: 5, ad: "Personel ve puantaj (QR akışı dahil)", durum: "bekliyor", not: "" },
   { id: 3, ad: "Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto", durum: "bekliyor", not: "Realtime (tablet) SSE + LISTEN/NOTIFY gerektirir (Aşama 6); belge/foto dosya katmanı gerektirir (Aşama 5)." },
@@ -21,8 +21,8 @@ const KURALLAR = [
   [4, /^app\/\(app\)\/panel\/(finans|paketler|islemler)|^lib\/(finans|raporlar|paket|ice-aktarma)|^app\/\(app\)\/panel\/ayarlar\/arsiv-ice-aktarma\/odeme-paket/],
   [5, /^app\/\(app\)\/panel\/personel|^app\/\(app\)\/puantaj|^lib\/personel|^app\/\(app\)\/panel\/ayarlar\/personel-tanimlama/],
   [3, /^app\/\(app\)\/panel\/(tablet|tedavi-protokolleri|kaynaklar)|^app\/\(app\)\/panel\/hastalar\/\[id\]\/belgeler|^app\/api\/hasta-belge/],
-  [2, /^app\/\(app\)\/panel\/(hastalar|randevular)|^app\/\(app\)\/portal|^app\/\(app\)\/(anket|kayit)|^lib\/(randevu|hasta|qr|tatil)|^components\/(panel|hasta)|^app\/api\/hasta-arama|^app\/\(app\)\/panel\/ayarlar\/arsiv-ice-aktarma|^app\/\(app\)\/panel\/ayarlar\/qr-kodlar|^app\/\(app\)\/panel\/ayarlar\/resmi-tatiller/],
-  [1, /^lib\/(auth|supabase)|^app\/\(app\)\/panel\/(layout|page|actions)|^app\/\(app\)\/panel\/ayarlar|^components\/[^/]+$/],
+  [2, /^app\/\(app\)\/panel\/page\.tsx|^app\/\(app\)\/panel\/(hastalar|randevular)|^app\/\(app\)\/portal|^app\/\(app\)\/(anket|kayit)|^lib\/(randevu|hasta|qr|tatil)|^components\/(panel|hasta)|^app\/api\/hasta-arama|^app\/\(app\)\/panel\/ayarlar\/arsiv-ice-aktarma|^app\/\(app\)\/panel\/ayarlar\/qr-kodlar|^app\/\(app\)\/panel\/ayarlar\/resmi-tatiller/],
+  [1, /^lib\/(auth|supabase)|^app\/\(app\)\/panel\/(layout|actions)|^app\/\(app\)\/panel\/ayarlar|^components\/[^/]+$/],
 ];
 const modulBul = (dosya) => (KURALLAR.find(([, r]) => r.test(dosya)) ?? [6])[0];
 

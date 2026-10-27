@@ -1,7 +1,6 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { oturumKilidiGecerliMi } from "@/lib/auth/oturum-kilidi";
+import { headers } from "next/headers";
+import { getSessionContext, type OturumBaglami } from "./oturum";
 
 type KullaniciSatiri = {
   id: string;
@@ -16,47 +15,20 @@ export type GecerliKullanici = {
 };
 
 /**
- * auth.getClaims() + kullanici SELECT'i tek yerde birleştirir. React cache()
- * ile sarılı: aynı istek/render içinde (örn. panel/layout.tsx + panel/page.tsx)
- * birden çok yerden çağrılsa da Supabase'e yalnız BİR KEZ gidilir.
- *
- * getUser() yerine getClaims(): proje asimetrik (ES256) imza anahtarına
- * geçmiş olduğundan getClaims() JWT'yi WebCrypto ile YERELDE doğruluyor,
- * Auth server'a hiç gitmiyor (getUser() her seferinde gidiyordu). JWKS
- * önbelleği @supabase/auth-js içinde MODÜL SEVİYESİNDE ve İSTEKLER ARASI
- * paylaşılıyor — React cache()'in aksine sıcak bir instance'da (Vercel
- * Fluid Compute) middleware ve Server Action'lar da dahil TÜM çağrılar
- * arasında geçerli, yeniden ağ isteği açmıyor.
- *
- * Kapsam notu: `kullanici` tablosu SELECT'i (rol/klinik_id) hâlâ ayrı bir
- * sorgu — bu veriler şu an JWT claim'i DEĞİL. Custom Access Token Hook ile
- * bunları claim'e gömüp bu sorguyu tamamen kaldırmak mümkün (Performans turu
- * 3, ADIM 3.3'te değerlendirildi) ama güvenlik etkisi ayrı incelenmeden
- * UYGULANMADI.
+ * İstek başına TEK oturum bağlamı (React cache()): oturum -> kimlik -> kullanici satırı (lib/auth/oturum.ts). Tenant ve rol ASLA istemciden gelmez.
+ * Sayfalar, eylemler ve layout aynı istekte birden çok kez çağırsa da veritabanına bir kez gidilir.
+ */
+export const oturumBaglami = cache(async (): Promise<OturumBaglami | null> => getSessionContext(await headers()));
+
+/**
+ * Panel (personel) tarafı için eski dönüş şeklini korur: { authUser, kullanici }. Hasta oturumu panel kullanıcısı DEĞİLDİR (null).
+ * Yeni kod doğrudan `oturumBaglami()` ve `lib/auth/yetki.ts` kullanır.
  */
 export const gecerliKullanici = cache(async (): Promise<GecerliKullanici | null> => {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
-
-  if (!claims) {
-    return null;
-  }
-
-  // Tek oturum kilidi (bkz. lib/auth/oturum-kilidi.ts) — başka bir yerden
-  // yeniden giriş yapılmışsa bu tarayıcıyı zorla çıkışa yönlendirir.
-  if (!(await oturumKilidiGecerliMi(supabase, claims.sub))) {
-    redirect("/api/oturum-cikis?hedef=/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("id, klinik_id, ad_soyad, rol")
-    .eq("id", claims.sub)
-    .single<KullaniciSatiri>();
-
+  const ctx = await oturumBaglami();
+  if (!ctx || ctx.tur !== "personel") return null;
   return {
-    authUser: { id: claims.sub, email: claims.email ?? null },
-    kullanici: kullanici ?? null,
+    authUser: { id: ctx.userId, email: ctx.eposta },
+    kullanici: { id: ctx.userId, klinik_id: ctx.tenantId, ad_soyad: ctx.adSoyad, rol: ctx.rol === "hasta" ? null : ctx.rol },
   };
 });

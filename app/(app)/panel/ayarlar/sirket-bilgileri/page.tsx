@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { Building2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
+import { sema, withTenant } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import type { KlinikArac, KlinikBankaHesabiDetay, KlinikKrediKarti, KrediKartiTahsilatAyari, SirketBilgileri } from "@/types/klinik";
@@ -10,65 +13,93 @@ import { BankaHesaplariKarti } from "./banka-hesaplari-karti";
 import { KrediKartlariKarti } from "./kredi-kartlari-karti";
 
 export default async function SirketBilgileriSayfasi() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const ctx = await oturumBaglami();
+  if (!ctx || ctx.tur !== "personel") {
     redirect("/giris");
   }
 
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
+  let bilgiler: SirketBilgileri | null = null;
+  let araclar: KlinikArac[] = [];
+  let bankaHesaplari: KlinikBankaHesabiDetay[] = [];
+  let krediKartlari: KlinikKrediKarti[] = [];
+  let tahsilatAyariSonuc: KrediKartiTahsilatAyari | null = null;
 
-  const { data: bilgiler } = await supabase
-    .from("klinik")
-    .select(
-      "ad, unvan, il, ilce, mahalle, adres, vergi_dairesi, vergi_no, telefon, whatsapp_no, eposta, yetkili_kisi, yetkili_telefon, yetkili_eposta, logo_url, logo_url_koyu, hafta_ici_baslangic, hafta_ici_bitis, cumartesi_baslangic, cumartesi_bitis, pazar_baslangic, pazar_bitis"
-    )
-    .eq("id", kullanici?.klinik_id ?? "")
-    .maybeSingle<SirketBilgileri>();
-
-  const { data: araclarSonuc } = await supabase
-    .from("klinik_arac")
-    .select("id, marka, model, plaka")
-    .eq("klinik_id", kullanici?.klinik_id ?? "")
-    .order("created_at", { ascending: true })
-    .returns<KlinikArac[]>();
-
-  const araclar = araclarSonuc ?? [];
-
-  const { data: bankaHesaplariSonuc } = await supabase
-    .from("klinik_banka_hesaplari")
-    .select("id, banka_adi, sube, hesap_sahibi, iban, hesap_tipi")
-    .eq("klinik_id", kullanici?.klinik_id ?? "")
-    .order("sort_order", { ascending: true })
-    .returns<KlinikBankaHesabiDetay[]>();
-
-  const bankaHesaplari = bankaHesaplariSonuc ?? [];
-
-  // Tablo yoksa (migration uygulanmadan deploy) hata yutulur, liste boş görünür.
-  const { data: krediKartlariSonuc } = await supabase
-    .from("klinik_kredi_kartlari")
-    .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
-    .eq("klinik_id", kullanici?.klinik_id ?? "")
-    .order("sort_order", { ascending: true })
-    .returns<KlinikKrediKarti[]>();
-
-  const krediKartlari = krediKartlariSonuc ?? [];
-
-  const { data: tahsilatAyariSonuc } = await supabase
-    .from("klinik")
-    .select("kredi_karti_tahsilat_banka_hesap_id, kredi_karti_komisyon_orani")
-    .eq("id", kullanici?.klinik_id ?? "")
-    .maybeSingle<KrediKartiTahsilatAyari>();
+  if (ctx.tenantId) {
+    const klinikId = ctx.tenantId;
+    const [k, a, b, kk] = await withTenant(tenantGerekli(ctx), (tx) =>
+      Promise.all([
+        tx
+          .select({
+            ad: sema.klinik.ad,
+            unvan: sema.klinik.unvan,
+            il: sema.klinik.il,
+            ilce: sema.klinik.ilce,
+            mahalle: sema.klinik.mahalle,
+            adres: sema.klinik.adres,
+            vergi_dairesi: sema.klinik.vergiDairesi,
+            vergi_no: sema.klinik.vergiNo,
+            telefon: sema.klinik.telefon,
+            whatsapp_no: sema.klinik.whatsappNo,
+            eposta: sema.klinik.eposta,
+            yetkili_kisi: sema.klinik.yetkiliKisi,
+            yetkili_telefon: sema.klinik.yetkiliTelefon,
+            yetkili_eposta: sema.klinik.yetkiliEposta,
+            logo_url: sema.klinik.logoUrl,
+            logo_url_koyu: sema.klinik.logoUrlKoyu,
+            hafta_ici_baslangic: sema.klinik.haftaIciBaslangic,
+            hafta_ici_bitis: sema.klinik.haftaIciBitis,
+            cumartesi_baslangic: sema.klinik.cumartesiBaslangic,
+            cumartesi_bitis: sema.klinik.cumartesiBitis,
+            pazar_baslangic: sema.klinik.pazarBaslangic,
+            pazar_bitis: sema.klinik.pazarBitis,
+            kart_banka: sema.klinik.krediKartiTahsilatBankaHesapId,
+            kart_oran: sema.klinik.krediKartiKomisyonOrani,
+          })
+          .from(sema.klinik)
+          .where(eq(sema.klinik.id, klinikId))
+          .limit(1),
+        tx
+          .select({ id: sema.klinikArac.id, marka: sema.klinikArac.marka, model: sema.klinikArac.model, plaka: sema.klinikArac.plaka })
+          .from(sema.klinikArac)
+          .where(eq(sema.klinikArac.klinikId, klinikId))
+          .orderBy(asc(sema.klinikArac.createdAt)),
+        tx
+          .select({
+            id: sema.klinikBankaHesaplari.id,
+            banka_adi: sema.klinikBankaHesaplari.bankaAdi,
+            sube: sema.klinikBankaHesaplari.sube,
+            hesap_sahibi: sema.klinikBankaHesaplari.hesapSahibi,
+            iban: sema.klinikBankaHesaplari.iban,
+            hesap_tipi: sema.klinikBankaHesaplari.hesapTipi,
+          })
+          .from(sema.klinikBankaHesaplari)
+          .where(eq(sema.klinikBankaHesaplari.klinikId, klinikId))
+          .orderBy(asc(sema.klinikBankaHesaplari.sortOrder)),
+        tx
+          .select({
+            id: sema.klinikKrediKartlari.id,
+            kart_tipi: sema.klinikKrediKartlari.kartTipi,
+            kart_adi: sema.klinikKrediKartlari.kartAdi,
+            banka_adi: sema.klinikKrediKartlari.bankaAdi,
+            kart_sahibi: sema.klinikKrediKartlari.kartSahibi,
+            son_dort_hane: sema.klinikKrediKartlari.sonDortHane,
+          })
+          .from(sema.klinikKrediKartlari)
+          .where(eq(sema.klinikKrediKartlari.klinikId, klinikId))
+          .orderBy(asc(sema.klinikKrediKartlari.sortOrder)),
+      ])
+    );
+    if (k[0]) {
+      const { kart_banka, kart_oran, ...sirket } = k[0];
+      bilgiler = sirket as SirketBilgileri;
+      tahsilatAyariSonuc = { kredi_karti_tahsilat_banka_hesap_id: kart_banka, kredi_karti_komisyon_orani: Number(kart_oran) };
+    }
+    araclar = a;
+    bankaHesaplari = b as KlinikBankaHesabiDetay[];
+    krediKartlari = kk as KlinikKrediKarti[];
+  }
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

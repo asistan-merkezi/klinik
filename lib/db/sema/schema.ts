@@ -35,7 +35,7 @@ export const kimlikKullanici = pgTable("kimlik_kullanici", {
 	uniqueIndex("kimlik_hasta_klinik_telefon_tekil").using("btree", table.klinikId.asc().nullsLast().op("text_ops"), table.telefonNorm.asc().nullsLast().op("text_ops")).where(sql`((tur = 'hasta'::text) AND (telefon_norm IS NOT NULL))`),
 	uniqueIndex("kimlik_hasta_tekil").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")).where(sql`(hasta_id IS NOT NULL)`),
 	index("kimlik_klinik").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	uniqueIndex("kimlik_personel_telefon_tekil").using("btree", table.telefonNorm.asc().nullsLast().op("text_ops")).where(sql`((tur = 'personel'::text) AND (telefon_norm IS NOT NULL))`),
+	uniqueIndex("kimlik_personel_telefon_tekil").using("btree", table.telefonNorm.asc().nullsLast().op("text_ops")).where(sql`((tur = 'personel'::text) AND (telefon_norm IS NOT NULL))`),
 	unique("kimlik_kullanici_eposta_key").on(table.eposta),
 	check("kimlik_kullanici_tur_check", sql`tur = ANY (ARRAY['personel'::text, 'hasta'::text])`),
 	check("kimlik_tur_alanlari", sql`((tur = 'hasta'::text) AND (klinik_id IS NOT NULL) AND (hasta_id IS NOT NULL) AND (NOT telefonla_giris)) OR ((tur = 'personel'::text) AND (hasta_id IS NULL))`),
@@ -76,40 +76,6 @@ export const islemKategori = pgTable("islem_kategori", {
 }, (table) => [
 	index("idx_islem_kategori_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("islem_kategori_klinik_id_ad_key").on(table.ad, table.klinikId),
-]);
-
-export const odeme = pgTable("odeme", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	klinikId: uuid("klinik_id").notNull(),
-	hastaId: uuid("hasta_id").notNull(),
-	olusturanKullaniciId: uuid("olusturan_kullanici_id"),
-	iskontoTutari: numeric("iskonto_tutari", { precision: 10, scale:  2 }).default('0').notNull(),
-	faturali: boolean().default(false).notNull(),
-	aciklama: text(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_odeme_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_odeme_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	check("odeme_iskonto_tutari_check", sql`iskonto_tutari >= (0)::numeric`),
-]);
-
-export const odemeKalemi = pgTable("odeme_kalemi", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	odemeId: uuid("odeme_id").notNull(),
-	islemTanimiId: uuid("islem_tanimi_id"),
-	paketSatisId: uuid("paket_satis_id"),
-	aciklama: text(),
-	miktar: integer().default(1).notNull(),
-	birimFiyat: numeric("birim_fiyat", { precision: 10, scale:  2 }).notNull(),
-	kdvOrani: numeric("kdv_orani", { precision: 5, scale:  2 }).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_odeme_kalemi_odeme_id").using("btree", table.odemeId.asc().nullsLast().op("uuid_ops")),
-	check("odeme_kalemi_miktar_check", sql`miktar > 0`),
-	check("odeme_kalemi_birim_fiyat_check", sql`birim_fiyat >= (0)::numeric`),
-	check("odeme_kalemi_kdv_orani_check", sql`(kdv_orani >= (0)::numeric) AND (kdv_orani <= (100)::numeric)`),
-	check("odeme_kalemi_check", sql`(islem_tanimi_id IS NULL) OR (paket_satis_id IS NULL)`),
 ]);
 
 export const odemeSatiri = pgTable("odeme_satiri", {
@@ -158,7 +124,7 @@ export const evEgzersizProgrami = pgTable("ev_egzersiz_programi", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_ev_egzersiz_programi_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_ev_egzersiz_programi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_ev_egzersiz_programi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("ev_egzersiz_programi_durum_check", sql`durum = ANY (ARRAY['aktif'::text, 'tamamlandi'::text, 'iptal'::text])`),
 	check("ev_egzersiz_programi_check", sql`(bitis_tarihi IS NULL) OR (bitis_tarihi >= baslangic_tarihi)`),
 ]);
@@ -177,7 +143,7 @@ export const evEgzersizKalemi = pgTable("ev_egzersiz_kalemi", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_ev_egzersiz_kalemi_egzersiz_id").using("btree", table.egzersizId.asc().nullsLast().op("uuid_ops")),
-	index("idx_ev_egzersiz_kalemi_program_id").using("btree", table.programId.asc().nullsLast().op("uuid_ops")),
+	index("idx_ev_egzersiz_kalemi_program_id").using("btree", table.programId.asc().nullsLast().op("uuid_ops")),
 	check("ev_egzersiz_kalemi_tekrar_check", sql`tekrar > 0`),
 	check("ev_egzersiz_kalemi_sure_sn_check", sql`sure_sn > 0`),
 	check("ev_egzersiz_kalemi_set_check", sql`set > 0`),
@@ -196,7 +162,7 @@ export const evEgzersizTakip = pgTable("ev_egzersiz_takip", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_ev_egzersiz_takip_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_ev_egzersiz_takip_program_id").using("btree", table.programId.asc().nullsLast().op("uuid_ops")),
+	index("idx_ev_egzersiz_takip_program_id").using("btree", table.programId.asc().nullsLast().op("uuid_ops")),
 	unique("ev_egzersiz_takip_kalem_id_tarih_key").on(table.kalemId, table.tarih),
 	check("ev_egzersiz_takip_agri_skoru_check", sql`(agri_skoru >= 0) AND (agri_skoru <= 10)`),
 ]);
@@ -241,7 +207,7 @@ export const randevuChecklist = pgTable("randevu_checklist", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_randevu_checklist_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_randevu_checklist_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
+	index("idx_randevu_checklist_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
 	unique("randevu_checklist_randevu_id_sablon_id_key").on(table.randevuId, table.sablonId),
 ]);
 
@@ -259,7 +225,7 @@ export const hastaAnket = pgTable("hasta_anket", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_anket_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_anket_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_anket_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_anket_anket_tipi_check", sql`anket_tipi = ANY (ARRAY['nps'::text, 'memnuniyet'::text])`),
 	check("hasta_anket_tetikleyici_check", sql`tetikleyici = ANY (ARRAY['paket_bitis'::text, 'seans_sayisi'::text])`),
 	check("hasta_anket_puan_check", sql`puan >= 0`),
@@ -275,7 +241,7 @@ export const randevuOnForm = pgTable("randevu_on_form", {
 	ilacDegisikligi: text("ilac_degisikligi"),
 	doldurmaTarihi: timestamp("doldurma_tarihi", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_randevu_on_form_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_randevu_on_form_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("randevu_on_form_randevu_id_key").on(table.randevuId),
 	check("randevu_on_form_agri_skoru_check", sql`(agri_skoru >= 0) AND (agri_skoru <= 10)`),
 ]);
@@ -296,7 +262,7 @@ export const islemTanimiFiyatGecmisi = pgTable("islem_tanimi_fiyat_gecmisi", {
 }, (table) => [
 	index("idx_islem_tanimi_fiyat_gecmisi_islem_id").using("btree", table.islemTanimiId.asc().nullsLast().op("uuid_ops")),
 	index("idx_islem_tanimi_fiyat_gecmisi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	uniqueIndex("uq_islem_tanimi_fiyat_gecmisi_acik").using("btree", table.islemTanimiId.asc().nullsLast().op("uuid_ops")).where(sql`(gecerlilik_bitis IS NULL)`),
+	uniqueIndex("uq_islem_tanimi_fiyat_gecmisi_acik").using("btree", table.islemTanimiId.asc().nullsLast().op("uuid_ops")).where(sql`(gecerlilik_bitis IS NULL)`),
 ]);
 
 export const vardiyaTuru = pgTable("vardiya_turu", {
@@ -324,7 +290,7 @@ export const personelVardiyaAtama = pgTable("personel_vardiya_atama", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_personel_vardiya_atama_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_personel_vardiya_atama_personel_id").using("btree", table.personelId.asc().nullsLast().op("uuid_ops")),
+	index("idx_personel_vardiya_atama_personel_id").using("btree", table.personelId.asc().nullsLast().op("uuid_ops")),
 	check("personel_vardiya_atama_haftanin_gunu_check", sql`(haftanin_gunu >= 0) AND (haftanin_gunu <= 6)`),
 	check("personel_vardiya_atama_aralik_gecerli", sql`(gecerlilik_bitis IS NULL) OR (gecerlilik_bitis >= gecerlilik_baslangic)`),
 ]);
@@ -396,7 +362,7 @@ export const kullanici = pgTable("kullanici", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_kullanici_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	uniqueIndex("idx_kullanici_telefon_normalize").using("btree", sql`telefon_normalize(telefon)`).where(sql`(telefon_normalize(telefon) IS NOT NULL)`),
+	uniqueIndex("idx_kullanici_telefon_normalize").using("btree", sql`telefon_normalize(telefon)`).where(sql`(telefon_normalize(telefon) IS NOT NULL)`),
 	check("kullanici_klinik_gerekli", sql`(rol = 'super_admin'::kullanici_rol_tipi) OR (klinik_id IS NOT NULL)`),
 ]);
 
@@ -432,7 +398,7 @@ export const personel = pgTable("personel", {
 	istenCikisTarihi: date("isten_cikis_tarihi"),
 	imzaYetkilisiMi: boolean("imza_yetkilisi_mi").default(false).notNull(),
 }, (table) => [
-	index("idx_personel_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_personel_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("personel_cinsiyet_check", sql`cinsiyet = ANY (ARRAY['erkek'::text, 'kadin'::text, 'belirtilmemis'::text])`),
 	check("personel_calisma_tipi_check", sql`calisma_tipi = ANY (ARRAY['tam_zamanli'::text, 'yari_zamanli'::text, 'vardiyali'::text, 'prim_usulu'::text])`),
 	check("personel_fm_saatlik_ucret_check", sql`(fm_saatlik_ucret IS NULL) OR (fm_saatlik_ucret >= (0)::numeric)`),
@@ -449,7 +415,7 @@ export const terapist = pgTable("terapist", {
 	barajSeansSayisi: integer("baraj_seans_sayisi"),
 	barajBonusTutari: numeric("baraj_bonus_tutari", { precision: 10, scale:  2 }),
 }, (table) => [
-	index("idx_terapist_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_terapist_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("terapist_personel_id_key").on(table.personelId),
 	check("terapist_maas_hesaplama_modeli_check", sql`maas_hesaplama_modeli = ANY (ARRAY['sabit'::text, 'islem_basi_prim'::text, 'barajli_prim'::text])`),
 	check("terapist_prim_sabit_tutar_check", sql`prim_sabit_tutar >= (0)::numeric`),
@@ -490,7 +456,7 @@ export const hasta = pgTable("hasta", {
 	index("idx_hasta_ad_soyad_trgm").using("gin", table.adSoyad.asc().nullsLast().op("gin_trgm_ops")),
 	index("idx_hasta_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	index("idx_hasta_telefon").using("btree", table.telefon.asc().nullsLast().op("text_ops")),
-	index("idx_hasta_telefon_trgm").using("gin", table.telefon.asc().nullsLast().op("gin_trgm_ops")),
+	index("idx_hasta_telefon_trgm").using("gin", table.telefon.asc().nullsLast().op("gin_trgm_ops")),
 	check("hasta_cinsiyet_check", sql`cinsiyet = ANY (ARRAY['kadin'::text, 'erkek'::text, 'belirtilmemis'::text])`),
 	check("hasta_kvkk_onaylayan_tip_check", sql`kvkk_onaylayan_tip = ANY (ARRAY['hasta'::text, 'personel'::text])`),
 	check("hasta_ozel_nitelikli_onaylayan_tip_check", sql`ozel_nitelikli_onaylayan_tip = ANY (ARRAY['hasta'::text, 'personel'::text])`),
@@ -571,7 +537,7 @@ export const randevu = pgTable("randevu", {
 	index("idx_randevu_paket_satis_id").using("btree", table.paketSatisId.asc().nullsLast().op("uuid_ops")),
 	index("idx_randevu_periyodik_randevu_id").using("btree", table.periyodikRandevuId.asc().nullsLast().op("uuid_ops")),
 	index("idx_randevu_tedavi_protokolu_id").using("btree", table.tedaviProtokoluId.asc().nullsLast().op("uuid_ops")),
-	index("idx_randevu_terapist_id_baslangic").using("btree", table.terapistId.asc().nullsLast().op("timestamptz_ops"), table.baslangic.asc().nullsLast().op("uuid_ops")),
+	index("idx_randevu_terapist_id_baslangic").using("btree", table.terapistId.asc().nullsLast().op("timestamptz_ops"), table.baslangic.asc().nullsLast().op("uuid_ops")),
 	check("randevu_check", sql`bitis > baslangic`),
 	check("randevu_gecikme_dakika_check", sql`(gecikme_dakika IS NULL) OR (gecikme_dakika > 0)`),
 	check("randevu_kaynak_check", sql`kaynak = ANY (ARRAY['uygulama'::text, 'arsiv'::text])`),
@@ -604,7 +570,7 @@ export const islemTanimi = pgTable("islem_tanimi", {
 	sureDakika: integer("sure_dakika"),
 }, (table) => [
 	index("idx_islem_tanimi_kategori_id").using("btree", table.islemKategoriId.asc().nullsLast().op("uuid_ops")),
-	index("idx_islem_tanimi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_islem_tanimi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("islem_tanimi_kdv_orani_check", sql`(kdv_orani >= (0)::numeric) AND (kdv_orani <= (100)::numeric)`),
 	check("islem_tanimi_vita_fiyat_check", sql`vita_fiyat >= (0)::numeric`),
 	check("islem_tanimi_plus_fiyat_check", sql`(plus_fiyat IS NULL) OR (plus_fiyat >= (0)::numeric)`),
@@ -628,11 +594,27 @@ export const paket = pgTable("paket", {
 	tekrarSayisi: integer("tekrar_sayisi").default(1).notNull(),
 	kisiKotasi: integer("kisi_kotasi"),
 }, (table) => [
-	index("idx_paket_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_paket_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("paket_seans_sayisi_check", sql`seans_sayisi > 0`),
 	check("paket_fiyat_check", sql`fiyat >= (0)::numeric`),
 	check("paket_kdv_orani_check", sql`(kdv_orani >= (0)::numeric) AND (kdv_orani <= (100)::numeric)`),
 	check("paket_kisi_kotasi_check", sql`(kisi_kotasi IS NULL) OR (kisi_kotasi > 0)`),
+]);
+
+export const odeme = pgTable("odeme", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	klinikId: uuid("klinik_id").notNull(),
+	hastaId: uuid("hasta_id").notNull(),
+	olusturanKullaniciId: uuid("olusturan_kullanici_id"),
+	iskontoTutari: numeric("iskonto_tutari", { precision: 10, scale:  2 }).default('0').notNull(),
+	faturali: boolean().default(false).notNull(),
+	aciklama: text(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_odeme_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
+	index("idx_odeme_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	check("odeme_iskonto_tutari_check", sql`iskonto_tutari >= (0)::numeric`),
 ]);
 
 export const paketSatis = pgTable("paket_satis", {
@@ -649,9 +631,27 @@ export const paketSatis = pgTable("paket_satis", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_paket_satis_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_paket_satis_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_paket_satis_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("paket_satis_kalan_adet_check", sql`kalan_adet >= 0`),
 	check("paket_satis_durum_check", sql`durum = ANY (ARRAY['aktif'::text, 'dondu'::text, 'bitti'::text, 'iptal'::text])`),
+]);
+
+export const odemeKalemi = pgTable("odeme_kalemi", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	odemeId: uuid("odeme_id").notNull(),
+	islemTanimiId: uuid("islem_tanimi_id"),
+	paketSatisId: uuid("paket_satis_id"),
+	aciklama: text(),
+	miktar: integer().default(1).notNull(),
+	birimFiyat: numeric("birim_fiyat", { precision: 10, scale:  2 }).notNull(),
+	kdvOrani: numeric("kdv_orani", { precision: 5, scale:  2 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_odeme_kalemi_odeme_id").using("btree", table.odemeId.asc().nullsLast().op("uuid_ops")),
+	check("odeme_kalemi_miktar_check", sql`miktar > 0`),
+	check("odeme_kalemi_birim_fiyat_check", sql`birim_fiyat >= (0)::numeric`),
+	check("odeme_kalemi_kdv_orani_check", sql`(kdv_orani >= (0)::numeric) AND (kdv_orani <= (100)::numeric)`),
+	check("odeme_kalemi_check", sql`(islem_tanimi_id IS NULL) OR (paket_satis_id IS NULL)`),
 ]);
 
 export const hastaBakiyeHareket = pgTable("hasta_bakiye_hareket", {
@@ -676,7 +676,7 @@ export const hastaBakiyeHareket = pgTable("hasta_bakiye_hareket", {
 	index("idx_hasta_bakiye_hareket_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
 	index("idx_hasta_bakiye_hareket_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	index("idx_hasta_bakiye_hareket_klinik_tur_created").using("btree", table.klinikId.asc().nullsLast().op("text_ops"), table.tur.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
-	index("idx_hasta_bakiye_hareket_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_bakiye_hareket_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_bakiye_hareket_tur_check", sql`tur = ANY (ARRAY['odeme'::text, 'iade'::text, 'kredi'::text, 'borc'::text])`),
 	check("hasta_bakiye_hareket_kaynak_check", sql`kaynak = ANY (ARRAY['uygulama'::text, 'arsiv'::text])`),
 	check("hasta_bakiye_hareket_odeme_yontemi_check", sql`odeme_yontemi = ANY (ARRAY['nakit'::text, 'kredi_karti'::text, 'banka_havalesi'::text])`),
@@ -697,7 +697,7 @@ export const fatura = pgTable("fatura", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_fatura_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_fatura_odeme_id").using("btree", table.odemeId.asc().nullsLast().op("uuid_ops")),
+	index("idx_fatura_odeme_id").using("btree", table.odemeId.asc().nullsLast().op("uuid_ops")),
 	check("fatura_durum_check", sql`durum = ANY (ARRAY['bekliyor'::text, 'kesildi'::text, 'hata'::text])`),
 ]);
 
@@ -708,7 +708,7 @@ export const hastaKullanici = pgTable("hasta_kullanici", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_hasta_kullanici_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_kullanici_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
 	unique("hasta_kullanici_hasta_id_key").on(table.hastaId),
 ]);
 
@@ -724,7 +724,7 @@ export const randevuIptalTalebi = pgTable("randevu_iptal_talebi", {
 	aciklama: text(),
 	gecIptal: boolean("gec_iptal").default(false).notNull(),
 }, (table) => [
-	index("idx_randevu_iptal_talebi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_randevu_iptal_talebi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("randevu_iptal_talebi_randevu_id_key").on(table.randevuId),
 	check("randevu_iptal_talebi_durum_check", sql`durum = ANY (ARRAY['bekliyor'::text, 'onaylandi'::text, 'reddedildi'::text])`),
 ]);
@@ -776,23 +776,11 @@ export const hastaHassas = pgTable("hasta_hassas", {
 	sonGuncelleyenKullaniciId: uuid("son_guncelleyen_kullanici_id"),
 }, (table) => [
 	uniqueIndex("idx_hasta_hassas_kimlik_no").using("btree", table.klinikId.asc().nullsLast().op("text_ops"), table.kimlikNo.asc().nullsLast().op("text_ops")).where(sql`(kimlik_no IS NOT NULL)`),
-	index("idx_hasta_hassas_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_hassas_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_hassas_kimlik_no_tipi_check", sql`kimlik_no_tipi = ANY (ARRAY['tc'::text, 'pasaport'::text])`),
 	check("hasta_hassas_oncelik_durumu_check", sql`oncelik_durumu = ANY (ARRAY['normal'::text, 'oncelikli'::text, 'acil'::text])`),
 	check("hasta_hassas_olusturan_tip_check", sql`olusturan_tip = ANY (ARRAY['hasta'::text, 'personel'::text])`),
 	check("hasta_hassas_son_guncelleyen_tip_check", sql`son_guncelleyen_tip = ANY (ARRAY['hasta'::text, 'personel'::text])`),
-]);
-
-export const klinikMuhasebeEntegrasyonu = pgTable("klinik_muhasebe_entegrasyonu", {
-	klinikId: uuid("klinik_id").primaryKey().notNull(),
-	parasutClientId: text("parasut_client_id"),
-	parasutClientSecret: text("parasut_client_secret"),
-	parasutCompanyId: text("parasut_company_id"),
-	baglantiDurumu: text("baglanti_durumu").default('bekliyor').notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	check("klinik_muhasebe_entegrasyonu_baglanti_durumu_check", sql`baglanti_durumu = ANY (ARRAY['bekliyor'::text, 'baglandi'::text])`),
 ]);
 
 export const periyodikRandevu = pgTable("periyodik_randevu", {
@@ -814,7 +802,7 @@ export const periyodikRandevu = pgTable("periyodik_randevu", {
 	otomatikYenile: boolean("otomatik_yenile").default(true).notNull(),
 }, (table) => [
 	index("idx_periyodik_randevu_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_periyodik_randevu_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_periyodik_randevu_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("periyodik_randevu_haftanin_gunu_check", sql`(haftanin_gunu >= 0) AND (haftanin_gunu <= 6)`),
 	check("periyodik_randevu_sure_dakika_check", sql`(sure_dakika >= 5) AND (sure_dakika <= 480)`),
 	check("periyodik_randevu_durum_check", sql`durum = ANY (ARRAY['aktif'::text, 'iptal'::text])`),
@@ -831,7 +819,7 @@ export const islemKontrendikasyon = pgTable("islem_kontrendikasyon", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_islem_kontrendikasyon_islem_id").using("btree", table.islemTanimiId.asc().nullsLast().op("uuid_ops")),
-	index("idx_islem_kontrendikasyon_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_islem_kontrendikasyon_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("islem_kontrendikasyon_risk_tipi_check", sql`risk_tipi = ANY (ARRAY['alerji'::text, 'kalp_pili'::text, 'kan_sulandirici'::text, 'dusme_riski'::text, 'hamilelik'::text, 'diyabet'::text, 'epilepsi'::text, 'metal_implant'::text, 'diger'::text])`),
 	check("islem_kontrendikasyon_uyari_seviyesi_check", sql`uyari_seviyesi = ANY (ARRAY['blok'::text, 'uyari'::text])`),
 ]);
@@ -852,7 +840,7 @@ export const hastaHedef = pgTable("hasta_hedef", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_hedef_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_hedef_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_hedef_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_hedef_hedef_tipi_check", sql`hedef_tipi = ANY (ARRAY['vas'::text, 'rom'::text, 'fonksiyonel'::text, 'serbest'::text])`),
 	check("hasta_hedef_durum_check", sql`durum = ANY (ARRAY['aktif'::text, 'ulasildi'::text, 'basarisiz'::text, 'iptal'::text])`),
 ]);
@@ -890,7 +878,7 @@ export const hastaOlcum = pgTable("hasta_olcum", {
 }, (table) => [
 	index("idx_hasta_olcum_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("timestamptz_ops"), table.olcumTarihi.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_hasta_olcum_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_olcum_olcek_id").using("btree", table.olcekTanimiId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_olcum_olcek_id").using("btree", table.olcekTanimiId.asc().nullsLast().op("uuid_ops")),
 ]);
 
 export const hastaIletisimLog = pgTable("hasta_iletisim_log", {
@@ -905,7 +893,7 @@ export const hastaIletisimLog = pgTable("hasta_iletisim_log", {
 	olusturmaTarihi: timestamp("olusturma_tarihi", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_iletisim_log_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("timestamptz_ops"), table.olusturmaTarihi.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_hasta_iletisim_log_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_iletisim_log_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_iletisim_log_kanal_check", sql`kanal = ANY (ARRAY['whatsapp'::text, 'sms'::text, 'email'::text, 'telefon'::text, 'portal'::text])`),
 	check("hasta_iletisim_log_yon_check", sql`yon = ANY (ARRAY['giden'::text, 'gelen'::text])`),
 ]);
@@ -921,7 +909,7 @@ export const hastaIliski = pgTable("hasta_iliski", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_iliski_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_iliski_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_iliski_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("hasta_iliski_hasta_id_iliskili_hasta_id_key").on(table.hastaId, table.iliskiliHastaId),
 	check("hasta_iliski_iliski_turu_check", sql`iliski_turu = ANY (ARRAY['ebeveyn'::text, 'cocuk'::text, 'es'::text, 'kardes'::text, 'diger'::text])`),
 	check("hasta_iliski_check", sql`hasta_id <> iliskili_hasta_id`),
@@ -942,7 +930,7 @@ export const hastaSigorta = pgTable("hasta_sigorta", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_sigorta_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_sigorta_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_sigorta_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_sigorta_katilim_payi_orani_check", sql`(katilim_payi_orani >= (0)::numeric) AND (katilim_payi_orani <= (100)::numeric)`),
 	check("hasta_sigorta_check", sql`(gecerlilik_bitis IS NULL) OR (gecerlilik_baslangic IS NULL) OR (gecerlilik_bitis >= gecerlilik_baslangic)`),
 ]);
@@ -980,7 +968,7 @@ export const hastaBelge = pgTable("hasta_belge", {
 	index("idx_hasta_belge_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
 	index("idx_hasta_belge_karsilastirma_grubu").using("btree", table.karsilastirmaGrubuId.asc().nullsLast().op("uuid_ops")).where(sql`(karsilastirma_grubu_id IS NOT NULL)`),
 	index("idx_hasta_belge_kategori").using("btree", table.kategori.asc().nullsLast().op("text_ops")),
-	index("idx_hasta_belge_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_belge_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_belge_versiyon_no_check", sql`versiyon_no > 0`),
 	check("hasta_belge_kategori_check", sql`kategori = ANY (ARRAY['radyoloji'::text, 'klinik_foto'::text, 'dokuman'::text])`),
 	check("hasta_belge_kategori_turu_check", sql`((kategori = 'radyoloji'::text) AND (belge_turu = ANY (ARRAY['rontgen'::text, 'mr'::text, 'tomografi'::text, 'ultrason'::text]))) OR ((kategori = 'klinik_foto'::text) AND (belge_turu = ANY (ARRAY['postur_on'::text, 'postur_yan'::text, 'postur_arka'::text, 'bolgesel'::text]))) OR ((kategori = 'dokuman'::text) AND (belge_turu = ANY (ARRAY['recete'::text, 'sevk'::text, 'epikriz'::text, 'diger'::text])))`),
@@ -1001,7 +989,7 @@ export const hastaOnam = pgTable("hasta_onam", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_onam_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_onam_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_onam_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_onam_imzalayan_check", sql`imzalayan = ANY (ARRAY['hasta'::text, 'veli'::text])`),
 ]);
 
@@ -1021,7 +1009,7 @@ export const hastaVucutHaritasiIsareti = pgTable("hasta_vucut_haritasi_isareti",
 	yuz: text().notNull(),
 }, (table) => [
 	index("idx_hasta_vucut_haritasi_isareti_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_vucut_haritasi_isareti_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_vucut_haritasi_isareti_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_vucut_haritasi_isareti_x_check", sql`(x >= (0)::numeric) AND (x <= (1)::numeric)`),
 	check("hasta_vucut_haritasi_isareti_y_check", sql`(y >= (0)::numeric) AND (y <= (1)::numeric)`),
 	check("hasta_vucut_haritasi_isareti_severity_check", sql`(severity >= 0) AND (severity <= 10)`),
@@ -1042,7 +1030,7 @@ export const hastaProtokol = pgTable("hasta_protokol", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_protokol_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_protokol_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_protokol_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_protokol_durum_check", sql`durum = ANY (ARRAY['aktif'::text, 'tamamlandi'::text, 'iptal'::text])`),
 ]);
 
@@ -1070,7 +1058,7 @@ export const klinikHarcama = pgTable("klinik_harcama", {
 	index("idx_klinik_harcama_klinik_tarih").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops"), table.tarih.asc().nullsLast().op("uuid_ops")),
 	index("idx_klinik_harcama_kredi_karti").using("btree", table.krediKartiId.asc().nullsLast().op("uuid_ops")).where(sql`(kredi_karti_id IS NOT NULL)`),
 	index("idx_klinik_harcama_tarih").using("btree", table.tarih.asc().nullsLast().op("date_ops")),
-	index("idx_klinik_harcama_tedarikci").using("btree", sql`klinik_id`, sql`tedarikci_anahtari(tedarikci_adi)`).where(sql`(tedarikci_adi IS NOT NULL)`),
+	index("idx_klinik_harcama_tedarikci").using("btree", sql`klinik_id`, sql`tedarikci_anahtari(tedarikci_adi)`).where(sql`(tedarikci_adi IS NOT NULL)`),
 	check("klinik_harcama_tutar_check", sql`tutar >= (0)::numeric`),
 	check("klinik_harcama_kategori_check", sql`kategori = ANY (ARRAY['kira'::text, 'fatura'::text, 'malzeme'::text, 'bakim_hizmet'::text, 'diger'::text])`),
 	check("klinik_harcama_odeme_tipi_check", sql`odeme_tipi = ANY (ARRAY['nakit'::text, 'havale'::text, 'kredi_karti'::text, 'cari'::text])`),
@@ -1136,9 +1124,22 @@ export const tedaviProtokoluAdimi = pgTable("tedavi_protokolu_adimi", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_tedavi_protokolu_adimi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_tedavi_protokolu_adimi_protokol_id").using("btree", table.tedaviProtokoluId.asc().nullsLast().op("uuid_ops")),
+	index("idx_tedavi_protokolu_adimi_protokol_id").using("btree", table.tedaviProtokoluId.asc().nullsLast().op("uuid_ops")),
 	unique("tedavi_protokolu_adimi_tedavi_protokolu_id_sira_key").on(table.sira, table.tedaviProtokoluId),
 	check("tedavi_protokolu_adimi_sira_check", sql`sira > 0`),
+]);
+
+export const klinikMuhasebeEntegrasyonu = pgTable("klinik_muhasebe_entegrasyonu", {
+	klinikId: uuid("klinik_id").primaryKey().notNull(),
+	parasutClientId: text("parasut_client_id"),
+	parasutClientSecret: text("parasut_client_secret"),
+	parasutCompanyId: text("parasut_company_id"),
+	baglantiDurumu: text("baglanti_durumu").default('bekliyor').notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	parasutSecretVar: boolean("parasut_secret_var").generatedAlwaysAs(sql`((parasut_client_secret IS NOT NULL) AND (parasut_client_secret <> ''::text))`),
+}, (table) => [
+	check("klinik_muhasebe_entegrasyonu_baglanti_durumu_check", sql`baglanti_durumu = ANY (ARRAY['bekliyor'::text, 'baglandi'::text])`),
 ]);
 
 export const isBasvurusu = pgTable("is_basvurusu", {
@@ -1171,7 +1172,7 @@ export const isBasvurusu = pgTable("is_basvurusu", {
 	personelId: uuid("personel_id"),
 }, (table) => [
 	index("idx_is_basvurusu_durum").using("btree", table.klinikId.asc().nullsLast().op("text_ops"), table.durum.asc().nullsLast().op("text_ops")),
-	index("idx_is_basvurusu_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_is_basvurusu_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("is_basvurusu_calisma_sekli_check", sql`calisma_sekli = ANY (ARRAY['tam_zamanli'::text, 'yari_zamanli'::text])`),
 	check("is_basvurusu_durum_check", sql`durum = ANY (ARRAY['beklemede'::text, 'olumlu'::text, 'olumsuz'::text])`),
 ]);
@@ -1223,7 +1224,7 @@ export const personelPuantajDonem = pgTable("personel_puantaj_donem", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_personel_puantaj_donem_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_personel_puantaj_donem_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("personel_puantaj_donem_personel_id_yil_ay_key").on(table.ay, table.personelId, table.yil),
 	check("personel_puantaj_donem_yil_check", sql`(yil >= 2020) AND (yil <= 2100)`),
 	check("personel_puantaj_donem_ay_check", sql`(ay >= 1) AND (ay <= 12)`),
@@ -1265,7 +1266,7 @@ END`),
 	index("idx_personel_puantaj_izin_talep_id").using("btree", table.izinTalepId.asc().nullsLast().op("uuid_ops")).where(sql`(izin_talep_id IS NOT NULL)`),
 	index("idx_personel_puantaj_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	index("idx_personel_puantaj_personel_id").using("btree", table.personelId.asc().nullsLast().op("uuid_ops")),
-	index("idx_personel_puantaj_tarih").using("btree", table.tarih.asc().nullsLast().op("date_ops")),
+	index("idx_personel_puantaj_tarih").using("btree", table.tarih.asc().nullsLast().op("date_ops")),
 	unique("personel_puantaj_personel_id_tarih_key").on(table.personelId, table.tarih),
 	check("personel_puantaj_mola_dakika_check", sql`mola_dakika >= 0`),
 	check("personel_puantaj_fm_onay_durumu_check", sql`fm_onay_durumu = ANY (ARRAY['bekliyor'::text, 'onaylandi'::text, 'reddedildi'::text])`),
@@ -1285,7 +1286,7 @@ export const personelUcret = pgTable("personel_ucret", {
 }, (table) => [
 	index("idx_personel_ucret_gecerlilik_tarihi").using("btree", table.gecerlilikTarihi.asc().nullsLast().op("date_ops")),
 	index("idx_personel_ucret_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_personel_ucret_personel_id").using("btree", table.personelId.asc().nullsLast().op("uuid_ops")),
+	index("idx_personel_ucret_personel_id").using("btree", table.personelId.asc().nullsLast().op("uuid_ops")),
 	check("personel_ucret_maas_check", sql`maas >= (0)::numeric`),
 ]);
 
@@ -1298,7 +1299,7 @@ export const klinikArac = pgTable("klinik_arac", {
 	olusturanKullaniciId: uuid("olusturan_kullanici_id"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_klinik_arac_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_klinik_arac_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 ]);
 
 export const kamusalOdeme = pgTable("kamusal_odeme", {
@@ -1322,7 +1323,7 @@ export const kamusalOdeme = pgTable("kamusal_odeme", {
 	index("idx_kamusal_odeme_banka_hesap").using("btree", table.bankaHesapId.asc().nullsLast().op("uuid_ops")).where(sql`(banka_hesap_id IS NOT NULL)`),
 	index("idx_kamusal_odeme_donem").using("btree", table.klinikId.asc().nullsLast().op("int2_ops"), table.donemYil.asc().nullsLast().op("uuid_ops"), table.donemAy.asc().nullsLast().op("int2_ops")),
 	index("idx_kamusal_odeme_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_kamusal_odeme_klinik_odeme_tarihi").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.odemeTarihi.asc().nullsLast().op("date_ops")).where(sql`(odeme_tarihi IS NOT NULL)`),
+	index("idx_kamusal_odeme_klinik_odeme_tarihi").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.odemeTarihi.asc().nullsLast().op("date_ops")).where(sql`(odeme_tarihi IS NOT NULL)`),
 	check("kamusal_odeme_odeme_tipi_check", sql`odeme_tipi = ANY (ARRAY['kdv'::text, 'stopaj_muhtasar'::text, 'sgk_primleri'::text, 'damga_vergisi'::text, 'emlak_vergisi'::text, 'motorlu_tasitlar_vergisi'::text, 'bagkur_primleri'::text, 'muhasebe_ucreti'::text, 'trafik_cezasi'::text, 'gec_odeme_faizi'::text, 'gecici_vergi'::text, 'kurumlar_vergisi'::text])`),
 	check("kamusal_odeme_tutar_check", sql`tutar >= (0)::numeric`),
 	check("kamusal_odeme_donem_ay_check", sql`(donem_ay >= 1) AND (donem_ay <= 12)`),
@@ -1342,7 +1343,7 @@ export const seansDegerlendirme = pgTable("seans_degerlendirme", {
 	gorulduTarihi: timestamp("goruldu_tarihi", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_seans_degerlendirme_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_seans_degerlendirme_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_seans_degerlendirme_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("seans_degerlendirme_randevu_id_key").on(table.randevuId),
 	check("seans_degerlendirme_puan_check", sql`(puan >= 1) AND (puan <= 5)`),
 	check("seans_degerlendirme_bos_olamaz", sql`(puan IS NOT NULL) OR (oneri_metni IS NOT NULL)`),
@@ -1365,7 +1366,7 @@ export const randevuTalebi = pgTable("randevu_talebi", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_randevu_talebi_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_randevu_talebi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_randevu_talebi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("randevu_talebi_durum_check", sql`durum = ANY (ARRAY['bekliyor'::text, 'onaylandi'::text, 'reddedildi'::text])`),
 ]);
 
@@ -1381,7 +1382,7 @@ export const destekTalebi = pgTable("destek_talebi", {
 	guncellenmeTarihi: timestamp("guncellenme_tarihi", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_destek_talebi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_destek_talebi_kullanici_id").using("btree", table.kullaniciId.asc().nullsLast().op("uuid_ops")),
+	index("idx_destek_talebi_kullanici_id").using("btree", table.kullaniciId.asc().nullsLast().op("uuid_ops")),
 	check("destek_talebi_tur_check", sql`tur = ANY (ARRAY['talep'::text, 'sikayet'::text])`),
 	check("destek_talebi_durum_check", sql`durum = ANY (ARRAY['yeni'::text, 'inceleniyor'::text, 'cozuldu'::text])`),
 ]);
@@ -1457,7 +1458,7 @@ export const mesajKrediHareketleri = pgTable("mesaj_kredi_hareketleri", {
 	olusturanKullaniciId: uuid("olusturan_kullanici_id"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_mesaj_kredi_hareketleri_klinik_kanal").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.kanal.asc().nullsLast().op("enum_ops"), table.createdAt.desc().nullsFirst().op("enum_ops")),
+	index("idx_mesaj_kredi_hareketleri_klinik_kanal").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.kanal.asc().nullsLast().op("enum_ops"), table.createdAt.desc().nullsFirst().op("enum_ops")),
 	check("mesaj_kredi_hareketleri_sadece_yukleme", sql`tip = 'yukleme'::mesaj_kredi_hareket_tipi`),
 ]);
 
@@ -1478,7 +1479,7 @@ export const hastaAnamnez = pgTable("hasta_anamnez", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_hasta_anamnez_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_anamnez_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_anamnez_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_anamnez_durum_check", sql`durum = ANY (ARRAY['aktif'::text, 'cozuldu'::text])`),
 	check("hasta_anamnez_olusturan_tip_check", sql`olusturan_tip = ANY (ARRAY['hasta'::text, 'personel'::text])`),
 	check("hasta_anamnez_son_guncelleyen_tip_check", sql`son_guncelleyen_tip = ANY (ARRAY['hasta'::text, 'personel'::text])`),
@@ -1505,7 +1506,7 @@ export const personelIzinTalebi = pgTable("personel_izin_talebi", {
 }, (table) => [
 	index("idx_personel_izin_talebi_klinik_durum").using("btree", table.klinikId.asc().nullsLast().op("text_ops"), table.durum.asc().nullsLast().op("text_ops")),
 	index("idx_personel_izin_talebi_personel").using("btree", table.personelId.asc().nullsLast().op("uuid_ops"), table.durum.asc().nullsLast().op("text_ops")),
-	index("idx_personel_izin_talebi_tarih_araligi").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.baslangicTarih.asc().nullsLast().op("date_ops"), table.bitisTarih.asc().nullsLast().op("uuid_ops")),
+	index("idx_personel_izin_talebi_tarih_araligi").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.baslangicTarih.asc().nullsLast().op("date_ops"), table.bitisTarih.asc().nullsLast().op("uuid_ops")),
 	check("personel_izin_talebi_tip_check", sql`tip = ANY (ARRAY['yillik'::text, 'mazeret'::text, 'ucretsiz'::text, 'idari'::text, 'telafi'::text])`),
 	check("personel_izin_talebi_gun_sayisi_check", sql`gun_sayisi > (0)::numeric`),
 	check("personel_izin_talebi_durum_check", sql`durum = ANY (ARRAY['beklemede'::text, 'onaylandi'::text, 'reddedildi'::text, 'iptal'::text])`),
@@ -1533,7 +1534,7 @@ export const personelHesapHareket = pgTable("personel_hesap_hareket", {
 	index("idx_personel_hesap_hareket_kaynak_id").using("btree", table.kaynakId.asc().nullsLast().op("uuid_ops")).where(sql`(kaynak_id IS NOT NULL)`),
 	index("idx_personel_hesap_hareket_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	index("idx_personel_hesap_hareket_klinik_tarih").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.tarih.asc().nullsLast().op("date_ops")),
-	index("idx_personel_hesap_hareket_personel_tarih").using("btree", table.personelId.asc().nullsLast().op("date_ops"), table.tarih.asc().nullsLast().op("date_ops")),
+	index("idx_personel_hesap_hareket_personel_tarih").using("btree", table.personelId.asc().nullsLast().op("date_ops"), table.tarih.asc().nullsLast().op("date_ops")),
 	check("personel_hesap_hareket_tur_check", sql`tur = ANY (ARRAY['hakedis'::text, 'prim'::text, 'yol'::text, 'yemek'::text, 'mesai'::text, 'avans'::text, 'kesinti'::text, 'odeme'::text])`),
 	check("personel_hesap_hareket_tutar_check", sql`tutar >= (0)::numeric`),
 	check("personel_hesap_hareket_hakedis_kaynakli", sql`(tur <> 'hakedis'::text) OR (kaynak_id IS NOT NULL)`),
@@ -1556,7 +1557,7 @@ export const pozisyonlar = pgTable("pozisyonlar", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_pozisyonlar_klinik").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_pozisyonlar_klinik").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("pozisyonlar_klinik_id_ad_key").on(table.ad, table.klinikId),
 	check("pozisyonlar_ucret_tipi_check", sql`ucret_tipi = ANY (ARRAY['aylik_maas'::text, 'prim_usulu'::text])`),
 	check("pozisyonlar_puantaj_modu_check", sql`puantaj_modu = ANY (ARRAY['gunluk'::text, 'esnek'::text, 'takipsiz'::text])`),
@@ -1599,7 +1600,7 @@ export const nakitBankaHareketi = pgTable("nakit_banka_hareketi", {
 	index("idx_nakit_banka_hareketi_hedef_banka").using("btree", table.hedefBankaHesapId.asc().nullsLast().op("uuid_ops")).where(sql`(hedef_banka_hesap_id IS NOT NULL)`),
 	index("idx_nakit_banka_hareketi_kaynak_banka").using("btree", table.kaynakBankaHesapId.asc().nullsLast().op("uuid_ops")).where(sql`(kaynak_banka_hesap_id IS NOT NULL)`),
 	index("idx_nakit_banka_hareketi_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_nakit_banka_hareketi_klinik_tarih").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops"), table.tarih.asc().nullsLast().op("uuid_ops")),
+	index("idx_nakit_banka_hareketi_klinik_tarih").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops"), table.tarih.asc().nullsLast().op("uuid_ops")),
 	check("nakit_banka_hareketi_tip_check", sql`tip = ANY (ARRAY['giden'::text, 'gelen'::text, 'hesaplar_arasi'::text])`),
 	check("nakit_banka_hareketi_odeme_yontemi_check", sql`odeme_yontemi = ANY (ARRAY['nakit'::text, 'banka_havalesi'::text])`),
 	check("nakit_banka_hareketi_tutar_check", sql`tutar > (0)::numeric`),
@@ -1634,7 +1635,7 @@ export const hastaYorum = pgTable("hasta_yorum", {
 }, (table) => [
 	index("idx_hasta_yorum_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),
 	index("idx_hasta_yorum_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_hasta_yorum_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
+	index("idx_hasta_yorum_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
 	check("hasta_yorum_tur_check", sql`tur = ANY (ARRAY['terapist_yorumu'::text, 'randevu_yorumu'::text])`),
 	check("hasta_yorum_puan_check", sql`(puan >= 1) AND (puan <= 5)`),
 ]);
@@ -1653,7 +1654,7 @@ export const islemTanimiAdim = pgTable("islem_tanimi_adim", {
 }, (table) => [
 	index("idx_islem_tanimi_adim_islem_id").using("btree", table.islemTanimiId.asc().nullsLast().op("uuid_ops")),
 	index("idx_islem_tanimi_adim_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_islem_tanimi_adim_uygulayici_pozisyon_id").using("btree", table.uygulayiciPozisyonId.asc().nullsLast().op("uuid_ops")),
+	index("idx_islem_tanimi_adim_uygulayici_pozisyon_id").using("btree", table.uygulayiciPozisyonId.asc().nullsLast().op("uuid_ops")),
 	unique("islem_tanimi_adim_sira_tekil").on(table.islemTanimiId, table.sira),
 	check("islem_tanimi_adim_sure_dakika_check", sql`(sure_dakika IS NULL) OR (sure_dakika >= 1)`),
 ]);
@@ -1670,7 +1671,7 @@ export const islemAdimiSablonu = pgTable("islem_adimi_sablonu", {
 	gerekliCihazId: uuid("gerekli_cihaz_id"),
 }, (table) => [
 	index("idx_islem_adimi_sablonu_gerekli_cihaz_id").using("btree", table.gerekliCihazId.asc().nullsLast().op("uuid_ops")),
-	index("idx_islem_adimi_sablonu_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
+	index("idx_islem_adimi_sablonu_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
 	unique("islem_adimi_sablonu_klinik_id_ad_key").on(table.ad, table.klinikId),
 	check("islem_adimi_sablonu_sure_dakika_check", sql`(sure_dakika IS NULL) OR (sure_dakika >= 1)`),
 ]);
@@ -1689,7 +1690,7 @@ export const randevuCihazRezervasyon = pgTable("randevu_cihaz_rezervasyon", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_randevu_cihaz_rezervasyon_klinik_id").using("btree", table.klinikId.asc().nullsLast().op("uuid_ops")),
-	index("idx_randevu_cihaz_rezervasyon_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
+	index("idx_randevu_cihaz_rezervasyon_randevu_id").using("btree", table.randevuId.asc().nullsLast().op("uuid_ops")),
 	check("randevu_cihaz_rezervasyon_check", sql`bitis > baslangic`),
 	check("randevu_cihaz_rezervasyon_tur_check", sql`tur = ANY (ARRAY['adim'::text, 'manuel'::text])`),
 ]);
@@ -1703,7 +1704,7 @@ export const kasaDengeleme = pgTable("kasa_dengeleme", {
 	ekleyenAd: text("ekleyen_ad").notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_kasa_dengeleme_klinik_created").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.asc().nullsLast().op("timestamptz_ops")),
+	index("idx_kasa_dengeleme_klinik_created").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.asc().nullsLast().op("timestamptz_ops")),
 	check("kasa_dengeleme_tutar_check", sql`tutar <> (0)::numeric`),
 ]);
 
@@ -1740,7 +1741,7 @@ export const klinikCariOdeme = pgTable("klinik_cari_odeme", {
 	index("idx_klinik_cari_odeme_banka_hesap").using("btree", table.bankaHesapId.asc().nullsLast().op("uuid_ops")).where(sql`(banka_hesap_id IS NOT NULL)`),
 	index("idx_klinik_cari_odeme_klinik_tarih").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.tarih.asc().nullsLast().op("date_ops")),
 	index("idx_klinik_cari_odeme_kredi_karti").using("btree", table.krediKartiId.asc().nullsLast().op("uuid_ops")).where(sql`(kredi_karti_id IS NOT NULL)`),
-	index("idx_klinik_cari_odeme_tedarikci").using("btree", sql`klinik_id`, sql`tedarikci_anahtari(tedarikci_adi)`),
+	index("idx_klinik_cari_odeme_tedarikci").using("btree", sql`klinik_id`, sql`tedarikci_anahtari(tedarikci_adi)`),
 	check("klinik_cari_odeme_tedarikci_adi_check", sql`btrim(tedarikci_adi) <> ''::text`),
 	check("klinik_cari_odeme_tutar_check", sql`tutar > (0)::numeric`),
 	check("klinik_cari_odeme_odeme_tipi_check", sql`odeme_tipi = ANY (ARRAY['nakit'::text, 'havale'::text, 'kredi_karti'::text])`),
@@ -1760,9 +1761,20 @@ export const klinikKrediKartiOdeme = pgTable("klinik_kredi_karti_odeme", {
 }, (table) => [
 	index("idx_klinik_kredi_karti_odeme_banka_hesap").using("btree", table.bankaHesapId.asc().nullsLast().op("uuid_ops")).where(sql`(banka_hesap_id IS NOT NULL)`),
 	index("idx_klinik_kredi_karti_odeme_kart").using("btree", table.krediKartiId.asc().nullsLast().op("uuid_ops")),
-	index("idx_klinik_kredi_karti_odeme_klinik_tarih").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.tarih.asc().nullsLast().op("date_ops")),
+	index("idx_klinik_kredi_karti_odeme_klinik_tarih").using("btree", table.klinikId.asc().nullsLast().op("date_ops"), table.tarih.asc().nullsLast().op("date_ops")),
 	check("klinik_kredi_karti_odeme_tutar_check", sql`tutar > (0)::numeric`),
 	check("klinik_kredi_karti_odeme_odeme_tipi_check", sql`odeme_tipi = ANY (ARRAY['nakit'::text, 'havale'::text])`),
+]);
+
+export const resmiTatil = pgTable("resmi_tatil", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	klinikId: uuid("klinik_id"),
+	tarih: date().notNull(),
+	ad: text().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_resmi_tatil_tarih").using("btree", table.tarih.asc().nullsLast().op("date_ops")),
+	unique("resmi_tatil_klinik_id_tarih_key").on(table.klinikId, table.tarih),
 ]);
 
 export const resmiTatilOneri = pgTable("resmi_tatil_oneri", {
@@ -1778,22 +1790,11 @@ export const resmiTatilOneri = pgTable("resmi_tatil_oneri", {
 	kararTarihi: timestamp("karar_tarihi", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_resmi_tatil_oneri_klinik_yil").using("btree", table.klinikId.asc().nullsLast().op("int4_ops"), table.yil.asc().nullsLast().op("uuid_ops"), table.bayram.asc().nullsLast().op("int4_ops")),
+	index("idx_resmi_tatil_oneri_klinik_yil").using("btree", table.klinikId.asc().nullsLast().op("int4_ops"), table.yil.asc().nullsLast().op("uuid_ops"), table.bayram.asc().nullsLast().op("int4_ops")),
 	unique("resmi_tatil_oneri_klinik_id_bayram_tarih_key").on(table.bayram, table.klinikId, table.tarih),
 	check("resmi_tatil_oneri_yil_check", sql`(yil >= 2000) AND (yil <= 2100)`),
 	check("resmi_tatil_oneri_bayram_check", sql`bayram = ANY (ARRAY['ramazan'::text, 'kurban'::text])`),
 	check("resmi_tatil_oneri_durum_check", sql`durum = ANY (ARRAY['bekliyor'::text, 'onaylandi'::text, 'reddedildi'::text])`),
-]);
-
-export const resmiTatil = pgTable("resmi_tatil", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	klinikId: uuid("klinik_id"),
-	tarih: date().notNull(),
-	ad: text().notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_resmi_tatil_tarih").using("btree", table.tarih.asc().nullsLast().op("date_ops")),
-	unique("resmi_tatil_klinik_id_tarih_key").on(table.klinikId, table.tarih),
 ]);
 
 export const hizSiniriSayac = pgTable("hiz_siniri_sayac", {
@@ -1814,7 +1815,7 @@ export const auditLogVarsayilan = pgTable("audit_log_varsayilan", {
 	hedefId: uuid("hedef_id"),
 	detay: jsonb(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
+}, (table) => [
 	primaryKey({ columns: [table.createdAt, table.id], name: "audit_log_varsayilan_pkey"}),
 ]);
 
@@ -1828,7 +1829,7 @@ export const auditLog202610 = pgTable("audit_log_2026_10", {
 	detay: jsonb(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("audit_log_2026_10_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	index("audit_log_2026_10_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
 	primaryKey({ columns: [table.createdAt, table.id], name: "audit_log_2026_10_pkey"}),
 ]);
 
@@ -1842,7 +1843,7 @@ export const auditLog202611 = pgTable("audit_log_2026_11", {
 	detay: jsonb(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("audit_log_2026_11_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	index("audit_log_2026_11_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
 	primaryKey({ columns: [table.createdAt, table.id], name: "audit_log_2026_11_pkey"}),
 ]);
 
@@ -1856,7 +1857,7 @@ export const auditLog202612 = pgTable("audit_log_2026_12", {
 	detay: jsonb(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("audit_log_2026_12_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	index("audit_log_2026_12_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
 	primaryKey({ columns: [table.createdAt, table.id], name: "audit_log_2026_12_pkey"}),
 ]);
 
@@ -1870,7 +1871,7 @@ export const auditLog202701 = pgTable("audit_log_2027_01", {
 	detay: jsonb(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("audit_log_2027_01_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	index("audit_log_2027_01_klinik_id_created_at_idx").using("btree", table.klinikId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
 	primaryKey({ columns: [table.createdAt, table.id], name: "audit_log_2027_01_pkey"}),
 ]);
 export const vHastaIlerleme = pgView("v_hasta_ilerleme", {	id: uuid(),

@@ -3,7 +3,6 @@ import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "../globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ScheduledLogout } from "@/components/scheduled-logout";
 
 // docs/DESIGN.md: Plus Jakarta Sans, latin + latin-ext (ş/ğ/ı/İ/ö/ü/ç için).
 const jakarta = Plus_Jakarta_Sans({
@@ -36,7 +35,6 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           {children}
           <ThemeToggle />
-          <ScheduledLogout />
         </ThemeProvider>
       </body>
     </html>

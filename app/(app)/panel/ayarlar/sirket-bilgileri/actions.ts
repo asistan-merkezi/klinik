@@ -1,47 +1,47 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { and, count, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
+import { IZINLI_LOGO_TIPLERI, LOGO_MAKS_BAYT, logoKaydet } from "@/lib/dosya/logo";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-const IZINLI_LOGO_TIPLERI: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/svg+xml": "svg",
-};
-
-async function yetkiliKlinikAdminGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  if (kullanici?.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { supabase, klinikId: null as string | null, yetkisiz: true as const };
-  }
-
-  return { supabase, klinikId: kullanici.klinik_id, yetkisiz: false as const };
+/**
+ * Bu dosyadaki tüm eylemler YALNIZ klinik_admin içindir (super_admin klinik bağlamı olmadığından zaten eleniyor).
+ * Rol kontrolü RLS'e güvenmeden kodda da yapılır; klinik kimliği oturumdan gelir (istemciden asla).
+ */
+async function klinikAdminYetkisi() {
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || !y.klinikId || y.ctx.rol !== "klinik_admin") return null;
+  return { bag: y.bag, klinikId: y.klinikId, kullaniciId: y.ctx.userId };
 }
 
 function bosIseNull(deger: FormDataEntryValue | null) {
   if (deger == null) return null;
   const s = String(deger).trim();
   return s === "" ? null : s;
+}
+
+/** Logo içerik doğrulaması: istemcinin bildirdiği MIME'a güvenmeden dosya imzasına bakar. */
+function logoIcerigiGecerliMi(tip: string, veri: Buffer): boolean {
+  switch (tip) {
+    case "image/png":
+      return veri.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    case "image/jpeg":
+      return veri[0] === 0xff && veri[1] === 0xd8 && veri[2] === 0xff;
+    case "image/webp":
+      return veri.subarray(0, 4).toString("latin1") === "RIFF" && veri.subarray(8, 12).toString("latin1") === "WEBP";
+    case "image/svg+xml": {
+      const metin = veri.toString("utf8").toLowerCase();
+      return metin.includes("<svg") && !/<script|onload\s*=|onerror\s*=|javascript:|<foreignobject/.test(metin);
+    }
+    default:
+      return false;
+  }
 }
 
 const sirketSemasi = z.object({
@@ -67,14 +67,10 @@ const sirketSemasi = z.object({
   pazar_bitis: z.string().regex(/^\d{2}:\d{2}$/, "Geçersiz saat.").nullable(),
 });
 
-export async function sirketBilgileriGuncelle(
-  _onceki: SonucDurumu,
-  formData: FormData
-): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+export async function sirketBilgileriGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
+  const { bag, klinikId } = yetki;
 
   const ayristirma = sirketSemasi.safeParse({
     ad: formData.get("ad"),
@@ -102,46 +98,56 @@ export async function sirketBilgileriGuncelle(
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
+  const d = ayristirma.data;
 
-  const guncellenecek: Record<string, string | null> = {
-    ...ayristirma.data,
-    ad: isimBasHarfBuyukYap(ayristirma.data.ad),
-    unvan: ayristirma.data.unvan ? isimBasHarfBuyukYap(ayristirma.data.unvan) : null,
-    vergi_dairesi: ayristirma.data.vergi_dairesi ? isimBasHarfBuyukYap(ayristirma.data.vergi_dairesi) : null,
-    yetkili_kisi: ayristirma.data.yetkili_kisi ? isimBasHarfBuyukYap(ayristirma.data.yetkili_kisi) : null,
+  const guncellenecek: Partial<typeof sema.klinik.$inferInsert> = {
+    ad: isimBasHarfBuyukYap(d.ad),
+    unvan: d.unvan ? isimBasHarfBuyukYap(d.unvan) : null,
+    il: d.il,
+    ilce: d.ilce,
+    mahalle: d.mahalle,
+    adres: d.adres,
+    vergiDairesi: d.vergi_dairesi ? isimBasHarfBuyukYap(d.vergi_dairesi) : null,
+    vergiNo: d.vergi_no,
+    telefon: d.telefon,
+    whatsappNo: d.whatsapp_no,
+    eposta: d.eposta,
+    yetkiliKisi: d.yetkili_kisi ? isimBasHarfBuyukYap(d.yetkili_kisi) : null,
+    yetkiliTelefon: d.yetkili_telefon,
+    yetkiliEposta: d.yetkili_eposta,
+    haftaIciBaslangic: d.hafta_ici_baslangic,
+    haftaIciBitis: d.hafta_ici_bitis,
+    cumartesiBaslangic: d.cumartesi_baslangic,
+    cumartesiBitis: d.cumartesi_bitis,
+    pazarBaslangic: d.pazar_baslangic,
+    pazarBitis: d.pazar_bitis,
   };
 
   const logo = formData.get("logo");
   if (logo instanceof File && logo.size > 0) {
-    const uzanti = IZINLI_LOGO_TIPLERI[logo.type];
-    if (!uzanti) {
+    if (!IZINLI_LOGO_TIPLERI[logo.type]) {
       return { success: false, message: "Logo PNG, JPG, WEBP veya SVG olmalı." };
     }
-    if (logo.size > 2 * 1024 * 1024) {
+    if (logo.size > LOGO_MAKS_BAYT) {
       return { success: false, message: "Logo en fazla 2 MB olabilir." };
     }
-
-    const yol = `${klinikId}/logo.${uzanti}`;
-    const { error: yuklemeHatasi } = await supabase.storage
-      .from("klinik-logo")
-      .upload(yol, logo, { upsert: true, contentType: logo.type });
-
-    if (yuklemeHatasi) {
-      console.error("Logo yüklenemedi:", yuklemeHatasi);
+    const veri = Buffer.from(await logo.arrayBuffer());
+    if (!logoIcerigiGecerliMi(logo.type, veri)) {
+      return { success: false, message: "Logo dosyası geçerli bir görsel değil." };
+    }
+    try {
+      await logoKaydet(klinikId, logo.type, veri);
+    } catch (e) {
+      console.error("Logo yüklenemedi:", e);
       return { success: false, message: "Logo yüklenemedi, lütfen tekrar deneyin." };
     }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("klinik-logo").getPublicUrl(yol);
-    // Public URL değişmeden kalabildiği için (upsert aynı ada yazıyor) tarayıcı
-    // önbelleğini atlatmak amacıyla bir sürüm parametresi eklenir.
-    guncellenecek.logo_url = `${publicUrl}?v=${Date.now()}`;
+    // Adres sabit (oturumlu route kendi kliniğinin logosunu verir); tarayıcı önbelleğini atlatmak için sürüm parametresi eklenir.
+    guncellenecek.logoUrl = `/api/dosya/logo?v=${Date.now()}`;
   }
 
-  const { error } = await supabase.from("klinik").update(guncellenecek).eq("id", klinikId);
-
-  if (error) {
+  try {
+    await withTenant(bag, (tx) => tx.update(sema.klinik).set(guncellenecek).where(eq(sema.klinik.id, klinikId)));
+  } catch (error) {
     console.error("Şirket bilgileri güncellenemedi:", error);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
@@ -157,34 +163,25 @@ const aracSemasi = z.object({
 });
 
 export async function aracEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
 
-  const ayristirma = aracSemasi.safeParse({
-    marka: formData.get("marka"),
-    model: formData.get("model"),
-    plaka: formData.get("plaka"),
-  });
-
+  const ayristirma = aracSemasi.safeParse({ marka: formData.get("marka"), model: formData.get("model"), plaka: formData.get("plaka") });
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { error } = await supabase.from("klinik_arac").insert({
-    klinik_id: klinikId,
-    marka: isimBasHarfBuyukYap(ayristirma.data.marka),
-    model: isimBasHarfBuyukYap(ayristirma.data.model),
-    plaka: ayristirma.data.plaka,
-    olusturan_kullanici_id: user?.id ?? null,
-  });
-
-  if (error) {
+  try {
+    await withTenant(yetki.bag, (tx) =>
+      tx.insert(sema.klinikArac).values({
+        klinikId: yetki.klinikId,
+        marka: isimBasHarfBuyukYap(ayristirma.data.marka),
+        model: isimBasHarfBuyukYap(ayristirma.data.model),
+        plaka: ayristirma.data.plaka,
+        olusturanKullaniciId: yetki.kullaniciId,
+      })
+    );
+  } catch (error) {
     console.error("Araç eklenemedi:", error);
     return { success: false, message: "Araç eklenemedi, lütfen tekrar deneyin." };
   }
@@ -194,14 +191,13 @@ export async function aracEkle(_onceki: SonucDurumu, formData: FormData): Promis
 }
 
 export async function aracSil(id: string): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, message: "Araç bulunamadı." };
 
-  const { error } = await supabase.from("klinik_arac").delete().eq("id", id).eq("klinik_id", klinikId);
-
-  if (error) {
+  try {
+    await withTenant(yetki.bag, (tx) => tx.delete(sema.klinikArac).where(and(eq(sema.klinikArac.id, id), eq(sema.klinikArac.klinikId, yetki.klinikId))));
+  } catch (error) {
     console.error("Araç silinemedi:", error);
     return { success: false, message: "Araç silinemedi, lütfen tekrar deneyin." };
   }
@@ -241,36 +237,34 @@ function bankaSayfalariniTazele() {
 
 /** klinik_banka_hesaplari — Kasa/Banka sayfalarının (ve giderler/personel/hasta ödeme formlarının) "hesap seçin" dropdown'larını besleyen tek kaynak. */
 export async function bankaHesabiEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = bankaHesabiGirdisi(formData);
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { data: mevcutHesaplar } = await supabase
-    .from("klinik_banka_hesaplari")
-    .select("sort_order")
-    .eq("klinik_id", klinikId)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-  const sonraki_sira = (mevcutHesaplar?.[0]?.sort_order ?? -1) + 1;
-
-  // hesap_sahibi/iban kolonları NOT NULL (migration) — boş girilince "" yazılır, ekranda "—" görünür.
-  const { error } = await supabase.from("klinik_banka_hesaplari").insert({
-    klinik_id: klinikId,
-    hesap_tipi: ayristirma.data.hesap_tipi,
-    banka_adi: ayristirma.data.banka_adi,
-    sube: ayristirma.data.sube ? ayristirma.data.sube : null,
-    hesap_sahibi: ayristirma.data.hesap_sahibi ?? "",
-    iban: ayristirma.data.iban,
-    sort_order: sonraki_sira,
-  });
-
-  if (error) {
+  try {
+    await withTenant(yetki.bag, async (tx) => {
+      const son = await tx
+        .select({ sira: sema.klinikBankaHesaplari.sortOrder })
+        .from(sema.klinikBankaHesaplari)
+        .where(eq(sema.klinikBankaHesaplari.klinikId, yetki.klinikId))
+        .orderBy(desc(sema.klinikBankaHesaplari.sortOrder))
+        .limit(1);
+      // hesap_sahibi/iban kolonları NOT NULL (migration) — boş girilince "" yazılır, ekranda "—" görünür.
+      await tx.insert(sema.klinikBankaHesaplari).values({
+        klinikId: yetki.klinikId,
+        hesapTipi: ayristirma.data.hesap_tipi,
+        bankaAdi: ayristirma.data.banka_adi,
+        sube: ayristirma.data.sube ? ayristirma.data.sube : null,
+        hesapSahibi: ayristirma.data.hesap_sahibi ?? "",
+        iban: ayristirma.data.iban,
+        sortOrder: (son[0]?.sira ?? -1) + 1,
+      });
+    });
+  } catch (error) {
     console.error("Banka hesabı eklenemedi:", error);
     return { success: false, message: "Banka hesabı eklenemedi, lütfen tekrar deneyin." };
   }
@@ -280,13 +274,11 @@ export async function bankaHesabiEkle(_onceki: SonucDurumu, formData: FormData):
 }
 
 export async function bankaHesabiGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
 
   const id = formData.get("id");
-  if (typeof id !== "string" || !id) {
+  if (typeof id !== "string" || !z.string().uuid().safeParse(id).success) {
     return { success: false, message: "Hesap bulunamadı." };
   }
   const ayristirma = bankaHesabiGirdisi(formData);
@@ -294,19 +286,20 @@ export async function bankaHesabiGuncelle(_onceki: SonucDurumu, formData: FormDa
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { error } = await supabase
-    .from("klinik_banka_hesaplari")
-    .update({
-      hesap_tipi: ayristirma.data.hesap_tipi,
-      banka_adi: ayristirma.data.banka_adi,
-      sube: ayristirma.data.sube ? ayristirma.data.sube : null,
-      hesap_sahibi: ayristirma.data.hesap_sahibi ?? "",
-      iban: ayristirma.data.iban,
-    })
-    .eq("id", id)
-    .eq("klinik_id", klinikId);
-
-  if (error) {
+  try {
+    await withTenant(yetki.bag, (tx) =>
+      tx
+        .update(sema.klinikBankaHesaplari)
+        .set({
+          hesapTipi: ayristirma.data.hesap_tipi,
+          bankaAdi: ayristirma.data.banka_adi,
+          sube: ayristirma.data.sube ? ayristirma.data.sube : null,
+          hesapSahibi: ayristirma.data.hesap_sahibi ?? "",
+          iban: ayristirma.data.iban,
+        })
+        .where(and(eq(sema.klinikBankaHesaplari.id, id), eq(sema.klinikBankaHesaplari.klinikId, yetki.klinikId)))
+    );
+  } catch (error) {
     console.error("Banka hesabı güncellenemedi:", error);
     return { success: false, message: "Banka hesabı güncellenemedi, lütfen tekrar deneyin." };
   }
@@ -319,36 +312,37 @@ const MAKS_KOMISYON_ORANI = 3.5;
 
 /** Tahsilat Bilgisi: kartla alınan hasta tahsilatının yatacağı banka hesabı + komisyon oranı (klinik başına tek ayar). */
 export async function krediKartiTahsilatAyariKaydet(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
 
   const hesapId = bosIseNull(formData.get("banka_hesap_id"));
   const oran = Number(String(formData.get("komisyon_orani") ?? "").trim().replace(",", ".") || "0");
   if (!Number.isFinite(oran) || oran < 0 || oran > MAKS_KOMISYON_ORANI) {
     return { success: false, message: "Komisyon oranı 0 ile %3,5 arasında olmalı." };
   }
+  if (hesapId && !z.string().uuid().safeParse(hesapId).success) {
+    return { success: false, message: "Seçilen banka hesabı bulunamadı." };
+  }
   const oranYuvarlak = Math.round(oran * 100) / 100;
 
-  if (hesapId) {
-    const { data: hesap } = await supabase
-      .from("klinik_banka_hesaplari")
-      .select("id")
-      .eq("id", hesapId)
-      .eq("klinik_id", klinikId)
-      .maybeSingle();
-    if (!hesap) {
-      return { success: false, message: "Seçilen banka hesabı bulunamadı." };
-    }
-  }
-
-  const { error } = await supabase
-    .from("klinik")
-    .update({ kredi_karti_tahsilat_banka_hesap_id: hesapId, kredi_karti_komisyon_orani: oranYuvarlak })
-    .eq("id", klinikId);
-
-  if (error) {
+  try {
+    const bulundu = await withTenant(yetki.bag, async (tx) => {
+      if (hesapId) {
+        const hesap = await tx
+          .select({ id: sema.klinikBankaHesaplari.id })
+          .from(sema.klinikBankaHesaplari)
+          .where(and(eq(sema.klinikBankaHesaplari.id, hesapId), eq(sema.klinikBankaHesaplari.klinikId, yetki.klinikId)))
+          .limit(1);
+        if (!hesap[0]) return false;
+      }
+      await tx
+        .update(sema.klinik)
+        .set({ krediKartiTahsilatBankaHesapId: hesapId, krediKartiKomisyonOrani: String(oranYuvarlak) })
+        .where(eq(sema.klinik.id, yetki.klinikId));
+      return true;
+    });
+    if (!bulundu) return { success: false, message: "Seçilen banka hesabı bulunamadı." };
+  } catch (error) {
     console.error("Kredi kartı tahsilat ayarı kaydedilemedi:", error);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
@@ -382,35 +376,33 @@ function krediKartiGirdisi(formData: FormData) {
 
 /** klinik_kredi_kartlari — yalnız tanımlayıcı bilgi (ad/banka/sahip/son 4 hane); tam kart no ve CVV saklanmaz. */
 export async function krediKartiEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = krediKartiGirdisi(formData);
   if (!ayristirma.success) {
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { data: mevcutKartlar } = await supabase
-    .from("klinik_kredi_kartlari")
-    .select("sort_order")
-    .eq("klinik_id", klinikId)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-  const sonrakiSira = (mevcutKartlar?.[0]?.sort_order ?? -1) + 1;
-
-  const { error } = await supabase.from("klinik_kredi_kartlari").insert({
-    klinik_id: klinikId,
-    kart_tipi: ayristirma.data.kart_tipi,
-    kart_adi: ayristirma.data.kart_adi,
-    banka_adi: ayristirma.data.banka_adi,
-    kart_sahibi: ayristirma.data.kart_sahibi,
-    son_dort_hane: ayristirma.data.son_dort_hane || null,
-    sort_order: sonrakiSira,
-  });
-
-  if (error) {
+  try {
+    await withTenant(yetki.bag, async (tx) => {
+      const son = await tx
+        .select({ sira: sema.klinikKrediKartlari.sortOrder })
+        .from(sema.klinikKrediKartlari)
+        .where(eq(sema.klinikKrediKartlari.klinikId, yetki.klinikId))
+        .orderBy(desc(sema.klinikKrediKartlari.sortOrder))
+        .limit(1);
+      await tx.insert(sema.klinikKrediKartlari).values({
+        klinikId: yetki.klinikId,
+        kartTipi: ayristirma.data.kart_tipi,
+        kartAdi: ayristirma.data.kart_adi,
+        bankaAdi: ayristirma.data.banka_adi,
+        kartSahibi: ayristirma.data.kart_sahibi,
+        sonDortHane: ayristirma.data.son_dort_hane || null,
+        sortOrder: (son[0]?.sira ?? -1) + 1,
+      });
+    });
+  } catch (error) {
     console.error("Kredi kartı eklenemedi:", error);
     return { success: false, message: "Kredi kartı eklenemedi, lütfen tekrar deneyin." };
   }
@@ -420,13 +412,11 @@ export async function krediKartiEkle(_onceki: SonucDurumu, formData: FormData): 
 }
 
 export async function krediKartiGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
 
   const id = formData.get("id");
-  if (typeof id !== "string" || !id) {
+  if (typeof id !== "string" || !z.string().uuid().safeParse(id).success) {
     return { success: false, message: "Kart bulunamadı." };
   }
   const ayristirma = krediKartiGirdisi(formData);
@@ -434,19 +424,20 @@ export async function krediKartiGuncelle(_onceki: SonucDurumu, formData: FormDat
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { error } = await supabase
-    .from("klinik_kredi_kartlari")
-    .update({
-      kart_tipi: ayristirma.data.kart_tipi,
-      kart_adi: ayristirma.data.kart_adi,
-      banka_adi: ayristirma.data.banka_adi,
-      kart_sahibi: ayristirma.data.kart_sahibi,
-      son_dort_hane: ayristirma.data.son_dort_hane || null,
-    })
-    .eq("id", id)
-    .eq("klinik_id", klinikId);
-
-  if (error) {
+  try {
+    await withTenant(yetki.bag, (tx) =>
+      tx
+        .update(sema.klinikKrediKartlari)
+        .set({
+          kartTipi: ayristirma.data.kart_tipi,
+          kartAdi: ayristirma.data.kart_adi,
+          bankaAdi: ayristirma.data.banka_adi,
+          kartSahibi: ayristirma.data.kart_sahibi,
+          sonDortHane: ayristirma.data.son_dort_hane || null,
+        })
+        .where(and(eq(sema.klinikKrediKartlari.id, id), eq(sema.klinikKrediKartlari.klinikId, yetki.klinikId)))
+    );
+  } catch (error) {
     console.error("Kredi kartı güncellenemedi:", error);
     return { success: false, message: "Kredi kartı güncellenemedi, lütfen tekrar deneyin." };
   }
@@ -456,28 +447,27 @@ export async function krediKartiGuncelle(_onceki: SonucDurumu, formData: FormDat
 }
 
 export async function krediKartiSil(id: string): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, message: "Kredi kartı bulunamadı." };
 
-  // Karta bağlı kayıt varsa silme: harcama/cari ödemesindeki bağ SET NULL olup kart borcundan sessizce
-  // "kart seçilmedi"ye kayardı, kart ödemeleri ise FK'ya takılırdı. Önce bağlı kayıtları say.
-  const bagliSayilari = await Promise.all(
-    ["klinik_harcama", "klinik_cari_odeme", "klinik_kredi_karti_odeme"].map((tablo) =>
-      supabase.from(tablo).select("id", { count: "exact", head: true }).eq("kredi_karti_id", id)
-    )
-  );
-  if (bagliSayilari.some((s) => (s.count ?? 0) > 0)) {
-    return {
-      success: false,
-      message: "Bu karta bağlı gider, cari ödemesi veya kart ödemesi kayıtları var; kart silinemez.",
-    };
-  }
-
-  const { error } = await supabase.from("klinik_kredi_kartlari").delete().eq("id", id).eq("klinik_id", klinikId);
-
-  if (error) {
+  try {
+    const sonuc = await withTenant(yetki.bag, async (tx) => {
+      // Karta bağlı kayıt varsa silme: harcama/cari ödemesindeki bağ SET NULL olup kart borcundan sessizce "kart seçilmedi"ye kayardı,
+      // kart ödemeleri ise FK'ya takılırdı. Önce bağlı kayıtları say.
+      const [harcama, cari, kartOdeme] = await Promise.all([
+        tx.select({ n: count() }).from(sema.klinikHarcama).where(eq(sema.klinikHarcama.krediKartiId, id)),
+        tx.select({ n: count() }).from(sema.klinikCariOdeme).where(eq(sema.klinikCariOdeme.krediKartiId, id)),
+        tx.select({ n: count() }).from(sema.klinikKrediKartiOdeme).where(eq(sema.klinikKrediKartiOdeme.krediKartiId, id)),
+      ]);
+      if ((harcama[0]?.n ?? 0) + (cari[0]?.n ?? 0) + (kartOdeme[0]?.n ?? 0) > 0) return "bagli" as const;
+      await tx.delete(sema.klinikKrediKartlari).where(and(eq(sema.klinikKrediKartlari.id, id), eq(sema.klinikKrediKartlari.klinikId, yetki.klinikId)));
+      return "silindi" as const;
+    });
+    if (sonuc === "bagli") {
+      return { success: false, message: "Bu karta bağlı gider, cari ödemesi veya kart ödemesi kayıtları var; kart silinemez." };
+    }
+  } catch (error) {
     console.error("Kredi kartı silinemedi:", error);
     return { success: false, message: "Kredi kartı silinemedi, lütfen tekrar deneyin." };
   }
@@ -487,40 +477,40 @@ export async function krediKartiSil(id: string): Promise<SonucDurumu> {
 }
 
 export async function bankaHesabiSil(id: string): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const yetki = await klinikAdminYetkisi();
+  if (!yetki) return { success: false, message: YETKISIZ_MESAJI };
 
-  // id istemciden gelir ve aşağıda .or() filtre metnine girer — yalnız UUID kabul et.
+  // Yalnız UUID kabul et (istemciden gelir).
   if (!z.string().uuid().safeParse(id).success) {
     return { success: false, message: "Banka hesabı bulunamadı." };
   }
 
-  // Hesaba bağlı tahsilat/gider/personel/cari/kart ödemesi varsa silme: bağ ON DELETE SET NULL
-  // olduğundan o hesabın tüm geçmişi Banka defterinden geri dönüşsüz düşerdi. DB'de de
-  // banka_hesabi_silme_engeli tetikleyicisi aynı kuralı zorlar (migration 20261012120000).
-  const bagliSayilari = await Promise.all([
-    ...["hasta_bakiye_hareket", "klinik_harcama", "personel_hesap_hareket", "klinik_cari_odeme", "klinik_kredi_karti_odeme"].map(
-      (tablo) => supabase.from(tablo).select("id", { count: "exact", head: true }).eq("banka_hesap_id", id)
-    ),
-    supabase
-      .from("nakit_banka_hareketi")
-      .select("id", { count: "exact", head: true })
-      .or(`kaynak_banka_hesap_id.eq.${id},hedef_banka_hesap_id.eq.${id}`),
-  ]);
-  if (bagliSayilari.some((s) => s.error || (s.count ?? 0) > 0)) {
-    return {
-      success: false,
-      message: "Bu hesaba bağlı tahsilat, ödeme veya transfer kayıtları var; geçmiş kaybolmasın diye hesap silinemez.",
-    };
-  }
-
-  const { error } = await supabase.from("klinik_banka_hesaplari").delete().eq("id", id).eq("klinik_id", klinikId);
-
-  if (error) {
+  try {
+    const sonuc = await withTenant(yetki.bag, async (tx) => {
+      // Hesaba bağlı tahsilat/gider/personel/cari/kart ödemesi varsa silme: bağ ON DELETE SET NULL olduğundan o hesabın tüm geçmişi Banka defterinden
+      // geri dönüşsüz düşerdi. DB'de de banka_hesabi_silme_engeli tetikleyicisi aynı kuralı zorlar (migration 20261012120000).
+      const sayimlar = await Promise.all([
+        tx.select({ n: count() }).from(sema.hastaBakiyeHareket).where(eq(sema.hastaBakiyeHareket.bankaHesapId, id)),
+        tx.select({ n: count() }).from(sema.klinikHarcama).where(eq(sema.klinikHarcama.bankaHesapId, id)),
+        tx.select({ n: count() }).from(sema.personelHesapHareket).where(eq(sema.personelHesapHareket.bankaHesapId, id)),
+        tx.select({ n: count() }).from(sema.klinikCariOdeme).where(eq(sema.klinikCariOdeme.bankaHesapId, id)),
+        tx.select({ n: count() }).from(sema.klinikKrediKartiOdeme).where(eq(sema.klinikKrediKartiOdeme.bankaHesapId, id)),
+        tx
+          .select({ n: count() })
+          .from(sema.nakitBankaHareketi)
+          .where(or(eq(sema.nakitBankaHareketi.kaynakBankaHesapId, id), eq(sema.nakitBankaHareketi.hedefBankaHesapId, id))),
+      ]);
+      if (sayimlar.some((s) => (s[0]?.n ?? 0) > 0)) return "bagli" as const;
+      await tx.delete(sema.klinikBankaHesaplari).where(and(eq(sema.klinikBankaHesaplari.id, id), eq(sema.klinikBankaHesaplari.klinikId, yetki.klinikId)));
+      return "silindi" as const;
+    });
+    if (sonuc === "bagli") {
+      return { success: false, message: "Bu hesaba bağlı tahsilat, ödeme veya transfer kayıtları var; geçmiş kaybolmasın diye hesap silinemez." };
+    }
+  } catch (error) {
     console.error("Banka hesabı silinemedi:", error);
-    if (error.message?.includes("banka_hesabi_kullaniliyor") || error.code === "23503") {
+    const mesaj = error instanceof Error ? `${error.message} ${(error as { cause?: Error }).cause?.message ?? ""}` : "";
+    if (mesaj.includes("banka_hesabi_kullaniliyor") || mesaj.includes("23503")) {
       return { success: false, message: "Bu hesaba bağlı kayıtlar var; hesap silinemez." };
     }
     return { success: false, message: "Banka hesabı silinemedi, lütfen tekrar deneyin." };

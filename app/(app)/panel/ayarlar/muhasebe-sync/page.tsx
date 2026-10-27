@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { RefreshCw } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
+import { sema, withTenant } from "@/lib/db";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -9,29 +12,30 @@ import { MuhasebeSyncFormu } from "./muhasebe-sync-formu";
 import { formatDateTime } from "@/lib/datetime";
 
 export default async function MuhasebeSyncSayfasi() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const ctx = await oturumBaglami();
+  if (!ctx || ctx.tur !== "personel") {
     redirect("/giris");
   }
 
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-
-  // Client secret burada BİLEREK seçilmiyor; ekrana hiçbir zaman taşınmaz.
-  const { data: durum } = await supabase
-    .from("klinik_muhasebe_entegrasyonu")
-    .select("parasut_client_id, parasut_company_id, baglanti_durumu, updated_at")
-    .maybeSingle<MuhasebeEntegrasyonDurum>();
+  // Client secret burada BİLEREK seçilmiyor (kolon uygulama rolüne kapalı); ekrana hiçbir zaman taşınmaz.
+  let durum: MuhasebeEntegrasyonDurum | null = null;
+  if (ctx.tenantId) {
+    const satir = await withTenant(tenantGerekli(ctx), (tx) =>
+      tx
+        .select({
+          parasut_client_id: sema.klinikMuhasebeEntegrasyonu.parasutClientId,
+          parasut_company_id: sema.klinikMuhasebeEntegrasyonu.parasutCompanyId,
+          baglanti_durumu: sema.klinikMuhasebeEntegrasyonu.baglantiDurumu,
+          updated_at: sema.klinikMuhasebeEntegrasyonu.updatedAt,
+        })
+        .from(sema.klinikMuhasebeEntegrasyonu)
+        .where(eq(sema.klinikMuhasebeEntegrasyonu.klinikId, ctx.tenantId!))
+        .limit(1)
+    );
+    durum = (satir[0] as MuhasebeEntegrasyonDurum | undefined) ?? null;
+  }
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

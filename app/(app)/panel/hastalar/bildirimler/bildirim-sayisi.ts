@@ -1,5 +1,7 @@
 import { cache } from "react";
+import { and, count, eq, isNull } from "drizzle-orm";
 import type { createClient } from "@/lib/supabase/server";
+import { withTenant, sema, type TenantBaglami } from "@/lib/db";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -26,4 +28,20 @@ export const bildirimSayisiGetir = cache(async (supabase: Supabase): Promise<num
   return (
     (iptal.count ?? 0) + (randevuTalep.count ?? 0) + (anket.count ?? 0) + (seansDegerlendirme.count ?? 0)
   );
+});
+
+/**
+ * YENİ (Drizzle + withTenant): aynı sayı. Layout bunu kullanır; Hastalar sayfası modül 2'de taşınınca eski sürüm silinir.
+ * Savunma derinliği: görünürlük kuralı (klinik_admin/resepsiyon) çağıran tarafta uygulanır (layout).
+ */
+export const bildirimSayisi = cache(async (bag: TenantBaglami): Promise<number> => {
+  const [iptal, randevuTalep, anket, seansDeg] = await withTenant(bag, (tx) =>
+    Promise.all([
+      tx.select({ n: count() }).from(sema.randevuIptalTalebi).where(eq(sema.randevuIptalTalebi.durum, "bekliyor")),
+      tx.select({ n: count() }).from(sema.randevuTalebi).where(eq(sema.randevuTalebi.durum, "bekliyor")),
+      tx.select({ n: count() }).from(sema.anketYaniti).where(isNull(sema.anketYaniti.gorulduTarihi)),
+      tx.select({ n: count() }).from(sema.seansDegerlendirme).where(and(isNull(sema.seansDegerlendirme.gorulduTarihi))),
+    ])
+  );
+  return (iptal[0]?.n ?? 0) + (randevuTalep[0]?.n ?? 0) + (anket[0]?.n ?? 0) + (seansDeg[0]?.n ?? 0);
 });
