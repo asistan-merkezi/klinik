@@ -38,7 +38,22 @@ Parola yerine/yanında SMS kodu. Artı: geçici şifre dağıtımı ve unutulan 
 
 **Hangisini seçersen yapılması gerekenler (ortak)**: toplu şifre sıfırlama (karar 1) için ilk giriş şifre belirleme akışı · kullanıcının kendi şifre değiştirme / unuttum akışı (bugün yok) · `devre_disi` bayrağıyla işten çıkış engeli ve oturum iptali · giriş hız sınırının fail-open kararı (anonim ve giriş uçlarında **fail-closed** önerilir) · `kullanici.telefon` global tekilliğinin korunması · `cihaz_kimligi` yazımı (tek oturum kilidi sonradan eklenecek) · QR puantaj `?donus=` akışının korunması.
 
-## 3. Açık sorular (sana)
-1. Hasta telefon numaraları klinikler arası tekil olmak zorunda mı? (A seçeneği bugünkü belirsizliği taşır, B zorlar.)
-2. Hasta portalında SMS kodu istiyor musun, yoksa geçici şifre + ilk girişte değiştirme yeterli mi?
-3. Personel/admin için "şifremi unuttum" nasıl çözülecek (yönetici sıfırlama mı, e-posta bağlantısı mı)? E-posta bağlantısı KVKK kuralına uyar (veri içermez).
+## 3. KARARLAR (2026-10-27) ve uygulama durumu
+
+**Seçenek D seçildi.** Uygulama: `lib/auth/giris.ts`, `lib/auth/hesap.ts`, `lib/auth/sifre-islemleri.ts` (kılavuz: `docs/platform-katmani.md`).
+
+| Karar | Uygulama |
+|---|---|
+| Personel/admin = e-posta+parola; telefonla giren personel için telefon→e-posta çevirimi sunucuda `kimlik_rolu` ile dar sorgu (anonim DEFINER RPC yok) | `personelGirisi`; `kimlik_kullanici.telefon_norm` + `telefonla_giris` (admin/super_admin = false). Eski `*_giris_epostasi` RPC'leri kaldırılmıştı (Aşama 2) |
+| Hasta portalı = (klinik, telefon) + parola; portal adresi kliniğe özel (kısa kod), klinik `tanima` şemasından çözülür | `hastaGirisi`; `/portal/[klinikKodu]/giris`; `tanima.klinik_qr_bilgisi_getir` |
+| Eşleme kimlik katmanında `(klinik_id, telefon_normalize)` tekil; personel telefonu global tekil; hasta telefonu klinikler arası tekil olmak zorunda değil | `db/migrations/0005`: `kimlik_hasta_klinik_telefon_tekil`, `kimlik_personel_telefon_tekil` (kısmi tekil indeksler). Test: aynı numara iki klinikte iki ayrı hesap |
+| Tenant tablosundan kimlik kaydına bağ | `kullanici.id` / `hasta_kullanici.id` zaten `kimlik_kullanici(id)` FK'si (ortak anahtar); ters yönde `kimlik_kullanici.klinik_id` ve `hasta_id` (ON DELETE CASCADE) eklendi. Ayrı bir kopya kolon eklenmedi (ortak anahtar yeterli) |
+| OTP/SMS yok; hasta için geçici şifre (7 gün) + ilk girişte zorunlu değiştirme, değiştirmeden başka sayfaya geçiş yok | `gecici_sifre_bitis`, `sifre_degistirmeli`; süre dolunca giriş reddi + oturum açılmaz; `proxy-karari.ts` her korumalı sayfayı `/sifre-degistir`e yönlendirir. Personel geçici şifresi de ilk girişte değiştirilir (süre sınırı yok) |
+| Kullanıcının kendi şifresini değiştirmesi | `sifreDegistir` + `/sifre-degistir` |
+| Personel "şifremi unuttum" (tek kullanımlık, 30 dk, e-posta bağlantısı, hız sınırlı, ortak yanıt, e-postada kişisel veri yok) | `sifremiUnuttum`/`sifreSifirla`, `/sifremi-unuttum`, `/sifre-sifirla`; Better Auth sıfırlama jetonu. **E-posta göndericisi henüz bağlı değil** (Aşama 7a) |
+| Hasta şifre sıfırlaması resepsiyon geçici şifresiyle | `geciciSifreYenile(id, { hasta: true })` |
+| Giriş ve anonim uçlarda hız sınırı fail-closed | `lib/guvenlik/hiz-siniri.ts`; testlerle doğrulandı |
+| İşten çıkış: `devre_disi` + açık oturumların iptali; `cihaz_kimligi` yazılır, tek oturum kilidi yok | `hesabiDevreDisiBirak`; `oturum.cihaz_kimligi` |
+| Toplu şifre sıfırlama; bcrypt yükseltme kodu yok | Eski hash aktarımı yok; hesaplar yeniden oluşturulur (`personelHesabiOlustur`/`hastaHesabiOlustur`) |
+
+Better Auth'ta **telefon eklentisi kullanılmadı**: telefonla giriş uygulama katmanında (Seçenek A/D) çözülüyor; kütüphane yalnız e-posta+parola kimliğini taşıyor (hasta için sentetik e-posta `h-{hastaId}@portal.invalid`, kullanıcıya gösterilmez).

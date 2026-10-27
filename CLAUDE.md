@@ -153,7 +153,7 @@ Vitest + RTL (unit), Supabase (integration), Playwright (e2e — randevu → che
 Son güncelleme: 2026-10-26 (küçültüldü; önceki tam hâl `docs/CLAUDE-ARSIV-2026-10-26.md`)
 
 ## Hedef Altyapı ve Taşıma Kararları
-Dal: `tasima/windows-postgres` (main'e dokunulmaz). Plan ve aşama kriterleri: `docs/tasima-plani.md` · envanter: `docs/supabase-envanter.md` · KVKK aktarım/e-posta taraması: `docs/kvkk-aktarim.md` · sunucu/yedek: `docs/sunucu-kurulum.md` · service role sınıflaması: `docs/service-role-siniflama.md` · şema eşleme: `docs/sema-esleme.md`. Yukarıdaki Vercel/Supabase anlatımı taşıma bitene kadar GEÇERLİ mevcut durumdur.
+Dal: `tasima/windows-postgres` (main'e dokunulmaz). Plan ve aşama kriterleri: `docs/tasima-plani.md` · envanter: `docs/supabase-envanter.md` · KVKK aktarım/e-posta taraması: `docs/kvkk-aktarim.md` · sunucu/yedek: `docs/sunucu-kurulum.md` · service role sınıflaması: `docs/service-role-siniflama.md` · şema eşleme: `docs/sema-esleme.md` · **veritabanı+kimlik kullanım kılavuzu (withTenant, Better Auth, anonim uçlar): `docs/platform-katmani.md`** · giriş akışları ve kararlar: `docs/giris-akislari.md` · yetki matrisi: `docs/yetki-matrisi.md` · DEFINER sınıflaması: `docs/definer-siniflama.md`. Yukarıdaki Vercel/Supabase anlatımı taşıma bitene kadar GEÇERLİ mevcut durumdur.
 
 - **Hedef**: Vodafone Cloud'da tek Windows Server VM. Vercel ve Supabase kullanılmayacak (maliyet + KVKK). Linux, Docker ve WSL yok.
 - **Çalışma zamanı**: Node.js LTS, uygulama NSSM ile Windows servisi, önünde Caddy (TLS, alan adı yönlendirme). Cloudflare DNS/proxy önde.

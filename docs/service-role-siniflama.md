@@ -56,3 +56,7 @@ Bugün bazı RPC'ler `auth.role() = 'service_role'` ile sistem çağrısını ka
 
 ## Sonuç
 (a) **8 giriş** (5 cron route, kuyruk işçisi, randevu hatırlatma taraması, test yardımcısı) · (b) **18 giriş** · (c) **1 giriş** (+ oturum öncesi RPC'ler); #1 tanım dosyasıdır, silinir. Bu sınıflama Aşama 3 ve 7b'nin **ilk hedefidir**: her satır kapanınca tablo güncellenir ve `grep createAdminClient` boş olur.
+
+
+## Durum güncellemesi (2026-10-27, Aşama 3 altyapı)
+Hazır olan çözüm yolları (satırların kapanması modül taşıma ile olur): **(b)** `withTenant` + `getSessionContext` (`docs/platform-katmani.md` §3–4); **(a)** `lib/db/bakim.ts` (`bakimKlinikleriniDolas`); **(c)** `lib/guvenlik/anonim-uc.ts` + `tanima` şeması + `lib/guvenlik/hiz-siniri.ts` (fail-closed). Kimlik işlemleri (#6, #7, #10, #11: `auth.admin.*`) için `lib/auth/hesap.ts` (`personelHesabiOlustur`, `hastaHesabiOlustur`, `geciciSifreYenile`, `hesabiDevreDisiBirak`, `kimlikHesabiSil`) yazıldı; çağıran eylemler henüz taşınmadı. `createAdminClient` kullanımı hâlâ 22 dosyada (kapanış kriteri: `grep createAdminClient` boş).

@@ -124,7 +124,7 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 
 ## Neden hepsi INVOKER yapılamadı
 
-INVOKER'a çevirmek, fonksiyonun çağıranın tablo yetkisi ve RLS görünürlüğüyle aynı sonucu vermesini gerektirir. Kalan DEFINER'ların her biri şu üç gerekçeden en az birine dayanıyor: (1) çağıran rolün ilgili tabloyu göremediği (terapist/resepsiyon/portal hastası/anonim) ama kuralın yine de uygulanması gerektiği durumlar; (2) kullanıcıya doğrudan yazma yetkisi verilmeyen türev/denetim tabloları; (3) politikaların çağırdığı yardımcılarda özyineleme. Bu nedenle toplu çevirme yapılmadı; yalnız davranışı kanıtlanabilen biri çevrildi. Her DEFINER için şu garantiler uygulanır: `SET search_path` sabit (tümünde), sahip RLS'e tabi (FORCE + `sahip_aktif_tenant`), `PUBLIC` EXECUTE yok, tenant bağlamı olmadan veri döndürmeyen/değiştirmeyen (duman testi).
+INVOKER'a çevirmek, fonksiyonun çağıranın tablo yetkisi ve RLS görünürlüğüyle aynı sonucu vermesini gerektirir. Kalan DEFINER'ların her biri şu üç gerekçeden en az birine dayanıyor: (1) çağıran rolün ilgili tabloyu göremediği (terapist/resepsiyon/portal hastası/anonim) ama kuralın yine de uygulanması gerektiği durumlar; (2) kullanıcıya doğrudan yazma yetkisi verilmeyen türev/denetim tabloları; (3) politikaların çağırdığı yardımcılarda özyineleme. Bu nedenle toplu çevirme yapılmadı; yalnız davranışı kanıtlanabilen biri çevrildi. Her DEFINER için şu garantiler uygulanır: `SET search_path` sabit (83/83), sahip RLS'e tabi (FORCE + `sahip_aktif_tenant`), `PUBLIC` EXECUTE yok, tenant bağlamı olmadan veri döndürmeyen/değiştirmeyen (duman testi).
 
 ## Açık işler (Aşama 3)
 
