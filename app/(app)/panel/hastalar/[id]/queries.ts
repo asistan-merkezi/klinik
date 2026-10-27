@@ -1,38 +1,35 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
 import { randevuSeansiTamamla } from "../../randevular/actions";
 import { sikayetKaydiEkle, sikayetDurumGuncelle } from "./actions";
-import type { HastaHassasSatir } from "@/types/hasta-hassas";
-import type {
-  HastaOlcum,
-  HastaIliski,
-  HastaSigorta,
-  HastaProtokol,
-  VucutHaritasiIsareti,
-  IslemKontrendikasyon,
-  HastaDetayOzet,
-  HastaSeansSatir,
-  HastaAnamnezKaydi,
-  SikayetDurumu,
-} from "@/types/hasta-detay";
-import type { IptalTalebiDurum, PortalRandevuTalebiSatir } from "@/types/portal";
-import type { RandevuDurum } from "@/types/randevu";
+import {
+  hastaAnamnezKayitlariGetir,
+  hastaDetayOzetiGetir,
+  hastaHassasGetir,
+  hastaIliskileriGetir,
+  hastaOlcumleriGetir,
+  hastaProtokolleriGetir,
+  hastaSeansGecmisiGetir,
+  hastaSigortalariGetir,
+  hastaTalepIcinRandevularGetir,
+  hastaTalepVeOnerilerGetir,
+  islemKontrendikasyonlariGetir,
+  islemTanimlariGetir,
+  vucutHaritasiGetir,
+  vucutIsaretiKaldir,
+  vucutIsaretiKaydet,
+  type TalepIcinRandevuVerisi,
+} from "./veri-actions";
+import type { VucutHaritasiIsareti, SikayetDurumu } from "@/types/hasta-detay";
+import type { IptalTalebiDurum } from "@/types/portal";
+
+// Tüm okuma/yazma sunucu eylemleridir (./veri-actions.ts): oturum + rol + tenant sunucuda doğrulanır, tarayıcı veritabanına doğrudan erişmez.
 
 export function useHastaDetayOzet(hastaId: string) {
   return useQuery({
     queryKey: ["hasta_detay_ozet", hastaId],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("v_hasta_detay_ozet")
-        .select("*")
-        .eq("hasta_id", hastaId)
-        .maybeSingle<HastaDetayOzet>();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => hastaDetayOzetiGetir(hastaId),
   });
 }
 
@@ -40,19 +37,7 @@ export function useHastaHassas(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_hassas", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hasta_hassas")
-        .select(
-          "*, olusturan_kullanici:kullanici!hasta_hassas_olusturan_kullanici_id_fkey(ad_soyad), " +
-            "son_guncelleyen_kullanici:kullanici!hasta_hassas_son_guncelleyen_kullanici_id_fkey(ad_soyad)"
-        )
-        .eq("hasta_id", hastaId)
-        .maybeSingle<HastaHassasSatir>();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => hastaHassasGetir(hastaId),
   });
 }
 
@@ -60,16 +45,7 @@ export function useHastaIliskiler(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_iliski", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hasta_iliski")
-        .select("id, hasta_id, iliskili_hasta_id, iliski_turu, ortak_odeme, iliskili_hasta:iliskili_hasta_id(ad_soyad, telefon)")
-        .eq("hasta_id", hastaId)
-        .returns<HastaIliski[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => hastaIliskileriGetir(hastaId),
   });
 }
 
@@ -77,17 +53,7 @@ export function useHastaSigortalar(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_sigorta", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hasta_sigorta")
-        .select("id, hasta_id, kurum_adi, police_no, katilim_payi_orani, gecerlilik_baslangic, gecerlilik_bitis, fatura_kurum_adina, notlar")
-        .eq("hasta_id", hastaId)
-        .order("gecerlilik_baslangic", { ascending: false })
-        .returns<HastaSigorta[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => hastaSigortalariGetir(hastaId),
   });
 }
 
@@ -95,21 +61,7 @@ export function useHastaAnamnezKayitlari(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_anamnez", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hasta_anamnez")
-        .select(
-          "id, hasta_id, basvuru_sikayeti, sikayet_baslangici, agri_oykusu, ilk_degerlendirme_notu, durum, " +
-            "son_guncelleyen_tip, son_guncelleyen_kullanici:kullanici!hasta_anamnez_son_guncelleyen_kullanici_id_fkey(ad_soyad), " +
-            "created_at, updated_at"
-        )
-        .eq("hasta_id", hastaId)
-        .order("created_at", { ascending: false })
-        .returns<HastaAnamnezKaydi[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => hastaAnamnezKayitlariGetir(hastaId),
   });
 }
 
@@ -157,19 +109,7 @@ export function useVucutHaritasi(hastaId: string, seansId: string | null | undef
   return useQuery({
     queryKey: vucutHaritasiQueryKey(hastaId, seansId),
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      let sorgu = supabase
-        .from("hasta_vucut_haritasi_isareti")
-        .select("id, hasta_id, randevu_id, yuz, bolge, x, y, severity, not_metni, created_at")
-        .eq("hasta_id", hastaId);
-      sorgu = seansId ? sorgu.eq("randevu_id", seansId) : sorgu;
-      const { data, error } = await sorgu
-        .order("created_at", { ascending: false })
-        .returns<VucutHaritasiIsareti[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => vucutHaritasiGetir(hastaId, seansId ?? null),
   });
 }
 
@@ -188,31 +128,7 @@ export function useVucutIsaretKaydet(hastaId: string, seansId: string | null | u
   const queryKey = vucutHaritasiQueryKey(hastaId, seansId);
 
   return useMutation({
-    mutationFn: async (girdi: VucutIsaretiKaydetGirdi) => {
-      const supabase = createClient();
-      if (girdi.id) {
-        const { error } = await supabase
-          .from("hasta_vucut_haritasi_isareti")
-          .update({ severity: girdi.severity, not_metni: girdi.not_metni || null })
-          .eq("id", girdi.id);
-        if (error) throw error;
-        return girdi.id;
-      }
-      const { data, error } = await supabase
-        .from("hasta_vucut_haritasi_isareti")
-        .insert({
-          hasta_id: hastaId,
-          randevu_id: girdi.randevu_id,
-          yuz: girdi.yuz,
-          bolge: girdi.bolge,
-          severity: girdi.severity,
-          not_metni: girdi.not_metni || null,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      return data.id as string;
-    },
+    mutationFn: (girdi: VucutIsaretiKaydetGirdi) => vucutIsaretiKaydet(hastaId, girdi),
     onMutate: async (girdi) => {
       await queryClient.cancelQueries({ queryKey });
       const onceki = queryClient.getQueryData<VucutHaritasiIsareti[]>(queryKey);
@@ -255,11 +171,7 @@ export function useVucutIsaretKaldir(hastaId: string, seansId: string | null | u
   const queryKey = vucutHaritasiQueryKey(hastaId, seansId);
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("hasta_vucut_haritasi_isareti").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => vucutIsaretiKaldir(hastaId, id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey });
       const onceki = queryClient.getQueryData<VucutHaritasiIsareti[]>(queryKey);
@@ -279,17 +191,7 @@ export function useIslemTanimlari(aktif: boolean) {
   return useQuery({
     queryKey: ["islem_tanimi_aktif"],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("islem_tanimi")
-        .select("id, ad")
-        .eq("aktif", true)
-        .order("ad")
-        .returns<{ id: string; ad: string }[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => islemTanimlariGetir(),
   });
 }
 
@@ -297,16 +199,7 @@ export function useIslemKontrendikasyonlari(islemTanimiId: string | null) {
   return useQuery({
     queryKey: ["islem_kontrendikasyon", islemTanimiId],
     enabled: Boolean(islemTanimiId),
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("islem_kontrendikasyon")
-        .select("id, islem_tanimi_id, risk_tipi, uyari_seviyesi, mesaj")
-        .eq("islem_tanimi_id", islemTanimiId as string)
-        .returns<IslemKontrendikasyon[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => islemKontrendikasyonlariGetir(islemTanimiId as string),
   });
 }
 
@@ -315,47 +208,7 @@ export function useHastaSeansGecmisi(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_seans_gecmisi", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      // Sadece baslangic < now() filtresi, resepsiyon randevu saatinden ÖNCE
-      // "Geldi" işaretlerse (erken check-in) o seansı bu listeden tamamen
-      // düşürüyordu — hasta o an tedavideyken Tedavi & Anamnez'de hiçbir kart
-      // görünmüyor, dolayısıyla "Seansı Tamamla" da hiç çıkmıyordu. Zamanı
-      // geçmiş VEYA zaten check-in/sonuçlanmış (planlandı DIŞINDA) her randevu
-      // burada görünmeli.
-      const { data, error } = await supabase
-        .from("randevu")
-        .select(
-          "id, baslangic, bitis, durum, terapist(personel(ad_soyad)), islem_tanimi(ad), tani, antrenor:personel(ad_soyad), tedavi_protokolu(id, ad), " +
-            "tamamlanma_aciklamasi, tamamlayan_kullanici:kullanici!randevu_tamamlayan_kullanici_id_fkey(ad_soyad), tamamlanma_tarihi"
-        )
-        .eq("hasta_id", hastaId)
-        .or(`baslangic.lt.${new Date().toISOString()},durum.neq.planlandi`)
-        .order("baslangic", { ascending: false })
-        .limit(30)
-        .returns<HastaSeansSatir[]>();
-      if (error) throw error;
-      const seanslar = data ?? [];
-
-      // seans_degerlendirme ayrı bir sorguyla çekilip eşleniyor — randevu'ya
-      // embed edilmiyor, çünkü PostgREST'in 1:1 ters-FK embed'lerinde
-      // (randevu_id UNIQUE) sürüme göre dizi/obje davranışı değişebiliyor;
-      // ayrı sorgu + client-side eşleme belirsizliği tamamen ortadan kaldırıyor.
-      const randevuIdler = seanslar.map((s) => s.id);
-      if (randevuIdler.length > 0) {
-        const { data: degerlendirmeler } = await supabase
-          .from("seans_degerlendirme")
-          .select("randevu_id, puan, oneri_metni")
-          .in("randevu_id", randevuIdler);
-
-        const map = new Map((degerlendirmeler ?? []).map((d) => [d.randevu_id, d]));
-        for (const s of seanslar) {
-          s.degerlendirme = map.get(s.id) ?? null;
-        }
-      }
-
-      return seanslar;
-    },
+    queryFn: () => hastaSeansGecmisiGetir(hastaId),
   });
 }
 
@@ -370,9 +223,8 @@ type SeansTamamlaGirdi = {
  * randevuSeansiTamamla server action'ını çağırıyor (bkz.
  * app/(app)/panel/randevular/actions.ts) — iki UI tek fonksiyona iniyor,
  * tablet hangi yoldan tetiklenirse tetiklensin aynı 'tamamlandi' durumunu
- * görüyor. Günün Çizelgesi'nin randevu tablosundaki her değişiklikte
- * tetiklenen Realtime aboneliği sayesinde bu güncelleme orada da otomatik
- * yansır.
+ * görüyor. Canlı olay altyapısı (lib/realtime) sayesinde bu güncelleme
+ * Günün Çizelgesi'ne de otomatik yansır.
  */
 export function useSeansTamamla(hastaId: string) {
   const queryClient = useQueryClient();
@@ -392,17 +244,7 @@ export function useHastaProtokoller(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_protokol", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hasta_protokol")
-        .select("id, hasta_id, islem_tanimi_id, durum, baslangic_tarihi, notlar, uyari_onaylandi_mi, islem_tanimi(ad)")
-        .eq("hasta_id", hastaId)
-        .order("created_at", { ascending: false })
-        .returns<HastaProtokol[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => hastaProtokolleriGetir(hastaId),
   });
 }
 
@@ -410,17 +252,7 @@ export function useHastaOlcumler(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_olcum", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hasta_olcum")
-        .select("id, hasta_id, olcek_tanimi_id, hesaplanan_skor, olcum_tarihi, cevaplar, olcek_tanimi(id, kod, ad, min_skor, max_skor, yorum_yonu)")
-        .eq("hasta_id", hastaId)
-        .order("olcum_tarihi", { ascending: true })
-        .returns<HastaOlcum[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => hastaOlcumleriGetir(hastaId),
   });
 }
 
@@ -431,87 +263,25 @@ export type HastaIptalTalebiSatir = {
   randevuBaslangic: string;
 };
 
-type RandevuIptalEmbedSatir = {
-  id: string;
-  baslangic: string;
-  randevu_iptal_talebi: { id: string; durum: IptalTalebiDurum; created_at: string } | null;
-};
-
 /**
  * OzetKart'taki "Talep ve Öneriler" kutusu için — hastanın portaldan
- * gönderdiği randevu_talebi + randevu_iptal_talebi kayıtları. İptal talebi
- * kendi tablosunda hasta_id taşımıyor (yalnız randevu_id) — ayrı sorgu yerine
- * randevu üzerinden embed edilip client'ta filtreleniyor (hasta zaten tek
- * bir randevu kümesine sahip, filtrelenen embed'i ayrı sorguya çevirmenin
- * getirisi yok).
+ * gönderdiği randevu_talebi + randevu_iptal_talebi kayıtları.
  */
 export function useHastaTalepVeOneriler(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_talep_oneri", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const [randevuTalepleriSonucu, randevularSonucu] = await Promise.all([
-        supabase
-          .from("randevu_talebi")
-          .select("id, islem_tanimi(ad), tercih_tarih, tercih_saat, not_metni, durum, created_at")
-          .eq("hasta_id", hastaId)
-          .order("created_at", { ascending: false })
-          .returns<PortalRandevuTalebiSatir[]>(),
-        supabase
-          .from("randevu")
-          .select("id, baslangic, randevu_iptal_talebi(id, durum, created_at)")
-          .eq("hasta_id", hastaId)
-          .order("baslangic", { ascending: false })
-          .limit(200)
-          .returns<RandevuIptalEmbedSatir[]>(),
-      ]);
-      if (randevuTalepleriSonucu.error) throw randevuTalepleriSonucu.error;
-      if (randevularSonucu.error) throw randevularSonucu.error;
-
-      const iptalTalepleri: HastaIptalTalebiSatir[] = (randevularSonucu.data ?? [])
-        .filter((r): r is RandevuIptalEmbedSatir & { randevu_iptal_talebi: NonNullable<RandevuIptalEmbedSatir["randevu_iptal_talebi"]> } =>
-          r.randevu_iptal_talebi != null
-        )
-        .map((r) => ({
-          id: r.randevu_iptal_talebi.id,
-          durum: r.randevu_iptal_talebi.durum,
-          created_at: r.randevu_iptal_talebi.created_at,
-          randevuBaslangic: r.baslangic,
-        }));
-
-      return {
-        randevuTalepleri: randevuTalepleriSonucu.data ?? [],
-        iptalTalepleri,
-      };
-    },
+    queryFn: () => hastaTalepVeOnerilerGetir(hastaId),
   });
 }
 
-export type TalepIcinRandevuSatir = {
-  id: string;
-  baslangic: string;
-  durum: RandevuDurum;
-  terapist: { id: string; personel: { ad_soyad: string } | null } | null;
-  islem_tanimi: { ad: string } | null;
-};
+export type TalepIcinRandevuSatir = TalepIcinRandevuVerisi;
 
 /** "Randevu İptali" / "Terapist Yorumu" / "Randevu Hakkında Yorum" alanlarındaki seçim listeleri için. */
 export function useHastaTalepIcinRandevular(hastaId: string, aktif: boolean) {
   return useQuery({
     queryKey: ["hasta_talep_icin_randevular", hastaId],
     enabled: aktif,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("randevu")
-        .select("id, baslangic, durum, terapist(id, personel(ad_soyad)), islem_tanimi(ad)")
-        .eq("hasta_id", hastaId)
-        .order("baslangic", { ascending: false })
-        .limit(200)
-        .returns<TalepIcinRandevuSatir[]>();
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => hastaTalepIcinRandevularGetir(hastaId),
   });
 }

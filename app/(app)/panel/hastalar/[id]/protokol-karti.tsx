@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { RISK_TIPI_ETIKETLERI, type RiskBayragi, type IslemKontrendikasyon, type HastaProtokol } from "@/types/hasta-detay";
 import { useIslemTanimlari, useIslemKontrendikasyonlari, useHastaProtokoller } from "./queries";
+import { hastaProtokolEkle } from "./veri-actions";
 
 const DURUM_ETIKETLERI: Record<HastaProtokol["durum"], string> = {
   aktif: "Aktif",
@@ -104,13 +104,7 @@ function ProtokolEkleModal({
 
   const ekleMutasyonu = useMutation({
     mutationFn: async (uyariOnaylandiMi: boolean) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("hasta_protokol").insert({
-        hasta_id: hastaId,
-        islem_tanimi_id: islemTanimiId,
-        uyari_onaylandi_mi: uyariOnaylandiMi,
-      });
-      if (error) throw error;
+      await hastaProtokolEkle(hastaId, islemTanimiId as string, uyariOnaylandiMi);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hasta_protokol", hastaId] });
