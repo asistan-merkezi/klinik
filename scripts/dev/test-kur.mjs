@@ -20,7 +20,7 @@ export async function testKumesiKur() {
   const sup = await kume.baglan("klinik");
   await sup.query(oku("db/kurulum/02_eklentiler.sql"));
   await sup.query("SET ROLE klinik_sahip");
-  for (const f of ["db/migrations/0001_kimlik_ve_baglam.sql", "db/migrations/0002_temel_sema.sql", "db/migrations/0003_baglam_politikalari.sql", "db/migrations/0004_tanima_ve_definer_sertlestirme.sql", "db/seed/0001_referans_veri.sql"]) await sup.query(oku(f));
+  for (const f of ["db/migrations/0001_kimlik_ve_baglam.sql", "db/migrations/0002_temel_sema.sql", "db/migrations/0003_baglam_politikalari.sql", "db/migrations/0004_tanima_ve_definer_sertlestirme.sql", "db/migrations/0005_kimlik_baglantilari_ve_anonim_kapatma.sql", "db/seed/0001_referans_veri.sql"]) await sup.query(oku(f));
   await sup.query("select audit_log_bolum_olustur(3)");
   await sup.end();
 

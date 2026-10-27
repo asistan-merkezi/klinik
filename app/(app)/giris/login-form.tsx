@@ -50,6 +50,9 @@ export function LoginForm({
       <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? "Giriş yapılıyor..." : "Giriş yap"}
       </Button>
+      <a href="/sifremi-unuttum" className="text-center text-xs text-muted-foreground underline">
+        Şifremi unuttum (personel)
+      </a>
     </form>
   );
 }

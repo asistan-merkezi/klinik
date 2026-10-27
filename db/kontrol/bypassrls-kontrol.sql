@@ -29,6 +29,7 @@ SELECT 'tenant_tablo_force', 'HATA', c.relname || CASE WHEN NOT c.relrowsecurity
 FROM pg_class c
 WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p') AND NOT c.relispartition
   AND (c.relname = 'klinik' OR EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname = 'klinik_id' AND NOT a.attisdropped))
+  AND c.relname <> 'kimlik_kullanici'   -- kimlik katmanı: RLS yerine ROL yetkisiyle korunur (yalnız kimlik_rolu erişir; yetki-matrisi.sql denetler)
   AND NOT (c.relrowsecurity AND c.relforcerowsecurity);
 
 -- 5) bakim_rolu: kendi (doğrudan) tablo yetkisi yalnız klinik üzerinde olmalı

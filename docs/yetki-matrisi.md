@@ -27,7 +27,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | is_basvurusu | I |
 | seans_degerlendirme | I |
 
-## klinik_uygulama (76 tablo/görünüm)
+## klinik_uygulama (78 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
@@ -76,6 +76,8 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | mesaj_kuyrugu | S,I,U |
 | nakit_banka_hareketi | S,I,D |
 | oda | S,I,U |
+| odeme | S |
+| odeme_kalemi | S |
 | olcek_tanimi | S |
 | paket | S,I,U |
 | paket_satis | S |
@@ -212,3 +214,39 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | v_personel_hesap_bakiye | S |
 | v_personel_izin_bakiye | S |
 | vardiya_turu | S |
+
+## Kodda doğrudan yetkisi olmayan tablolar (15) ve onlara yazan yollar
+
+`klinik_uygulama`nın bu tablolarda hiçbir tablo/kolon yetkisi yok: kodda doğrudan sorgulanmıyorlar. Yazma yalnız aşağıdaki SECURITY DEFINER fonksiyonlar/tetikleyicilerle olur (gövde taraması: `db/kontrol/yetkisiz-tablo-yazanlar.mjs`). `odeme` ve `odeme_kalemi` politika bağımlılığı nedeniyle (`islem_tanimi_select_portal`) yalnız SELECT yetkisi alır; yazma yolları RPC'dir. İlk sürümde bu bağımlılık gözden kaçmış, gerçek yazma testi `permission denied for table odeme` ile yakalamıştır.
+
+| Tablo | Yazan fonksiyon/RPC | Tabloya bağlı tetikleyiciler |
+|---|---|---|
+| egzersiz_kutuphanesi | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_egzersiz_kutuphanesi_updated_at` |
+| ev_egzersiz_kalemi | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_ev_egzersiz_kalemi_updated_at` |
+| ev_egzersiz_programi | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_ev_egzersiz_programi_klinik_id`, `trg_ev_egzersiz_programi_updated_at` |
+| ev_egzersiz_takip | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_ev_egzersiz_takip_audit`, `trg_ev_egzersiz_takip_klinik_id`, `trg_ev_egzersiz_takip_updated_at` |
+| hasta_anket | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_hasta_anket_klinik_id`, `trg_hasta_anket_updated_at` |
+| hiz_siniri_sayac | `hiz_siniri_kullan(text,integer,integer,boolean)` (RPC, DEFINER) | — |
+| islem_kategori | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_islem_kategori_updated_at` |
+| islem_tanimi_fiyat_gecmisi | `islem_tanimi_fiyat_gecmisi_yaz()` (tetikleyici fonksiyonu, DEFINER) | — |
+| odeme_satiri | `odeme_olustur(uuid,numeric,boolean,text,jsonb,jsonb)` (RPC, DEFINER)<br>`hasta_bakiye_hareket_borc_duzenle(uuid,numeric,boolean,text)` (RPC, DEFINER) | — |
+| personel_vardiya_atama | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_personel_vardiya_atama_audit`, `trg_personel_vardiya_atama_klinik_id`, `trg_personel_vardiya_atama_updated_at` |
+| pozisyon_sablonlari | — (yazan yok: kullanılmayan/gelecek özellik) | — |
+| randevu_checklist | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_randevu_checklist_klinik_id`, `trg_randevu_checklist_updated_at` |
+| randevu_on_form | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_1_randevu_on_form_klinik_id`, `trg_2_randevu_on_form_dogrula`, `trg_randevu_on_form_audit` |
+| seans_checklist_sablonu | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_seans_checklist_sablonu_updated_at` |
+| vardiya_turu | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_vardiya_turu_updated_at` |
+
+**Gerçek yazma testleri** (`scripts/dev/kontrol-calistir.mjs`, `tests/db/anonim-ve-yazma.test.ts`):
+
+| Test | Tablo | Sonuç |
+|---|---|---|
+| hiz_siniri_kullan (uygulama rolü) | hiz_siniri_sayac | GEÇTİ — 0 → 1 satır |
+| hiz_siniri_kullan (anonim rolü, bağlamsız) | hiz_siniri_sayac | GEÇTİ — 0 → 1 satır |
+| islem_tanimi fiyat güncelle → fiyat geçmişi tetikleyicisi | islem_tanimi_fiyat_gecmisi | GEÇTİ — 2 → 3 satır |
+| klinik oluştur (sağlama, klinik_sahip) → pozisyon_sablonlari okunur, pozisyonlar yazılır | pozisyonlar | GEÇTİ — 0 → 28 satır |
+| odeme_olustur → odeme | odeme | GEÇTİ — 0 → 1 satır |
+| odeme_olustur → odeme_kalemi | odeme_kalemi | GEÇTİ — 0 → 1 satır |
+| odeme_olustur → odeme_satiri | odeme_satiri | GEÇTİ — 0 → 1 satır |
+
+Not: klinik oluşturma uygulama özelliği değildir (kodda klinik INSERT yok); sağlama işlemi `klinik_sahip` + `app.tenant_id` ile yapılır. Yazan fonksiyonu olmayan tablolar (egzersiz, checklist, vardiya, hasta_anket, randevu_on_form, islem_kategori) henüz kullanılmayan özelliklerdir; kullanıma alınırken yetkileri kodla birlikte eklenir (`scripts/dev/kullanim-tara.mjs` otomatik yakalar).

@@ -17,7 +17,6 @@ export async function anonimKayitTesti(duzenek) {
   const ekle = (k, alanlar = {}) => {
     const a = { id: crypto.randomUUID(), klinik_id: k, ad_soyad: "Qr Hasta", telefon: "5559990000", kayit_kanali: "qr_self_servis", kvkk_onay_tarihi: "now()", kvkk_onaylayan_tip: "hasta", ...alanlar };
     const kolon = Object.keys(a);
-    const deger = kolon.map((x, i) => (a[x] === "now()" ? "now()" : `$${i + 1}`));
     const params = kolon.filter((x) => a[x] !== "now()").map((x) => a[x]);
     // now() olanları parametre dizisinden çıkarınca indeksler kaymasın diye yeniden numaralandır
     let n = 0;

@@ -291,6 +291,21 @@ const invokerView = await q(`select c.relname v, d.refobjid::regclass::text t fr
   where c.relnamespace='public'::regnamespace and c.relkind='v' and 'security_invoker=true' = any(c.reloptions)`);
 for (const iv of invokerView) if (kullanilan.has(iv.v)) ekle(iv.t.replace(/^public[.]/, ""), ["SELECT"], `view ${iv.v} (security_invoker)`);
 
+// Politika ifadelerinde (USING / WITH CHECK) başka bir tabloya bakan alt sorgular, politikanın uygulandığı sorguyu çalıştıran rolün
+// (klinik_uygulama) o tabloda SELECT yetkisini ister; yoksa tabloya yapılan her sorgu "permission denied" ile düşer
+// (docs/yetki-matrisi.md, test: tests/db/anonim-ve-yazma.test.ts). RLS bu tablolarda ayrıca geçerli kalır.
+const politikaIfadeleri = await q(`select c.relname t, coalesce(pg_get_expr(p.polqual,p.polrelid),'') || ' ' || coalesce(pg_get_expr(p.polwithcheck,p.polrelid),'') x,
+    p.polroles = '{0}' herkes, array(select rolname::text from pg_roles r where r.oid = any(p.polroles)) roller
+  from pg_policy p join pg_class c on c.oid=p.polrelid where c.relnamespace='public'::regnamespace`);
+const politikaBagimliligi = [];
+for (const p of politikaIfadeleri) {
+  if (!kullanilan.has(p.t)) continue;
+  if (!p.herkes && !p.roller.includes("authenticated")) continue; // yalnız anon/service_role politikaları klinik_uygulama'yı ilgilendirmez
+  for (const t2 of tumTablolar) {
+    if (t2 === p.t) continue;
+    if (new RegExp("(^|[^a-z_0-9.])" + t2 + "([^a-z_0-9]|$)").test(p.x)) { ekle(t2, ["SELECT"], `politika bağımlılığı (${p.t})`); politikaBagimliligi.push(`${p.t} -> ${t2}`); }
+  }
+}
 const yetkiMatrisi = []; // docs için
 const kodDisiTablolar = [];
 for (const t of tabloAdlari) {
@@ -355,7 +370,7 @@ for (const f of fonksiyonlarAd) {
   fonksiyonYetki.push({ ad: f.proname, imza, definer: f.prosecdef, uygulama: uyg, anonim: anon, bakim: bakimAcik.has(f.proname) });
 }
 e("");
-fs.writeFileSync(path.join(KOK, "db/arac/yetki-ozeti.json"), JSON.stringify({ yetkiMatrisi, fonksiyonYetki, kodDisiTablolar, cozulemeyenGomulu: cozulemeyen }, null, 1) + "\n", "utf8");
+fs.writeFileSync(path.join(KOK, "db/arac/yetki-ozeti.json"), JSON.stringify({ yetkiMatrisi, fonksiyonYetki, kodDisiTablolar, cozulemeyenGomulu: cozulemeyen, politikaBagimliligi: [...new Set(politikaBagimliligi)] }, null, 1) + "\n", "utf8");
 const sistemFonks = [];
 
 fs.mkdirSync(path.join(KOK, "db/migrations"), { recursive: true });

@@ -264,10 +264,12 @@
   },
   {
    "tablo": "odeme",
-   "uygulama": [],
+   "uygulama": [
+    "SELECT"
+   ],
    "kolon": [],
    "anonim": [],
-   "kodda": false,
+   "kodda": true,
    "eskiYetki": [
     "INSERT",
     "SELECT",
@@ -302,10 +304,12 @@
   },
   {
    "tablo": "odeme_kalemi",
-   "uygulama": [],
+   "uygulama": [
+    "SELECT"
+   ],
    "kolon": [],
    "anonim": [],
-   "kodda": false,
+   "kodda": true,
    "eskiYetki": [
     "INSERT",
     "SELECT",
@@ -2571,8 +2575,6 @@
  ],
  "kodDisiTablolar": [
   "islem_kategori",
-  "odeme",
-  "odeme_kalemi",
   "odeme_satiri",
   "egzersiz_kutuphanesi",
   "ev_egzersiz_programi",
@@ -2588,5 +2590,43 @@
   "pozisyon_sablonlari",
   "hiz_siniri_sayac"
  ],
- "cozulemeyenGomulu": []
+ "cozulemeyenGomulu": [],
+ "politikaBagimliligi": [
+  "terapist -> randevu",
+  "oda -> randevu",
+  "hasta_hedef -> terapist",
+  "paket -> paket_satis",
+  "islem_tanimi -> odeme",
+  "islem_tanimi -> odeme_kalemi",
+  "islem_tanimi -> hasta",
+  "odeme_kalemi -> odeme",
+  "hasta_kullanici -> hasta",
+  "periyodik_randevu -> terapist",
+  "randevu_iptal_talebi -> randevu",
+  "randevu_iptal_talebi -> terapist",
+  "hasta_olcum -> terapist",
+  "hasta_iletisim_log -> terapist",
+  "hasta_onam -> terapist",
+  "hasta_belge -> terapist",
+  "hasta_protokol -> terapist",
+  "hasta_vucut_haritasi_isareti -> terapist",
+  "personel_hassas -> personel",
+  "personel -> terapist",
+  "personel -> randevu",
+  "personel_acil_kisi -> personel",
+  "personel_mesleki_belge -> personel",
+  "hasta_hassas -> terapist",
+  "hasta -> terapist",
+  "personel_ucret -> personel",
+  "personel_puantaj_donem -> personel",
+  "randevu_talebi -> terapist",
+  "hasta_anamnez -> terapist",
+  "personel_izin_talebi -> personel",
+  "personel_puantaj -> personel",
+  "personel_hesap_hareket -> personel",
+  "personel_egitim -> personel",
+  "hasta_yorum -> terapist",
+  "klinik_kredi_karti_odeme -> klinik_kredi_kartlari",
+  "randevu -> terapist"
+ ]
 }

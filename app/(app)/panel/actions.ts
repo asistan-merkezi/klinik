@@ -1,10 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
+import { cikisYap as oturumuKapat } from "@/lib/auth";
 
 export async function cikisYap() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  await oturumuKapat(await headers());
   redirect("/giris");
 }

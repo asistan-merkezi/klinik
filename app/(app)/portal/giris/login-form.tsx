@@ -9,9 +9,12 @@ import { portalGirisYap } from "./actions";
 export function PortalLoginForm({
   defaultTelefon,
   oturumSonlandiMi,
+  klinikKodu,
 }: {
   defaultTelefon?: string;
   oturumSonlandiMi?: boolean;
+  /** Kliniğe özel portal adresinden (/portal/[klinikKodu]/giris) gelir; verilmezse kullanıcıdan istenir. */
+  klinikKodu?: string;
 }) {
   const [durum, formAction, isPending] = useActionState(portalGirisYap, null);
 
@@ -21,6 +24,14 @@ export function PortalLoginForm({
         <p role="alert" className="text-sm text-destructive">
           Bu hesapla başka bir yerden giriş yapıldığı için oturumunuz sonlandırıldı.
         </p>
+      )}
+      {klinikKodu ? (
+        <input type="hidden" name="klinik_kodu" value={klinikKodu} />
+      ) : (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="klinik_kodu">Klinik kodu</Label>
+          <Input id="klinik_kodu" name="klinik_kodu" type="text" autoComplete="off" required disabled={isPending} />
+        </div>
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="telefon">Telefon</Label>

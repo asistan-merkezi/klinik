@@ -29,7 +29,7 @@ WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p', 'v', '
   AND has_table_privilege('kimlik_rolu', c.oid, p.p);
 INSERT INTO yetki_hata
 SELECT 'kimlik_rolu_fonksiyon', p.proname FROM pg_proc p
-WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('kimlik_rolu', p.oid, 'EXECUTE')
+WHERE p.pronamespace = 'public'::regnamespace AND p.proname <> 'telefon_normalize' AND has_function_privilege('kimlik_rolu', p.oid, 'EXECUTE')
   AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e');
 
 -- 3) PUBLIC

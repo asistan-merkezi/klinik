@@ -6169,6 +6169,16 @@
    "dosya": "app/(app)/panel/kaynaklar/actions.ts",
    "satir": 210,
    "ifade": ".from(gecerliTablo.data)"
+  },
+  {
+   "dosya": "lib/auth/oturum.ts",
+   "satir": 53,
+   "ifade": ".from(sema.kullanici)"
+  },
+  {
+   "dosya": "lib/auth/oturum.ts",
+   "satir": 64,
+   "ifade": ".from(sema.hastaKullanici)"
   }
  ],
  "rpc": {

@@ -1,84 +1,24 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { oturumKilidiYenile } from "@/lib/auth/oturum-kilidi";
+import { personelGirisi } from "@/lib/auth";
+import { cihazKimligiAl } from "@/lib/auth/next";
 import { guvenliDonusAdresi } from "@/lib/auth/donus-adresi";
-import { GIRIS_KILITLI_MESAJI, girisKilitliMi, hataliGirisKaydet } from "@/lib/auth/giris-hiz-siniri";
 
 type GirisSonucu = { success: false; message: string } | never;
 
-export async function girisYap(
-  _onceki: GirisSonucu | null,
-  formData: FormData
-): Promise<GirisSonucu | null> {
-  const girisAdi = String(formData.get("giris_adi") ?? "").trim();
+/**
+ * Personel girişi (Seçenek D): e-posta+parola (klinik_admin/super_admin) veya telefon+parola (diğer roller).
+ * Hata mesajları hesap varlığını sızdırmaz; hız sınırı fail-closed (lib/auth/giris.ts). Better Auth çerezleri nextCookies eklentisiyle yazılır.
+ */
+export async function girisYap(_onceki: GirisSonucu | null, formData: FormData): Promise<GirisSonucu | null> {
+  const girisAdi = String(formData.get("giris_adi") ?? "");
   const sifre = String(formData.get("sifre") ?? "");
   const donus = guvenliDonusAdresi(formData.get("donus")) ?? "/panel";
 
-  if (!girisAdi || !sifre) {
-    return { success: false, message: "Telefon/e-posta ve şifre gerekli." };
-  }
-
-  if (await girisKilitliMi("personel_giris", girisAdi)) {
-    return { success: false, message: GIRIS_KILITLI_MESAJI };
-  }
-
-  const supabase = await createClient();
-  const epostaGirisi = girisAdi.includes("@");
-
-  if (epostaGirisi) {
-    // Yalnız klinik_admin/super_admin e-posta ile girebilir — personel telefona
-    // yönlendirilir (bkz. root CLAUDE.md, 2026-09-20 karar).
-    const { error } = await supabase.auth.signInWithPassword({
-      email: girisAdi,
-      password: sifre,
-    });
-    if (error) {
-      await hataliGirisKaydet("personel_giris", girisAdi);
-      return { success: false, message: "E-posta veya şifre hatalı." };
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const { data: kullanici } = await supabase
-      .from("kullanici")
-      .select("rol")
-      .eq("id", user!.id)
-      .single();
-
-    if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "super_admin") {
-      await supabase.auth.signOut();
-      return { success: false, message: "Bu hesap yalnızca telefon numarasıyla giriş yapabilir." };
-    }
-
-    await oturumKilidiYenile(supabase);
-    redirect(donus);
-  }
-
-  // Telefon girişi: personel_giris_epostasi RPC'si telefonu kayıtlı e-postaya
-  // çevirir (hasta portalındaki portal_giris_epostasi ile aynı desen), rol
-  // klinik_admin/super_admin ise hiç eşleşme dönmez (RPC bilerek dışlıyor).
-  const { data: eposta } = await supabase.rpc("personel_giris_epostasi", {
-    p_telefon: girisAdi,
-  });
-
-  if (!eposta) {
-    await hataliGirisKaydet("personel_giris", girisAdi);
-    return { success: false, message: "Telefon veya şifre hatalı." };
-  }
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email: eposta,
-    password: sifre,
-  });
-
-  if (error) {
-    await hataliGirisKaydet("personel_giris", girisAdi);
-    return { success: false, message: "Telefon veya şifre hatalı." };
-  }
-
-  await oturumKilidiYenile(supabase);
-  redirect(donus);
+  const sonuc = await personelGirisi({ girisAdi, sifre, basliklar: await headers(), cihazKimligi: await cihazKimligiAl() });
+  if (!sonuc.ok) return { success: false, message: sonuc.mesaj };
+  // Geçici şifreyle girildiyse şifre değiştirilmeden başka sayfaya geçilemez (proxy de zorlar).
+  redirect(sonuc.sifreDegistirmeli ? "/sifre-degistir" : donus);
 }

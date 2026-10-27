@@ -1,0 +1,88 @@
+// Oturum bağlamı. Tenant kimliği ve rol ASLA istemciden alınmaz: oturum (Better Auth, veritabanı) -> kimlik kaydı -> tenant tablosu.
+//   personel : kullanici satırından (klinik_id, rol) — withKullanici ile (tenant bilinmeden, yalnız KENDİ satırı görünür)
+//   hasta    : kimlik_kullanici.klinik_id + hasta_kullanici.aktif (withTenant ile doğrulanır)
+import { eq } from "drizzle-orm";
+import { withKullanici, withTenant, sema } from "@/lib/db";
+import { kimlik } from "./auth";
+
+export type OturumRolu = "super_admin" | "klinik_admin" | "resepsiyon" | "terapist" | "muhasebe" | "hasta";
+
+export type OturumBaglami = {
+  userId: string;
+  /** Super admin'de null (klinik bağlamı yok); diğerlerinde klinik kimliği. */
+  tenantId: string | null;
+  rol: OturumRolu;
+  tur: "personel" | "hasta";
+  hastaId: string | null;
+  eposta: string;
+  /** Geçici şifreyle girildi: şifre değiştirilene kadar başka sayfaya geçilemez. */
+  sifreDegistirmeli: boolean;
+  cihazKimligi: string | null;
+};
+
+export class OturumHatasi extends Error {
+  constructor(public readonly status: 401 | 403, mesaj: string) {
+    super(mesaj);
+    this.name = "OturumHatasi";
+  }
+}
+
+type OturumKullanicisi = {
+  id: string; email: string; tur?: string; klinikId?: string | null; hastaId?: string | null; devreDisi?: boolean; sifreDegistirmeli?: boolean;
+};
+
+/** Hafif oturum okuma (proxy için): yalnız Better Auth oturumu + kimlik bayrakları; tenant sorgusu YOK. */
+export async function oturumOku(basliklar: Headers): Promise<{ user: OturumKullanicisi; cihazKimligi: string | null } | null> {
+  const s = await kimlik().api.getSession({ headers: basliklar });
+  if (!s?.user) return null;
+  const user = s.user as unknown as OturumKullanicisi;
+  if (user.devreDisi) return null;
+  return { user, cihazKimligi: ((s.session as unknown as { cihazKimligi?: string | null }).cihazKimligi) ?? null };
+}
+
+/** Tam bağlam; oturum yoksa/geçersizse null (çağıran 401 verir). */
+export async function getSessionContext(basliklar: Headers): Promise<OturumBaglami | null> {
+  const o = await oturumOku(basliklar);
+  if (!o) return null;
+  const { user } = o;
+  const tur = user.tur === "hasta" ? "hasta" : "personel";
+  const ortak = { userId: user.id, eposta: user.email, sifreDegistirmeli: Boolean(user.sifreDegistirmeli), cihazKimligi: o.cihazKimligi };
+
+  if (tur === "personel") {
+    const satir = await withKullanici(user.id, (tx) =>
+      tx.select({ klinikId: sema.kullanici.klinikId, rol: sema.kullanici.rol }).from(sema.kullanici).where(eq(sema.kullanici.id, user.id)).limit(1)
+    );
+    const k = satir[0];
+    if (!k) return null; // kimlik var ama tenant kaydı yok (yarım kalmış hesap) -> oturum yok sayılır
+    return { ...ortak, tenantId: k.klinikId, rol: k.rol, tur, hastaId: null };
+  }
+
+  // hasta: tenant kimlik kaydından gelir (giriş sırasında tanima ile çözülmüş klinik), hasta_kullanici aktif olmalı
+  if (!user.klinikId) return null;
+  const tenantId = user.klinikId;
+  const satir = await withTenant({ userId: user.id, tenantId }, (tx) =>
+    tx.select({ hastaId: sema.hastaKullanici.hastaId, aktif: sema.hastaKullanici.aktif }).from(sema.hastaKullanici).where(eq(sema.hastaKullanici.id, user.id)).limit(1)
+  );
+  const h = satir[0];
+  if (!h || !h.aktif) return null;
+  return { ...ortak, tenantId, rol: "hasta", tur, hastaId: h.hastaId };
+}
+
+/** Oturum yoksa 401 fırlatır. */
+export async function requireSessionContext(basliklar: Headers): Promise<OturumBaglami> {
+  const ctx = await getSessionContext(basliklar);
+  if (!ctx) throw new OturumHatasi(401, "Oturum bulunamadı.");
+  return ctx;
+}
+
+/** Rol kapısı: yetkisizse 403. `super_admin` her kümeyi geçer (mevcut eylemYetkisiGetir kuralı). */
+export function rolGerekli(ctx: OturumBaglami, roller: readonly OturumRolu[]): void {
+  if (ctx.rol === "super_admin" || roller.includes(ctx.rol)) return;
+  throw new OturumHatasi(403, "Bu işlem için yetkiniz yok.");
+}
+
+/** Tenant bağlamı gereken işler için: super_admin gibi klinik bağlamı olmayan oturumlarda 403. */
+export function tenantGerekli(ctx: OturumBaglami): { userId: string; tenantId: string } {
+  if (!ctx.tenantId) throw new OturumHatasi(403, "Bu işlem bir klinik bağlamı gerektirir.");
+  return { userId: ctx.userId, tenantId: ctx.tenantId };
+}

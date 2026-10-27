@@ -191,8 +191,9 @@ export async function bilgileriGuncelle(_onceki: SonucDurumu, formData: FormData
 }
 
 export async function portalCikisYap() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  const { headers } = await import("next/headers");
+  const { cikisYap } = await import("@/lib/auth");
+  await cikisYap(await headers());
   redirect("/portal/giris");
 }
 

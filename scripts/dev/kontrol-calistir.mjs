@@ -8,6 +8,7 @@ import { KOK, sqlHazirla, oku } from "./kume.mjs";
 import { testKumesiKur } from "./test-kur.mjs";
 import { definerDumanTesti } from "../../db/kontrol/definer-duman-testi.mjs";
 import { anonimKayitTesti } from "../../db/kontrol/anonim-kayit-testi.mjs";
+import { yetkisizRaporu } from "./yetkisiz-rapor.mjs";
 
 const duzenek = await testKumesiKur();
 let basarisiz = 0;
@@ -48,6 +49,13 @@ try {
     fs.writeFileSync(path.join(KOK, "docs/yetki-matrisi.md"), md, "utf8");
   }
   await sup.end();
+
+  bolum("yetkisiz tablolara yazan tetikleyici/RPC'ler (gerçek yazma testi)");
+  {
+    const r = await yetkisizRaporu(duzenek);
+    r.sonuc.forEach((x) => console.log(`  ${x.durum} ${x.ad} [${x.tablo}] — ${x.ayrinti}`));
+    if (r.basarisiz) basarisiz++;
+  }
 
   bolum("anonim self-servis kayıt testi");
   const a = await anonimKayitTesti(duzenek);
