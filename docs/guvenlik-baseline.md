@@ -103,7 +103,7 @@ CSP ayrıntıları: betik yalnız nonce'lu (`unsafe-inline`/`unsafe-eval` YOK; `
 
 | # | Açık | Risk / not |
 |---|---|---|
-| 1 | **`next` 16.3.8 için `npm audit` KRİTİK**; düzeltme 16.4.3 (proje sürümü bilinçli sabit) | **canlıdan önce karar**: sürüm yükseltme + tam test. Ayrıca yüksek: `puppeteer-core`/`chromium-bidi`/`zod` (puppeteer'ın iç bağımlılığı), `undici`, `vite`/`vitest` (yalnız geliştirme); orta: `exceljs`/`uuid`, `drizzle-kit`/`esbuild` (geliştirme) |
+| 1 | ~~`next` 16.3.8 kritik `npm audit`~~ **KAPANDI**: 16.4.3'e yükseltildi (§10). Kalan yüksek/orta bulgular §10 tablosunda erişilebilirlik notlarıyla | bkz. §10 |
 | 2 | CSP `style-src 'unsafe-inline'` | betik çalıştırmaz ama stil enjeksiyonuyla veri sızdırma (CSS exfiltration) teorik; nonce'lu stil için kütüphane değişikliği gerekir |
 | 3 | CSP üretimde **Report-Only ile gözlemlenmedi** (rapor ucu yok); tarayıcıda yalnız 4 genel + 3 panel sayfası denendi — tablet, PDF önizleme, QR sayfaları, kamera yükleme ve canlı Edge dışı tarayıcılar denenmedi | canlıda önce `Content-Security-Policy-Report-Only` ile bir hafta izlenmesi önerilir |
 | 4 | Server action CSRF korumasının tek dayanağı Next'in Origin denetimi + SameSite=Lax; ters vekilde `Host`/`X-Forwarded-Host` yanlış iletilirse davranış değişir | Caddy `reverse_proxy` varsayılanı doğru; sunucuda e2e tekrar edilmeli (prova) |
@@ -124,5 +124,31 @@ CSP ayrıntıları: betik yalnız nonce'lu (`unsafe-inline`/`unsafe-eval` YOK; `
 | # | Açık | Öncelik / not |
 |---|---|---|
 | 12 | **Oturumlu uçlarda genel IP bazlı limit yok.** Oturumlu uçlarda yalnız kullanıcı başına limit var (giriş ve anonim uçlarda IP limiti zaten var). Çalınmış tek oturumun kullanıcı limitini aşmadan yaptığı tarama veya çok sayıda hesapla dağıtık istek IP limitine takılmaz | düşük (kimlik doğrulanmış, tenant'a bağlı; dağıtık kötüye kullanım için ileride Caddy/WAF seviyesinde genel IP limiti) |
-| 13 | **Destek chatbotu AÇILMADAN önce** (varsayılan kapalı, `DESTEK_CHATBOT_ACIK`): (a) kullanıcı metni sistem talimatından AYRI bir blokta (delimiter/XML etiketi) modele verilmeli — şimdi `streamText` mesaj listesine ekliyor, talimatla aynı düzlemde birleştirmiyor ama ayrı blok sözleşmesi yok; (b) model çıktısı güvensiz sayılmalı: istemcide metin olarak render (HTML değil), araç/komut çalıştırma yok, çıktı bir yapıya dönüşecekse zod ile parse; (c) kişisel veri modele gitmemeli — şimdiki maskeleme yalnız TC/IBAN/kart/telefon/e-posta desenlerini yakalar, ad-soyad ve sağlık metnini YAKALAYAMAZ; açmadan önce kullanım uyarısı + mümkünse sunucuda hasta adı sözlüğüyle maskeleme; (d) **hukuk/KVKK onayı** (yurt dışı LLM); (e) kullanıcı başına limit zaten var (`chatbot` 60/10 dk), maliyet tavanı ayrıca izlenmeli | açmadan önce zorunlu |
+| 13 | **Destek chatbotu AÇILMADAN önce** (varsayılan kapalı, `DESTEK_CHATBOT_ACIK`): (a) kullanıcı metni sistem talimatından AYRI bir blokta (delimiter/XML etiketi) modele verilmeli — şimdi `streamText` mesaj listesine ekliyor, talimatla aynı düzlemde birleştirmiyor ama ayrı blok sözleşmesi yok; (b) model çıktısı güvensiz sayılmalı: istemcide metin olarak render (HTML değil), araç/komut çalıştırma yok, çıktı bir yapıya dönüşecekse zod ile parse; (c) kişisel veri modele gitmemeli — şimdiki maskeleme yalnız TC/IBAN/kart/telefon/e-posta desenlerini yakalar, ad-soyad ve sağlık metnini YAKALAYAMAZ; açmadan önce kullanım uyarısı + mümkünse sunucuda hasta adı sözlüğüyle maskeleme; (d) **hukuk/KVKK onayı** (yurt dışı LLM); (f) `npm audit fix` ile `undici` 7.30.1'e yükseltilmeli (§10); (e) kullanıcı başına limit zaten var (`chatbot` 60/10 dk), maliyet tavanı ayrıca izlenmeli | açmadan önce zorunlu |
 | 14 | **Skill varsayımları:** `security-baseline` skill'i Next.js + Supabase + Vercel + Upstash varsayar. Bu projede karşılıkları: Upstash/Vercel WAF yerine **DB tabanlı fail-closed sayaç** (`hiz_siniri_kullan`, Caddy gövde sınırı); Supabase RLS yerine **PostgreSQL FORCE RLS + `withTenant`** (`docs/platform-katmani.md`); `next.config.js` başlıklarının bir kısmı **Caddy**'de (HSTS, sunucu bilgisi gizleme) çünkü TLS orada sonlanır; Vercel ortam değişkeni kuralı (`NEXT_PUBLIC_`) bu projede istemciye giden hiçbir sır olmadığı için tarama testiyle değil kod incelemesiyle sağlanıyor | bilgi (eksik değil, eşleme) |
+
+## 10. `npm audit` ayrıntısı ve Next.js yükseltmesi (2026-10-28)
+
+**Yükseltme:** `next` 16.3.8 → **16.4.3** (+ `eslint-config-next` aynı sürüm, ikisi tam sürüm sabit). `npm audit --omit=dev`: kritik 1 → **0**; yüksek 6 → aşağıdaki tabloda kalan. Tüm kontroller yükseltme sonrası yeniden koşuldu (lint, tsc, test, test:db, build, Playwright, kontrol-calistir).
+
+### Düzeltilen Next.js bulguları (16.0.0 – 16.4.0 etkilenir; 22 Ekim 2026 yayımlandı)
+
+| Bulgu | Bileşen / koşul | Bizde erişilebilir miydi? | `proxy.ts` ilişkisi |
+|---|---|---|---|
+| **GHSA-2464-fhr4-w9xw — KRİTİK, kimliksiz RCE** | Görsel Optimizasyon API'si (`/_next/image`) SVG ile; yukarı akış kütüphane (sharp/libvips) bellek hatası. **Yalnız glibc tabanlı Linux'ta.** Geçici çözüm: `sharp >= 0.35.5` | **Hayır / çok düşük.** Sunucumuz **Windows** (glibc değil); kurulu `sharp` zaten **0.35.5** (düzeltilmiş). `next/image` yalnız `components/hasta/vucut-haritasi.tsx`'te, sabit yerel görsel için | `/_next/image` yolu `proxy.ts` matcher'ında BİLİNÇLİ muaf (auth'suz çalışır) → bu bulgu **kimliksiz** olduğundan proxy bir engel oluşturmazdı; koruyucu olan platform (Windows) ve sharp sürümü |
+| **GHSA-673q-mjm6-r5xr — KRİTİK, kimliksiz RCE** | `use cache` (Cache Components) fonksiyonları birden çok typed array döndürürse | **Hayır.** Kod tabanında `use cache`, `cacheComponents`, `unstable_cache` YOK | İlgisiz |
+| **GHSA-p3m5-59mp-jv5r — YÜKSEK, DoS** | App Router + en az bir Server Action: özel hazırlanmış istek tek süreçte CPU'yu tüketip diğer istekleri bloklar. Geçici çözüm yok | **Evet, erişilebilirdi:** uygulamada çok sayıda server action var, **giriş/şifre-unuttum eylemleri oturumsuz** çağrılabilir | Eylem uçları `proxy.ts`'ten **geçer** (matcher yalnız statik dosyaları dışlar) ama proxy yalnız oturum yönlendirmesi yapar, istek gövdesini engellemez → proxy koruma sağlamıyordu. Yükseltme bunu kapatır; ek savunma: Caddy gövde sınırı, hız sınırları |
+
+### Kalan bulgular (yükseltme sonrası) — erişilebilirlik
+
+| Paket | Ağırlık | Nerede / koşul | Bizde |
+|---|---|---|---|
+| `puppeteer-core` 25.1.0 → `chromium-bidi` → **iç `zod@3.25.76`** (GHSA-mrhx-c7xc-m3w5: aşırı büyük kısıtlı koleksiyon doğrularken bellek tüketimi) | yüksek | chromium-bidi yalnız **WebDriver BiDi** protokolünde kullanılır | **Erişilemez (pratik):** `puppeteer.launch` varsayılan **CDP** kullanır (`protocol: "webDriverBiDi"` verilmiyor); Chrome'u biz başlatırız (yerel boru), şablonda JS kapalı (`setJavaScriptEnabled(false)`), ağ istekleri yakalanıp kapalı. Düzeltme `puppeteer-core 25.16.0` (küçük sürüm) — Chrome ile uyum testi gerektiği için ayrı iş |
+| **Doğrudan `zod`** | — | kurulu **4.6.7** (≥ 4.6.6) | **Etkilenmiyor** (uyarı yalnız puppeteer'ın iç kopyası için). Not: `strictObject` + `.max()` sınırları aşırı büyük koleksiyonları zaten kısıtlar |
+| `undici` 7.30.0 (SSE ayrıştırıcı DoS, TLS seçenekleri, yönlendirme/önbellek…; düzeltme 7.30.1) | yüksek | yalnız `@ai-sdk/provider-utils` (destek chatbotu) üzerinden | **Chatbot varsayılan KAPALI**; açık değilse bu kod yolu çalışmaz. Chatbot açılmadan önce `npm audit fix` ile 7.30.1 (§8 #13 listesine eklendi) |
+| `vite` / `vitest` (launch-editor, `server.fs`), `@vitest/mocker` | yüksek/orta | **yalnız geliştirme**; üretim paketi (standalone) içinde YOK | Etkilenmiyor (geliştirici makinesi/CI) |
+| `source-map-js` (olay döngüsü DoS) | yüksek | Tailwind/PostCSS **derleme zamanı** | Etkilenmiyor (çalışma zamanında yok) |
+| `drizzle-kit` → `esbuild`/`@esbuild-kit/*` | orta | yalnız şema üretim aracı (geliştirme) | Etkilenmiyor |
+| `exceljs` → `uuid` | orta | arşiv içe aktarma (yalnız klinik_admin, parça sınırlı) | Düşük; yönetici-yalnız, istemciden gelen dosya yönetici kendi yükleme akışında |
+
+Tekrar denetim: her yayından önce `npm audit --omit=dev`; kritik/yüksek çıkarsa yukarıdaki tablo güncellenir.
