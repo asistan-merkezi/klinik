@@ -13,7 +13,7 @@ import { revalidateHastaDetay } from "@/app/(app)/panel/hastalar/[id]/revalidate
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-const borcDuzenleSemasi = z.object({
+const borcDuzenleSemasi = z.strictObject({
   iskonto_tutari: negatifOlmayanTutarKurus("İskonto 0'dan küçük olamaz."),
   faturali: z.coerce.boolean().optional(),
   aciklama: z.string().trim().optional(),

@@ -27,7 +27,7 @@ function cariRpcHatasi(mesaj: string | undefined): string {
   return "Cari ödemesi kaydedilemedi, lütfen tekrar deneyin.";
 }
 
-const cariOdemeSemasi = z.object({
+const cariOdemeSemasi = z.strictObject({
   tedarikci_adi: z.string().trim().min(1, "Tedarikçi seçilmeli."),
   tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),

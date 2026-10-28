@@ -6,6 +6,7 @@ import { cspMetni, ORTAK_BASLIKLAR } from "./csp";
 import { ayniKokenMi } from "./origin";
 import { logArgumaniTemizle, logMetniTemizle } from "./log-temizle";
 import { svgGuvenliMi } from "@/lib/dosya/imza";
+import { z } from "zod";
 import { arsivParcasiSemasi, girisFormuSemasi, sifreDegistirFormuSemasi, uuidZorunlu, GecersizGirdi } from "./girdi";
 
 const KOK = path.resolve(__dirname, "../..");
@@ -53,6 +54,8 @@ describe("CSP ve başlıklar", () => {
       expect(t, u).toContain("[GIZLI]");
       expect(t, u).not.toMatch(/AbCdEfGh|abc123secret|tokentokentoken/);
     }
+    expect(c).toMatch(/Strict-Transport-Security "max-age=604800"\r?\n/); // kademe 1: 1 hafta
+    expect(c).not.toMatch(/Strict-Transport-Security[^\r\n]*(includeSubDomains|preload)/); // includeSubDomains/preload YOK
     for (const b of ["Strict-Transport-Security", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy", "-Server", "-X-Powered-By", "max_size"]) expect(c, b).toContain(b);
   });
 });
@@ -151,6 +154,24 @@ describe("dosya: SVG güvenliği", () => {
   });
 });
 
+describe("strict şemalar: fazla alan reddedilir", () => {
+  it("kimlik formu şemaları bilinmeyen alanı reddeder (mass-assignment: rol, klinik_id, yonetici...)", () => {
+    expect(girisFormuSemasi.safeParse({ giris_adi: "a@b.com", sifre: "x" }).success).toBe(true);
+    expect(girisFormuSemasi.safeParse({ giris_adi: "a@b.com", sifre: "x", rol: "super_admin" }).success).toBe(false);
+    expect(sifreDegistirFormuSemasi.safeParse({ mevcut_sifre: "a", yeni_sifre: "b", yeni_sifre_tekrar: "b", klinik_id: "x" }).success).toBe(false);
+    expect(arsivParcasiSemasi.safeParse({ kayitlar: [], baslangicSatirNo: 0, klinikId: "baska" }).success).toBe(false);
+  });
+  it("kritik uç dosyalarında z.object (gevşek) YOK: giriş, şifre, kimlik/personel, finans yazma, destek bağlamı, izin talebi", () => {
+    const dosyalar = ["lib/guvenlik/girdi.ts", "app/(app)/panel/yonetim/destek-baglami/actions.ts", "app/(app)/panel/personel/actions.ts", "app/(app)/panel/personel/izinlerim/actions.ts", "app/(app)/panel/hastalar/[id]/actions.ts", ...gez("app/(app)/panel/finans").filter((f) => /actions\.ts$/.test(f))];
+    for (const f of dosyalar) expect(oku(f), f).not.toMatch(/z\.object\(/);
+  });
+  it("zod 4 strictObject gerçekten fazla alanı reddeder (kütüphane davranışı sabitlendi)", () => {
+    const sema = z.strictObject({ tutar: z.string() });
+    expect(sema.safeParse({ tutar: "1" }).success).toBe(true);
+    expect(sema.safeParse({ tutar: "1", iskonto: "9" }).success).toBe(false);
+  });
+});
+
 describe("girdi doğrulama", () => {
   it("uuidZorunlu: geçerli döner, bozuk GecersizGirdi fırlatır (iç ayrıntı yok)", () => {
     expect(uuidZorunlu("11111111-1111-4111-8111-111111111111")).toBe("11111111-1111-4111-8111-111111111111");
@@ -223,3 +244,56 @@ describe("hız sınırı: FAIL-CLOSED", () => {
     vi.doUnmock("@/lib/db");
   });
 });
+
+describe("hız sınırı aşımı loglanır (hijyenli)", () => {
+  it("uç adı + kısaltılmış kimlik hash'i + zaman yazılır; ham kullanıcı kimliği/IP/parola/belirteç YAZILMAZ; sarmalayıcıdan geçer", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/db", () => ({ withGlobal: async () => ({ rows: [{ izin: false }] }), sql: (x: TemplateStringsArray) => x.join("") }));
+    const { consoleTemizleyiciKur } = await import("./log-temizle");
+    const yakalanan: string[] = [];
+    const sahte = { log: () => undefined, info: () => undefined, error: () => undefined, warn: (...a: unknown[]) => yakalanan.push(a.map(String).join(" ")) };
+    consoleTemizleyiciKur(sahte as unknown as Console);
+    const orijinalWarn = console.warn;
+    console.warn = sahte.warn;
+    try {
+      const m = await import("./istek-siniri");
+      const { hizSiniriKaydet, hizAnahtari, HizSiniriHatasi } = await import("./hiz-siniri");
+      expect(await m.sinirKontrol("pdf", "kullanici-GIZLI-kimlik-123")).toMatchObject({ izin: false, durum: 429 });
+      await expect(hizSiniriKaydet([{ anahtar: "unuttum:ip:0123456789abcdef", limit: 1, pencereSn: 60 }])).rejects.toBeInstanceOf(HizSiniriHatasi);
+      await expect(hizSiniriKaydet([{ anahtar: hizAnahtari("giris:hesap", "ayse@ornek.com"), limit: 1, pencereSn: 60 }])).rejects.toBeInstanceOf(HizSiniriHatasi);
+    } finally {
+      console.warn = orijinalWarn;
+    }
+    expect(yakalanan).toHaveLength(3);
+    const olaylar = yakalanan.map((x) => JSON.parse(x) as Record<string, string>);
+    expect(olaylar[0]).toMatchObject({ olay: "hiz_siniri_asildi", uc: "ist:pdf" });
+    expect(olaylar[0].kimlik_hash).toMatch(/^[0-9a-f]{8}$/);
+    expect(olaylar[1]).toMatchObject({ uc: "unuttum:ip", kimlik_hash: "01234567" });
+    for (const o of olaylar) expect(Number.isNaN(Date.parse(o.zaman))).toBe(false);
+    expect(yakalanan.join(" | ")).not.toMatch(/GIZLI-kimlik|ayse@ornek|kullanici-/);
+    vi.doUnmock("@/lib/db");
+  });
+});
+
+describe("istemci IP'si yalnız X-Real-IP (Caddy ezer)", () => {
+  it("istemciImzasi: X-Forwarded-For ve benzeri başlıklar YOK SAYILIR; başlık yoksa ortak kova", async () => {
+    const { istemciImzasi } = await import("./hiz-siniri");
+    const h = (o: Record<string, string>) => new Headers(o);
+    const gercek = istemciImzasi(h({ "x-real-ip": "203.0.113.5" }));
+    expect(istemciImzasi(h({ "x-real-ip": "203.0.113.5", "x-forwarded-for": "1.2.3.4, 5.6.7.8", forwarded: "for=9.9.9.9", "x-client-ip": "8.8.8.8", "cf-connecting-ip": "7.7.7.7" }))).toBe(gercek);
+    expect(istemciImzasi(h({ "x-real-ip": "203.0.113.6" }))).not.toBe(gercek);
+    // X-Real-IP yokken XFF ile kova DEĞİŞTİRİLEMEZ
+    expect(istemciImzasi(h({ "x-forwarded-for": "1.1.1.1" }))).toBe(istemciImzasi(h({ "x-forwarded-for": "2.2.2.2" })));
+    expect(istemciImzasi(h({}))).toBe(istemciImzasi(h({ "x-forwarded-for": "3.3.3.3" })));
+  });
+  it("Caddyfile: her reverse_proxy bloğu istemci_ip parçasını içe aktarır; parça X-Real-IP ve X-Forwarded-For'u ezer, sahte IP başlıklarını siler", () => {
+    const c = oku("deploy/windows/Caddyfile").replace(/\r\n/g, "\n");
+    const parca = /\(istemci_ip\) \{\n([\s\S]*?)\n\}/.exec(c)![1];
+    for (const satir of ["header_up X-Real-IP {remote_host}", "header_up X-Forwarded-For {remote_host}", "header_up -Forwarded", "header_up -X-Client-IP", "header_up -True-Client-IP", "header_up -CF-Connecting-IP"]) expect(parca, satir).toContain(satir);
+    const bloklar = c.split("reverse_proxy localhost:3000 {").slice(1);
+    expect(bloklar.length).toBeGreaterThanOrEqual(2);
+    for (const b of bloklar) expect(b.slice(0, b.indexOf("\n\t\t}")), "reverse_proxy bloğu").toContain("import istemci_ip");
+    expect(c.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n")).not.toMatch(/trusted_proxies/); // proxy açılmadıkça hiçbir ön vekile güvenilmez (Caddyfile notu: açılırsa gerçek IP ayrıca ayarlanmalı)
+  });
+});
+

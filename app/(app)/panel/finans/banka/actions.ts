@@ -31,7 +31,7 @@ async function hareketYaz(o: FinansOturumu, formData: FormData, islem: string, g
   }
 }
 
-const girenSemasi = z.object({
+const girenSemasi = z.strictObject({
   hedef_banka_hesap_id: z.string().uuid("Hesap seçilmeli."),
   odeme_yontemi: z.enum(["nakit", "banka_havalesi"]),
   karsi_taraf_adi: z.string().trim().min(1, "Gönderen adı girilmeli."),
@@ -81,7 +81,7 @@ export async function bankayaGirenEkle(_onceki: SonucDurumu, formData: FormData)
   return { success: true, message: "Bankaya giriş kaydedildi." };
 }
 
-const cikanDigerSemasi = z.object({
+const cikanDigerSemasi = z.strictObject({
   kaynak_banka_hesap_id: z.string().uuid("Hesap seçilmeli."),
   karsi_taraf_adi: z.string().trim().min(1, "Alıcı adı girilmeli."),
   karsi_taraf_banka: z.string().trim().optional(),
@@ -129,7 +129,7 @@ export async function bankadanDigerCikanEkle(_onceki: SonucDurumu, formData: For
   return { success: true, message: "Bankadan çıkış kaydedildi." };
 }
 
-const transferSemasi = z.object({
+const transferSemasi = z.strictObject({
   kaynak_banka_hesap_id: z.string().uuid("Kaynak hesap seçilmeli."),
   hedef: z.string().trim().min(1, "Hedef seçilmeli."), // "kasa" veya bir banka_hesap_id
   tutar: pozitifTutarKurus(),
@@ -183,7 +183,7 @@ export async function nakitBankaHareketiSil(id: string): Promise<SonucDurumu> {
   return kasaHareketiSil(id);
 }
 
-const personelOdemeSemasi = z.object({
+const personelOdemeSemasi = z.strictObject({
   personel_id: z.string().uuid("Personel seçilmeli."),
   banka_hesap_id: z.string().uuid("Hesap seçilmeli."),
   tur: z.enum(["odeme", "avans"]),

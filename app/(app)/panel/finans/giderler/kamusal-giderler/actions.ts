@@ -15,7 +15,7 @@ import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 type SonucDurumu = { success: boolean; message: string } | null;
 
 // Migration 20260809120000'daki kamusal_odeme.odeme_tipi CHECK'iyle birebir aynı liste.
-const odemeSemasi = z.object({
+const odemeSemasi = z.strictObject({
   odeme_tipi: z.enum([
     "kdv",
     "stopaj_muhtasar",

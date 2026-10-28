@@ -14,6 +14,8 @@ function bosIseNull(deger: FormDataEntryValue | null): string | null {
   return s === "" ? null : s;
 }
 
+// Beklenmeyen form alanı = reddedilir (strict): istemci yalnız bu alanları gönderebilir; yol/klinik/kullanıcı gibi alanlar SUNUCUDA üretilir.
+const IZINLI_ALANLAR = new Set(["file", "hastaId", "kategori", "belgeTuru", "cekimTarihi", "bolge", "karsilastirmaGrubuId", "asama", "onamId", "not", "cekenKurum"]);
 const KATEGORILER: readonly string[] = ["radyoloji", "klinik_foto", "dokuman"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -31,6 +33,7 @@ export async function POST(req: Request) {
   if (sinir) return sinir;
 
   const formData = await req.formData();
+  for (const k of formData.keys()) if (!IZINLI_ALANLAR.has(k)) return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
   const file = formData.get("file");
   const hastaId = formData.get("hastaId");
   const kategori = formData.get("kategori") as BelgeKategori | null;

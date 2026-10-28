@@ -16,7 +16,7 @@ type SonucDurumu = { success: boolean; message: string } | null;
 const YETKISIZ: SonucDurumu = { success: false, message: YETKISIZ_MESAJI };
 const adminOturumu = () => finansOturumu(["klinik_admin"]);
 
-const baslangicSemasi = z.object({ baslangic_tutari: negatifOlmayanTutarKurus("0'dan küçük olamaz.") });
+const baslangicSemasi = z.strictObject({ baslangic_tutari: negatifOlmayanTutarKurus("0'dan küçük olamaz.") });
 
 export async function kasaBaslangicGuncelle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
   const o = await adminOturumu();
@@ -67,7 +67,7 @@ async function hareketYaz(o: FinansOturumu, formData: FormData, islem: string, g
   }
 }
 
-const girenSemasi = z.object({
+const girenSemasi = z.strictObject({
   karsi_taraf_adi: z.string().trim().min(1, "Gönderen adı girilmeli."),
   tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
@@ -108,7 +108,7 @@ export async function kasayaGirenEkle(_onceki: SonucDurumu, formData: FormData):
   return { success: true, message: "Kasaya giriş kaydedildi." };
 }
 
-const cikanDigerSemasi = z.object({
+const cikanDigerSemasi = z.strictObject({
   karsi_taraf_adi: z.string().trim().min(1, "Alıcı adı girilmeli."),
   tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
@@ -149,7 +149,7 @@ export async function kasadanDigerCikanEkle(_onceki: SonucDurumu, formData: Form
   return { success: true, message: "Kasadan çıkış kaydedildi." };
 }
 
-const transferSemasi = z.object({
+const transferSemasi = z.strictObject({
   hedef_banka_hesap_id: z.string().uuid("Hedef hesap seçilmeli."),
   tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
@@ -206,7 +206,7 @@ export async function nakitBankaHareketiSil(id: string): Promise<SonucDurumu> {
   return { success: true, message: "Hareket silindi." };
 }
 
-const personelOdemeSemasi = z.object({
+const personelOdemeSemasi = z.strictObject({
   personel_id: z.string().uuid("Personel seçilmeli."),
   tur: z.enum(["odeme", "avans"]),
   tutar: pozitifTutarKurus(),
@@ -257,7 +257,7 @@ export async function kasaPersonelOdemesiEkle(_onceki: SonucDurumu, formData: Fo
   return { success: true, message: "Personel ödemesi kaydedildi." };
 }
 
-const dengelemeSemasi = z.object({
+const dengelemeSemasi = z.strictObject({
   tutar: sifirdanFarkliTutarKurus(),
   aciklama: z.string().trim().optional(),
 });

@@ -19,7 +19,7 @@ const IZIN_BELGE_MAX_BYTE = 10 * 1024 * 1024;
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-const talepSemasi = z.object({
+const talepSemasi = z.strictObject({
   tip: z.enum(["yillik", "mazeret", "ucretsiz", "idari", "telafi"]),
   baslangic_tarih: z.string().min(1, "Başlangıç tarihi seçilmeli."),
   bitis_tarih: z.string().min(1, "Bitiş tarihi seçilmeli."),

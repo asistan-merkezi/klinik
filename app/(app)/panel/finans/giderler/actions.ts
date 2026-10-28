@@ -20,7 +20,7 @@ const ODEME_TIPLERI: OdemeTipi[] = ["nakit", "havale", "kredi_karti"];
 const HARCAMA_ODEME_TIPLERI: HarcamaOdemeTipi[] = [...ODEME_TIPLERI, "cari"];
 
 // Migration 20260914090000'daki klinik_harcama.kategori CHECK'iyle birebir aynı liste.
-const harcamaSemasi = z.object({
+const harcamaSemasi = z.strictObject({
   tarih: z.string().min(1, "Tarih seçilmeli."),
   kategori: z.enum(["kira", "fatura", "malzeme", "bakim_hizmet", "diger"]),
   tutar: pozitifTutarKurus(),

@@ -42,6 +42,25 @@ describe("kullanıcı başına hız sınırı (DB sayacı, fail-closed)", () => 
   }, 120_000);
 });
 
+describe("sahte IP başlığıyla hız sınırı atlatılamaz (gerçek sayaç)", () => {
+  it("/b/ bağlantısı: aynı X-Real-IP, her istekte farklı X-Forwarded-For/Forwarded → 31. istek yine 429; X-Real-IP yokken XFF ile kova değiştirilemez", async () => {
+    const { baglantiyiCoz } = await import("@/lib/mesaj/baglanti-coz");
+    const kotu = "A".repeat(40);
+    let hiz = 0;
+    for (let i = 0; i < 40; i++) {
+      const h = new Headers({ "x-real-ip": "198.51.100.77", "x-forwarded-for": `10.0.${i}.1, 10.1.${i}.2`, forwarded: `for=192.0.2.${i}`, "x-client-ip": `172.16.0.${i}` });
+      if ((await baglantiyiCoz(kotu, h)).tur === "hiz") hiz++;
+    }
+    expect(hiz).toBe(10); // 30 izin + 10 reddedilen: sahte başlıklar kova değiştirmedi
+    // X-Real-IP YOK: tüm istekler tek ortak kovaya düşer → XFF değiştirerek limit aşılamaz
+    let ortak = 0;
+    for (let i = 0; i < 40; i++) if ((await baglantiyiCoz(kotu, new Headers({ "x-forwarded-for": `10.9.${i}.1` }))).tur === "hiz") ortak++;
+    expect(ortak).toBeGreaterThanOrEqual(10);
+    // Gerçek farklı istemci (farklı X-Real-IP) etkilenmez
+    expect((await baglantiyiCoz(kotu, new Headers({ "x-real-ip": "198.51.100.78" }))).tur).toBe("yonlendir");
+  }, 120_000);
+});
+
 describe("/api/hasta-arama", () => {
   it("oturumsuz 401; hız sınırı aşılınca 429 + Retry-After (kullanıcı başına)", async () => {
     expect((await aramaGet(new Request("http://x/api/hasta-arama?q=ayse"))).status).toBe(401);
@@ -75,6 +94,15 @@ describe("CSRF: durum değiştiren route'lar", () => {
     const iyi = await fotoPost(new Request("http://localhost:3000/api/hasta-belge/foto-yukle", { method: "POST", body: form(), headers: { origin: process.env.BETTER_AUTH_URL!, "sec-fetch-site": "same-origin" } }));
     expect(iyi.status).toBe(400);
     expect((await iyi.json()).error).toBe("Eksik veri.");
+  });
+  it("foto-yukle: beklenmeyen form alanı (ör. klinikId, yol) 400 ile reddedilir", async () => {
+    oturumAc({ userId: resepsiyon, klinikId: K1.klinik, rol: "resepsiyon" });
+    const f = new FormData();
+    f.set("hastaId", randomUUID());
+    f.set("klinikId", randomUUID());
+    const r = await fotoPost(new Request("http://localhost:3000/api/hasta-belge/foto-yukle", { method: "POST", body: f }));
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe("Geçersiz veri.");
   });
   it("chatbot: kapalıyken 404; çapraz köken reddi bayraktan sonra, oturumdan ÖNCE", async () => {
     vi.stubEnv("DESTEK_CHATBOT_ACIK", "1");

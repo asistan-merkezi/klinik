@@ -12,7 +12,7 @@ import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-const kartOdemeSemasi = z.object({
+const kartOdemeSemasi = z.strictObject({
   kredi_karti_id: z.string().uuid("Kredi kartı seçilmeli."),
   tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),

@@ -39,7 +39,7 @@ Tarama (`guvenlik.test.ts > uç taraması`): her `"use server"` dosyası ve her 
 
 | Başlık | Nerede | Not |
 |---|---|---|
-| `Strict-Transport-Security` (1 yıl, includeSubDomains) | **Caddy** | TLS Caddy'de sonlanır; uygulamada YOK (yerel http'de anlamsız) |
+| `Strict-Transport-Security` (**1 hafta**, includeSubDomains/preload YOK; kademeli artış: `docs/sunucu-kurulum.md` §3d) | **Caddy** | TLS Caddy'de sonlanır; uygulamada YOK (yerel http'de anlamsız) |
 | `Content-Security-Policy` (nonce + `strict-dynamic`) | **`proxy.ts`** (`lib/guvenlik/csp.ts`) | nonce istek başına üretilir; bu yüzden `app/(app)` ve `app/(marketing)` layout'ları `force-dynamic`. API ve `/b/` yanıtlarına eklenmez (belge route'ları kendi `sandbox` CSP'sini taşır) |
 | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` | **`next.config.ts`** (her yol) **ve Caddy** (derinlemesine savunma) | tek kaynak `ORTAK_BASLIKLAR` |
 | `frame-ancestors 'none'` | CSP | X-Frame-Options ile birlikte |
@@ -114,3 +114,15 @@ CSP ayrıntıları: betik yalnız nonce'lu (`unsafe-inline`/`unsafe-eval` YOK; `
 | 9 | `unsafe-eval` geliştirmede açık (Next gereği) | üretim derlemesinde kapalı, doğrulandı |
 | 10 | Hasta belge küçük resim listeleri çok görselli sayfada 600/10 dk'yı aşabilir | aşılırsa 429; gerçek kullanımda izlenmeli |
 | 11 | Oturum çözümleme Better Auth `getSession` + DB; `app.user_id` güvencesi (Seçenek B) hâlâ açık üretim kapısı | `docs/tasima-plani.md` #1 |
+
+## 9. Üçüncü tur eklemeleri (2026-10-28) ve ek açık maddeler
+
+**Yapıldı:** kritik giriş/şifre/kimlik/finans yazma/destek bağlamı/izin talebi şemaları `z.strictObject` (fazla alan reddedilir; test: `guvenlik.test.ts > strict şemalar`, kaynakta gevşek `z.object` kalmadığını da denetler); dosya yüklemede bilinmeyen form alanı 400; **HSTS 1 hafta, kademeli artış** (`docs/sunucu-kurulum.md` §3d; HSTS yalnız Caddy'de — gerekçe orada); hız sınırı aşımı olayı JSON satırı (`olay, uc, kimlik_hash(8), zaman`) olarak loglanır ve günlük hijyen sarmalayıcısından geçer; istemci IP'si yalnız `X-Real-IP` (Caddy `istemci_ip` parçası bunu ve `X-Forwarded-For`'u ezer, `Forwarded`/`X-Client-IP`/`True-Client-IP`/`CF-Connecting-IP` siler; uygulama XFF'yi artık HİÇ okumaz, başlık yoksa tek ortak kova) — testler: birim + gerçek sayaçla sahte başlıklarla limit atlatılamaz.
+
+**Açık maddeler (ek):**
+
+| # | Açık | Öncelik / not |
+|---|---|---|
+| 12 | **Oturumlu uçlarda genel IP bazlı limit yok.** Oturumlu uçlarda yalnız kullanıcı başına limit var (giriş ve anonim uçlarda IP limiti zaten var). Çalınmış tek oturumun kullanıcı limitini aşmadan yaptığı tarama veya çok sayıda hesapla dağıtık istek IP limitine takılmaz | düşük (kimlik doğrulanmış, tenant'a bağlı; dağıtık kötüye kullanım için ileride Caddy/WAF seviyesinde genel IP limiti) |
+| 13 | **Destek chatbotu AÇILMADAN önce** (varsayılan kapalı, `DESTEK_CHATBOT_ACIK`): (a) kullanıcı metni sistem talimatından AYRI bir blokta (delimiter/XML etiketi) modele verilmeli — şimdi `streamText` mesaj listesine ekliyor, talimatla aynı düzlemde birleştirmiyor ama ayrı blok sözleşmesi yok; (b) model çıktısı güvensiz sayılmalı: istemcide metin olarak render (HTML değil), araç/komut çalıştırma yok, çıktı bir yapıya dönüşecekse zod ile parse; (c) kişisel veri modele gitmemeli — şimdiki maskeleme yalnız TC/IBAN/kart/telefon/e-posta desenlerini yakalar, ad-soyad ve sağlık metnini YAKALAYAMAZ; açmadan önce kullanım uyarısı + mümkünse sunucuda hasta adı sözlüğüyle maskeleme; (d) **hukuk/KVKK onayı** (yurt dışı LLM); (e) kullanıcı başına limit zaten var (`chatbot` 60/10 dk), maliyet tavanı ayrıca izlenmeli | açmadan önce zorunlu |
+| 14 | **Skill varsayımları:** `security-baseline` skill'i Next.js + Supabase + Vercel + Upstash varsayar. Bu projede karşılıkları: Upstash/Vercel WAF yerine **DB tabanlı fail-closed sayaç** (`hiz_siniri_kullan`, Caddy gövde sınırı); Supabase RLS yerine **PostgreSQL FORCE RLS + `withTenant`** (`docs/platform-katmani.md`); `next.config.js` başlıklarının bir kısmı **Caddy**'de (HSTS, sunucu bilgisi gizleme) çünkü TLS orada sonlanır; Vercel ortam değişkeni kuralı (`NEXT_PUBLIC_`) bu projede istemciye giden hiçbir sır olmadığı için tarama testiyle değil kod incelemesiyle sağlanıyor | bilgi (eksik değil, eşleme) |

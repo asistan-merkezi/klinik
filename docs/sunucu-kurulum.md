@@ -97,6 +97,20 @@ Sınırlar: kullanıcı başına en fazla 5 eşzamanlı akış (aşımda 429); y
 
 Klinik alan adı için Cloudflare **proxy KAPALI (yalnız DNS, "gri bulut")**. Gerekçe: proxy açıkken TLS Cloudflare'de sonlanır ve sağlık verisi yurt dışındaki bir sistemde çözülmüş (düz metin) olarak geçer; KVKK açısından yurt dışı aktarım sayılabilir. Sonuçlar: TLS doğrudan Caddy'de sonlanır; Cloudflare'in DDoS/WAF koruması yoktur (güvenlik duvarı, Caddy hız sınırı ve Windows sertleştirmesi ile karşılanır); origin IP herkese açıktır; "origin'e yalnız Cloudflare IP'leri" kısıtı **uygulanmaz**.
 
+## 3d. HSTS kademesi ve başlık sorumluluğu
+
+**Karar:** `Strict-Transport-Security` YALNIZ Caddy'de tutulur (uygulamada/`next.config.ts`'te yok). Gerekçe: (1) TLS'i Caddy sonlandırır, "bu bağlantı HTTPS mi" bilgisi yalnız orada kesindir; (2) uygulama yerelde/e2e'de düz http çalışır, orada HSTS anlamsız ve tarayıcıda `localhost` için önbelleklenirse geliştirmeyi bozar; (3) tek yerde tutulunca kademeli artış tek dosya değişikliğidir (`deploy/windows/Caddyfile`). Diğer başlıklar iki yerde (derinlemesine savunma): `docs/guvenlik-baseline.md` §3.
+
+**Neden kademeli:** HSTS geri alınamaz — tarayıcı süre dolana kadar siteye yalnız HTTPS ile gider. Sertifika yenilemesi (Let's Encrypt, Caddy otomatik) bozulursa ya da alan adı/DNS yanlışlıkla değişirse uzun HSTS'li kullanıcılar uyarıyı geçip siteye giremez. `includeSubDomains` başka bir alt alanı (ör. dahili araç) kilitleyebilir; `preload` listesinden çıkmak aylar sürer — ikisi de bilinçli kararla, ayrı eklenir.
+
+| Aşama | Ne zaman | Değer |
+|---|---|---|
+| 1 (şimdi) | ilk canlı kurulum | `max-age=604800` (1 hafta), `includeSubDomains` YOK, `preload` YOK |
+| 2 | **canlıya çıkıştan sonra, ilk sertifika yenilemesi sorunsuz geçtikten sonra** (Caddy günlüğünde yenileme başarılı + site yenileme sonrası açılıyor) | `max-age=2592000` (1 ay) |
+| 3 | bir ay daha sorunsuz geçince | `max-age=63072000` (2 yıl) |
+
+Her artışta: Caddyfile değişir, servis yeniden başlatılır (`admin off` → `caddy reload` çalışmaz), yanıt başlığı elle doğrulanır (`curl -sI https://alan`). `includeSubDomains`/`preload` ancak tüm alt alanların kalıcı HTTPS'e hazır olduğu doğrulandıktan sonra, ayrı bir karar olarak.
+
 ## 4. Yedek tasarımı (`yedek.ps1`)
 
 Hukuk onayına tabi, **değiştirilebilir parametreler**: günlük yedek **30 gün**, aylık yedek **12 ay** (`YEDEK_GUNLUK_SAKLAMA_GUN`, `YEDEK_AYLIK_SAKLAMA_AY`).

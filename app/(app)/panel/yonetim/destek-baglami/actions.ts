@@ -10,7 +10,7 @@ import { serbestMetniTemizle } from "@/lib/destek/metin";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-const acSemasi = z.object({
+const acSemasi = z.strictObject({
   klinik_id: z.string().uuid("Klinik seçilmeli."),
   gerekce: z.string().trim().min(10, "Gerekçe en az 10 karakter olmalı.").max(500, "Gerekçe en fazla 500 karakter olabilir."),
   dakika: z.coerce.number().refine((d) => [15, 30, 60, 120].includes(d), "Süre geçersiz."),

@@ -63,7 +63,7 @@ const dogumTarihiSemasi = z
     return yas >= 18 && yas <= 100;
   }, "Doğum tarihi geçerli bir aralıkta olmalı (18-100 yaş arası).");
 
-const kisiselIsSemasi = z.object({
+const kisiselIsSemasi = z.strictObject({
   ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
   dogum_tarihi: dogumTarihiSemasi,
   dogum_yeri: z.string().trim().optional().or(z.literal("")),
@@ -566,12 +566,12 @@ export async function hizliPuantajKaydet(
   };
 }
 
-const topluHareketKalemSemasi = z.object({
+const topluHareketKalemSemasi = z.strictObject({
   personelId: z.string().uuid(),
   tutar: pozitifTutarKurus(),
 });
 
-const topluHareketSemasi = z.object({
+const topluHareketSemasi = z.strictObject({
   tur: z.enum(["prim", "yol", "yemek", "mesai", "avans", "kesinti", "odeme"]),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),

@@ -41,13 +41,13 @@ async function hastaBaglami(roller: readonly PersonelRolu[], hastaId: string) {
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const kalemSemasi = z.object({
+const kalemSemasi = z.strictObject({
   tur: z.enum(["islem", "paket"]),
   ref_id: z.string().uuid(),
   miktar: z.coerce.number().int().min(1).optional(),
 });
 
-const satirSemasi = z.object({
+const satirSemasi = z.strictObject({
   yontem: z.enum(["kredi_karti", "banka_havalesi", "nakit"]),
   tutar: pozitifTutarKurus(),
 });
@@ -66,7 +66,7 @@ function jsonDizisiSemasi<T extends z.ZodTypeAny>(itemSemasi: T, bosMesaj: strin
     .pipe(z.array(itemSemasi).min(1, bosMesaj));
 }
 
-const odemeSemasi = z.object({
+const odemeSemasi = z.strictObject({
   iskonto_tutari: negatifOlmayanTutarKurus("İskonto 0'dan küçük olamaz."),
   faturali: z.coerce.boolean().optional(),
   aciklama: z.string().trim().optional(),
@@ -153,7 +153,7 @@ export async function odemeAl(
   };
 }
 
-const bakiyeHareketSemasi = z.object({
+const bakiyeHareketSemasi = z.strictObject({
   // 'iade' bilinçli olarak burada YOK — iade ödeme yöntemi zorunlu ve ayrı
   // action'dan (hastaIadesiVer) girer, yoksa yöntemsiz bir iade satırı
   // Kasa/Banka/Kredi Kartı mutabakatına hiç yansımazdı.
@@ -246,7 +246,7 @@ export async function bakiyeHareketiEkle(
   return { success: true, message: "Ödeme eklendi." };
 }
 
-const iadeSemasi = z.object({
+const iadeSemasi = z.strictObject({
   tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
@@ -376,7 +376,7 @@ export async function hastaIadesiVer(
   return { success: true, message: "İade kaydedildi." };
 }
 
-const borcDuzenleSemasi = z.object({
+const borcDuzenleSemasi = z.strictObject({
   hareket_id: z.string().uuid(),
   iskonto_tutari: negatifOlmayanTutarKurus("İskonto 0'dan küçük olamaz."),
   faturali: z.coerce.boolean().optional(),
@@ -585,7 +585,7 @@ const evetHayirSemasi = z
 // hasta_hassas_terapist_kisitla trigger'ıyla (migration 20260731100000)
 // garanti altına alındı.
 
-const temelBilgilerSemasi = z.object({
+const temelBilgilerSemasi = z.strictObject({
   ad_soyad: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
   telefon: z.string().regex(/^\+90\d{10}$/, "Telefon numarası (başındaki 0 hariç) 10 haneli olmalı."),
   dogum_tarihi: z.union([z.string().date(), z.literal("")]).optional(),
@@ -711,7 +711,7 @@ export async function temelBilgileriGuncelle(
   return { success: true, message: "Temel bilgiler kaydedildi." };
 }
 
-const anamnezSemasi = z.object({
+const anamnezSemasi = z.strictObject({
   alerji_var: evetHayirSemasi,
   alerjiler: z.string().nullable(),
   kan_sulandirici_kullanimi: evetHayirSemasi,
@@ -795,7 +795,7 @@ export async function anamnezGuncelle(
   return { success: true, message: "Tıbbi geçmiş kaydedildi." };
 }
 
-const sikayetKaydiSemasi = z.object({
+const sikayetKaydiSemasi = z.strictObject({
   basvuru_sikayeti: z.string().trim().min(1, "Başvuru şikayeti gerekli."),
   sikayet_baslangici: z.string().trim().nullable(),
   agri_oykusu: z.string().trim().nullable(),
@@ -918,7 +918,7 @@ export async function ticariIletiOnayVer(hastaId: string): Promise<PortalSonucu>
   return { success: true, message: "Ticari ileti onayı kaydedildi." };
 }
 
-const riskBayragiSemasi = z.object({
+const riskBayragiSemasi = z.strictObject({
   tip: z.enum([
     "alerji",
     "kalp_pili",
@@ -1013,24 +1013,24 @@ const talepTuruSemasi = z.enum([
   "randevu_yorumu",
 ]);
 
-const randevuTalebiPanelSemasi = z.object({
+const randevuTalebiPanelSemasi = z.strictObject({
   islem_tanimi_id: z.string().uuid("Tedavi seçilmeli."),
   tercih_tarih: z.string().min(1, "Tarih gerekli."),
   tercih_saat: z.string().optional(),
   not_metni: z.string().trim().optional(),
 });
 
-const randevuIptaliPanelSemasi = z.object({
+const randevuIptaliPanelSemasi = z.strictObject({
   randevu_id: z.string().uuid("Randevu seçilmeli."),
 });
 
-const randevuErtelePanelSemasi = z.object({
+const randevuErtelePanelSemasi = z.strictObject({
   randevu_id: z.string().uuid("Randevu seçilmeli."),
   tarih: z.string().min(1, "Yeni tarih gerekli."),
   saat: z.string().min(1, "Yeni saat gerekli."),
 });
 
-const hastaYorumPanelSemasi = z.object({
+const hastaYorumPanelSemasi = z.strictObject({
   randevu_id: z.string().uuid("Randevu seçilmeli."),
   puan: z.coerce.number().refine((n) => Number.isInteger(n) && n >= 1 && n <= 5, "Bir puan seçilmeli."),
   yorum: z.string().trim().min(1, "Yorum gerekli."),
