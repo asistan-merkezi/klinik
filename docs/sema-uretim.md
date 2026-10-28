@@ -24,6 +24,6 @@ Node.js (22+), internet (yalnız `npm install` için; `embedded-postgres` gerçe
 İki klinikli boş bir Postgres'te (port 54331) `db/` dosyalarından şemayı kurar, örnek veri yazar ve çalıştırır: `db/kontrol/bypassrls-kontrol.sql` (RLS atlayan rol/fonksiyon, FORCE, klinik_yedek pg_hba), `db/kontrol/yetki-matrisi.sql` (hangi rol hangi tabloda ne yapabilir; `docs/yetki-matrisi.md` çıktısını üretir), anonim self-servis kayıt testi, DEFINER duman testi. Çıkış kodu 0 = hepsi geçti.
 
 
-## UYARI (2026-10-28): elle eklenen kolonlar
+## DÜZELTME (2026-10-28): elle yazılan migration kolonları KAYBOLMAZ
 
-`lib/db/sema/schema.ts` Supabase referansından üretilir; sonradan elle yazılan migration'larla gelen kolonlar (örn. 0013: `hasta_bakiye_hareket.kaynak_hareket_id`, `iade_istisna`, `iade_istisna_gerekcesi`) yeniden üretimde SİLİNİR. `yeniden-uret.mjs` çalıştırdıktan sonra bu kolonlar schema.ts'e elle geri eklenmeli (ya da üreticinin 0007+ migration'larını da referansa uygulaması sağlanmalı).
+`lib/db/sema/schema.ts` `scripts/dev/drizzle-cek.mjs` ile **test kümesinden** (db/migrations 0001…son uygulanmış hâli) üretilir; `yeniden-uret.mjs` ise yalnız `0002_temel_sema.sql`, tohum veri ve `kod-kullanimi.json`'ı Supabase referansından üretir ve schema.ts'e DOKUNMAZ. Bu yüzden 0007+ migration'larıyla gelen kolonlar (örn. 0013 `kaynak_hareket_id`, `iade_istisna`, `iade_istisna_gerekcesi`) yeniden üretimde korunur — doğrulandı (drizzle-cek çıktısında üçü de var; fark yalnız tablo sıralaması). Önceki sürümdeki "silinir" uyarısı yanlıştı. Kural: yeni migration yazınca test-kur.mjs/db-kur.ps1 listesine ekle, sonra `drizzle-cek.mjs` ile schema.ts'i tazele.
