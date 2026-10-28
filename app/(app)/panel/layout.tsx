@@ -4,6 +4,7 @@ import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
 import { tenantGerekli } from "@/lib/auth/oturum";
 import { withTenant, sema } from "@/lib/db";
 import { PanelSidebar } from "@/components/panel/sidebar";
+import { DestekBandi } from "@/components/panel/destek-bandi";
 import { QueryProvider } from "@/components/panel/query-provider";
 import { RandevuBildirimleri } from "@/components/panel/randevu-bildirimleri";
 import { bildirimSayisi } from "@/app/(app)/panel/hastalar/bildirimler/bildirim-sayisi";
@@ -70,6 +71,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         bildirimSayisi={bildirimSayisiDegeri}
         gizliMenuAnahtarlari={gizliMenuAnahtarlari}
       >
+        {ctx.destek && <DestekBandi klinikAdi={klinik?.ad ?? "Klinik"} bitis={ctx.destek.bitis} />}
         {children}
       </PanelSidebar>
       <RandevuBildirimleri kullaniciId={ctx.userId} rol={ctx.rol} />

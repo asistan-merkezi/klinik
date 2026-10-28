@@ -96,7 +96,9 @@ describe("kodda doğrudan yetkisi olmayan tablolar: yazan tetikleyici/RPC'ler ge
       expect(t).not.toContain("odeme");
       // odeme_satiri artık Cari sayfasında okunduğu için SELECT yetkisi aldı (yazma yine RPC'den).
       expect(t).not.toContain("odeme_satiri");
-      expect(t.length).toBe(14);
+      // destek_baglami (0015): yalnız DEFINER destek_baglami_* fonksiyonları yazar
+      expect(t).toContain("destek_baglami");
+      expect(t.length).toBe(15);
     } finally {
       await sup.end();
     }

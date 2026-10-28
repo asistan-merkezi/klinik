@@ -1,19 +1,13 @@
-import { redirect } from "next/navigation";
 import { Bot } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { chatbotAcikMi } from "@/lib/destek-chatbot/bayrak";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SohbetArayuzu } from "./sohbet-arayuzu";
 
 export default async function DestekChatbotuSayfasi() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
+  await panelBaglami();
+  const acik = chatbotAcikMi();
 
   return (
     <div className="flex flex-1 flex-col bg-background p-4 sm:p-8">
@@ -24,7 +18,16 @@ export default async function DestekChatbotuSayfasi() {
           description="Panelin nasıl kullanılacağıyla ilgili sorularınızı sorun. Gerçek hasta/ödeme verisi görmez, sadece panel kullanımında yardımcı olur."
         />
 
-        <SohbetArayuzu />
+        {acik ? (
+          <>
+            <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              Yazdıklarınız yapay zekâ servisine iletilir. Hasta adı, kimlik, telefon veya sağlık bilgisi YAZMAYIN; kimlik/telefon/IBAN numaraları gönderilmeden önce otomatik silinir.
+            </p>
+            <SohbetArayuzu />
+          </>
+        ) : (
+          <EmptyState icon={Bot} title="Destek chatbotu bu klinikte etkin değil." description="Kullanım sorularınız için Talep ve Şikayetler bölümünden bize yazabilirsiniz." />
+        )}
       </div>
     </div>
   );

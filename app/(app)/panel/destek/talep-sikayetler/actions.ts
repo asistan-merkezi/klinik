@@ -1,53 +1,41 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
+import { serbestMetniTemizle } from "@/lib/destek/metin";
 import type { DestekDurum } from "@/types/destek";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
+const UUID = z.string().uuid();
 const talepSemasi = z.object({
   tur: z.enum(["talep", "sikayet"]),
   konu: z.string().trim().min(1, "Konu gerekli.").max(200),
   aciklama: z.string().trim().min(1, "Açıklama gerekli.").max(4000),
 });
 
+/**
+ * Her personel rolü talep/şikayet açabilir. Serbest metin kişisel/sağlık verisi içerebilir: kontrol karakterleri temizlenir, çıktı React'te
+ * (otomatik kaçışlı, `dangerouslySetInnerHTML` yok) gösterilir. Klinik ve kullanıcı oturumdan gelir (istemciden ALINMAZ); RLS ek sınırdır.
+ */
 export async function talepOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("klinik_id").eq("id", user.id).single();
-
-  if (!kullanici?.klinik_id) {
-    return { success: false, message: "Kliniğiniz bulunamadı." };
-  }
+  const y = await eylemYetkisi(["klinik_admin", "resepsiyon", "terapist", "muhasebe"]);
+  if (!y.yetkili || !y.bag || !y.klinikId) return { success: false, message: y.klinikId ? YETKISIZ_MESAJI : "Kliniğiniz bulunamadı." };
 
   const ayristirma = talepSemasi.safeParse({
     tur: formData.get("tur"),
-    konu: formData.get("konu"),
-    aciklama: formData.get("aciklama"),
+    konu: serbestMetniTemizle(String(formData.get("konu") ?? "")),
+    aciklama: serbestMetniTemizle(String(formData.get("aciklama") ?? "")),
   });
+  if (!ayristirma.success) return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
 
-  if (!ayristirma.success) {
-    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
-  }
-
-  const { error } = await supabase.from("destek_talebi").insert({
-    klinik_id: kullanici.klinik_id,
-    kullanici_id: user.id,
-    ...ayristirma.data,
-  });
-
-  if (error) {
-    console.error("Destek talebi oluşturulamadı:", error);
+  try {
+    await withTenant(y.bag, (tx) => tx.insert(sema.destekTalebi).values({ klinikId: y.klinikId!, kullaniciId: y.ctx.userId, ...ayristirma.data }));
+  } catch (e) {
+    console.error("Destek talebi oluşturulamadı:", pgHata(e).mesaj);
     return { success: false, message: "Gönderilemedi, lütfen tekrar deneyin." };
   }
 
@@ -55,29 +43,23 @@ export async function talepOlustur(_onceki: SonucDurumu, formData: FormData): Pr
   return { success: true, message: "Gönderildi." };
 }
 
+/** Durum yönetimi yalnız klinik_admin (kendi kliniği) — ya da destek bağlamındaki super_admin. Kod + RLS aynı kuralı uygular. */
 export async function talepDurumGuncelle(id: string, durum: DestekDurum): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || !y.klinikId) return { success: false, message: YETKISIZ_MESAJI };
+  if (!UUID.safeParse(id).success || !["yeni", "inceleniyor", "cozuldu"].includes(durum)) return { success: false, message: "Girdi hatalı." };
 
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-
-  const { error } = await supabase
-    .from("destek_talebi")
-    .update({ durum, guncellenme_tarihi: new Date().toISOString() })
-    .eq("id", id);
-
-  if (error) {
-    console.error("Destek talebi durumu güncellenemedi:", error);
+  try {
+    const g = await withTenant(y.bag, (tx) =>
+      tx
+        .update(sema.destekTalebi)
+        .set({ durum, guncellenmeTarihi: new Date().toISOString() })
+        .where(and(eq(sema.destekTalebi.id, id), eq(sema.destekTalebi.klinikId, y.klinikId!)))
+        .returning({ id: sema.destekTalebi.id })
+    );
+    if (g.length === 0) return { success: false, message: "Talep bulunamadı." };
+  } catch (e) {
+    console.error("Destek talebi durumu güncellenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Güncellenemedi, lütfen tekrar deneyin." };
   }
 

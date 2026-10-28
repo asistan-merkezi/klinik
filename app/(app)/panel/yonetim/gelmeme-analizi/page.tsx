@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CalendarX2, Clock, ListTodo, UserX } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
+import { withTenant, rpc } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -93,33 +94,20 @@ function KirilimTablosu({
 }
 
 export default async function GelmemeAnaliziSayfasi({ searchParams }: { searchParams: Promise<{ gun?: string }> }) {
-  // Terapist bazlı oranlar personel performans verisi — yalnız klinik_admin (RPC de aynı kontrolü yapar).
-  const { kullanici } = await sayfaYetkisiIste(["klinik_admin"]);
+  // Terapist ve hasta bazlı oranlar personel performansı / kişisel veridir: yalnız klinik_admin (ya da destek bağlamındaki super_admin).
+  // Toplulaştırma SQL'dedir (gelmeme_analizi RPC'si TEK doğruluk kaynağı; RPC içinde de rol denetimi var); burada yalnız sunum.
+  const { ctx, bag } = await panelBaglami();
+  if (ctx.rol !== "klinik_admin" && ctx.rol !== "super_admin") redirect("/panel");
   const { gun: gunParam } = await searchParams;
   const gun = GUN_SECENEKLERI.find((g) => g === Number(gunParam)) ?? 90;
 
-  if (!kullanici.klinik_id) {
-    return (
-      <div className="flex-1 bg-background p-4 sm:p-8">
-        <EmptyState icon={UserX} title="Bu hesap bir kliniğe bağlı değil." />
-      </div>
-    );
-  }
-
-  const supabase = await createClient();
   const bitis = new Date();
   const baslangic = new Date(bitis.getTime() - gun * 24 * 60 * 60 * 1000);
-  const { data, error } = await supabase.rpc("gelmeme_analizi", {
-    p_baslangic: baslangic.toISOString(),
-    p_bitis: bitis.toISOString(),
-  });
+  const data = await withTenant(bag, (tx) =>
+    rpc<GelmemeRpcSatiri>(tx, "gelmeme_analizi", { p_baslangic: baslangic.toISOString(), p_bitis: bitis.toISOString() })
+  );
 
-  const rpcYok = error?.code === "PGRST202" || error?.code === "42883";
-  if (error && !rpcYok) {
-    throw new Error(`Gelmeme analizi alınamadı: ${error.message}`);
-  }
-
-  const analiz = gelmemeAnaliziniHazirla((data ?? []) as GelmemeRpcSatiri[]);
+  const analiz = gelmemeAnaliziniHazirla(data);
   const { toplam } = analiz;
   const isaretlenmemisOrani =
     toplam.sonuclanan + toplam.isaretlenmemis > 0
@@ -148,13 +136,7 @@ export default async function GelmemeAnaliziSayfasi({ searchParams }: { searchPa
           ))}
         </div>
 
-        {rpcYok ? (
-          <EmptyState
-            icon={UserX}
-            title="Analiz henüz etkin değil"
-            description="Veritabanı güncellemesi (20261005160000_gelmeme_analizi.sql) uygulandığında bu sayfa dolacak."
-          />
-        ) : toplam.sonuclanan + toplam.iptal + toplam.ertelendi + toplam.isaretlenmemis === 0 ? (
+        {toplam.sonuclanan + toplam.iptal + toplam.ertelendi + toplam.isaretlenmemis === 0 ? (
           <EmptyState icon={UserX} title={`Son ${gun} günde saati geçmiş randevu yok.`} />
         ) : (
           <>

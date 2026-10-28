@@ -1,4 +1,5 @@
 import { YONTEM_ETIKETLERI } from "@/types/odeme";
+import { alanHassasMi, GIZLI_METIN, desenleriMaskele } from "./maskele";
 
 /**
  * Denetim Geçmişi (klinik_admin) gösterim yardımcıları — audit_log satırını
@@ -82,14 +83,19 @@ export const DENETIM_EYLEM_ETIKETLERI: Record<string, string> = {
   update: "Güncelledi",
   delete: "Sildi",
   select: "Görüntüledi",
+  destek: "Destek erişimi", // yalnız filtre düğmesi etiketi
+  destek_baglami_ac: "Destek erişimi açtı",
+  destek_baglami_kapat: "Destek erişimini kapattı",
 };
 
-export type EylemTonu = "emerald" | "sky" | "rose" | "slate";
+export type EylemTonu = "emerald" | "sky" | "rose" | "slate" | "amber";
 export const DENETIM_EYLEM_TONLARI: Record<string, EylemTonu> = {
   insert: "emerald",
   update: "sky",
   delete: "rose",
   select: "slate",
+  destek_baglami_ac: "amber",
+  destek_baglami_kapat: "amber",
 };
 
 /**
@@ -118,6 +124,9 @@ const DEGER_GOSTERILEN_TABLOLAR = new Set([
 const TEKNIK_ALANLAR = new Set(["id", "klinik_id", "created_at", "updated_at", "kaynak"]);
 
 const ALAN_ETIKETLERI: Record<string, string> = {
+  gerekce: "Gerekçe",
+  dakika: "Süre",
+  bitis: "Bitiş",
   tutar: "Tutar",
   iskonto_tutari: "İskonto",
   tur: "Tür",
@@ -178,6 +187,14 @@ function tutarAlaniMi(alan: string) {
 
 export function degerMetni(alan: string, deger: unknown): string {
   if (deger === null || deger === undefined || deger === "") return "—";
+  // Hassas alan (maaş, T.C. kimlik, IBAN, sağlık notu, parola/jeton...) DEĞERİ hiçbir koşulda düz metin gösterilmez; deseni hassas olan değerler de maskelenir.
+  if (alanHassasMi(alan)) return GIZLI_METIN;
+  // Önce MASKELE sonra kısalt: aksi hâlde 80 karakter kesimi bir numarayı yarım bırakıp desenden kaçırabilir.
+  const maskeli = typeof deger === "string" ? desenleriMaskele(deger) : typeof deger === "object" ? desenleriMaskele(JSON.stringify(deger)) : deger;
+  return degerMetniHam(alan, maskeli);
+}
+
+function degerMetniHam(alan: string, deger: unknown): string {
   if (typeof deger === "boolean") return deger ? "Evet" : "Hayır";
   if (typeof deger === "number") return tutarAlaniMi(alan) ? paraFormat(deger) : String(deger);
   if (typeof deger === "string") {
@@ -219,6 +236,15 @@ function nesneMi(v: unknown): v is Record<string, unknown> {
 
 export function denetimOzetiOlustur(kayit: DenetimKaydi): DenetimOzeti {
   const tablo = kayit.hedef_tablo ?? "";
+  // Destek erişimi (super_admin): gerekçe klinik yöneticisine açıkça gösterilir (sağlık verisi değil, destek gerekçesidir); yine desen maskelemesinden geçer.
+  if (kayit.eylem === "destek_baglami_ac" || kayit.eylem === "destek_baglami_kapat") {
+    const d = nesneMi(kayit.detay) ? kayit.detay : {};
+    const satirlar: DenetimDetaySatiri[] = [];
+    if (typeof d.gerekce === "string") satirlar.push({ alan: "gerekce", yeni: desenleriMaskele(d.gerekce.slice(0, 200)) });
+    if (typeof d.dakika === "number") satirlar.push({ alan: "dakika", yeni: `${d.dakika} dk` });
+    if (typeof d.bitis === "string") satirlar.push({ alan: "bitis", yeni: new Date(d.bitis).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" }) });
+    return { satirlar, degisenAlanlar: [], degerGizli: false, eskiSurum: false };
+  }
   const degerGoster = DEGER_GOSTERILEN_TABLOLAR.has(tablo);
   const detay = nesneMi(kayit.detay) ? kayit.detay : {};
   const v2 = detay.surum === 2;

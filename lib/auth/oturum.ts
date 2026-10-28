@@ -2,7 +2,7 @@
 //   personel : kullanici satırından (klinik_id, rol) — withKullanici ile (tenant bilinmeden, yalnız KENDİ satırı görünür)
 //   hasta    : kimlik_kullanici.klinik_id + hasta_kullanici.aktif (withTenant ile doğrulanır)
 import { eq } from "drizzle-orm";
-import { withKullanici, withTenant, sema, type TenantBaglami } from "@/lib/db";
+import { withKullanici, withTenant, sema, rpc, type TenantBaglami, type KullaniciBaglami } from "@/lib/db";
 import { kullaniciBaglamiUret, tenantBaglamiUret } from "@/lib/db/baglam-uretici";
 import { kimlik } from "./auth";
 import { geceKapanisinaTakildi } from "./gece-kapanis";
@@ -22,6 +22,8 @@ export type OturumBaglami = {
   /** Geçici şifreyle girildi: şifre değiştirilene kadar başka sayfaya geçilemez. */
   sifreDegistirmeli: boolean;
   cihazKimligi: string | null;
+  /** super_admin'in AKTİF destek bağlamı (süre sınırlı, denetlenen; lib/destek/baglam.ts). Bu varsa tenantId bağlam kliniğidir. */
+  destek?: { klinikId: string; bitis: Date; gerekce: string } | null;
 };
 
 export class OturumHatasi extends Error {
@@ -60,7 +62,14 @@ export async function getSessionContext(basliklar: Headers): Promise<OturumBagla
     if (!k) return null; // kimlik var ama tenant kaydı yok (yarım kalmış hesap) -> oturum yok sayılır
     // Gece zorunlu çıkış (resepsiyon/terapist): kapanış anından önce açılmış oturum geçersiz (lib/auth/gece-kapanis.ts).
     if (geceKapanisinaTakildi(k.rol, o.olusturma)) return null;
-    return { ...ortak, tenantId: k.klinikId, rol: k.rol, tur, hastaId: null, adSoyad: k.adSoyad };
+    // super_admin klinik bağlamı taşımaz; yalnız AKTİF destek bağlamı varsa o klinikte çalışır (DB current_klinik_id() de aynı kuralı zorlar: süre dolunca bağlam düşer).
+    if (k.rol === "super_admin" && !k.klinikId) {
+      const aktif = await withKullanici(kullaniciBaglamiUret(user.id), (tx) => rpc<{ klinik_id: string; bitis: string | Date; gerekce: string }>(tx, "destek_baglami_aktif", {}));
+      const d = aktif[0];
+      const destek = d ? { klinikId: d.klinik_id, bitis: new Date(d.bitis), gerekce: d.gerekce } : null;
+      return { ...ortak, tenantId: destek?.klinikId ?? null, rol: k.rol, tur, hastaId: null, adSoyad: k.adSoyad, destek };
+    }
+    return { ...ortak, tenantId: k.klinikId, rol: k.rol, tur, hastaId: null, adSoyad: k.adSoyad, destek: null };
   }
 
   // hasta: tenant kimlik kaydından gelir (giriş sırasında tanima ile çözülmüş klinik), hasta_kullanici aktif olmalı
@@ -91,4 +100,10 @@ export function rolGerekli(ctx: OturumBaglami, roller: readonly OturumRolu[]): v
 export function tenantGerekli(ctx: OturumBaglami): TenantBaglami {
   if (!ctx.tenantId) throw new OturumHatasi(403, "Bu işlem bir klinik bağlamı gerektirir.");
   return tenantBaglamiUret({ userId: ctx.userId, tenantId: ctx.tenantId });
+}
+
+/** Klinik bağlamı gerektirmeyen, YALNIZ kullanıcının kimliğiyle çalışan işler için (ör. super_admin destek bağlamı açma/kapama). Tenant verisi görünmez. */
+export function kullaniciGerekli(ctx: OturumBaglami): KullaniciBaglami {
+  if (ctx.tur !== "personel") throw new OturumHatasi(403, "Bu işlem personel oturumu gerektirir.");
+  return kullaniciBaglamiUret(ctx.userId);
 }

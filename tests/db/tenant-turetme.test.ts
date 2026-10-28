@@ -82,20 +82,29 @@ describe("oturumlu kullanıcı: app.tenant_id YOK SAYILIR", () => {
 });
 
 describe("super_admin, tanima (klinik_anonim) ve bakım bağlamı istisnaları", () => {
-  it("super_admin: app.tenant_id geçerli (klinik seçer); GUC yoksa tenant yok", async () => {
+  it("super_admin: app.tenant_id YALNIZ aktif destek bağlamı olan klinik için geçerli (0015); süresi dolmuş/kapatılmış/başka klinik/GUC yok → tenant yok", async () => {
     const sa = randomUUID();
     const sup = await superBaglan();
     try {
       await sup.query("insert into kimlik_kullanici(id, eposta) values ($1, $2)", [sa, `sa-${sa}@deneme.test`]);
       await sup.query("insert into kullanici(id, klinik_id, rol, ad_soyad) values ($1, null, 'super_admin', 'SA')", [sa]);
+      // bağlam YOK: GUC verilse bile tenant yok
+      expect(await tenantNe({ user: sa, tenant: K1.klinik })).toBeNull();
+      expect(await tenantNe({ user: sa })).toBeNull();
+      // aktif bağlam (K1): yalnız K1
+      await sup.query("insert into destek_baglami(kullanici_id, klinik_id, gerekce, bitis) values ($1, $2, 'test: destek incelemesi', now() + interval '30 minutes')", [sa, K1.klinik]);
+      expect(await tenantNe({ user: sa, tenant: K1.klinik })).toBe(K1.klinik);
+      expect(await tenantNe({ user: sa, tenant: K2.klinik })).toBeNull();
+      expect(await tenantNe({ user: sa })).toBeNull();
+      expect(await say({ user: sa, tenant: K1.klinik }, "hasta", `klinik_id = '${K1.klinik}'`)).toBeGreaterThan(0);
+      // süre dolunca ya da kapatılınca bağlam kendiliğinden düşer (DB düzeyinde)
+      await sup.query("update destek_baglami set baslangic = now() - interval '2 hours', bitis = now() - interval '1 hour' where kullanici_id = $1", [sa]);
+      expect(await tenantNe({ user: sa, tenant: K1.klinik })).toBeNull();
+      await sup.query("insert into destek_baglami(kullanici_id, klinik_id, gerekce, bitis, kapatildi) values ($1, $2, 'test: kapatılmış bağlam', now() + interval '30 minutes', now())", [sa, K2.klinik]);
+      expect(await tenantNe({ user: sa, tenant: K2.klinik })).toBeNull();
     } finally {
       await sup.end();
     }
-    expect(await tenantNe({ user: sa, tenant: K1.klinik })).toBe(K1.klinik);
-    expect(await tenantNe({ user: sa, tenant: K2.klinik })).toBe(K2.klinik);
-    expect(await tenantNe({ user: sa })).toBeNull();
-    // (super_admin'in tüm kliniklere okuma yetkisi mevcut politikalardaki is_super_admin() dalından gelir; burada sınanan yalnız tenant seçimi.)
-    expect(await say({ user: sa, tenant: K1.klinik }, "hasta", `klinik_id = '${K1.klinik}'`)).toBeGreaterThan(0);
   });
 
   it("klinik_anonim (tanima sonrası): kullanıcısız GUC geçerli; kullanıcı VARSA türetme kazanır", async () => {

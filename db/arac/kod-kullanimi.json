@@ -1,6 +1,6 @@
 {
  "uretim": "scripts/dev/kullanim-tara.mjs",
- "kayitSayisi": 650,
+ "kayitSayisi": 648,
  "kayitlar": [
   {
    "dosya": "app/(app)/anket/seans/[randevuId]/actions.ts",
@@ -664,16 +664,7 @@
   },
   {
    "dosya": "app/(app)/panel/destek/talep-sikayetler/actions.ts",
-   "satir": 27,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/destek/talep-sikayetler/actions.ts",
-   "satir": 43,
+   "satir": 36,
    "tablo": "destek_talebi",
    "islemler": [
     "INSERT"
@@ -682,16 +673,7 @@
   },
   {
    "dosya": "app/(app)/panel/destek/talep-sikayetler/actions.ts",
-   "satir": 68,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/destek/talep-sikayetler/actions.ts",
-   "satir": 75,
+   "satir": 55,
    "tablo": "destek_talebi",
    "islemler": [
     "UPDATE",
@@ -701,8 +683,8 @@
   },
   {
    "dosya": "app/(app)/panel/destek/talep-sikayetler/page.tsx",
-   "satir": 21,
-   "tablo": "kullanici",
+   "satir": 15,
+   "tablo": "destek_talebi",
    "islemler": [
     "SELECT"
    ],
@@ -711,27 +693,11 @@
   {
    "dosya": "app/(app)/panel/destek/talep-sikayetler/page.tsx",
    "satir": 24,
-   "tablo": "destek_talebi",
+   "tablo": "kullanici",
    "islemler": [
     "SELECT"
    ],
    "gomulu": []
-  },
-  {
-   "dosya": "app/(app)/panel/destek/talep-sikayetler/page.tsx",
-   "satir": 33,
-   "tablo": "destek_talebi",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "destek_talebi",
-     "ad": "kullanici_id",
-     "alias": "kullanici",
-     "ipucu": []
-    }
-   ]
   },
   {
    "dosya": "app/(app)/panel/finans/gelirler-takibi/cari-alacaklar/page.tsx",
@@ -2363,7 +2329,7 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 34,
+   "satir": 35,
    "tablo": "klinik",
    "islemler": [
     "SELECT"
@@ -2372,7 +2338,7 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 38,
+   "satir": 39,
    "tablo": "klinik_ayarlar",
    "islemler": [
     "SELECT"
@@ -2381,7 +2347,7 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 43,
+   "satir": 44,
    "tablo": "personel",
    "islemler": [
     "SELECT"
@@ -2390,7 +2356,7 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 44,
+   "satir": 45,
    "tablo": "pozisyonlar",
    "islemler": [
     "SELECT"
@@ -3901,25 +3867,9 @@
    "gomulu": []
   },
   {
-   "dosya": "app/(app)/panel/yonetim/denetim-gecmisi/page.tsx",
-   "satir": 101,
-   "tablo": "audit_log",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": [
-    {
-     "ust": "audit_log",
-     "ad": "kullanici_id",
-     "alias": "kullanici",
-     "ipucu": []
-    }
-   ]
-  },
-  {
-   "dosya": "app/(app)/panel/yonetim/denetim-gecmisi/page.tsx",
-   "satir": 127,
-   "tablo": "hasta",
+   "dosya": "app/(app)/panel/yonetim/destek-baglami/page.tsx",
+   "satir": 19,
+   "tablo": "klinik",
    "islemler": [
     "SELECT"
    ],
@@ -4090,15 +4040,6 @@
    "gomulu": []
   },
   {
-   "dosya": "app/api/destek-chatbot/route.ts",
-   "satir": 22,
-   "tablo": "kullanici",
-   "islemler": [
-    "SELECT"
-   ],
-   "gomulu": []
-  },
-  {
    "dosya": "app/api/hasta-cari-hareketler/pdf/route.ts",
    "satir": 32,
    "tablo": "kullanici",
@@ -4190,7 +4131,7 @@
   },
   {
    "dosya": "lib/auth/oturum.ts",
-   "satir": 57,
+   "satir": 59,
    "tablo": "kullanici",
    "islemler": [
     "SELECT"
@@ -4199,7 +4140,7 @@
   },
   {
    "dosya": "lib/auth/oturum.ts",
-   "satir": 70,
+   "satir": 79,
    "tablo": "hasta_kullanici",
    "islemler": [
     "SELECT"
@@ -4258,6 +4199,33 @@
    "tablo": "hasta_belge",
    "islemler": [
     "DELETE",
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/denetim/sorgu.ts",
+   "satir": 24,
+   "tablo": "audit_log",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/denetim/sorgu.ts",
+   "satir": 36,
+   "tablo": "kullanici",
+   "islemler": [
+    "SELECT"
+   ],
+   "gomulu": []
+  },
+  {
+   "dosya": "lib/denetim/sorgu.ts",
+   "satir": 54,
+   "tablo": "hasta",
+   "islemler": [
     "SELECT"
    ],
    "gomulu": []
@@ -6169,6 +6137,16 @@
    "ifade": ".from(sema.klinikAyarlar)"
   },
   {
+   "dosya": "app/(app)/panel/destek/talep-sikayetler/page.tsx",
+   "satir": 19,
+   "ifade": ".from(T)"
+  },
+  {
+   "dosya": "app/(app)/panel/destek/talep-sikayetler/page.tsx",
+   "satir": 23,
+   "ifade": ".from(T)"
+  },
+  {
    "dosya": "app/(app)/panel/finans/gelirler-takibi/cari-alacaklar/page.tsx",
    "satir": 28,
    "ifade": ".from(V)"
@@ -6625,17 +6603,17 @@
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 34,
+   "satir": 35,
    "ifade": ".from(sema.klinik)"
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 38,
+   "satir": 39,
    "ifade": ".from(sema.klinikAyarlar)"
   },
   {
    "dosya": "app/(app)/panel/layout.tsx",
-   "satir": 43,
+   "satir": 44,
    "ifade": ".from(sema.personel)"
   },
   {
@@ -7109,6 +7087,11 @@
    "ifade": ".from(sema.tedaviProtokoluAdimi)"
   },
   {
+   "dosya": "app/(app)/panel/yonetim/destek-baglami/page.tsx",
+   "satir": 19,
+   "ifade": ".from(sema.klinik)"
+  },
+  {
    "dosya": "app/(app)/portal/actions.ts",
    "satir": 111,
    "ifade": ".from(sema.hasta)"
@@ -7130,12 +7113,12 @@
   },
   {
    "dosya": "lib/auth/oturum.ts",
-   "satir": 57,
+   "satir": 59,
    "ifade": ".from(sema.kullanici)"
   },
   {
    "dosya": "lib/auth/oturum.ts",
-   "satir": 70,
+   "satir": 79,
    "ifade": ".from(sema.hastaKullanici)"
   },
   {
@@ -7146,6 +7129,16 @@
   {
    "dosya": "lib/belge/servis.ts",
    "satir": 93,
+   "ifade": ".from(sema.hasta)"
+  },
+  {
+   "dosya": "lib/denetim/sorgu.ts",
+   "satir": 35,
+   "ifade": ".from(A)"
+  },
+  {
+   "dosya": "lib/denetim/sorgu.ts",
+   "satir": 54,
    "ifade": ".from(sema.hasta)"
   },
   {
@@ -7697,14 +7690,23 @@
   "islem_tanimi_etkin_fiyat": [
    "app/(app)/panel/randevular/veri-actions.ts:118"
   ],
+  "destek_baglami_ac": [
+   "app/(app)/panel/yonetim/destek-baglami/actions.ts:50"
+  ],
+  "destek_baglami_kapat": [
+   "app/(app)/panel/yonetim/destek-baglami/actions.ts:65"
+  ],
   "gelmeme_analizi": [
-   "app/(app)/panel/yonetim/gelmeme-analizi/page.tsx:112"
+   "app/(app)/panel/yonetim/gelmeme-analizi/page.tsx:107"
   ],
   "personel_puantaj_kendi_kaydet": [
    "app/(app)/puantaj/[kisaKod]/[tur]/actions.ts:52"
   ],
   "audit_log_bolum_olustur": [
    "app/api/cron/audit-log-bolum-olustur/route.ts:22"
+  ],
+  "destek_baglami_aktif": [
+   "lib/auth/oturum.ts:67"
   ],
   "hasta_belge_goruntule": [
    "lib/belge/servis.ts:39"

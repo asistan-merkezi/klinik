@@ -4,7 +4,8 @@
 
 ## NEREDEN DEVAM EDİLECEK (bir sonraki oturum için)
 
-**Durum (2026-10-28, son):** Modül 5 (personel/puantaj) BİTTİ — sıradaki Modül 6 (destek, yönetim vb.). Kalıntı Modül 7: lib/personel/{donem-maasi,seans-sayisi}.ts eski sürümleri + personel cron route.
+**Durum (2026-10-28, Modül 6 sonrası):** Modül 1–6 BİTTİ. Sıradaki: **Modül 7** (PDF, e-posta/mesaj, cron→scripts/bakim_rolu, chatbot dışı kalan supabase kalıntıları, personel cron route, final temizlik: @supabase/*, vercel.json, lib/supabase/*, lib/auth/eylem-yetkisi.ts). Modül 6 ayrıntısı: docs/tasima-ilerleme.md Modül 6 notu; 0015 destek bağlamı + zorunlu tenant sınırı (docs/platform-katmani.md).
+**Önceki:**  Modül 5 (personel/puantaj) BİTTİ — sıradaki Modül 6 (destek, yönetim vb.). Kalıntı Modül 7: lib/personel/{donem-maasi,seans-sayisi}.ts eski sürümleri + personel cron route.
 **Önceki durum:** Modül 1–4 BİTTİ (Modül 3 muayene, **Modül 4 ödeme/cari/finans/paket/işlem tanımları**). Sıradaki: **Modül 5 (personel ve puantaj, QR puantaj; `lib/qr/{klinik-bilgisi,qr-kod-aktif-mi}.ts` sarmalayıcıları burada silinecek; `lib/personel/{donem-maasi,seans-sayisi}.ts` içindeki eski supabase sürümleri + `hakedis` kuruş aritmetiği)**. Modül 4 karar bekleyen maddeler: docs/tasima-ilerleme.md Modül 4 §8 (iade sınırı, ödeme iptali/ters kayıt, terapist cari defter SELECT, silinebilen yönetim kayıtları). Yeni ortak parçalar: `lib/para.ts` (tüm para aritmetiği), `lib/finans/{okuma,eylem,idempotans,tutar}.ts`, `components/panel/islem-anahtari.tsx` (mali formlara gizli idempotency anahtarı), migration **0012**, `GIZLI_VERI_ANAHTARI` ortam değişkeni (Paraşüt secret şifreleme; adı `docs/sunucu-kurulum.md`te). Modül 7 bakım betiği: `islem_anahtari` 2 günden eski satır temizliği (klinik başına `withTenant`).
 
 **Durum (2026-10-27, oturum 2):** Aşama 4 ön adımları tamam. **Tenant DB'de türetme (Seçenek A, 0007) UYGULANDI** (`kullanici_tenant` eşlemesi; `app.tenant_id` yalnız super_admin/klinik_anonim/bakım/süper kullanıcı oturumunda geçerli; 13 yeni test, performans farkı ölçüm gürültüsünde — `docs/tasima-plani.md`). **Modül 2a (realtime altyapısı) BİTTİ**: `lib/realtime/` + `/api/canli` SSE + `useCanliOlaylar` + 0008 NOTIFY tetikleyicileri; 3 tüketici Supabase realtime'sız (veri çekimleri hâlâ supabase-js — Modül 2'de sunucuya taşınacak). **Modül 1 BİTTİ** (kalıntı: `lib/auth/eylem-yetkisi.ts` 8 çağıran bitene kadar, `lib/supabase/*` en sonda). **Modül 2 (hasta ve randevu) BİTTİ.** Sıradaki: **Modül 3 (muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto)** — belge/foto yükleme Modül 2'de büyük ölçüde yapıldı. (Eski not:) — `lib/randevu/queries.ts` + `RANDEVU_SELECT` Drizzle karşılığı (canli-cizelge/tablet-ekrani/randevu-bildirimleri'ndeki `createClient()` veri çekimlerini sunucu eylemi/route'a taşı; `useCanliOlaylar`'ın `onOlay/onSenkron` geri çağrıları bu yeni çekimi tetikler), QR kayıt/anket (gizli `klinik_id` kaldır, `anonimUcCalistir`), `lib/qr/hiz-siniri.ts` sil.
@@ -21,9 +22,9 @@
 | 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bitti** | 10 / 10 | 0 |
 | 4 | Ödeme / cari / finans / paket / işlem tanımları | **bitti** | 31 / 31 | 0 |
 | 5 | Personel ve puantaj (QR akışı dahil) | **bitti** | 18 / 20 | 2 |
-| 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 2 / 10 | 8 |
-| 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 1 / 17 | 16 |
-| | **Toplam** | | 122 / 155 | **33** |
+| 6 | Destek ve yönetim (destek, chatbot, talep/şikayet, denetim geçmişi, gelmeme analizi, destek bağlamı) | **bitti** | 10 / 10 | 0 |
+| 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 2 / 17 | 15 |
+| | **Toplam** | | 131 / 155 | **24** |
 
 Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-baslangic.txt`, 155 dosya); sayım `@supabase`, `@/lib/supabase` ve `createAdminClient` kullanan dosyaları kapsar. `lib/supabase/*` en sonda silinir.
 
@@ -160,24 +161,17 @@ Kararlar: **A** iade sınırı **UYGULANDI** (0013; bağlantılı iade + yöneti
   - `lib/personel/donem-maasi.ts`
   - `lib/personel/seans-sayisi.ts`
 
-## Modül 6 — Kalan modüller (destek, yönetim, vb.)
+## Modül 6 — Destek ve yönetim (destek, chatbot, talep/şikayet, denetim geçmişi, gelmeme analizi, destek bağlamı)
 
-- Durum: **bekliyor**
-- Kalan dosyalar (8):
-  - `app/(app)/panel/destek/chatbot/page.tsx`
-  - `app/(app)/panel/destek/kullanim-kilavuzu/page.tsx`
-  - `app/(app)/panel/destek/page.tsx`
-  - `app/(app)/panel/destek/talep-sikayetler/actions.ts`
-  - `app/(app)/panel/destek/talep-sikayetler/page.tsx`
-  - `app/(app)/panel/yonetim/denetim-gecmisi/page.tsx`
-  - `app/(app)/panel/yonetim/gelmeme-analizi/page.tsx`
-  - `app/(app)/panel/yonetim/page.tsx`
+- Durum: **bitti**
+- Not: Taşındı: destek (ana, kılavuz, chatbot), talep-şikayetler (actions+sayfa), yonetim (ana, denetim-geçmişi, gelmeme-analizi) + YENİ super_admin yüzeyi /panel/yonetim/destek-baglami. Yeni migration 0015: destek_baglami (süre sınırlı ≤120 dk, gerekçeli, audit_log'a açılış/kapanış satırı; current_klinik_id() super_admin için YALNIZ aktif bağlamdaki kliniği döndürür → süre sınırı DB'de), klinik_uygulama için klinik_id'li her RLS'li tabloya RESTRICTIVE zorunlu_tenant_siniri politikası (166 politikadaki 'OR is_super_admin()' dalı artık klinikler arası sızdırmaz), audit_log ve destek_talebi SELECT politikalarında super_admin bypass'ı kaldırıldı, audit_detay_temizle() (maaş/TC/pasaport/IBAN/sağlık metni DEĞERLERİ yazılırken silinir; v1+v2 tetikleyicileri). Chatbot DESTEK_CHATBOT_ACIK bayrağıyla varsayılan KAPALI (kapalıyken route oturum/gövde/model'e dokunmadan 404; açıkken TC/IBAN/kart/telefon/e-posta maskelenir; app/api/destek-chatbot/route.test.ts). Klinik OLUŞTURMA web yüzeyinde yok (klinik_uygulama klinik INSERT yetkisi yok; kaynak taraması testi). createAdminClient bu modülde yok. Denetim gösterimi: lib/denetim/maskele.ts (alan adı + değer deseni). Testler: tests/db/modul-yonetim.test.ts (16, 100k satır EXPLAIN dahil), lib/denetim/gorunum.test.ts (+3), talep-listesi.test.tsx (XSS, 2), route.test.ts (9). KALINTI/KARAR: (1) talep/şikayet dosya eki özelliği YOK (eklenirse lib/dosya katmanından geçmeli; kategori eklenmeli); (2) mevcut (0015 öncesi) audit_log satırlarındaki hassas değerler DB'de durur (UPDATE yetkisi yok) — gösterimde maskelenir; (3) klinik tablosu super_admin'e tüm klinikler için SELECT açık (destek bağlamı klinik listesi için; hasta verisi içermez); (4) chatbot'u AÇMAK KVKK/hukuk kararıdır.
+- Kalan dosyalar (0): —
 
 ## Modül 7 — Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot
 
 - Durum: **bekliyor**
 - Not: Cron route'ları scripts/'e (bakim_rolu) taşınıp silinecek; PDF -> CHROMIUM_PATH; mesaj merkezi istemcisi withTenant; chatbot bayrakla kapalı.
-- Kalan dosyalar (16):
+- Kalan dosyalar (15):
   - `app/(app)/panel/ayarlar/mesajlasma/actions.ts`
   - `app/(app)/panel/ayarlar/mesajlasma/kredi/[kanal]/actions.ts`
   - `app/(app)/panel/ayarlar/mesajlasma/kredi/[kanal]/page.tsx`
@@ -187,7 +181,6 @@ Kararlar: **A** iade sınırı **UYGULANDI** (0013; bağlantılı iade + yöneti
   - `app/api/cron/mesaj-kuyruk-isle/route.ts`
   - `app/api/cron/personel-donem-otomatik-kapat/route.ts`
   - `app/api/cron/resmi-tatil-guncelle/route.ts`
-  - `app/api/destek-chatbot/route.ts`
   - `app/api/hasta-cari-hareketler/pdf/route.ts`
   - `app/api/hasta-kayit-formu/pdf/route.ts`
   - `app/api/is-basvuru-formu/pdf/route.ts`

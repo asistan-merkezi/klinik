@@ -128,3 +128,36 @@ describe("denetimHastaId", () => {
     expect(denetimHastaId({ hedef_tablo: "klinik_harcama", hedef_id: "g1", detay: {} })).toBeNull();
   });
 });
+
+describe("hassas alan maskeleme (maaş, T.C. kimlik, IBAN, sağlık notu)", () => {
+  it("değer gösterilen tabloda bile hassas ALAN adlarının değeri düz metin çıkmaz", () => {
+    const ozet = denetimOzetiOlustur({
+      eylem: "update",
+      hedef_tablo: "hasta",
+      detay: { surum: 2, degisen_alanlar: ["tc_kimlik_no", "maas", "iban", "agri_oykusu", "telefon"], eski: { tc_kimlik_no: "12345678901", maas: 30000, iban: "TR330006100519786457841326", agri_oykusu: "bel fıtığı", telefon: "5321112233" }, yeni: { tc_kimlik_no: "10987654321", maas: 35000, iban: "TR000000000000000000000001", agri_oykusu: "diz ağrısı", telefon: "5329998877" } },
+    });
+    const cikti = JSON.stringify(ozet);
+    for (const ham of ["12345678901", "10987654321", "30000", "35000", "TR3300", "bel fıtığı", "diz ağrısı"]) expect(cikti).not.toContain(ham);
+    expect(cikti).toContain("5321112233"); // masum alan (telefon) olduğu gibi
+    expect(ozet.satirlar.filter((s) => s.yeni === "••• gizli")).toHaveLength(4);
+  });
+
+  it("masum alan adında geçen T.C./IBAN/kart DESENİ serbest metinde maskelenir", () => {
+    const ozet = denetimOzetiOlustur({
+      eylem: "insert",
+      hedef_tablo: "hasta_bakiye_hareket",
+      detay: { surum: 2, yeni: { aciklama: "havale TR33 0006 1005 1978 6457 8413 26 hasta TC 12345678901 kart 4111 1111 1111 1111", tutar: 10 } },
+    });
+    const cikti = JSON.stringify(ozet);
+    for (const ham of ["TR33 0006", "12345678901", "4111"]) expect(cikti).not.toContain(ham);
+    expect(cikti).toContain("[IBAN gizli]");
+    expect(cikti).toContain("[T.C. gizli]");
+    expect(cikti).toContain("[kart gizli]");
+  });
+
+  it("destek erişimi kaydı: gerekçe klinik yöneticisine gösterilir", () => {
+    const ozet = denetimOzetiOlustur({ eylem: "destek_baglami_ac", hedef_tablo: "klinik", detay: { surum: 2, gerekce: "Randevu çizelgesi hatası incelemesi", dakika: 30, bitis: "2026-11-01T10:00:00Z" } });
+    expect(ozet.satirlar.find((s) => s.alan === "gerekce")?.yeni).toBe("Randevu çizelgesi hatası incelemesi");
+    expect(ozet.satirlar.find((s) => s.alan === "dakika")?.yeni).toBe("30 dk");
+  });
+});

@@ -34,6 +34,10 @@ export async function eylemYetkisi(izinliRoller: readonly PersonelRolu[]): Promi
 export async function panelBaglami(): Promise<{ ctx: OturumBaglami; bag: TenantBaglami }> {
   const ctx = await oturumBaglami();
   if (!ctx || ctx.tur !== "personel") redirect("/giris");
-  if (!ctx.tenantId) throw new OturumHatasi(403, "Bu sayfa bir klinik bağlamı gerektirir.");
+  if (!ctx.tenantId) {
+    // super_admin klinik verisine yalnız süre sınırlı, denetlenen DESTEK BAĞLAMIYLA girer: bağlam yoksa bağlam açma sayfasına.
+    if (ctx.rol === "super_admin") redirect("/panel/yonetim/destek-baglami");
+    throw new OturumHatasi(403, "Bu sayfa bir klinik bağlamı gerektirir.");
+  }
   return { ctx, bag: tenantGerekli(ctx) };
 }

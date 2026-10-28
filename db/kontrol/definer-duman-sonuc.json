@@ -166,6 +166,66 @@
    "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
   },
   {
+   "ad": "destek_baglami_ac",
+   "imza": "destek_baglami_ac(uuid,text,integer)",
+   "donus": "timestamp with time zone",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "destek_baglami_aktif",
+   "imza": "destek_baglami_aktif()",
+   "donus": "TABLE(klinik_id uuid, bitis timestamp with time zone, gerekce text)",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "bos"
+   },
+   "b": {
+    "durum": "bos"
+   },
+   "c": {
+    "durum": "bos"
+   },
+   "sonuc": "GECTI"
+  },
+  {
+   "ad": "destek_baglami_kapat",
+   "imza": "destek_baglami_kapat()",
+   "donus": "boolean",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "c": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "sonuc": "GECTI"
+  },
+  {
    "ad": "hasta_arsiv_ice_aktar",
    "imza": "hasta_arsiv_ice_aktar(jsonb)",
    "donus": "jsonb",

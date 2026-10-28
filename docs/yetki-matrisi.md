@@ -112,13 +112,14 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | v_personel_hesap_bakiye | S |
 | v_personel_izin_bakiye | S |
 
-## klinik_yedek (102 tablo/görünüm)
+## klinik_yedek (103 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
 | anket_yaniti | S |
 | audit_log | S |
 | cihaz | S |
+| destek_baglami | S |
 | destek_talebi | S |
 | egzersiz_kutuphanesi | S |
 | ev_egzersiz_kalemi | S |
@@ -219,12 +220,13 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | v_personel_izin_bakiye | S |
 | vardiya_turu | S |
 
-## Kodda doğrudan yetkisi olmayan tablolar (14) ve onlara yazan yollar
+## Kodda doğrudan yetkisi olmayan tablolar (15) ve onlara yazan yollar
 
 `klinik_uygulama`nın bu tablolarda hiçbir tablo/kolon yetkisi yok: kodda doğrudan sorgulanmıyorlar. Yazma yalnız aşağıdaki SECURITY DEFINER fonksiyonlar/tetikleyicilerle olur (gövde taraması: `db/kontrol/yetkisiz-tablo-yazanlar.mjs`). `odeme` ve `odeme_kalemi` politika bağımlılığı nedeniyle (`islem_tanimi_select_portal`) yalnız SELECT yetkisi alır; yazma yolları RPC'dir. İlk sürümde bu bağımlılık gözden kaçmış, gerçek yazma testi `permission denied for table odeme` ile yakalamıştır.
 
 | Tablo | Yazan fonksiyon/RPC | Tabloya bağlı tetikleyiciler |
 |---|---|---|
+| destek_baglami | `destek_baglami_ac(uuid,text,integer)` (RPC, DEFINER)<br>`destek_baglami_kapat()` (RPC, DEFINER) | — |
 | egzersiz_kutuphanesi | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_egzersiz_kutuphanesi_updated_at` |
 | ev_egzersiz_kalemi | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_ev_egzersiz_kalemi_updated_at` |
 | ev_egzersiz_programi | — (yazan yok: kullanılmayan/gelecek özellik) | `trg_ev_egzersiz_programi_klinik_id`, `trg_ev_egzersiz_programi_updated_at` |

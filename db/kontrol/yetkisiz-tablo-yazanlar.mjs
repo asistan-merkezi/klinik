@@ -70,8 +70,9 @@ export async function yazmaTestleri(duzenek) {
   await sup.query("insert into kullanici(id, klinik_id, rol, ad_soyad) values ($1, null, 'super_admin', 'SA')", [sa]);
   await sup.query("COMMIT");
   const yeniKlinik = crypto.randomUUID();
-  // Klinik oluşturma uygulama özelliği DEĞİL (kodda klinik INSERT yok): sağlama işlemidir ve klinik_sahip + app.tenant_id=yeni klinik ile yapılır.
-  await dene("klinik oluştur (sağlama, klinik_sahip) → pozisyon_sablonlari okunur, pozisyonlar yazılır", "pozisyonlar", { sql: "insert into klinik(id, ad, qr_kisa_kod) values ($1, 'yeni', 'yeni-kod')", params: [yeniKlinik] }, { bag: { kullanici: sa, tenant: yeniKlinik }, rol: "klinik_sahip", kosul: `klinik_id = '${yeniKlinik}'` });
+  // Klinik oluşturma uygulama özelliği DEĞİL (kodda klinik INSERT yok, klinik_uygulama'nın klinik INSERT yetkisi yok): SAĞLAMA işlemidir; süper kullanıcı
+  // oturumunda (uygulama kullanıcısı YOK) klinik_sahip + app.tenant_id=yeni klinik ile yapılır. super_admin KULLANICI kimliği (destek bağlamı hariç) bunu yapamaz (0015).
+  await dene("klinik oluştur (sağlama, klinik_sahip) → pozisyon_sablonlari okunur, pozisyonlar yazılır", "pozisyonlar", { sql: "insert into klinik(id, ad, qr_kisa_kod) values ($1, 'yeni', 'yeni-kod')", params: [yeniKlinik] }, { bag: { kullanici: null, tenant: yeniKlinik }, rol: "klinik_sahip", kosul: `klinik_id = '${yeniKlinik}'` });
 
   // odeme / odeme_kalemi / odeme_satiri: odeme_olustur (işlem kalemi + nakit satırı) -> üç tablo birlikte yazılır
   const odemeSql = { sql: "select odeme_olustur($1, 0, false, 'test', $2::jsonb, $3::jsonb)", params: [ids.k1.hasta, JSON.stringify([{ tur: "islem", ref_id: ids.k1.islem, miktar: 1 }]), JSON.stringify([{ yontem: "nakit", tutar: 1000 }])] };

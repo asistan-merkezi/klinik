@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { History } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
+import { withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { denetimSayfasiGetir, hastaAdlariniGetir, type DenetimEylemFiltresi, type DenetimSatiri } from "@/lib/denetim/sorgu";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -14,33 +16,21 @@ import {
   DENETIM_EYLEM_ETIKETLERI,
   DENETIM_EYLEM_TONLARI,
   DENETIM_GRUP_ETIKETLERI,
-  DENETIM_GRUP_TABLOLARI,
   DENETIM_TABLO_ETIKETLERI,
   denetimHastaId,
   denetimOzetiOlustur,
   type DenetimGrubu,
 } from "@/lib/denetim/gorunum";
 
-const SAYFA_BOYUTU = 50;
 const GUN_SECENEKLERI = [7, 30, 90] as const;
-const EYLEMLER = ["insert", "update", "delete", "select"] as const;
+const EYLEMLER = ["insert", "update", "delete", "select", "destek"] as const;
 const GRUPLAR: (DenetimGrubu | "hepsi")[] = ["hepsi", "finans", "hasta", "diger"];
 
-type DenetimSatiri = {
-  id: string;
-  created_at: string;
-  eylem: string;
-  hedef_tablo: string | null;
-  hedef_id: string | null;
-  detay: unknown;
-  kullanici: { ad_soyad: string | null } | null;
-};
-
-type Filtreler = { grup: DenetimGrubu | "hepsi"; eylem: string; gun: number; sayfa: number };
+type Filtreler = { grup: DenetimGrubu | "hepsi"; eylem: DenetimEylemFiltresi; gun: number; sayfa: number };
 
 function filtreleriCoz(p: { grup?: string; eylem?: string; gun?: string; sayfa?: string }): Filtreler {
   const grup = GRUPLAR.find((g) => g === p.grup) ?? "hepsi";
-  const eylem = EYLEMLER.find((e) => e === p.eylem) ?? "";
+  const eylem: DenetimEylemFiltresi = EYLEMLER.find((e) => e === p.eylem) ?? "";
   const gunSayi = Number(p.gun);
   const gun = GUN_SECENEKLERI.find((g) => g === gunSayi) ?? 30;
   const sayfa = Math.max(1, Math.floor(Number(p.sayfa)) || 1);
@@ -79,53 +69,25 @@ export default async function DenetimGecmisiSayfasi({
 }: {
   searchParams: Promise<{ grup?: string; eylem?: string; gun?: string; sayfa?: string }>;
 }) {
-  // Yalnız klinik_admin — audit_log RLS'i de aynı (audit_log_select_admin).
-  const { kullanici } = await sayfaYetkisiIste(["klinik_admin"]);
+  // Yalnız klinik_admin (kendi kliniği) ya da DESTEK BAĞLAMINDAKİ super_admin. Kod + RLS (audit_log_select_admin) aynı kuralı uygular.
+  const { ctx, bag } = await panelBaglami();
+  if (ctx.rol !== "klinik_admin" && ctx.rol !== "super_admin") redirect("/panel");
   const filtreler = filtreleriCoz(await searchParams);
-  const supabase = await createClient();
 
-  if (!kullanici.klinik_id) {
-    return (
-      <div className="flex-1 bg-background p-4 sm:p-8">
-        <EmptyState icon={History} title="Bu hesap bir kliniğe bağlı değil." />
-      </div>
-    );
-  }
-
-  const baslangicTarihi = new Date();
-  baslangicTarihi.setDate(baslangicTarihi.getDate() - filtreler.gun);
-  const baslangic = baslangicTarihi.toISOString();
-  const offset = (filtreler.sayfa - 1) * SAYFA_BOYUTU;
-
-  let sorgu = supabase
-    .from("audit_log")
-    .select("id, created_at, eylem, hedef_tablo, hedef_id, detay, kullanici:kullanici_id(ad_soyad)")
-    .eq("klinik_id", kullanici.klinik_id)
-    .gte("created_at", baslangic)
-    .order("created_at", { ascending: false })
-    .order("id")
-    // Bir fazla çekilir: "sonraki sayfa var mı" için ayrı COUNT sorgusu gerekmez.
-    .range(offset, offset + SAYFA_BOYUTU);
-
-  if (filtreler.eylem) sorgu = sorgu.eq("eylem", filtreler.eylem);
-  if (filtreler.grup === "finans" || filtreler.grup === "hasta") {
-    sorgu = sorgu.in("hedef_tablo", DENETIM_GRUP_TABLOLARI[filtreler.grup]);
-  } else if (filtreler.grup === "diger") {
-    const bilinenler = [...DENETIM_GRUP_TABLOLARI.finans, ...DENETIM_GRUP_TABLOLARI.hasta];
-    sorgu = sorgu.not("hedef_tablo", "in", `(${bilinenler.join(",")})`);
-  }
-
-  const { data, error } = await sorgu.returns<DenetimSatiri[]>();
-  const tumSatirlar = data ?? [];
-  const sonrakiVar = tumSatirlar.length > SAYFA_BOYUTU;
-  const satirlar = tumSatirlar.slice(0, SAYFA_BOYUTU);
-
-  // Hasta adları: sayfadaki en çok 50 satırın benzersiz hasta id'leri (kısa .in(), URL sınırı riski yok).
-  const hastaIdleri = [...new Set(satirlar.map((s) => denetimHastaId(s)).filter((id): id is string => !!id))];
-  const hastaAdlari = new Map<string, string>();
-  if (hastaIdleri.length > 0) {
-    const { data: hastalar } = await supabase.from("hasta").select("id, ad_soyad").in("id", hastaIdleri);
-    for (const h of hastalar ?? []) hastaAdlari.set(h.id, h.ad_soyad);
+  let satirlar: DenetimSatiri[] = [];
+  let sonrakiVar = false;
+  let hastaAdlari = new Map<string, string>();
+  let error = false;
+  try {
+    const sonuc = await withTenant(bag, async (tx) => {
+      const r = await denetimSayfasiGetir(tx, { klinikId: bag.tenantId, ...filtreler });
+      const ids = [...new Set(r.satirlar.map((x) => denetimHastaId(x)).filter((id): id is string => !!id))];
+      return { ...r, hastaAdlari: await hastaAdlariniGetir(tx, ids) };
+    });
+    ({ satirlar, sonrakiVar, hastaAdlari } = sonuc);
+  } catch (e) {
+    console.error("Denetim geçmişi yüklenemedi:", e);
+    error = true;
   }
 
   return (
@@ -195,7 +157,7 @@ export default async function DenetimGecmisiSayfasi({
                     <TableCell className="whitespace-nowrap text-muted-foreground tabular">
                       {formatDate(s.created_at)} {formatTime(s.created_at)}
                     </TableCell>
-                    <TableCell>{s.kullanici?.ad_soyad ?? <span className="text-muted-foreground">Sistem / QR</span>}</TableCell>
+                    <TableCell>{s.kullanici?.ad_soyad ?? <span className="text-muted-foreground">{s.eylem.startsWith("destek_baglami") ? "Destek yetkilisi (platform)" : "Sistem / QR"}</span>}</TableCell>
                     <TableCell>
                       <StatusBadge tone={DENETIM_EYLEM_TONLARI[s.eylem] ?? "slate"}>
                         {DENETIM_EYLEM_ETIKETLERI[s.eylem] ?? s.eylem}
