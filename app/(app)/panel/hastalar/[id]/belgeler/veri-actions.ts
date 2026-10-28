@@ -1,6 +1,7 @@
 "use server";
 
 // Belge sekmesi okuma eylemleri (eskiden tarayıcıdan doğrudan veritabanı istemcisi). Yalnız belge görebilen roller; tenant oturumdan gelir.
+import { uuidZorunlu } from "@/lib/guvenlik/girdi";
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { sema, withTenant, zamanlariIsoyaCevir } from "@/lib/db";
 import { eylemYetkisi } from "@/lib/auth/yetki";
@@ -17,6 +18,7 @@ async function yetki() {
 }
 
 export async function hastaBelgeleriGetir(hastaId: string, kategori: BelgeKategori): Promise<HastaBelge[]> {
+  uuidZorunlu(hastaId, "hastaId");
   if (!UUID.test(hastaId) || !KATEGORILER.includes(kategori)) throw new Error("Geçersiz istek.");
   const bag = await yetki();
   const s = await withTenant(bag, (tx) =>
@@ -54,6 +56,7 @@ export async function hastaBelgeleriGetir(hastaId: string, kategori: BelgeKatego
 }
 
 export async function klinikFotoOnamGetir(hastaId: string): Promise<{ id: string; imza_tarihi: string } | null> {
+  uuidZorunlu(hastaId, "hastaId");
   if (!UUID.test(hastaId)) throw new Error("Geçersiz istek.");
   const bag = await yetki();
   const s = (
@@ -70,6 +73,7 @@ export async function klinikFotoOnamGetir(hastaId: string): Promise<{ id: string
 }
 
 export async function karsilastirmaGruplariGetir(hastaId: string): Promise<string[]> {
+  uuidZorunlu(hastaId, "hastaId");
   if (!UUID.test(hastaId)) throw new Error("Geçersiz istek.");
   const bag = await yetki();
   const s = await withTenant(bag, (tx) =>

@@ -16,8 +16,15 @@ klinik.ornek.com.tr {
 	# ve `servers { trusted_proxies static <aralıklar> }` + header_up X-Real-IP {client_ip} ile gerçek IP alınır. Windows güvenlik
 	# duvarında da 443 yalnız bu aralıklara açılmalıdır. SSE yolu (/api/canli) için Cloudflare 100 sn sınırı ayrıca ele alınmalı.
 
-	# Belge/foto yükleme üst sınırı (uygulama 10 MB'a izin verir, form alanları için pay); aşan istek uygulamaya hiç ulaşmaz.
-	request_body {
+	# İstek gövdesi üst sınırları (aşan istek uygulamaya hiç ulaşmaz; 413). Belge/foto yükleme ucu uygulamanın dosya sınırından (50 MB, types/hasta-belge.ts
+	# MAX_DOSYA_BOYUTU_BYTE) pay bırakacak kadar geniştir; diğer her yol (form/JSON/server action) 25 MB'ı geçemez. (İki request_body çakışırsa küçük olan
+	# kazanır; bu yüzden genel sınır yükleme yolunu DIŞLAR.)
+	@yukleme path /api/hasta-belge/foto-yukle
+	@yukleme_disi not path /api/hasta-belge/foto-yukle
+	request_body @yukleme {
+		max_size 60MB
+	}
+	request_body @yukleme_disi {
 		max_size 25MB
 	}
 
@@ -41,7 +48,17 @@ klinik.ornek.com.tr {
 			roll_keep 14
 			roll_keep_for 336h
 		}
-		format json
+		# Erişim günlüğü HİJYENİ: tek kullanımlık bağlantı belirteci (/b/<token>), şifre sıfırlama belirteci (?token=, /reset-password/<token>) ve
+		# çerez/yetki başlıkları dosyaya YAZILMAZ (Caddy `filter` kodlayıcısı; uygulama günlükleri ayrıca lib/guvenlik/log-temizle.ts ile temizlenir).
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "((?:/b/|/reset-password/|[?&](?:token|jeton)=))[^/?&\s]+" "$1[GIZLI]"
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				resp_headers>Set-Cookie delete
+			}
+		}
 	}
 
 	# Canlı olay akışı (SSE, /api/canli): ARABELLEK KAPALI olmalı. flush_interval -1 olmazsa Caddy olayları biriktirir,

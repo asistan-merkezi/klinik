@@ -2,6 +2,7 @@
 // sertleştirilmiş Chrome). Çıktı YALNIZ yetkili ve tenant'a bağlı kullanıcıya gider; "private, no-store" (ara önbellekte kalmaz).
 import { getSessionContext, tenantGerekli, type OturumBaglami, type OturumRolu } from "@/lib/auth/oturum";
 import type { TenantBaglami } from "@/lib/db";
+import { sinirKontrol } from "@/lib/guvenlik/istek-siniri";
 import { PdfKuyrukDolu } from "./semafor";
 import { PdfZamanAsimi, pdfUret } from "./browser";
 
@@ -20,6 +21,10 @@ export async function pdfRotasiCalistir(
   // super_admin yalnız aktif destek bağlamında (tenantId dolu) geçer; hasta oturumu ve geçici şifreli oturum hiçbir PDF'e giremez.
   if (ctx.tur !== "personel" || !ctx.tenantId || ctx.sifreDegistirmeli) return json(403, "Bu işlem için yetkiniz yok.");
   if (ctx.rol !== "super_admin" && !izinliRoller.includes(ctx.rol)) return json(403, "Bu işlem için yetkiniz yok.");
+
+  // Kullanıcı başına hız sınırı (Chrome pahalıdır): 10 dk'da 30 PDF; sayaç okunamazsa FAIL-CLOSED.
+  const sinir = await sinirKontrol("pdf", ctx.userId);
+  if (!sinir.izin) return json(sinir.durum, sinir.mesaj, { "Retry-After": sinir.durum === 429 ? "60" : "10" });
 
   const hazir = await hazirla(tenantGerekli(ctx), ctx);
   if ("hata" in hazir) return json(hazir.durum, hazir.hata);

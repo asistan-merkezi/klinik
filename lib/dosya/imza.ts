@@ -24,3 +24,17 @@ export const BELGE_UZANTILARI: Record<string, string> = {
   "image/webp": "webp",
   "application/pdf": "pdf",
 };
+
+/**
+ * SVG logo güvenlik denetimi (kara liste + dış başvuru yasağı). Dosya ayrıca `Content-Security-Policy: sandbox; default-src 'none'` ile servis edilir
+ * (betik çalışamaz); bu denetim ikinci katmandır: betik/olay işleyicisi, gömülü içerik, XXE varlık tanımı ve '#' dışı her href reddedilir.
+ */
+export function svgGuvenliMi(veri: Uint8Array): boolean {
+  const metin = Buffer.from(veri).toString("utf8").toLowerCase();
+  if (!metin.includes("<svg")) return false;
+  if (/<\s*(script|foreignobject|iframe|embed|object|audio|video|animate|set|handler|listener)\b/.test(metin)) return false;
+  if (/\bon[a-z]+\s*=/.test(metin)) return false;
+  if (/javascript:|vbscript:|data:text\/html|<!entity|<!doctype[^>]*\[/.test(metin)) return false;
+  for (const m of metin.matchAll(/(?:xlink:)?href\s*=\s*["']?\s*([^"'\s>]*)/g)) if (!m[1].startsWith("#")) return false;
+  return true;
+}

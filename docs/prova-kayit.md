@@ -182,3 +182,17 @@ Her hata için bir satır: **tam hata mesajı** (parola/jeton/anahtar/kişisel v
 | M7-5 | Gerçek Resend gönderimi: `RESEND_TEST_API_KEY=… npx vitest run lib/mesaj/eposta-resend.entegrasyon.test.ts` ve şifre sıfırlama akışı (`/sifremi-unuttum` → gelen kutusu) | `delivered@resend.dev` testi geçer; sıfırlama bağlantısı 30 dk geçerli, tek kullanımlık | Bu oturumda anahtar yoktu; test atlandı |
 | M7-6 | Tarayıcıda: `/b/<token>` bağlantısı (personel ve hasta), izin belgesi "Belgeyi görüntüle", yönetici "Kayıtlı kaşeyi görüntüle", SSE `oturum` olayı sonrası sayfa yenileme | İlgili giriş sayfası / belge açılır; başka rol 403 | Route'lar DB testlerinde doğrulandı, arayüz bağlantıları görülmedi |
 | M7-7 | Gerçek Chrome/Edge ile PDF (9. adım) — `CHROMIUM_PATH` sunucudaki yola ayarlı | 3 PDF formu iner | `lib/pdf/uretici.test.ts` ve `tests/db/modul-pdf.test.ts` yerel Chrome ile geçti |
+
+---
+
+## 6. Aşama 7a (güvenlik tabanı) ve Modül 4c — sunucuda yapılacaklar (2026-10-28)
+
+| # | Ne | Beklenen | Not |
+|---|---|---|---|
+| G-1 | `kurulum.ps1` saat dilimi adımı: `Set-TimeZone` + doğrulama (yanlış dilimde çalıştırıp düzeltmeyi gör) | "Saat dilimi dogrulandi: Turkey Standard Time (UTC03:00…)"; dilim ayarlanamazsa betik DURUR | yerelde yalnız sözdizimi ve `Get-TimeZone` okuması denendi |
+| G-2 | `caddy validate --config Caddyfile` (yeni `request_body @yukleme/@yukleme_disi` ve `log { format filter … }`) | geçerli yapılandırma | **sözdizimi Caddy ile hiç doğrulanmadı** |
+| G-3 | Erişim günlüğü hijyeni: `/b/<token>` ve `/sifre-sifirla?token=…` istekleri at, `caddy-erisim.log` içinde belirteç ve Cookie başlığı OLMAMALI | `[GIZLI]` | |
+| G-4 | 40 MB'lık bir PDF'i `/api/hasta-belge/foto-yukle` ile yükle; 30 MB'lık bir JSON'u başka bir yola yolla | ilki uygulamaya ulaşır, ikincisi 413 | Caddy gövde sınırları |
+| G-5 | Canlı CSP: önce `Content-Security-Policy-Report-Only` ile bir hafta izle (tablet, PDF önizleme, kamera yükleme, QR sayfaları, Edge/Chrome/Safari) | ihlal yok | geliştirme ve üretim derlemesinde yalnız giriş/panel sayfaları denendi |
+| G-6 | Terapist hesabıyla çizelge, hasta listesi ve "Seansı bitir" akışı (paket uyarısı dahil) tarayıcıda | çalışır; cari/ödeme sekmeleri kapalı | DB ve Playwright'ta çizelge/liste açılışı denendi, tam akış elle denenmedi |
+| G-7 | `npm audit` kritik `next` bulgusu için sürüm kararı (16.4.3) | karar | `docs/guvenlik-baseline.md` §8 #1 |

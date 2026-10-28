@@ -11,12 +11,12 @@ Hepsi kapanmadan canlı geçiş YAPILMAZ. Durum güncel tutulur (son: 2026-10-28
 |---|---|---|
 | 1 | **Seçenek B** — `user_id` güvencesi: oturum jetonunun DB'de doğrulanması (tenant türetme bugün `app.user_id`'ye güveniyor; bölüm "Bağlam güvenliği") | açık |
 | 2 | **Modül 4b** — mali kayıt iptali (fiziksel silme kalkar, iptal bayrağı + gerekçe + ters kayıt) | tasarım hazır: `docs/modul-4b-4c-tasarim.md`; taşıma bittikten sonra kodlanır |
-| 3 | **Modül 4c** — terapistin finans tablolarına RLS okumasının kapatılması (dar görünümler) | tasarım hazır; **Aşama 7b'nin ilk hedefi** |
+| 3 | **Modül 4c** — terapistin finans tablolarına RLS okumasının kapatılması (dar görünümler) | **KAPANDI 2026-10-28** (0017: 6 tabloda SELECT rol listesi, `v_randevu_kapanis`/`v_hasta_paket_ozet`/`v_hasta_aktif_paket`; kontrol sorgusu 6f; `tests/db/modul-terapist-finans.test.ts`). Tarayıcıda elle çizelge denemesi açık |
 | 4 | **Modül 4a** — iade sınırı (ödemeden büyük iade reddi) | **KAPANDI 2026-10-28** (0013: bağlantılı iade + yönetici istisnası, gerekçe zorunlu) |
 | 5 | **KDV yuvarlama mali müşavir teyidi** — kural: `docs/tasima-ilerleme.md` Modül 4 §1 | teyit bekliyor |
 | 6 | `db-kur.ps1` + tüm `deploy/windows` betiklerinin gerçek **Windows** üzerinde provası (`docs/sunucu-kurulum.md` §12, 23 adım; kayıt: `docs/prova-kayit.md`) | betikler yazıldı, **hiç çalıştırılmadı** |
-| 7 | **E-posta göndericisi** bağlanması (şablon verisi KVKK uyumu dahil, `docs/kvkk-aktarim.md`) | açık |
-| 8 | **SSE oturum kontrolü** (`/api/canli` oturum/tenant yenileme ve iptal davranışı) | açık |
+| 7 | **E-posta göndericisi** bağlanması (şablon verisi KVKK uyumu dahil, `docs/kvkk-aktarim.md`) | kod + şablonlar KAPANDI (Modül 7); **gerçek Resend gönderimi + alan adı doğrulaması + `RESEND_*` girilmesi açık** |
+| 8 | **SSE oturum kontrolü** (`/api/canli` oturum/tenant yenileme ve iptal davranışı) | **KAPANDI** (Modül 7: her ping'de doğrulama, testli) |
 | 9 | **Yedek dış kopya hedefi** (Türkiye içi sağlayıcı/konum, anahtar saklama sorumluları) | açık |
 | 10 | **Hukuk onayları**: yedek saklama süreleri, yurt dışı şifreli depolama, mesaj şablonlarının KVKK sınıflandırması, `audit_log` saklama/arşiv süresi | açık |
 | 12 | **GitHub jetonu**: fine-grained, yalnız Contents:Read, ≤90 gün; yenileme prosedürü `docs/sunucu-kurulum.md` §10e; 14 gün uyarısı + reddedilince çıkış 3 / olay 3401 (kod hazır, provada denenecek) | açık |
@@ -24,6 +24,8 @@ Hepsi kapanmadan canlı geçiş YAPILMAZ. Durum güncel tutulur (son: 2026-10-28
 | 14 | **Paket imzası (minisign)**: anahtar çiftinin üretimi, özel anahtarın çevrimdışı yedeği (2 kopya), açık anahtarın her sunucuya kimlik doğrulamasıyla yerleştirilmesi, rotasyon/iptal prosedürünün provası (§10d, §12 adım 18–21); imzasız/bozuk/eski paketin reddi | kod + belge hazır; anahtar üretimi ve prova açık |
 | 15 | **Etiket koruması (ruleset) ve 2FA**: GitHub'da `v*` etiketleri için ruleset (yalnız yetkili kişi oluşturur, silme/güncelleme/force-push yasak), deponun korumalı dalı, kuruluş genelinde **2FA zorunluluğu**, yayın yapan hesaplar için donanım anahtarı/passkey; CI'da `derle.yml` değişikliği için CODEOWNERS incelemesi | açık (GitHub ayarı; kodla yapılamaz) |
 | 16 | **Ağ çıkışı FQDN izin listesi (Vodafone Cloud)**: sunucudan yalnız `api.github.com` + sürüm eki depolama adresi (`*.githubusercontent.com`), ACME (`acme-v02.api.letsencrypt.org`), mesaj merkezi, (varsa) Türkiye içi yedek hedefi 443; diğer tüm çıkış reddedilir. Windows güvenlik duvarı FQDN süzemez → bulut güvenlik grubu/çıkış vekili/DNS tabanlı güvenlik duvarı gerekir | açık (altyapı kararı) |
+| 17 | **Güvenlik taban çizgisi (Aşama 7a)**: `docs/guvenlik-baseline.md` — kalan açıklar tablosu (özellikle **#1: `next` kritik `npm audit` bulgusu → 16.4.3'e yükseltme kararı**, CSP'nin canlıda Report-Only ile izlenmesi, Caddy sözdizimi doğrulaması) | kod + testler tamam; **#1 karar bekliyor** |
+| 18 | **Windows saat dilimi**: `kurulum.ps1` "Turkey Standard Time"ı ayarlar VE doğrular (olmazsa durur); `gorevleri-kur.ps1` farklı dilimde kayıt yapmaz. Task Scheduler saatleri yerel saattir | betik yazıldı; **Windows Server'da çalıştırılmadı** (prova adım 2 / M7-1) |
 | 11 | `GIZLI_VERI_ANAHTARI` üretimi ve saklaması (rotasyon prosedürü `docs/sunucu-kurulum.md` §7) | prosedür yazıldı; anahtar üretimi canlı kurulumda |
 
 ## Alınan kararlar (2026-10-26)

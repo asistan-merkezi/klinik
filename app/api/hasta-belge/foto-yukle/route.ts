@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionContext, tenantGerekli } from "@/lib/auth/oturum";
+import { ayniKokenMi, caprazKokenYaniti } from "@/lib/guvenlik/origin";
+import { sinirYaniti } from "@/lib/guvenlik/istek-siniri";
 import { belgeYukle } from "@/lib/belge/servis";
 import type { BelgeAsama, BelgeKategori, BelgeTuru } from "@/types/hasta-belge";
 
@@ -18,11 +20,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Tek POST'ta: yetki kontrolü + diske yükleme (içerik imzası doğrulanır) + hasta_belge satırı + thumbnail üretimi.
 // Tenant YALNIZ oturumdan gelir; dosya yolu sunucuda üretilir (istemci yol veremez).
 export async function POST(req: Request) {
+  if (!ayniKokenMi(req)) return caprazKokenYaniti();
   const ctx = await getSessionContext(req.headers);
   if (!ctx) return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 401 });
   if (ctx.tur !== "personel" || !ctx.tenantId || ctx.sifreDegistirmeli) {
     return NextResponse.json({ error: "Bu işlem için yetkiniz yok." }, { status: 403 });
   }
+
+  const sinir = await sinirYaniti("dosyaYukle", ctx.userId);
+  if (sinir) return sinir;
 
   const formData = await req.formData();
   const file = formData.get("file");

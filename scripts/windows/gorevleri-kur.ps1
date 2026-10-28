@@ -30,6 +30,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Görev saatleri sunucunun YEREL saatine göredir: dilim Turkey Standard Time değilse kayıt YAPILMAZ (kurulum.ps1 dilimi ayarlar ve doğrular).
+if (-not $OnIzleme -and -not $Kaldir -and (Get-TimeZone).Id -ne "Turkey Standard Time") { throw "Saat dilimi '$((Get-TimeZone).Id)'; gorev saatleri Istanbul saatine gore tasarlandi. Once: deploy\windows\kurulum.ps1 (ya da Set-TimeZone -Id 'Turkey Standard Time')." }
+
 $GorevKlasoru = "\Klinik\"
 if (-not $BetikKlasoru) { $BetikKlasoru = Join-Path $KokDizin "guncel\bakim" }
 if (-not $EnvDosyasi) { $EnvDosyasi = Join-Path $KokDizin "gizli\bakim.env" }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { pgHata, rpc, sema, withTenant, type TenantBaglami } from "@/lib/db";
+import { sinirKontrol } from "@/lib/guvenlik/istek-siniri";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { baglantiTabani } from "@/lib/mesaj/baglanti";
 import { dosyaSil, dosyaYaz } from "@/lib/dosya/depo";
@@ -84,6 +85,8 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
   let belgeParcalari: string[] | null = null;
   const belgeDosyasi = formData.get("belge");
   if (belgeDosyasi instanceof File && belgeDosyasi.size > 0) {
+    const sinir = await sinirKontrol("dosyaYukle", y.ctx.userId);
+    if (!sinir.izin) return { success: false, message: sinir.mesaj };
     const uzanti = IZIN_BELGE_TURLERI[belgeDosyasi.type];
     if (!uzanti) {
       return { success: false, message: "Belge yalnız PDF, JPG veya PNG olabilir." };

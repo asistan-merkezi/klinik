@@ -1,4 +1,5 @@
 // İzin talebi belgesi — yalnız yetkili (talep sahibi / yönetici / muhasebe), kendi kliniğinin belgesi. Ayrıntı: lib/dosya/personel-belge.ts.
+import { sinirYaniti } from "@/lib/guvenlik/istek-siniri";
 import { getSessionContext, tenantGerekli } from "@/lib/auth/oturum";
 import { belgeYaniti, izinBelgesiGetir } from "@/lib/dosya/personel-belge";
 
@@ -10,6 +11,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ tale
   const ctx = await getSessionContext(request.headers);
   if (!ctx) return json(401, "Oturum bulunamadı.");
   if (ctx.tur !== "personel" || !ctx.tenantId || ctx.sifreDegistirmeli) return json(403, "Bu işlem için yetkiniz yok.");
+  const sinir = await sinirYaniti("dosyaGoruntule", ctx.userId);
+  if (sinir) return sinir;
   const { talepId } = await params;
   const s = await izinBelgesiGetir({ bag: tenantGerekli(ctx), tenantId: ctx.tenantId, rol: ctx.rol, kullaniciId: ctx.userId, talepId });
   if (s.tur === "yetkisiz") return json(403, "Bu işlem için yetkiniz yok.");

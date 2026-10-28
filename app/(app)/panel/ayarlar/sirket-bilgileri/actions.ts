@@ -1,9 +1,11 @@
 "use server";
 
+import { svgGuvenliMi } from "@/lib/dosya/imza";
 import { revalidatePath } from "next/cache";
 import { and, count, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { sema, withTenant } from "@/lib/db";
+import { sinirKontrol } from "@/lib/guvenlik/istek-siniri";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { IZINLI_LOGO_TIPLERI, LOGO_MAKS_BAYT, logoKaydet } from "@/lib/dosya/logo";
 import { isimBasHarfBuyukYap } from "@/lib/utils";
@@ -35,10 +37,8 @@ function logoIcerigiGecerliMi(tip: string, veri: Buffer): boolean {
       return veri[0] === 0xff && veri[1] === 0xd8 && veri[2] === 0xff;
     case "image/webp":
       return veri.subarray(0, 4).toString("latin1") === "RIFF" && veri.subarray(8, 12).toString("latin1") === "WEBP";
-    case "image/svg+xml": {
-      const metin = veri.toString("utf8").toLowerCase();
-      return metin.includes("<svg") && !/<script|onload\s*=|onerror\s*=|javascript:|<foreignobject/.test(metin);
-    }
+    case "image/svg+xml":
+      return svgGuvenliMi(veri);
     default:
       return false;
   }
@@ -125,6 +125,8 @@ export async function sirketBilgileriGuncelle(_onceki: SonucDurumu, formData: Fo
 
   const logo = formData.get("logo");
   if (logo instanceof File && logo.size > 0) {
+    const sinir = await sinirKontrol("dosyaYukle", klinikId);
+    if (!sinir.izin) return { success: false, message: sinir.mesaj };
     if (!IZINLI_LOGO_TIPLERI[logo.type]) {
       return { success: false, message: "Logo PNG, JPG, WEBP veya SVG olmalı." };
     }

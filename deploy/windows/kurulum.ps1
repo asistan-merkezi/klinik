@@ -1,6 +1,6 @@
 ﻿<#
  Sunucu hazırlığı (idempotent: tekrar çalıştırmak güvenli; olan şeye dokunmaz). Yönetici olarak çalıştırın.
- Yaptığı: saat dilimi, araç denetimi (Node LTS, PostgreSQL araçları, Caddy, NSSM, age, Chrome/Edge — Git/derleme araçları GEREKMEZ: derleme CI'dadır),
+ Yaptığı: saat dilimi (Turkey Standard Time ayarlar ve DOĞRULAR; olmazsa durur), araç denetimi (Node LTS, PostgreSQL araçları, Caddy, NSSM, age, Chrome/Edge — Git/derleme araçları GEREKMEZ: derleme CI'dadır),
    klasör düzeni + NTFS izinleri, bakım/yedek yerel hesapları, PostgreSQL sertleştirme (listen_addresses='localhost', pg_hba yalnız localhost + scram-sha-256,
    doğrulamalı), güvenlik duvarı (yalnız 80/443), olay günlüğü kaynakları.
  Servis hesapları (klinik-uygulama, klinik-caddy) SANAL hesaplardır (NT SERVICE\<servis>): parolası yok, burada oluşturulmaz; servis-kur.ps1 servisi kurunca
@@ -22,8 +22,18 @@ param(
 YoneticiIste
 $bilgisayar = $env:COMPUTERNAME
 
-# 1) Saat dilimi: görev saatleri İstanbul saatidir (docs/sunucu-kurulum.md 3b).
-if ((Get-TimeZone).Id -ne "Turkey Standard Time") { Set-TimeZone -Id "Turkey Standard Time"; Yazdir "Saat dilimi Turkey Standard Time yapildi." }
+# 1) Saat dilimi: Task Scheduler görev saatleri (ayın 1'i 05:00/06:00/07:00, günlük 04:30...) SUNUCUNUN YEREL saatine göredir ve beklenti İstanbul saatidir
+#    (docs/sunucu-kurulum.md 3b). Yanlış dilimde aylık dönem kapama gün kayar. Ayarlanır, SONRA doğrulanır; doğrulanamazsa kurulum DURUR.
+$hedefDilim = "Turkey Standard Time"
+$simdiki = (Get-TimeZone).Id
+if ($simdiki -ne $hedefDilim) {
+  Yazdir "Saat dilimi '$simdiki' idi; '$hedefDilim' olarak ayarlaniyor."
+  Set-TimeZone -Id $hedefDilim
+}
+$dogrulanan = Get-TimeZone
+if ($dogrulanan.Id -ne $hedefDilim) { throw "Saat dilimi '$hedefDilim' olarak AYARLANAMADI (simdiki: '$($dogrulanan.Id)'). Gorev saatleri yerel saate gore calisir; elle duzeltin: Set-TimeZone -Id '$hedefDilim'" }
+if ($dogrulanan.BaseUtcOffset -ne [TimeSpan]::FromHours(3)) { throw "Saat dilimi UTC+3 degil ($($dogrulanan.BaseUtcOffset)); beklenmeyen. Gorevler Istanbul saatine gore tasarlandi." }
+Yazdir "Saat dilimi dogrulandi: $($dogrulanan.Id) (UTC$($dogrulanan.BaseUtcOffset.ToString('hh\:mm')), yaz saati yok). Gorev saatleri Istanbul saatidir."
 
 # 2) Araçlar. Sunucuda npm/derleme YOK: Node yalnız uygulamayı (server.js) ve bakım betiklerini çalıştırır.
 $araclar = @(

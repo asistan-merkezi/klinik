@@ -16,6 +16,9 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+// Nonce'lu CSP için her sayfa istek başına işlenmelidir (statik üretim nonce taşıyamaz): lib/guvenlik/csp.ts.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Klinik Asistanı — Akıllı Klinik & Randevu Yönetim Sistemi",
   description:

@@ -8,6 +8,9 @@ vi.mock("ai", () => ({ streamText: (...a: unknown[]) => (streamText as unknown a
 const oturumBaglami = vi.fn();
 vi.mock("@/lib/auth/gecerli-kullanici", () => ({ oturumBaglami: () => oturumBaglami() }));
 
+// Hız sınırı DB sayacı kullanır (tests/db/guvenlik-baseline.test.ts gerçek sayaçla sınar); bu birim testte izin verilir.
+vi.mock("@/lib/guvenlik/istek-siniri", () => ({ sinirYaniti: async () => null }));
+
 import { POST } from "./route";
 
 const personel = { tur: "personel", tenantId: "k1", rol: "resepsiyon", userId: "u1" };

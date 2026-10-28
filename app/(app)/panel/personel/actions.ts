@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, count, eq, gte, inArray, ne } from "drizzle-orm";
 import { pgHata, rpc, sema, withTenant, type Tx } from "@/lib/db";
+import { sinirKontrol } from "@/lib/guvenlik/istek-siniri";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { hesabiDevreDisiBirak, hesabiYenidenEtkinlestir, kimlikBilgisiGuncelle, kimlikHesabiSil, personelHesabiOlustur as kimlikPersonelHesabiOlustur } from "@/lib/auth/hesap";
 import { dosyaYaz } from "@/lib/dosya/depo";
@@ -176,6 +177,8 @@ function egitimSatirlariniAyristir(json: string): EgitimSatiri[] {
 
 /** Kaşe görseli: tür/boyut/dosya imzası doğrulanır, DOSYA_KOKU/personel-belge/<klinik>/<personel>/kase.<uzantı> altına yazılır. Dönüş: kayıtlı yol veya hata. */
 async function kaseKaydet(klinikId: string, personelId: string, dosya: File): Promise<{ yol: string } | { hata: string }> {
+  const sinir = await sinirKontrol("dosyaYukle", klinikId);
+  if (!sinir.izin) return { hata: sinir.mesaj };
   const uzanti = KASE_TURLERI[dosya.type];
   if (!uzanti) return { hata: "Kaşe görseli yalnız PNG, JPG veya WEBP olabilir." };
   if (dosya.size > KASE_MAX_BYTE) return { hata: "Kaşe görseli en fazla 5 MB olabilir." };

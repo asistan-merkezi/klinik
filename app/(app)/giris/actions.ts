@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { personelGirisi } from "@/lib/auth";
 import { cihazKimligiAl } from "@/lib/auth/next";
+import { GECERSIZ_FORM_MESAJI, formAlanlari, girisFormuSemasi } from "@/lib/guvenlik/girdi";
 import { guvenliDonusAdresi } from "@/lib/auth/donus-adresi";
 
 type GirisSonucu = { success: false; message: string } | never;
@@ -13,8 +14,9 @@ type GirisSonucu = { success: false; message: string } | never;
  * Hata mesajları hesap varlığını sızdırmaz; hız sınırı fail-closed (lib/auth/giris.ts). Better Auth çerezleri nextCookies eklentisiyle yazılır.
  */
 export async function girisYap(_onceki: GirisSonucu | null, formData: FormData): Promise<GirisSonucu | null> {
-  const girisAdi = String(formData.get("giris_adi") ?? "");
-  const sifre = String(formData.get("sifre") ?? "");
+  const g = girisFormuSemasi.safeParse(formAlanlari(formData, ["giris_adi", "sifre"]));
+  if (!g.success) return { success: false, message: GECERSIZ_FORM_MESAJI };
+  const { giris_adi: girisAdi, sifre } = g.data;
   const donus = guvenliDonusAdresi(formData.get("donus")) ?? "/panel";
 
   const sonuc = await personelGirisi({ girisAdi, sifre, basliklar: await headers(), cihazKimligi: await cihazKimligiAl() });

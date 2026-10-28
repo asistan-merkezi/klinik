@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionContext, tenantGerekli } from "@/lib/auth/oturum";
 import { withTenant } from "@/lib/db";
+import { sinirYaniti } from "@/lib/guvenlik/istek-siniri";
 import { hastaAra } from "@/lib/hasta/arama";
 
 // Üst bar global aramasının canlı-sonuç ucu. Tenant YALNIZ oturumdan gelir; RLS `hasta` tablosunu klinik_id = current_klinik_id() ile
@@ -13,6 +14,9 @@ export async function GET(req: Request) {
   if (ctx.tur !== "personel" || !ctx.tenantId || ctx.sifreDegistirmeli) {
     return NextResponse.json({ error: "Bu işlem için yetkiniz yok." }, { status: 403 });
   }
+
+  const sinir = await sinirYaniti("hastaArama", ctx.userId);
+  if (sinir) return sinir;
 
   const { searchParams } = new URL(req.url);
   const arama = (searchParams.get("q") ?? "").trim().slice(0, 100);

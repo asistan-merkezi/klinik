@@ -3,6 +3,7 @@
 // İstemci bileşenlerinin (react-query kancaları, canlı çizelge, bildirimler) kullandığı OKUMA eylemleri. Eskiden tarayıcıdan doğrudan veritabanı istemcisi
 // (RLS'li) çağrılıyordu; artık oturum + withTenant üzerinden sunucuda çalışır. Tenant/rol oturumdan gelir, istemciden asla.
 // Girdiler doğrulanır (uuid/tarih); hata durumunda istemci kancası fırlatılan hatayı react-query ile gösterir.
+import { uuidZorunlu } from "@/lib/guvenlik/girdi";
 import { and, asc, eq, gt, gte, inArray, lt, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { rpc, sema, withTenant, zamanlariIsoyaCevir } from "@/lib/db";
@@ -27,6 +28,7 @@ export async function gunlukRandevulariGetir(tarih: string): Promise<RandevuSati
 
 /** Oda tableti: BUGÜNÜN o odadaki randevuları (DAR şekil: sağlık/finans alanları yok). */
 export async function odaGunlukRandevulariGetir(odaId: string): Promise<RandevuSatir[]> {
+  uuidZorunlu(odaId, "odaId");
   const id = uuid.parse(odaId);
   const { bag } = await panelBaglami();
   const { baslangic, bitis } = gunAraligi();
@@ -48,6 +50,7 @@ export async function bildirimBaslangicVerisiGetir(): Promise<{ durumlar: { id: 
 
 /** Bildirimler: tek randevunun güncel durumu (olay yükünde veri yok → yetkili yoldan çekilir). */
 export async function randevuDurumGetir(randevuId: string): Promise<{ id: string; durum: string; terapist_id: string | null } | null> {
+  uuidZorunlu(randevuId, "randevuId");
   const id = uuid.parse(randevuId);
   const { bag } = await panelBaglami();
   const s = (await withTenant(bag, (tx) => tx.select({ id: sema.randevu.id, durum: sema.randevu.durum, terapist_id: sema.randevu.terapistId }).from(sema.randevu).where(eq(sema.randevu.id, id)).limit(1)))[0];
@@ -93,6 +96,7 @@ export type HastaAktifPaketSatiri = {
 
 /** Randevu formu: hastanın hâlâ hakkı olan (aktif, kalan_adet>0) paketleri. */
 export async function hastaAktifPaketleriGetir(hastaId: string): Promise<HastaAktifPaketSatiri[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const id = uuid.parse(hastaId);
   const { bag } = await panelBaglami();
   const s = await withTenant(bag, (tx) =>
@@ -112,6 +116,8 @@ export async function hastaAktifPaketleriGetir(hastaId: string): Promise<HastaAk
 
 /** Randevu formu: hasta kategorisine göre SUNUCUDA hesaplanan tedavi bedeli (istemci fiyat hesaplamaz/göndermez). */
 export async function tedaviEtkinFiyatGetir(islemTanimiId: string, hastaId: string): Promise<number | null> {
+  uuidZorunlu(islemTanimiId, "islemTanimiId");
+  uuidZorunlu(hastaId, "hastaId");
   const islem = uuid.parse(islemTanimiId);
   const hasta = uuid.parse(hastaId);
   const { bag } = await panelBaglami();
@@ -125,6 +131,8 @@ export async function tedaviEtkinFiyatGetir(islemTanimiId: string, hastaId: stri
  * DB'deki exclusion constraint'lerle AYNI kural (iptal/gelmedi hariç); asıl güvence yine constraint. Cihaz sorgusu hata verirse boş sayılır (fail-open).
  */
 export async function mesgulAraliklariGetir(basTarih: string, bitTarih: string, terapistId: string, odaId: string, cihazIdleri: string[]): Promise<MesgulAraliklar> {
+  uuidZorunlu(terapistId, "terapistId");
+  uuidZorunlu(odaId, "odaId");
   const { toUTC } = await import("@/lib/datetime");
   const girdi = z
     .object({ bas: tarihSemasi, bit: tarihSemasi, terapist: uuid, oda: uuid, cihazlar: z.array(uuid).max(20) })
@@ -159,6 +167,7 @@ export async function mesgulAraliklariGetir(basTarih: string, bitTarih: string, 
 
 /** Randevu detayı "Ödeme Ekle" kartı: hastanın güncel bakiyesi (v_hasta_ozet). Yalnız finansal işlem yapabilen roller (kartı onlar görür). */
 export async function hastaGuncelBakiyeGetir(hastaId: string): Promise<number> {
+  uuidZorunlu(hastaId, "hastaId");
   const id = uuid.parse(hastaId);
   const { ctx, bag } = await panelBaglami();
   if (!["klinik_admin", "resepsiyon", "muhasebe"].includes(ctx.rol)) throw new Error("Bu bilgi için yetkiniz yok.");
@@ -168,6 +177,7 @@ export async function hastaGuncelBakiyeGetir(hastaId: string): Promise<number> {
 
 /** Randevudaki tedavinin yapılacak işlem adımları (sırayla). */
 export async function tedaviAdimlariGetir(islemTanimiId: string): Promise<{ id: string; ad: string; sure_dakika: number | null; cihaz: { ad: string } | null }[]> {
+  uuidZorunlu(islemTanimiId, "islemTanimiId");
   const id = uuid.parse(islemTanimiId);
   const { bag } = await panelBaglami();
   const s = await withTenant(bag, (tx) =>
@@ -186,6 +196,7 @@ export async function tedaviAdimlariGetir(islemTanimiId: string): Promise<{ id: 
  * hasta oturumunda paket satışı ctx.hastaId'ye ait olmalıdır (başka hastanın paket id'siyle istek reddedilir; RLS de ikinci kilittir).
  */
 export async function paketKullaniminiGetir(paketSatisId: string): Promise<{ id: string; baslangic: string; durum: string; gecikme_dakika: number | null; terapist: { personel: { ad_soyad: string } | null } | null }[]> {
+  uuidZorunlu(paketSatisId, "paketSatisId");
   const id = uuid.parse(paketSatisId);
   const ctx = await oturumBaglami();
   if (!ctx || !ctx.tenantId) throw new Error("Oturum bulunamadı.");

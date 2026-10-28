@@ -1,5 +1,7 @@
 "use server";
 
+import { z } from "zod";
+import { mesajKanaliSemasi } from "@/lib/guvenlik/girdi";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
@@ -48,6 +50,8 @@ export async function kuralGuncelle(tetikleyiciKodu: string, alanlar: KuralGunce
   if (!tanim) {
     return { success: false, message: "Geçersiz tetikleyici." };
   }
+  const alanKontrol = z.object({ aktif: z.boolean(), sms_aktif: z.boolean(), whatsapp_aktif: z.boolean(), mail_aktif: z.boolean(), mesaj_metni: z.string().max(5000) }).safeParse(alanlar);
+  if (!alanKontrol.success) return { success: false, message: "Geçersiz veri." };
 
   const metin = alanlar.mesaj_metni.trim().slice(0, MESAJ_METNI_MAX_UZUNLUK);
   // KVKK: mesajda yalnız {{klinik_adi}} ve {{baglanti}} olabilir; kimlik/IBAN/kart/telefon/e-posta deseni içeren metin kaydedilmez.
@@ -92,7 +96,7 @@ export async function testGonder(tetikleyiciKodu: string, kanal: MesajKanal): Pr
   const yetki = await klinikAdminDogrula();
   if (!yetki) return { success: false, message: "Bu işlem için yetkiniz yok." };
   const tanim = tetikleyiciGetir(tetikleyiciKodu);
-  if (!tanim) return { success: false, message: "Geçersiz tetikleyici." };
+  if (!tanim || !mesajKanaliSemasi.safeParse(kanal).success) return { success: false, message: "Geçersiz tetikleyici." };
 
   try {
     const sonuc = await withTenant(yetki.bag, async (tx) => {

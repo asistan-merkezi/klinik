@@ -1,5 +1,7 @@
 "use server";
 
+import { z } from "zod";
+import { arsivParcasiSemasi } from "@/lib/guvenlik/girdi";
 import { pgHata, rpc, withTenant } from "@/lib/db";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { turkceSayiyiCevir, tarihSaatiIsoyaCevir } from "@/lib/ice-aktarma/normallestir";
@@ -44,6 +46,8 @@ export async function bakiyeHareketleriniArsivdenIceAktar(
   kayitlar: Record<string, string>[],
   baslangicSatirNo: number
 ): Promise<SonucDurumu> {
+  // Girdi sınırları (zod): parça başına en çok 500 satır, alan başına 1000 karakter.
+  if (!arsivParcasiSemasi.safeParse({ kayitlar, baslangicSatirNo }).success) return { success: false, message: "Geçersiz veri parçası." };
   const y = await eylemYetkisi(["klinik_admin"]);
   if (!y.yetkili || !y.bag) return { success: false, message: YETKISIZ_MESAJI };
 
@@ -86,6 +90,9 @@ export async function paketSatislariniArsivdenIceAktar(
   kayitlar: Record<string, string>[],
   baslangicSatirNo: number
 ): Promise<SonucDurumu> {
+  // Girdi sınırları (zod): parça başına en çok 500 satır, alan başına 1000 karakter.
+  if (!arsivParcasiSemasi.safeParse({ kayitlar, baslangicSatirNo }).success) return { success: false, message: "Geçersiz veri parçası." };
+  if (!z.string().uuid().safeParse(paketId).success) return { success: false, message: "Geçersiz paket." };
   const y = await eylemYetkisi(["klinik_admin"]);
   if (!y.yetkili || !y.bag) return { success: false, message: YETKISIZ_MESAJI };
 

@@ -4,11 +4,13 @@
 //   - HTTP route ve CRON_SECRET YOKTUR: betikler Windows Task Scheduler'dan, bakim.env değişkenleriyle çalışır (docs/sunucu-kurulum.md).
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { logMetniTemizle } from "@/lib/guvenlik/log-temizle";
 
 export type IsSonucu = { ozet: Record<string, unknown>; hataSayisi: number };
 
 export function gunlukYaz(ad: string, seviye: "bilgi" | "uyari" | "hata", mesaj: string, ek: Record<string, unknown> = {}): void {
-  const satir = JSON.stringify({ zaman: new Date().toISOString(), is: ad, seviye, mesaj, ...ek });
+  // Günlük gizli/kişisel değer içermez: satır son kez desenlerle temizlenir (lib/guvenlik/log-temizle.ts).
+  const satir = logMetniTemizle(JSON.stringify({ zaman: new Date().toISOString(), is: ad, seviye, mesaj, ...ek }));
   (seviye === "hata" ? process.stderr : process.stdout).write(satir + "\n");
   const klasor = process.env.BAKIM_LOG_KLASORU;
   if (klasor) {

@@ -2,6 +2,7 @@
 
 // Hasta Detayı sekmelerinin OKUMA/yazma eylemleri (react-query kancaları bunları çağırır; eskiden tarayıcıdan doğrudan veritabanı istemcisi).
 // Hepsi: oturum + rol kapısı (KODDA, RLS'e ek) + withTenant. Tenant ve kullanıcı oturumdan gelir; hastaId/kayıt id'leri doğrulanır (uuid + tenant içinde var mı).
+import { uuidZorunlu } from "@/lib/guvenlik/girdi";
 import { and, asc, desc, eq, inArray, lt, ne, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { pgHata, sema, withTenant, zamanlariIsoyaCevir, type TenantBaglami } from "@/lib/db";
@@ -40,12 +41,14 @@ async function kapi(roller: readonly PersonelRolu[], ...idler: string[]): Promis
 const n = (v: string | number | null | undefined) => (v == null ? null : Number(v));
 
 export async function hastaDetayOzetiGetir(hastaId: string): Promise<HastaDetayOzet | null> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId);
   return withTenant(bag, (tx) => hastaDetayOzetGetir(tx, hastaId));
 }
 
 /** Kimlik/adres/acil durum/veli + tıbbi ön geçmiş: idari veridir — yalnız klinik_admin/resepsiyon (Kişisel Bilgiler sekmesi terapiste kapalıdır). */
 export async function hastaHassasGetir(hastaId: string): Promise<HastaHassasSatir | null> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(YONETIM, hastaId);
   const olusturan = alias(sema.kullanici, "olusturan");
   const guncelleyen = alias(sema.kullanici, "guncelleyen");
@@ -65,6 +68,7 @@ export async function hastaHassasGetir(hastaId: string): Promise<HastaHassasSati
 }
 
 export async function hastaIliskileriGetir(hastaId: string): Promise<HastaIliski[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId);
   const s = await withTenant(bag, (tx) =>
     tx
@@ -84,6 +88,7 @@ export async function hastaIliskileriGetir(hastaId: string): Promise<HastaIliski
 }
 
 export async function hastaSigortalariGetir(hastaId: string): Promise<HastaSigorta[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId); // RLS: yalnız admin/resepsiyon/muhasebe satır görür
   const s = await withTenant(bag, (tx) => tx.select().from(sema.hastaSigorta).where(eq(sema.hastaSigorta.hastaId, hastaId)).orderBy(desc(sema.hastaSigorta.gecerlilikBaslangic)));
   return s.map((x): HastaSigorta => ({
@@ -100,6 +105,7 @@ export async function hastaSigortalariGetir(hastaId: string): Promise<HastaSigor
 }
 
 export async function hastaAnamnezKayitlariGetir(hastaId: string): Promise<HastaAnamnezKaydi[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId);
   const s = await withTenant(bag, (tx) =>
     tx
@@ -141,6 +147,7 @@ const vucutSatiri = (v: typeof sema.hastaVucutHaritasiIsareti.$inferSelect): Vuc
 });
 
 export async function vucutHaritasiGetir(hastaId: string, seansId: string | null): Promise<VucutHaritasiIsareti[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId, ...(seansId ? [seansId] : []));
   const kosul = seansId ? and(eq(sema.hastaVucutHaritasiIsareti.hastaId, hastaId), eq(sema.hastaVucutHaritasiIsareti.randevuId, seansId)) : eq(sema.hastaVucutHaritasiIsareti.hastaId, hastaId);
   const s = await withTenant(bag, (tx) => tx.select().from(sema.hastaVucutHaritasiIsareti).where(kosul).orderBy(desc(sema.hastaVucutHaritasiIsareti.createdAt)));
@@ -151,6 +158,7 @@ export type VucutIsaretiGirdisi = { id?: string; bolge: string; yuz: "on" | "ark
 
 /** Mevcut işareti günceller (id varsa) ya da yenisini ekler. Dönüş: işaret id'si. */
 export async function vucutIsaretiKaydet(hastaId: string, girdi: VucutIsaretiGirdisi): Promise<string> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag, klinikId, userId } = await kapi(TERAPI_YAZMA, hastaId, ...(girdi.id ? [girdi.id] : []), ...(girdi.randevu_id ? [girdi.randevu_id] : []));
   if (!Number.isInteger(girdi.severity) || girdi.severity < 0 || girdi.severity > 10 || !["on", "arka"].includes(girdi.yuz) || !girdi.bolge || girdi.bolge.length > 64 || girdi.not_metni.length > 2000) {
     throw new Error("Geçersiz istek.");
@@ -174,6 +182,7 @@ export async function vucutIsaretiKaydet(hastaId: string, girdi: VucutIsaretiGir
 }
 
 export async function vucutIsaretiKaldir(hastaId: string, id: string): Promise<void> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TERAPI_YAZMA, hastaId, id);
   const g = await withTenant(bag, (tx) =>
     tx.delete(sema.hastaVucutHaritasiIsareti).where(and(eq(sema.hastaVucutHaritasiIsareti.id, id), eq(sema.hastaVucutHaritasiIsareti.hastaId, hastaId))).returning({ id: sema.hastaVucutHaritasiIsareti.id })
@@ -188,6 +197,7 @@ export async function islemTanimlariGetir(): Promise<{ id: string; ad: string }[
 }
 
 export async function islemKontrendikasyonlariGetir(islemTanimiId: string): Promise<IslemKontrendikasyon[]> {
+  uuidZorunlu(islemTanimiId, "islemTanimiId");
   const { bag } = await kapi(TUM_PERSONEL, islemTanimiId);
   const s = await withTenant(bag, (tx) => tx.select().from(sema.islemKontrendikasyon).where(eq(sema.islemKontrendikasyon.islemTanimiId, islemTanimiId)));
   return s.map((k): IslemKontrendikasyon => ({
@@ -200,6 +210,7 @@ export async function islemKontrendikasyonlariGetir(islemTanimiId: string): Prom
 }
 
 export async function hastaProtokolleriGetir(hastaId: string): Promise<HastaProtokol[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId);
   const s = await withTenant(bag, (tx) =>
     tx
@@ -223,6 +234,8 @@ export async function hastaProtokolleriGetir(hastaId: string): Promise<HastaProt
 
 /** Protokol ekler. Kontrendikasyon engeli (blok) veritabanı tetikleyicisinde de zorlanır; istemcideki uyarı yalnız kolaylıktır. */
 export async function hastaProtokolEkle(hastaId: string, islemTanimiId: string, uyariOnaylandiMi: boolean): Promise<void> {
+  uuidZorunlu(hastaId, "hastaId");
+  uuidZorunlu(islemTanimiId, "islemTanimiId");
   const { bag, klinikId, userId } = await kapi(TERAPI_YAZMA, hastaId, islemTanimiId);
   await withTenant(bag, async (tx) => {
     const hasta = await tx.select({ id: sema.hasta.id }).from(sema.hasta).where(eq(sema.hasta.id, hastaId)).limit(1);
@@ -236,6 +249,7 @@ export async function hastaProtokolEkle(hastaId: string, islemTanimiId: string, 
 }
 
 export async function hastaOlcumleriGetir(hastaId: string): Promise<HastaOlcum[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId);
   const s = await withTenant(bag, (tx) =>
     tx
@@ -261,6 +275,7 @@ export async function hastaOlcumleriGetir(hastaId: string): Promise<HastaOlcum[]
 // ---------------------------------------------------------------- Seans geçmişi
 /** Sağ kolondaki vücut haritasının hangi seansı göstereceğini seçtiren dikey zaman çizelgesi için (son 30). */
 export async function hastaSeansGecmisiGetir(hastaId: string): Promise<HastaSeansSatir[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(TUM_PERSONEL, hastaId);
   const terapistPersonel = alias(sema.personel, "terapist_personel");
   const antrenor = alias(sema.personel, "antrenor");
@@ -321,6 +336,7 @@ export type HastaTalepVeOneriVerisi = {
 };
 
 export async function hastaTalepVeOnerilerGetir(hastaId: string): Promise<HastaTalepVeOneriVerisi> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(KLINIK, hastaId);
   const v = await withTenant(bag, async (tx) => ({
     talepler: await tx
@@ -361,6 +377,7 @@ export type TalepIcinRandevuVerisi = {
 
 /** "Randevu İptali" / "Terapist Yorumu" / "Randevu Hakkında Yorum" alanlarındaki seçim listeleri için (son 200). */
 export async function hastaTalepIcinRandevularGetir(hastaId: string): Promise<TalepIcinRandevuVerisi[]> {
+  uuidZorunlu(hastaId, "hastaId");
   const { bag } = await kapi(KLINIK, hastaId);
   const s = await withTenant(bag, (tx) =>
     tx

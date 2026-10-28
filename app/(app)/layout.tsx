@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "../globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -15,16 +16,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Nonce'lu CSP için her sayfa istek başına işlenmelidir (statik üretim nonce taşıyamaz): lib/guvenlik/csp.ts.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Klinik Asistanı",
   description: "Fizyoterapi kliniği muayene yönetim paneli",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="tr"
@@ -32,7 +37,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <ThemeProvider nonce={nonce} attribute="class" defaultTheme="dark" enableSystem={false}>
           {children}
           <ThemeToggle />
         </ThemeProvider>

@@ -1,5 +1,6 @@
 // Hasta belgesi sunumu — belgeler web kökü dışındaki DOSYA_KOKU altında durur ve YALNIZ bu yetkili route'tan servis edilir.
 // ?islem=goruntule (varsayılan, erişim izi: audit 'select') | indir (audit 'select' + 'indirme') | kucuk (liste küçük resmi, iz yok).
+import { sinirYaniti } from "@/lib/guvenlik/istek-siniri";
 import { getSessionContext, tenantGerekli } from "@/lib/auth/oturum";
 import { belgeIcerigiGetir, type BelgeIslem } from "@/lib/belge/servis";
 
@@ -13,6 +14,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const ctx = await getSessionContext(request.headers);
   if (!ctx) return json(401, "Oturum bulunamadı.");
   if (ctx.tur !== "personel" || !ctx.tenantId || ctx.sifreDegistirmeli) return json(403, "Bu işlem için yetkiniz yok.");
+
+  const sinir = await sinirYaniti("dosyaGoruntule", ctx.userId);
+  if (sinir) return sinir;
 
   const istenen = new URL(request.url).searchParams.get("islem") ?? "goruntule";
   if (!(ISLEMLER as readonly string[]).includes(istenen)) return json(400, "Geçersiz işlem.");

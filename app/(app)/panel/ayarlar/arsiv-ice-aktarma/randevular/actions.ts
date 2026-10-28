@@ -1,5 +1,6 @@
 "use server";
 
+import { arsivParcasiSemasi } from "@/lib/guvenlik/girdi";
 import { pgHata, rpc, withTenant } from "@/lib/db";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { tarihSaatiIsoyaCevir } from "@/lib/ice-aktarma/normallestir";
@@ -40,6 +41,9 @@ export async function randevulariArsivdenIceAktar(
   baslangicSatirNo: number,
   varsayilanSureDakika: number
 ): Promise<SonucDurumu> {
+  // Girdi sınırları (zod): parça başına en çok 500 satır, alan başına 1000 karakter.
+  if (!arsivParcasiSemasi.safeParse({ kayitlar, baslangicSatirNo }).success) return { success: false, message: "Geçersiz veri parçası." };
+  if (!Number.isInteger(varsayilanSureDakika) || varsayilanSureDakika < 5 || varsayilanSureDakika > 480) return { success: false, message: "Varsayılan süre geçersiz." };
   // Arşiv içe aktarma yalnız klinik_admin (RPC de aynı kuralı içeride zorlar); tenant oturumdan gelir.
   const y = await eylemYetkisi(["klinik_admin"]);
   if (!y.yetkili || !y.bag) return { success: false, message: YETKISIZ_MESAJI };

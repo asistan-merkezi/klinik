@@ -1,5 +1,6 @@
 "use server";
 
+import { telefonListesiSemasi } from "@/lib/guvenlik/girdi";
 import { sema, withTenant } from "@/lib/db";
 import { eylemYetkisi } from "@/lib/auth/yetki";
 import { telefonAnahtari } from "@/lib/ice-aktarma/normallestir";
@@ -20,7 +21,7 @@ export type TelefonEslesmesi =
 export async function hastaTelefonlariniEslestir(telefonlar: string[]): Promise<Record<string, TelefonEslesmesi>> {
   // Arşiv içe aktarma yalnız klinik_admin; tenant oturumdan gelir.
   const y = await eylemYetkisi(["klinik_admin"]);
-  if (!y.yetkili || !y.bag || telefonlar.length === 0) {
+  if (!y.yetkili || !y.bag || telefonlar.length === 0 || !telefonListesiSemasi.safeParse(telefonlar).success) {
     return {};
   }
 

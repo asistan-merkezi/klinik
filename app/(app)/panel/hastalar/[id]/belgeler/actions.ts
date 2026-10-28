@@ -1,5 +1,6 @@
 "use server";
 
+import { uuidZorunlu } from "@/lib/guvenlik/girdi";
 import { and, eq, isNull } from "drizzle-orm";
 import { pgHata, sema, withTenant } from "@/lib/db";
 import { eylemYetkisi } from "@/lib/auth/yetki";
@@ -19,6 +20,7 @@ async function yetkiliBaglamGetir(hastaId: string) {
 }
 
 export async function klinikFotoOnamKaydet(hastaId: string): Promise<{ success: true } | { error: string }> {
+  uuidZorunlu(hastaId, "hastaId");
   const ctx = await yetkiliBaglamGetir(hastaId);
   if (ctx.yetkisiz) return { error: "Bu işlem için yetkiniz yok." };
 
@@ -34,6 +36,8 @@ export async function klinikFotoOnamKaydet(hastaId: string): Promise<{ success: 
 }
 
 export async function belgeSil(belgeId: string, hastaId: string): Promise<{ success: true } | { error: string }> {
+  uuidZorunlu(belgeId, "belgeId");
+  uuidZorunlu(hastaId, "hastaId");
   const ctx = await yetkiliBaglamGetir(hastaId);
   if (ctx.yetkisiz || !(BELGE_SILME_ROLLERI as readonly string[]).includes(ctx.rol) || !UUID.test(belgeId)) {
     return { error: "Bu işlem için yetkiniz yok." };
@@ -57,6 +61,8 @@ export async function belgeSil(belgeId: string, hastaId: string): Promise<{ succ
 }
 
 export async function belgeKaliciSil(belgeId: string, hastaId: string): Promise<{ success: true } | { error: string }> {
+  uuidZorunlu(belgeId, "belgeId");
+  uuidZorunlu(hastaId, "hastaId");
   const ctx = await yetkiliBaglamGetir(hastaId);
   if (ctx.yetkisiz || ctx.rol !== "klinik_admin" || !UUID.test(belgeId)) {
     return { error: "Bu işlem için yetkiniz yok." };
@@ -73,6 +79,7 @@ export async function belgeKaliciSil(belgeId: string, hastaId: string): Promise<
 
 /** Liste/galeri küçük resmi: erişim izi yazılmaz (rutin yükleme). Küçük resmi olmayan belgede url null. */
 export async function belgeThumbnailUrlAl(belgeId: string): Promise<{ url: string | null } | { error: string }> {
+  uuidZorunlu(belgeId, "belgeId");
   const y = await eylemYetkisi(BELGE_OKUMA_ROLLERI);
   if (!y.yetkili || !y.bag || !UUID.test(belgeId)) return { error: "Oturum bulunamadı." };
 
@@ -84,6 +91,7 @@ export async function belgeThumbnailUrlAl(belgeId: string): Promise<{ url: strin
 
 /** Gerçek "indir" eylemi: bağlantı açıldığında route hem 'select' hem 'indirme' izini yazar. */
 export async function belgeIndir(belgeId: string): Promise<{ url: string; klinikAdi: string } | { error: string }> {
+  uuidZorunlu(belgeId, "belgeId");
   const y = await eylemYetkisi(BELGE_OKUMA_ROLLERI);
   if (!y.yetkili || !y.bag || !UUID.test(belgeId)) return { error: "Oturum bulunamadı." };
   const bag = y.bag;

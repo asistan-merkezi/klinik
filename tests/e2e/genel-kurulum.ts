@@ -27,7 +27,7 @@ export default async function kur() {
     }
   };
   let sayac = 0;
-  const personel = async (rol: "klinik_admin" | "resepsiyon", hazir: boolean) => {
+  const personel = async (rol: "klinik_admin" | "resepsiyon" | "terapist", hazir: boolean) => {
     const id = crypto.randomUUID();
     const telefon = `53${String(Date.now()).slice(-6)}${String(++sayac).padStart(2, "0")}`;
     const eposta = `e2e-${id}@deneme.test`;
@@ -52,6 +52,7 @@ export default async function kur() {
     adminDonus: await personel("klinik_admin", true),
     adminCikis: await personel("klinik_admin", true),
     resepsiyonHazir: await personel("resepsiyon", true),
+    terapistHazir: await personel("terapist", true),
     hastaGecici: await hasta(false),
     hastaHazir: await hasta(true),
   };

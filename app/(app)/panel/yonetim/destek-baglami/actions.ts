@@ -5,6 +5,7 @@ import { z } from "zod";
 import { pgHata, rpc, withKullanici } from "@/lib/db";
 import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
 import { kullaniciGerekli } from "@/lib/auth/oturum";
+import { sinirKontrol } from "@/lib/guvenlik/istek-siniri";
 import { serbestMetniTemizle } from "@/lib/destek/metin";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -36,6 +37,9 @@ const HATA_MESAJLARI: Record<string, string> = {
 export async function destekBaglamiAc(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
   const ctx = await superAdminOturumu();
   if (!ctx) return { success: false, message: "Bu işlem için yetkiniz yok." };
+
+  const sinir = await sinirKontrol("destekBaglami", ctx.userId);
+  if (!sinir.izin) return { success: false, message: sinir.mesaj };
 
   const ayristirma = acSemasi.safeParse({
     klinik_id: formData.get("klinik_id"),
