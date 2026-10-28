@@ -3,16 +3,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { hidrasyonBekle } from "./yardimci";
 
 type Hesap = { id: string; eposta?: string; telefon: string; sifre: string };
 const hesaplar = JSON.parse(fs.readFileSync(path.join(__dirname, ".hesaplar.json"), "utf8")) as Record<string, Hesap>;
 const h = (ad: string) => hesaplar[ad];
 const TABAN = "http://localhost:3100";
 
-/** Next dev'de form eylemi hidrasyondan önce tıklanırsa yerel gönderim sayfayı yeniler: ağ sakinleşene kadar bekle. */
 async function git(page: Page, yol: string) {
   await page.goto(yol);
   await page.waitForLoadState("networkidle");
+  if (await page.locator("form").count()) await hidrasyonBekle(page);
 }
 
 /** Formu gönderir ve sunucu eyleminin yönlendirme hedefini döndürür (yönlendirme yoksa null). */

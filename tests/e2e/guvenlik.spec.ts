@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { hidrasyonBekle } from "./yardimci";
 
 const hesaplar = JSON.parse(fs.readFileSync(path.join(__dirname, ".hesaplar.json"), "utf8")) as Record<string, { eposta?: string; telefon: string; sifre: string }>;
 
@@ -60,6 +61,7 @@ async function girisVeSayfaDenetle(page: Page, girisAdi: string, sifre: string, 
   });
   await page.goto("/giris");
   await page.waitForLoadState("networkidle");
+  await hidrasyonBekle(page);
   await page.locator("#giris_adi").fill(girisAdi);
   await page.locator("#sifre").fill(sifre);
   await Promise.all([page.waitForURL(/\/panel/, { timeout: 60_000 }), page.getByRole("button", { name: "Giriş yap" }).click()]);
@@ -89,6 +91,7 @@ test("CSRF: gerçek bir sunucu eylemi isteği başka bir Origin ile TEKRARLANIRS
   });
   await page.goto("/giris");
   await page.waitForLoadState("networkidle");
+  await hidrasyonBekle(page);
   await page.locator("#giris_adi").fill("csrf-denemesi@deneme.test");
   await page.locator("#sifre").fill("yanlis-parola-123");
   await page.getByRole("button", { name: "Giriş yap" }).click();
