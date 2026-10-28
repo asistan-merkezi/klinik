@@ -14,7 +14,7 @@ Hepsi kapanmadan canlı geçiş YAPILMAZ. Durum güncel tutulur (son: 2026-10-28
 | 3 | **Modül 4c** — terapistin finans tablolarına RLS okumasının kapatılması (dar görünümler) | tasarım hazır; **Aşama 7b'nin ilk hedefi** |
 | 4 | **Modül 4a** — iade sınırı (ödemeden büyük iade reddi) | **KAPANDI 2026-10-28** (0013: bağlantılı iade + yönetici istisnası, gerekçe zorunlu) |
 | 5 | **KDV yuvarlama mali müşavir teyidi** — kural: `docs/tasima-ilerleme.md` Modül 4 §1 | teyit bekliyor |
-| 6 | `db-kur.ps1` + tüm `deploy/windows` betiklerinin gerçek **Windows** üzerinde provası (`docs/sunucu-kurulum.md` §12, 17 adım) | betikler yazıldı, **hiç çalıştırılmadı** |
+| 6 | `db-kur.ps1` + tüm `deploy/windows` betiklerinin gerçek **Windows** üzerinde provası (`docs/sunucu-kurulum.md` §12, 23 adım; kayıt: `docs/prova-kayit.md`) | betikler yazıldı, **hiç çalıştırılmadı** |
 | 7 | **E-posta göndericisi** bağlanması (şablon verisi KVKK uyumu dahil, `docs/kvkk-aktarim.md`) | açık |
 | 8 | **SSE oturum kontrolü** (`/api/canli` oturum/tenant yenileme ve iptal davranışı) | açık |
 | 9 | **Yedek dış kopya hedefi** (Türkiye içi sağlayıcı/konum, anahtar saklama sorumluları) | açık |

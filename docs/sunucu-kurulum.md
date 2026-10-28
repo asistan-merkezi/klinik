@@ -265,6 +265,8 @@ Olay günlüğü (Application, `KlinikGuncelle`: 3000 genel, 3010 jeton süresi 
 
 ## 12. Prova planı (üretim öncesi ZORUNLU)
 
+**Koşum kaydı, ortam hazırlığı (Hyper-V + Windows Server 2022 deneme sürümü, checkpoint planı, indirme/çevrimdışı dosya listesi), A/B tur ayrımı ve hata günlüğü: `docs/prova-kayit.md`.**
+
 Amaç: üretim sunucusuna dokunmadan, **temiz bir Windows makinesinde** (Hyper-V VM'si, Windows Sandbox ya da yerel PC; PowerShell yönetici) tüm zincirin çalıştığını kanıtlamak. Her adımda "beklenen" sütunu tutmuyorsa DUR, nedeni düzeltilmeden ilerlenmez; sonuç (tarih, adım, geçti/kaldı) kayda geçirilir. Prova makinesinde gerçek veri YOK; alan adı/sertifika gerektiren adımlar (Caddy HTTPS) yerelde `localhost` ile yapılır.
 
 **Hazırlık (prova makinesine):** PostgreSQL 18 (EDB kurulumu, `postgres` parolası belirlenir), Node 22 LTS, Chrome/Edge. Paket: `gh release download` ya da CI artifact'ı; dosyalar `C:\klinik\ilk\` altında. (Windows Sandbox'ta her açılışta temiz başlar; `C:\klinik\ilk` paylaşımlı klasörden bağlanır.)
