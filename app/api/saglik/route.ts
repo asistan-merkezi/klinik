@@ -1,9 +1,11 @@
 // Sağlık kontrolü (deploy/windows/guncelle.ps1 ve dış izleme için). Oturumsuz, tenant bağlamsız; İÇERİĞİ KISITLI:
 //  - Dışarıdan (Caddy X-Real-IP ekler) yalnız {durum} döner.
-//  - Ayrıntı (veritabanı gecikmesi, boş disk) yalnız doğrudan localhost çağrısında (X-Real-IP yok ya da loopback) döner.
+//  - Ayrıntı (veritabanı gecikmesi, boş disk, güncelleme jetonu süresi) yalnız doğrudan localhost çağrısında (X-Real-IP yok ya da loopback) döner.
+//  - Güncelleme jetonu: GUNCELLEME_DURUM_DOSYASI tanımlıysa guncelle.ps1'in yazdığı durum dosyası okunur; süre dolmak üzere/dolmuş/reddedilmiş/kontrol eski ise genel durum "uyari" olur (200 kalır).
 // 200 = sağlıklı/uyarı, 503 = veritabanına ulaşılamıyor ya da disk kritik.
 import fs from "node:fs/promises";
 import { sql, withGlobal } from "@/lib/db";
+import { jetonDurumuHesapla } from "@/lib/saglik/jeton-durumu";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,18 @@ async function diskBosBayt(): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+async function jetonDurumu() {
+  const yol = process.env.GUNCELLEME_DURUM_DOSYASI;
+  if (!yol) return null;
+  let ham: string | null = null;
+  try {
+    ham = await fs.readFile(yol, "utf8");
+  } catch {
+    ham = null;
+  }
+  return jetonDurumuHesapla(ham, new Date());
 }
 
 export async function GET(istek: Request) {
@@ -43,9 +57,12 @@ export async function GET(istek: Request) {
   else if (bos < DISK_KRITIK_BAYT) disk = "hata";
   else if (bos < DISK_UYARI_BAYT) disk = "uyari";
 
-  const durum: Durum = db === "hata" || disk === "hata" ? "hata" : disk === "uyari" ? "uyari" : "ok";
+  const jeton = await jetonDurumu();
+  const jetonSorunlu = jeton !== null && jeton.durum !== "ok";
+
+  const durum: Durum = db === "hata" || disk === "hata" ? "hata" : disk === "uyari" || jetonSorunlu ? "uyari" : "ok";
   const govde = yerel
-    ? { durum, db, db_ms: dbMs, disk, disk_bos_gb: bos === null ? null : Math.round((bos / 1024 ** 3) * 10) / 10 }
+    ? { durum, db, db_ms: dbMs, disk, disk_bos_gb: bos === null ? null : Math.round((bos / 1024 ** 3) * 10) / 10, ...(jeton ? { guncelleme_jetonu: jeton.durum, jeton_kalan_gun: jeton.kalanGun } : {}) }
     : { durum };
   return Response.json(govde, { status: durum === "hata" ? 503 : 200, headers: { "Cache-Control": "no-store" } });
 }

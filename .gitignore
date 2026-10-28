@@ -156,3 +156,8 @@ supabase/.temp
 tests/e2e/.hesaplar.json
 test-results/
 playwright-report/
+
+# Yayın imzalama özel anahtarları ASLA depoya girmez (scripts/yayin-imzala.ps1)
+*.key
+.minisign/
+minisign.key

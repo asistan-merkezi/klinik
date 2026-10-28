@@ -2,20 +2,25 @@
  Pull tabanlı dağıtım (sunucudan dışarı bağlanır; sunucuya gelen yönetim bağlantısı yok). Task Scheduler ile tetiklenir.
  DERLEME SUNUCUDA YAPILMAZ: sürüm paketi GitHub Actions'ta (.github/workflows/derle.yml) derlenir ve GitHub sürüm eki (klinik-<sürüm>.zip + .sha256) olur.
  Sunucuda git, npm ci, next build ÇALIŞMAZ; yalnız Node (server.js), PostgreSQL araçları ve bu betikler gerekir.
- Akış:  son sürümü sorgula (salt-okunur jeton) → zip + .sha256 indir → SHA256 DOĞRULA → <Kok>\surumler\<sürüm>-<zaman>'a aç → paket denetimi
+ Akış:  son sürümü sorgula (salt-okunur jeton) → zip + .sha256 + .minisig indir → SHA256 DOĞRULA (bozuk indirme) → minisign İMZASINI DOĞRULA (sahte/imzasız paket; açmadan reddedilir)
+        → <Kok>\surumler\<sürüm>-<zaman>'a aç → paket denetimi
         → yeni sürümü ayrı portta aç, /api/saglik doğrula (ön uçuş) → bekleyen migration varsa güncelleme öncesi yedek + migrasyon-uygula.ps1
         → "guncel" bağlantısını yeni sürüme çevir → servisi yeniden başlat → /api/saglik değilse ÖNCEKİ SÜRÜME DÖN.
  Sürüm düzeni:  <Kok>\surumler\<sürüm>-<zaman> (çalışan paket)  <Kok>\guncel (junction → çalışan sürüm)  <Kok>\indirme (geçici, yalnız yönetici)
- Jeton: <Kok>\gizli\deploy.env (GITHUB_REPO, GITHUB_DEPLOY_TOKEN, MIGRASYON_DATABASE_URL). Jeton YALNIZ api.github.com'a gönderilir; depolama yönlendirmesine gönderilmez.
+ Jeton: <Kok>\gizli\deploy.env (GITHUB_REPO, GITHUB_DEPLOY_TOKEN, MIGRASYON_DATABASE_URL; isteğe bağlı GITHUB_TOKEN_SON_KULLANMA=YYYY-MM-DD notu). Jeton YALNIZ api.github.com'a gönderilir.
+ Güvenilen açık anahtarlar: <Kok>\anahtarlar\*.pub (paketle GELMEZ; yönetici elle yerleştirir, docs/sunucu-kurulum.md §10d).
+ Jeton ömrü: GitHub'ın `github-authentication-token-expiration` başlığı (yoksa GITHUB_TOKEN_SON_KULLANMA notu) <Kok>\durum\jeton.json'a yazılır; 14 gün kala olay günlüğüne UYARI (olay 3010);
+   jeton reddedilirse (401/403) olay 3401 (Error) + çıkış kodu 3. /api/saglik bu dosyayı iç ayrıntıda gösterir (dışarıya yalnız genel durum).
  Ağ çıkışı: yalnız GitHub'a 443 (api.github.com + yayın eki depolama adresi; docs/sunucu-kurulum.md §10).
  Geri alma sınırı: migration'lar ileri yönlüdür. Kod geri dönse de veritabanı yeni şemada kalır; migration'lar geriye dönük uyumlu yazılır (CLAUDE.md "Migration kuralları").
    Uyumsuzsa "docs/sunucu-kurulum.md > Yedekten dönme": güncelleme öncesi alınan yedek (etiket: guncelleme-oncesi) geri yüklenir.
- Çıkış kodu: 0 başarılı/yapacak iş yok · 1 hata, önceki sürüme dönüldü (ya da hiç değişmedi) · 2 hata ve geri dönüş de başarısız (MÜDAHALE GEREKİR).
+ Çıkış kodu: 0 başarılı/yapacak iş yok · 1 hata, önceki sürüme dönüldü (ya da hiç değişmedi) · 2 hata ve geri dönüş de başarısız (MÜDAHALE GEREKİR)
+   · 3 GitHub jetonu REDDEDİLDİ (süresi dolmuş/iptal; canlı sürüm değişmedi; docs/sunucu-kurulum.md §10e jeton yenileme).
  Kullanım:
    .\guncelle.ps1                          son sürüm farklıysa güncelle (aynıysa hiçbir şey yapmaz)
    .\guncelle.ps1 -Surum v1.4.2            belirli bir sürüme geç (eski sürüme dönüş de böyle yapılır)
    .\guncelle.ps1 -IlkKurulum              ilk sürümü oluşturur (servis henüz yok; servis-kur.ps1 sonra çalışır)
-   .\guncelle.ps1 -YerelPaket C:\x\klinik-v1.zip   GitHub'a gitmeden elle indirilmiş paketi kullan (yanında .sha256 dosyası şart); ilk kurulum/prova için
+   .\guncelle.ps1 -YerelPaket C:\x\klinik-v1.zip   GitHub'a gitmeden elle indirilmiş paketi kullan (yanında .sha256 VE .minisig şart; imza yine doğrulanır)
    .\guncelle.ps1 -Zorla                   aynı sürümü yeniden dağıt
    .\guncelle.ps1 -GorevKaydet -GorevSaati 04:00 -GorevHesabi <hesap>   Task Scheduler görevi kaydeder (günlük)
  Çalıştıran hesap: yönetici hakkı olan deploy hesabı (servis yeniden başlatma, junction). deploy.env'i yalnız yöneticiler/SYSTEM okur.
@@ -61,8 +66,30 @@ $deployEnv = Join-Path $KokDizin "gizli\deploy.env"
 $servis = "klinik-uygulama"
 $saglik = "http://127.0.0.1:$Port/api/saglik"
 
-function OlayYaz([string]$Tip, [string]$Mesaj) {
-  try { Write-EventLog -LogName Application -Source "KlinikGuncelle" -EntryType $Tip -EventId 3000 -Message $Mesaj } catch { }
+function OlayYaz([string]$Tip, [string]$Mesaj, [int]$Kimlik = 3000) {
+  try { Write-EventLog -LogName Application -Source "KlinikGuncelle" -EntryType $Tip -EventId $Kimlik -Message $Mesaj } catch { }
+}
+$anahtarKlasoru = Join-Path $KokDizin "anahtarlar"
+$durumDosyasi = Join-Path $KokDizin "durum\jeton.json"
+# Jeton durum dosyası (jetonun KENDİSİ yok): /api/saglik okur. $Durum: ok | reddedildi. Eski son kullanma bilgisi, yeni bilgi yoksa korunur.
+function JetonDurumuYaz([string]$Durum, $SonKullanma) {
+  try {
+    New-Item -ItemType Directory -Force -Path (Split-Path $durumDosyasi) | Out-Null
+    $son = $null
+    if ($SonKullanma) { $son = ([datetime]$SonKullanma).ToUniversalTime().ToString("o") }
+    elseif (Test-Path $durumDosyasi) { try { $son = (Get-Content $durumDosyasi -Raw | ConvertFrom-Json).sonKullanma } catch { } }
+    $icerik = [ordered]@{ kontrol = (Get-Date).ToUniversalTime().ToString("o"); durum = $Durum; sonKullanma = $son } | ConvertTo-Json
+    $gecici = "$durumDosyasi.tmp"
+    [System.IO.File]::WriteAllText($gecici, $icerik, (New-Object System.Text.UTF8Encoding($false)))
+    Move-Item $gecici $durumDosyasi -Force
+    if ($son -and $Durum -eq "ok") {
+      $kalan = [math]::Floor(([datetime]$son - (Get-Date).ToUniversalTime()).TotalDays)
+      if ($kalan -le 14) {
+        Yazdir "UYARI: GitHub guncelleme jetonunun suresi $kalan gun icinde doluyor — yenileyin (docs/sunucu-kurulum.md §10e)."
+        OlayYaz "Warning" "GitHub guncelleme jetonunun suresi dolmak uzere (kalan gun: $kalan). Jetonu yenileyin: docs/sunucu-kurulum.md 10e." 3010
+      }
+    }
+  } catch { Yazdir "UYARI: jeton durum dosyasi yazilamadi: $($_.Exception.Message)" }
 }
 function JunctionHedefi {
   if (-not (Test-Path $guncel)) { return $null }
@@ -93,8 +120,10 @@ try {
     # --- Elle indirilmiş paket (ilk kurulum / prova): GitHub'a gidilmez; yanındaki .sha256 ZORUNLU ---
     $asama = "yerel-paket"
     if (-not (Test-Path $YerelPaket) -or -not (Test-Path "$YerelPaket.sha256")) { throw "Yerel paket ve yanindaki .sha256 dosyasi gerekli." }
+    if (-not (Test-Path "$YerelPaket.minisig")) { throw "IMZA YOK: yerel paketin yaninda .minisig dosyasi gerekli — imzasiz paket REDDEDILDI." }
     $zip = Join-Path $indirme (Split-Path $YerelPaket -Leaf); Copy-Item $YerelPaket $zip -Force
     $sha = Join-Path $indirme ((Split-Path $YerelPaket -Leaf) + ".sha256"); Copy-Item "$YerelPaket.sha256" $sha -Force
+    $imza = "$zip.minisig"; Copy-Item "$YerelPaket.minisig" $imza -Force
     $etiket = if ($zip -match 'klinik-(.+)\.zip$') { $Matches[1] } else { "yerel" }
   } else {
     # --- GitHub sürüm eki: salt-okunur jeton ile ---
@@ -105,6 +134,10 @@ try {
     $jeton = $e["GITHUB_DEPLOY_TOKEN"]
     $adres = if ($Surum) { "https://api.github.com/repos/$($e['GITHUB_REPO'])/releases/tags/$Surum" } else { "https://api.github.com/repos/$($e['GITHUB_REPO'])/releases/latest" }
     $surumBilgisi = (GitHubGetir $adres $jeton "application/vnd.github+json") | ConvertFrom-Json
+    # Jeton geçerli (istek kabul edildi): son kullanma bilgisini kaydet (yanıt başlığı; yoksa deploy.env notu) ve yaklaşıyorsa uyar.
+    $jetonSonu = $global:GitHubJetonSonu
+    if (-not $jetonSonu -and $e.ContainsKey("GITHUB_TOKEN_SON_KULLANMA") -and $e["GITHUB_TOKEN_SON_KULLANMA"]) { try { $jetonSonu = [datetime]::ParseExact($e["GITHUB_TOKEN_SON_KULLANMA"], "yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture) } catch { Yazdir "UYARI: GITHUB_TOKEN_SON_KULLANMA YYYY-MM-DD biciminde degil." } }
+    JetonDurumuYaz "ok" $jetonSonu
     $etiket = [string]$surumBilgisi.tag_name
     if ($etiket -notmatch '^[A-Za-z0-9._-]{1,64}$') { throw "Surum etiketi gecersiz" }
     $mevcut = MevcutSurum
@@ -115,9 +148,12 @@ try {
     $asama = "indirme"
     $zipEk = $surumBilgisi.assets | Where-Object { $_.name -eq "klinik-$etiket.zip" } | Select-Object -First 1
     $shaEk = $surumBilgisi.assets | Where-Object { $_.name -eq "klinik-$etiket.zip.sha256" } | Select-Object -First 1
+    $imzaEk = $surumBilgisi.assets | Where-Object { $_.name -eq "klinik-$etiket.zip.minisig" } | Select-Object -First 1
     if (-not $zipEk -or -not $shaEk) { throw "Surum '$etiket' icinde klinik-$etiket.zip ve .sha256 ekleri yok." }
-    $zip = Join-Path $indirme $zipEk.name; $sha = Join-Path $indirme $shaEk.name
+    if (-not $imzaEk) { throw "IMZA YOK: surum '$etiket' icinde klinik-$etiket.zip.minisig eki yok — imzasiz paket REDDEDILDI." }
+    $zip = Join-Path $indirme $zipEk.name; $sha = Join-Path $indirme $shaEk.name; $imza = "$zip.minisig"
     GitHubGetir $shaEk.url $jeton "application/octet-stream" $sha
+    GitHubGetir $imzaEk.url $jeton "application/octet-stream" $imza
     GitHubGetir $zipEk.url $jeton "application/octet-stream" $zip
     if ((Get-Item $zip).Length -ne [int64]$zipEk.size) { throw "Indirilen dosya boyutu beklenenle uyusmuyor." }
   }
@@ -130,6 +166,12 @@ try {
   if ($gercek -ne $beklenen) { throw "SHA256 UYUSMUYOR (beklenen $($beklenen.Substring(0,12))..., gercek $($gercek.Substring(0,12))...). Paket KULLANILMADI." }
   Yazdir "SHA256 dogrulandi."
 
+  # --- İmza doğrulama (minisign): SHA256 yalnız bozuk indirmeyi yakalar; sahte/değiştirilmiş paketi İMZA yakalar. Paket AÇILMADAN reddedilir. ---
+  $asama = "imza"
+  $dogrulayan = ImzaDogrula $zip $imza $anahtarKlasoru "klinik-$etiket"
+  Yazdir "Imza dogrulandi (anahtar: $dogrulayan)."
+  $asama = "dogrulama"
+
   # --- Ayrı klasöre aç ve paketi denetle ---
   $asama = "acma"
   $yeniSurum = Join-Path $surumler ("{0}-{1}" -f $etiket, (Get-Date -Format "yyyyMMdd-HHmmss"))
@@ -140,7 +182,7 @@ try {
   }
   if ((Get-Content (Join-Path $yeniSurum "SURUM.txt") -TotalCount 1).Trim() -ne $etiket) { throw "SURUM.txt etiketi ($etiket) ile uyusmuyor." }
   if (Get-ChildItem $yeniSurum -Recurse -Force -Include ".env*", "*.pem", "deploy.env" -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "node_modules" }) { throw "Pakette gizli dosya benzeri dosya var; durduruldu." }
-  Remove-Item $zip, $sha -Force -ErrorAction SilentlyContinue
+  Remove-Item $zip, $sha, $imza -Force -ErrorAction SilentlyContinue
 
   # --- Ön uçuş: yeni paket canlıya DOKUNMADAN ayrı portta açılıp /api/saglik doğrulanır ---
   if (Test-Path $envDosyasi) {
@@ -187,6 +229,13 @@ catch {
   $hata = $_.Exception.Message
   Yazdir "HATA ($asama): $hata"
   $cikis = 1
+  if ($hata -like "JETON_REDDEDILDI*") {
+    $cikis = 3
+    JetonDurumuYaz "reddedildi" $null
+    OlayYaz "Error" "GitHub guncelleme jetonu REDDEDILDI (suresi dolmus/iptal). Canli surum degismedi. Jetonu yenileyin: docs/sunucu-kurulum.md 10e. Ayrinti: $hata" 3401
+  } elseif ($asama -eq "imza") {
+    OlayYaz "Error" "Surum paketi IMZA DOGRULAMASINDAN GECMEDI, REDDEDILDI (canli surum degismedi): $hata" 3501
+  }
   if ($guncelDegisti -and $onceki) {
     Yazdir "Onceki surume donuluyor: $onceki"
     try {
@@ -196,7 +245,7 @@ catch {
     } catch { Yazdir "Geri donus BASARISIZ: $($_.Exception.Message)"; $cikis = 2 }
   }
   if ($yeniSurum -and (Test-Path $yeniSurum) -and $cikis -eq 1) { Remove-Item $yeniSurum -Recurse -Force -ErrorAction SilentlyContinue }
-  OlayYaz "Error" "Guncelleme basarisiz ($asama): $hata. Cikis kodu $cikis."
+  if ($cikis -ne 3) { OlayYaz "Error" "Guncelleme basarisiz ($asama): $hata. Cikis kodu $cikis." }
   exit $cikis
 }
 finally {

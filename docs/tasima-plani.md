@@ -19,9 +19,11 @@ Hepsi kapanmadan canlı geçiş YAPILMAZ. Durum güncel tutulur (son: 2026-10-28
 | 8 | **SSE oturum kontrolü** (`/api/canli` oturum/tenant yenileme ve iptal davranışı) | açık |
 | 9 | **Yedek dış kopya hedefi** (Türkiye içi sağlayıcı/konum, anahtar saklama sorumluları) | açık |
 | 10 | **Hukuk onayları**: yedek saklama süreleri, yurt dışı şifreli depolama, mesaj şablonlarının KVKK sınıflandırması, `audit_log` saklama/arşiv süresi | açık |
-| 12 | **GitHub jetonu + ağ çıkış kısıtı**: fine-grained salt-okunur jeton, süre sonu takvimi; çıkışın yalnız GitHub (api + ek depolama) / ACME / mesaj merkezine alan adı bazında kısıtlanması (Vodafone Cloud katmanı; Windows güvenlik duvarı FQDN süzemez) | açık (`docs/sunucu-kurulum.md` §10a) |
+| 12 | **GitHub jetonu**: fine-grained, yalnız Contents:Read, ≤90 gün; yenileme prosedürü `docs/sunucu-kurulum.md` §10e; 14 gün uyarısı + reddedilince çıkış 3 / olay 3401 (kod hazır, provada denenecek) | açık |
 | 13 | **NSSM + `NT SERVICE\<servis>` sanal hesapları** davranışının sunucuda doğrulanması (`nssm set ObjectName`, yedek yol `sc.exe config obj=`) | doğrulanmadı |
-| 14 | **Sürüm paketi bütünlüğü**: özet aynı ekten gelir (bozulmayı yakalar, hesap ele geçirilmesine karşı korumaz) → etiket koruması / derleme attestation doğrulaması | açık, sonraki iş |
+| 14 | **Paket imzası (minisign)**: anahtar çiftinin üretimi, özel anahtarın çevrimdışı yedeği (2 kopya), açık anahtarın her sunucuya kimlik doğrulamasıyla yerleştirilmesi, rotasyon/iptal prosedürünün provası (§10d, §12 adım 18–21); imzasız/bozuk/eski paketin reddi | kod + belge hazır; anahtar üretimi ve prova açık |
+| 15 | **Etiket koruması (ruleset) ve 2FA**: GitHub'da `v*` etiketleri için ruleset (yalnız yetkili kişi oluşturur, silme/güncelleme/force-push yasak), deponun korumalı dalı, kuruluş genelinde **2FA zorunluluğu**, yayın yapan hesaplar için donanım anahtarı/passkey; CI'da `derle.yml` değişikliği için CODEOWNERS incelemesi | açık (GitHub ayarı; kodla yapılamaz) |
+| 16 | **Ağ çıkışı FQDN izin listesi (Vodafone Cloud)**: sunucudan yalnız `api.github.com` + sürüm eki depolama adresi (`*.githubusercontent.com`), ACME (`acme-v02.api.letsencrypt.org`), mesaj merkezi, (varsa) Türkiye içi yedek hedefi 443; diğer tüm çıkış reddedilir. Windows güvenlik duvarı FQDN süzemez → bulut güvenlik grubu/çıkış vekili/DNS tabanlı güvenlik duvarı gerekir | açık (altyapı kararı) |
 | 11 | `GIZLI_VERI_ANAHTARI` üretimi ve saklaması (rotasyon prosedürü `docs/sunucu-kurulum.md` §7) | prosedür yazıldı; anahtar üretimi canlı kurulumda |
 
 ## Alınan kararlar (2026-10-26)

@@ -7,6 +7,7 @@
    izinleri uygular. Bu betik servislerden ÖNCE çalışırsa o hesapların izinleri atlanır (uyarı) — servis-kur.ps1 sonunda otomatik tamamlanır.
  -Indir verilirse ve winget varsa eksik araçları winget ile kurar; yoksa eksikleri listeler (elle kurulum).
  Yapmadığı: veritabanı kurulumu (scripts\db-kur.ps1), servis kurulumu (servis-kur.ps1), gizli dosya OLUŞTURMA (env.production.ornek'ten elle).
+ -ParolaSifirla: var olan bakım/yedek hesaplarının parolasını yeniden üretir (yeni parola yine yalnız bir kez gösterilir; görevleri yeniden kaydetmek gerekir).
  -PgSertlestirAtla: PostgreSQL yapılandırmasına dokunma. -PgVeriDizini: veri dizini otomatik bulunamazsa elle ver.
  DENENMEDİ (Windows Server'da çalıştırılmadı). winget paket kimlikleri sürüme göre değişebilir; doğrulayın.
 #>
@@ -14,6 +15,7 @@ param(
   [string]$KokDizin = "C:\klinik",
   [string]$PgVeriDizini = "",
   [switch]$Indir,
+  [switch]$ParolaSifirla,
   [switch]$PgSertlestirAtla
 )
 . "$PSScriptRoot\ortak.ps1"
@@ -29,7 +31,8 @@ $araclar = @(
   @{ Ad = "PostgreSQL (psql, pg_dump, pg_restore)"; Komut = "pg_dump"; Winget = "PostgreSQL.PostgreSQL.18" },
   @{ Ad = "Caddy";              Komut = "caddy";   Winget = "CaddyServer.Caddy" },
   @{ Ad = "NSSM";               Komut = "nssm";    Winget = "NSSM.NSSM" },
-  @{ Ad = "age (yedek şifreleme)"; Komut = "age";  Winget = "FiloSottile.age" }
+  @{ Ad = "age (yedek şifreleme)"; Komut = "age";  Winget = "FiloSottile.age" },
+  @{ Ad = "minisign (sürüm paketi imza doğrulama)"; Komut = "minisign"; Winget = "jedisct1.minisign" }
 )
 $eksik = @()
 foreach ($a in $araclar) {
@@ -47,16 +50,35 @@ $chrome = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:Pro
 if ($chrome) { Yazdir "VAR   Chrome/Edge: $chrome  (uygulama.env > CHROMIUM_PATH bu yola ayarlanir)" } else { Yazdir "EKSIK Chrome veya Edge (PDF uretimi icin)"; $eksik += "Chrome/Edge" }
 
 # 3) Klasörler
-foreach ($k in "gizli", "surumler", "indirme", "log", "dosya", "yedek", "yedek\.gecici", "caddy-veri") { New-Item -ItemType Directory -Force -Path (Join-Path $KokDizin $k) | Out-Null }
+foreach ($k in "gizli", "surumler", "indirme", "anahtarlar", "durum", "log", "dosya", "yedek", "yedek\.gecici", "caddy-veri") { New-Item -ItemType Directory -Force -Path (Join-Path $KokDizin $k) | Out-Null }
 
-# 4) Yerel hesaplar: bakım ve yedek (Task Scheduler). Parola yalnız oluşturulurken sorulur, hiçbir yere yazılmaz.
-#    Etkileşimli oturum açma izni ayrıca kaldırılmalı (Yerel Güvenlik İlkesi > "Yerel olarak oturum açmayı reddet"): sunucu sertleştirme adımıdır.
-#    Servis hesapları burada YOK: NT SERVICE\klinik-uygulama ve NT SERVICE\klinik-caddy sanal hesaplardır (servis-kur.ps1).
+# 4) Yerel hesaplar: bakım ve yedek (Task Scheduler). PAROLA kurulum betiği tarafından UZUN RASTGELE üretilir (40 karakter, kriptografik RNG);
+#    yalnız bu çıktıda BİR KEZ gösterilir, hiçbir dosyaya/loga yazılmaz (bu betik için Start-Transcript KULLANMAYIN). Görev kaydı sırasında bir kez girilir;
+#    kaybolursa -ParolaSifirla ile yenilenir ve görev yeniden kaydedilir. Servis hesapları burada YOK: NT SERVICE\klinik-uygulama / klinik-caddy sanal hesaplardır.
+#    Haklar (LSA): "Toplu iş olarak oturum aç" VERİLİR; "Yerel olarak oturum açmayı reddet" ve "Uzak Masaüstü Hizmetleri ile oturum açmayı reddet" EKLENİR. Doğrulanır.
+$yeniParolalar = @{}
 foreach ($ad in "svc-klinik-bakim", "svc-klinik-yedek") {
-  if (Get-LocalUser -Name $ad -ErrorAction SilentlyContinue) { Yazdir "VAR   hesap $ad"; continue }
-  $parola = Read-Host -AsSecureString "Yeni hesap '$ad' icin parola (parola yoneticisine kaydedin)"
-  New-LocalUser -Name $ad -Password $parola -PasswordNeverExpires -UserMayNotChangePassword -Description "Klinik Asistani zamanlanmis is hesabi" | Out-Null
-  Yazdir "OLUSTU hesap $ad"
+  $varMi = [bool](Get-LocalUser -Name $ad -ErrorAction SilentlyContinue)
+  if ($varMi -and -not $ParolaSifirla) { Yazdir "VAR   hesap $ad" }
+  else {
+    $duz = RastgeleParola 40
+    $guvenli = ConvertTo-SecureString $duz -AsPlainText -Force
+    if ($varMi) { Set-LocalUser -Name $ad -Password $guvenli; Yazdir "SIFIRLANDI hesap $ad" }
+    else { New-LocalUser -Name $ad -Password $guvenli -PasswordNeverExpires -UserMayNotChangePassword -Description "Klinik Asistani zamanlanmis is hesabi" | Out-Null; Yazdir "OLUSTU hesap $ad" }
+    $yeniParolalar[$ad] = $duz
+    $duz = $null
+  }
+  ZamanlanmisHesapHaklari "$bilgisayar\$ad"
+  Yazdir "Haklar dogrulandi: $ad (toplu is: VAR; etkilesimli + uzak masaustu oturum acma: REDDEDILDI)"
+}
+if ($yeniParolalar.Count -gt 0) {
+  Write-Host ""
+  Write-Host "================ PAROLALAR — YALNIZ BIR KEZ GOSTERILIR ================" -ForegroundColor Yellow
+  foreach ($k in $yeniParolalar.Keys) { Write-Host ("{0} : {1}" -f $k, $yeniParolalar[$k]) }
+  Write-Host "Simdi parola yoneticisine kaydedin (gorev kaydinda girilecek). Bu pencereyi kapatin/temizleyin; hicbir dosyaya yazilmadi." -ForegroundColor Yellow
+  Write-Host "======================================================================" -ForegroundColor Yellow
+  Write-Host ""
+  $yeniParolalar.Clear()
 }
 
 # 5) NTFS izinleri (ortak.ps1 > GizliIzinleriUygula). Çözülemeyen sanal hesaplar atlanır.
@@ -137,5 +159,6 @@ foreach ($kaynak in "KlinikYedek", "KlinikGuncelle") {
 
 Yazdir "---"
 if ($eksik.Count -gt 0) { Yazdir ("Eksikler (elle kurun, sonra bu betigi yeniden calistirin): " + ($eksik -join ", ")) } else { Yazdir "Tum araclar mevcut." }
+if (-not (Get-ChildItem (Join-Path $KokDizin "anahtarlar") -Filter "*.pub" -ErrorAction SilentlyContinue)) { Yazdir "UYARI: $KokDizin\anahtarlar altinda yayin acik anahtari (*.pub) yok — guncelle.ps1 imzali paketi DOGRULAYAMAZ ve reddeder (docs/sunucu-kurulum.md §10d)." }
 Yazdir "Siradaki: 1) scripts\db-kur.ps1 (veritabani; super kullanici YALNIZ burada)  2) gizli env dosyalari $KokDizin\gizli altina (env.production.ornek: uygulama/bakim/yedek/deploy.env)"
 Yazdir "          3) guncelle.ps1 -IlkKurulum  4) servis-kur.ps1 (sanal servis hesaplarinin izinlerini de tamamlar)"

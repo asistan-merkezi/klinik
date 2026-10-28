@@ -1,8 +1,10 @@
 # Derleme + sürüm paketi. Sunucuda derleme YAPILMAZ: sunucu bu iş akışının ürettiği zip'i indirir (deploy/windows/guncelle.ps1).
 # - Her push / PR: npm ci, lint, test, next build (standalone) → paket (artifact olarak da yüklenir).
-# - `v*` etiketi: ayrıca GitHub sürümü açılır; klinik-<etiket>.zip ve klinik-<etiket>.zip.sha256 ek olarak yüklenir, SHA256 sürüm notuna yazılır.
+# - `v*` etiketi: ayrıca GitHub sürümü TASLAK olarak açılır; klinik-<etiket>.zip ve .zip.sha256 ek olarak yüklenir, SHA256 sürüm notuna ve çalışma özetine yazılır.
+#   Taslak sunucular tarafından "latest" olarak görülmez. Geliştirici `scripts/yayin-imzala.ps1` ile paketi minisign ile İMZALAR (özel anahtar yalnız
+#   geliştirici bilgisayarında; CI'da YOK), .minisig ekini yükler ve taslağı yayınlar. İmzasız sürüm sunucularda reddedilir.
 # Not: üçüncü taraf eylemler etiketle sabitlendi (v4); sıkı sürüm güvencesi için tam commit SHA'sına sabitlenmesi önerilir.
-# Not: `npm run test:db` (gömülü Postgres) bu iş akışına DAHİL DEĞİL; yerelde ve sunucu provasında çalıştırılır (docs/sunucu-kurulum.md "Prova planı").
+# Not: `veritabani` işi (ubuntu + Postgres 18 servis konteyneri) test:db ve kontrol-calistir'i çalıştırır; Windows işi lint, tsc, npm test ve build'e devam eder.
 name: derle
 
 on:
@@ -35,6 +37,7 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+      - run: npx tsc --noEmit
       - run: npm test
       - run: npm run build   # next build, output: standalone (tip denetimi dahil)
 
@@ -43,6 +46,8 @@ jobs:
         run: |
           $etiket = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "dev-$($env:GITHUB_SHA.Substring(0,7))" }
           ./deploy/windows/paketle.ps1 -Surum $etiket -Commit $env:GITHUB_SHA -Cikis dist
+          $ozet = (Get-Content "dist/klinik-$etiket.zip.sha256" -TotalCount 1).Split(" ")[0]
+          "### Paket klinik-$etiket.zip`n`nSHA256: ``$ozet```n`nYayın imzalama (scripts/yayin-imzala.ps1) bu özeti sizden onay ister." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
       - uses: actions/upload-artifact@v4
         with:
@@ -53,9 +58,39 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+  # Veritabanı testleri: gerçek Postgres 18 (servis konteyneri). Test düzeneği gömülü Postgres yerine TEST_PG_DIS_PORT ile bu kümeye bağlanır
+  # (scripts/dev/kume.mjs "dış küme modu"; her çalışmada klinik veritabanı ve roller sıfırlanır → yalnız bu geçici konteynerde kullanın).
+  veritabani:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: yerel-deneme   # yalnız CI konteyneri (dışarıya açık değil); gerçek bir parola değil
+          POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_PG_DIS_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run test:db
+      - run: node scripts/dev/kontrol-calistir.mjs
+
   yayinla:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: derle
+    needs: [derle, veritabani]
     runs-on: ubuntu-latest
     permissions:
       contents: write   # yalnız sürüm oluşturmak için; derleme işi salt-okunur
@@ -74,5 +109,5 @@ jobs:
           set -euo pipefail
           ozet="$(cut -d' ' -f1 "dist/klinik-${ETIKET}.zip.sha256")"
           gh release create "${ETIKET}" "dist/klinik-${ETIKET}.zip" "dist/klinik-${ETIKET}.zip.sha256" \
-            --repo "${DEPO}" --title "${ETIKET}" \
-            --notes "SHA256 (klinik-${ETIKET}.zip): \`${ozet}\`"
+            --repo "${DEPO}" --title "${ETIKET}" --draft \
+            --notes "SHA256 (klinik-${ETIKET}.zip): \`${ozet}\`. IMZASIZ TASLAK: scripts/yayin-imzala.ps1 ile imzalanip yayinlanmali."
