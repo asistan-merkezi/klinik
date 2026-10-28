@@ -2,7 +2,9 @@
 
 Kararlar 2026-10-28. **Şimdi kodlama yok**; taşıma (Modül 5–7) bittikten sonra, canlıya çıkmadan önce yapılır. Sıra: 4b → 4c → Aşama 7b (4c, 7b'nin ilk hedefidir).
 
-## 4a. İade sınırı (karar A) — uygulamadan önce kullanıcı sorusu bekliyor
+## 4a. İade sınırı (karar A) — **UYGULANDI (2026-10-28, migration 0013)**
+
+**Kullanıcı kararı:** bağlantılı iade + istisna = yalnız klinik_admin, zorunlu gerekçe. Uygulama: `hasta_bakiye_hareket.kaynak_hareket_id / iade_istisna / iade_istisna_gerekcesi`, CHECK `hasta_bakiye_hareket_iade_kaynak_kurali` (iade ya bağlı ya gerekçeli istisna), DEFINER tetikleyici `hasta_bakiye_hareket_iade_siniri` (kaynak satırı `FOR UPDATE`; aynı klinik/hasta/yöntem[/hesap]; `iade_asimi:kalan=…`, `iade_kaynak_gecersiz`, `iade_istisna_yetkisiz`), eylem `hastaIadesiVer` (yöntem/hesap kaynaktan alınır; istisna yalnız klinik_admin), `iadeSecenekleriGetir` ve yeni iade formu. Testler: `tests/db/modul-finans.test.ts` (60+40 sınırı, eşzamanlı iki iade, geçersiz kaynak, DB seviyesi hatalar, istisna rolü/gerekçe/audit). Aşağıdaki metin analiz kaydıdır.
 
 **Mevcut akış (incelendi):** tek yol `hastaIadesiVer` (klinik_admin + resepsiyon; form `iade-formu.tsx`). Genel `bakiyeHareketiEkle` `iade` KABUL ETMEZ. İade satırı (`tur='iade'`, `odeme_id IS NULL`, yöntem zorunlu, havale ise hesap) **hiçbir ödeme satırına bağlı değildir**; sistemde "borç-ödeme eşleştirmesi yok, tek genel bakiye" ilkesi var. Bugün tek uyarı: formda "iade sonrası bakiye" gösterimi; sunucuda sınır yok.
 

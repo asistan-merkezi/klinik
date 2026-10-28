@@ -114,7 +114,7 @@ describe("karakterizasyon: Kasa / Banka / Kredi Kartı dönem başı bakiyeleri 
     // Kart tahsilat ayarı: komisyon oranı ve tahsilat hesabı; kart ödemelerinde hesap + oran kopyası tetikleyiciyle yazılır.
     await yaz("update klinik set kredi_karti_tahsilat_banka_hesap_id = $1, kredi_karti_komisyon_orani = 2.5 where id = $2", [BANKA1, F]);
     const hb = (tur: string, tutar: string, yontem: string | null, zaman: string, hesap: string | null = null) =>
-      yaz("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, odeme_yontemi, banka_hesap_id, created_at) values ($1, $2, $3, $4, $5, $6, $7::timestamptz)", [F, H1, tur, tutar, yontem, hesap, zaman]);
+      yaz("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, odeme_yontemi, banka_hesap_id, created_at, iade_istisna, iade_istisna_gerekcesi) values ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8, $9)", [F, H1, tur, tutar, yontem, hesap, zaman, tur === "iade", tur === "iade" ? "fixture istisna" : null]);
     await hb("odeme", "1000.00", "nakit", "2026-09-10 12:00+03");
     await hb("iade", "100.00", "nakit", "2026-09-12 12:00+03");
     await hb("odeme", "2000.00", "banka_havalesi", "2026-09-05 12:00+03", BANKA1);
@@ -210,7 +210,7 @@ describe("karakterizasyon: Raporlar (Ekim 2026) — SQL tek doğruluk kaynağı"
   const donem = raporAyDonemi(2026, 10);
   beforeAll(async () => {
     const hb = (tur: string, tutar: string, yontem: string | null, zaman: string, hesap: string | null = null) =>
-      yaz("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, odeme_yontemi, banka_hesap_id, created_at) values ($1, $2, $3, $4, $5, $6, $7::timestamptz)", [F, H2, tur, tutar, yontem, hesap, zaman]);
+      yaz("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, odeme_yontemi, banka_hesap_id, created_at, iade_istisna, iade_istisna_gerekcesi) values ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8, $9)", [F, H2, tur, tutar, yontem, hesap, zaman, tur === "iade", tur === "iade" ? "fixture istisna" : null]);
     await hb("odeme", "500.00", "nakit", "2026-10-05 10:00+03");
     await hb("odeme", "300.00", "kredi_karti", "2026-10-06 10:00+03");
     await hb("odeme", "200.00", "banka_havalesi", "2026-10-07 10:00+03", BANKA1);
@@ -270,7 +270,7 @@ describe("karakterizasyon: hasta bakiye view'ları (v_hasta_ozet / v_hasta_cari_
   beforeAll(async () => {
     H = (await hastaKur({ klinikId: F })).hastaId;
     const ekle = (tur: string, tutar: string, iskonto = "0") =>
-      yaz("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, iskonto_tutari, odeme_yontemi) values ($1, $2, $3, $4, $5, $6)", [F, H, tur, tutar, iskonto, tur === "iade" ? "nakit" : null]);
+      yaz("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, iskonto_tutari, odeme_yontemi, iade_istisna, iade_istisna_gerekcesi) values ($1, $2, $3, $4, $5, $6, $7, $8)", [F, H, tur, tutar, iskonto, tur === "iade" ? "nakit" : null, tur === "iade", tur === "iade" ? "fixture istisna" : null]);
     await ekle("borc", "1000.00", "100.00"); // net 900
     await ekle("borc", "500.00"); // 500
     await ekle("odeme", "400.00");
@@ -373,14 +373,97 @@ describe("bütünlük: tutar doğrulaması, çift gönderim, eşzamanlılık", (
     expect(t?.success).toBe(false);
   });
 
-  it("iade: yöntem zorunlu; mevcut kural — alacağı aşan iade ENGELLENMEZ, bakiye borca düşer (iş kuralı, kullanıcı onayı bekliyor)", async () => {
+  // ---- Modül 4a: iade sınırı (0013) ----
+  const odemeYaz = async (hasta: string, tutar: string, yontem = "nakit") => {
+    const r = await sql<{ id: string }>(
+      "insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, odeme_yontemi) values ($1, $2, 'odeme', $3, $4) returning id",
+      [F, hasta, tutar, yontem]
+    ).catch(async () => {
+      // süper bağlantı tenant GUC'siz FORCE RLS'e takılır → tenant bağlamlı yaz
+      return tenantdaCalistir(F, async (c) => (await c.query("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, odeme_yontemi) values ($1, $2, 'odeme', $3, $4) returning id", [F, hasta, tutar, yontem])).rows as { id: string }[]);
+    });
+    return r[0].id;
+  };
+  const iadeForm = (kaynak: string, tutar: string, ek: Record<string, string> = {}) => fd({ tutar, tarih: "2026-10-23", kaynak_hareket_id: kaynak, islem_anahtari: randomUUID(), ...ek });
+
+  it("iade ödemenin kalanını aşamaz: 100 ödeme → 60 + 40 olur, sonrası (0,01) reddedilir; yöntem kaynaktan gelir", async () => {
+    const odeme = await odemeYaz(H, "100.00", "kredi_karti");
     as(resepsiyon, F, "resepsiyon");
-    const yontemsiz = await hastaIadesiVer(H, null, fd({ tutar: "5.00", tarih: "2026-10-23", odeme_yontemi: "" }));
-    expect(yontemsiz?.success).toBe(false);
+    const ilk = await hastaIadesiVer(H, null, iadeForm(odeme, "60.00", { odeme_yontemi: "nakit" })); // istemci "nakit" dese de yöntem kaynaktan
+    expect(ilk?.success, ilk?.message).toBe(true);
+    expect((await sql<{ y: string; k: string }>("select odeme_yontemi y, kaynak_hareket_id k from hasta_bakiye_hareket where hasta_id = $1 and tur = 'iade' order by created_at desc limit 1", [H]))[0]).toEqual({ y: "kredi_karti", k: odeme });
+    const asan = await hastaIadesiVer(H, null, iadeForm(odeme, "40.01"));
+    expect(asan?.success).toBe(false);
+    expect(asan?.message).toMatch(/kalanını \(.*40,00.*\) aşamaz/);
+    expect((await hastaIadesiVer(H, null, iadeForm(odeme, "40.00")))?.success).toBe(true);
+    expect((await hastaIadesiVer(H, null, iadeForm(odeme, "0.01")))?.success).toBe(false);
+  });
+
+  it("iade kaynağı geçerli olmalı: başka hastanın / iade / borç satırı, olmayan kimlik; kaynak seçilmeden iade yapılamaz", async () => {
+    const baska = (await hastaKur({ klinikId: F })).hastaId;
+    const baskaOdeme = await odemeYaz(baska, "50.00");
+    as(resepsiyon, F, "resepsiyon");
+    expect((await hastaIadesiVer(H, null, iadeForm(baskaOdeme, "10")))?.success).toBe(false);
+    expect((await hastaIadesiVer(H, null, iadeForm(randomUUID(), "10")))?.success).toBe(false);
+    const borc = (await sql<{ id: string }>("select id from hasta_bakiye_hareket where hasta_id = $1 and tur = 'iade' limit 1", [H]))[0].id;
+    expect((await hastaIadesiVer(H, null, iadeForm(borc, "1")))?.success).toBe(false);
+    expect((await hastaIadesiVer(H, null, fd({ tutar: "5.00", tarih: "2026-10-23" })))?.message).toBe("İade edilecek ödeme seçilmeli.");
+  });
+
+  it("EŞZAMANLI iki iade (kalan 100, 60 + 60): tam biri başarılı, toplam kaynağı aşmaz", async () => {
+    const odeme = await odemeYaz(H, "100.00");
+    as(resepsiyon, F, "resepsiyon");
+    const sonuc = await Promise.all([hastaIadesiVer(H, null, iadeForm(odeme, "60.00")), hastaIadesiVer(H, null, iadeForm(odeme, "60.00"))]);
+    expect(sonuc.filter((x) => x?.success)).toHaveLength(1);
+    expect((await sql<{ t: string }>("select sum(tutar)::text t from hasta_bakiye_hareket where kaynak_hareket_id = $1", [odeme]))[0].t).toBe("60.00");
+  });
+
+  it("DB seviyesi: aşan iade 'iade_asimi', yöntem uyuşmazlığı 'iade_kaynak_gecersiz'; kaynaksız/istisnasız iade CHECK'e takılır", async () => {
+    const odeme = await odemeYaz(H, "30.00", "nakit");
+    const ekle = (tutar: string, yontem: string, kaynak: string | null, istisna = false, gerekce: string | null = null) =>
+      withTenant(tx(admin), (t) =>
+        t.insert(sema.hastaBakiyeHareket).values({ klinikId: F, hastaId: H, tur: "iade", tutar, odemeYontemi: yontem as "nakit", kaynakHareketId: kaynak, iadeIstisna: istisna, iadeIstisnaGerekcesi: gerekce })
+      );
+    await reddedilmeli(ekle("30.01", "nakit", odeme), /iade_asimi:kalan=30\.00/);
+    await reddedilmeli(ekle("10", "kredi_karti", odeme), /iade_kaynak_gecersiz/);
+    await reddedilmeli(ekle("10", "nakit", null), /iade_kaynak_gecersiz/); // kaynaksız + istisnasız: tetikleyici reddeder
+    await reddedilmeli(ekle("10", "nakit", null, true, "kısa"), /check constraint/);
+    await reddedilmeli(ekle("10", "nakit", odeme, true, "uzun bir gerekçe"), /check constraint/);
+    await ekle("30", "nakit", odeme);
+  });
+
+  it("İSTİSNA iade: resepsiyon yapamaz (eylem + DB); klinik_admin gerekçeyle yapar; gerekçesiz reddedilir; audit'te görünür", async () => {
+    as(resepsiyon, F, "resepsiyon");
+    const r = await hastaIadesiVer(H, null, fd({ tutar: "25.00", tarih: "2026-10-23", istisna: "on", istisna_gerekcesi: "arşiv ödemesi", odeme_yontemi: "nakit" }));
+    expect(r?.success).toBe(false);
+    await reddedilmeli(
+      withTenant(tx(resepsiyon), (t) => t.insert(sema.hastaBakiyeHareket).values({ klinikId: F, hastaId: H, tur: "iade", tutar: "25.00", odemeYontemi: "nakit", iadeIstisna: true, iadeIstisnaGerekcesi: "arşiv ödemesi" })),
+      /iade_istisna_yetkisiz/
+    );
+    as(admin, F, "klinik_admin");
+    expect((await hastaIadesiVer(H, null, fd({ tutar: "25.00", tarih: "2026-10-23", istisna: "on", odeme_yontemi: "nakit" })))?.success).toBe(false);
     const once = kurus(await bakiye())!;
-    const buyuk = await hastaIadesiVer(H, null, fd({ tutar: "100000.00", tarih: "2026-10-23", odeme_yontemi: "nakit" }));
-    expect(buyuk?.success).toBe(true);
-    expect(kurus(await bakiye())).toBe(once - 10_000_000);
+    const ok = await hastaIadesiVer(H, null, fd({ tutar: "25.00", tarih: "2026-10-23", istisna: "on", istisna_gerekcesi: "arşivden aktarılan ödeme", odeme_yontemi: "nakit", islem_anahtari: randomUUID() }));
+    expect(ok?.success, ok?.message).toBe(true);
+    expect(kurus(await bakiye())).toBe(once - 2500); // alacağı aşan istisna iade de bakiyeyi düşürür (iş kuralı)
+    const iz = await sql<{ detay: { yeni?: { iade_istisna?: boolean; iade_istisna_gerekcesi?: string } } }>(
+      "select detay from audit_log where hedef_tablo = 'hasta_bakiye_hareket' and klinik_id = $1 and detay->'yeni'->>'iade_istisna_gerekcesi' = 'arşivden aktarılan ödeme'", [F]
+    );
+    expect(iz.length).toBeGreaterThan(0);
+  });
+
+  it("iade seçenekleri: yalnız kalan > 0 ödemeler; istisna yetkisi yalnız klinik_admin", async () => {
+    const { iadeSecenekleriGetir } = await import("@/app/(app)/panel/hastalar/[id]/actions");
+    const yeni = (await hastaKur({ klinikId: F })).hastaId;
+    const o1 = await odemeYaz(yeni, "80.00");
+    await odemeYaz(yeni, "20.00", "banka_havalesi").catch(() => undefined);
+    as(resepsiyon, F, "resepsiyon");
+    expect((await hastaIadesiVer(yeni, null, iadeForm(o1, "80.00")))?.success).toBe(true);
+    const r = await iadeSecenekleriGetir(yeni);
+    expect(r.odemeler.map((o) => o.id)).not.toContain(o1);
+    expect(r.istisnaYapabilir).toBe(false);
+    as(admin, F, "klinik_admin");
+    expect((await iadeSecenekleriGetir(yeni)).istisnaYapabilir).toBe(true);
   });
 
   it("havale ödemesi/iadesi başka kliniğin banka hesabıyla yazılamaz; hesap yoksa reddedilir", async () => {
@@ -388,7 +471,8 @@ describe("bütünlük: tutar doğrulaması, çift gönderim, eşzamanlılık", (
     const yabanci = (await sql<{ id: string }>("select id from klinik_banka_hesaplari where klinik_id = $1 limit 1", [K2.klinik]))[0]?.id ?? randomUUID();
     const s = await bakiyeHareketiEkle(H, null, fd({ tur: "odeme", tutar: "10.00", tarih: "2026-10-23", odeme_yontemi: "banka_havalesi", banka_hesap_id: yabanci }));
     expect(s?.success).toBe(false);
-    const i = await hastaIadesiVer(H, null, fd({ tutar: "10.00", tarih: "2026-10-23", odeme_yontemi: "banka_havalesi", banka_hesap_id: yabanci }));
+    as(admin, F, "klinik_admin");
+    const i = await hastaIadesiVer(H, null, fd({ tutar: "10.00", tarih: "2026-10-23", istisna: "on", istisna_gerekcesi: "yabancı hesap denemesi", odeme_yontemi: "banka_havalesi", banka_hesap_id: yabanci }));
     expect(i?.success).toBe(false);
   });
 
@@ -575,7 +659,7 @@ describe("rol ve yetki (eylemler + DEFINER RPC'ler)", () => {
       yaz("insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, iskonto_tutari) values ($1, $2, $3, $4, $5)", [F, H, tur, tutar, iskonto]);
     await reddedilmeli(dene("odeme", "-5", "0"), /check constraint/);
     await reddedilmeli(dene("odeme", "0", "0"), /check constraint/);
-    await reddedilmeli(dene("iade", "0", "0"), /check constraint/);
+    await reddedilmeli(dene("iade", "0", "0"), /iade_kaynak_gecersiz|check constraint/);
     await reddedilmeli(dene("borc", "100", "150"), /check constraint/);
     await reddedilmeli(dene("borc", "100", "-1"), /check constraint/);
     await dene("borc", "0", "0"); // ücretsiz seans borcu geçerli

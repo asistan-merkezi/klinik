@@ -6,7 +6,7 @@ import { bankaHesabiHatasiniCevir, havaleHesapEksikMi, HAVALE_HESAP_GEREKLI_MESA
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { tarihiSimdikiSaatleUTC } from "@/lib/datetime";
-import { eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { pgHata, rpc, sema, sql, withTenant } from "@/lib/db";
 import { snakeKolonlari } from "@/lib/db/kolon";
 import { randevuKimlikleriniDogrula } from "@/lib/randevu/dogrulama";
@@ -18,7 +18,7 @@ import { FATURA_ALAN_ETIKETLERI } from "@/lib/fatura/eksik-bilgi";
 import { revalidateHastaDetay } from "./revalidate";
 import { islemAnahtariniKaydet, islemAnahtariniOku } from "@/lib/finans/idempotans";
 import { negatifOlmayanTutarKurus, pozitifTutarKurus } from "@/lib/finans/tutar";
-import { kurusMetni } from "@/lib/para";
+import { kurus, kurusMetni, tl } from "@/lib/para";
 import { randevuErtele } from "../../randevular/actions";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -246,25 +246,52 @@ export async function bakiyeHareketiEkle(
   return { success: true, message: "Ödeme eklendi." };
 }
 
-const iadeSemasi = z
-  .object({
-    tutar: pozitifTutarKurus(),
-    tarih: z.string().min(1, "Tarih seçilmeli."),
-    aciklama: z.string().trim().optional(),
-    odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"], {
-      message: "İade yöntemi seçilmeli.",
-    }),
-    banka_hesap_id: z.string().trim().optional(),
-  })
-  .refine((v) => v.odeme_yontemi !== "banka_havalesi" || !!v.banka_hesap_id, {
-    message: "Havale iadesi için banka hesabı seçilmeli.",
-    path: ["banka_hesap_id"],
-  });
+const iadeSemasi = z.object({
+  tutar: pozitifTutarKurus(),
+  tarih: z.string().min(1, "Tarih seçilmeli."),
+  aciklama: z.string().trim().optional(),
+  /** Normal iade: bağlı olduğu ÖDEME satırı (yöntem/hesap oradan alınır). İstisnada boş. */
+  kaynak_hareket_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+  /** İstisna iade (yalnız klinik_admin, gerekçe zorunlu): yöntem formdan gelir. */
+  istisna: z.string().optional(),
+  istisna_gerekcesi: z.string().trim().optional(),
+  odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi", ""]).optional(),
+  banka_hesap_id: z.string().trim().optional(),
+});
 
-// Hastaya para iadesi: bakiyeyi -tutar düşürür (v_hasta_ozet, migration
-// 20260930090000) ve seçilen yönteme göre Kasa/Banka/Kredi Kartı'nda ÇIKIŞ
-// olarak görünür. Yöntem zorunlu — yöntemsiz iade hiçbir mutabakata
-// yansımazdı (DB'de de CHECK ile zorlanıyor).
+/** Bir ödemenin iade edilebilir kalanı = ödeme tutarı − o ödemeye bağlı iadeler (kuruş). Sunucu tetikleyicisiyle (0013) AYNI kural. */
+export type IadeEdilebilirOdeme = { id: string; tarih: string; yontem: string; bankaHesapId: string | null; tutar: number; kalan: number };
+
+/** İade formunun seçenekleri: iade edilebilir ödemeler (kalan > 0) ve istisna yetkisi (yalnız klinik_admin). */
+export async function iadeSecenekleriGetir(hastaId: string): Promise<{ odemeler: IadeEdilebilirOdeme[]; istisnaYapabilir: boolean }> {
+  const ctx = await hastaBaglami(YONETIM_ROLLERI, hastaId);
+  if (ctx.yetkisiz || !ctx.hasta) return { odemeler: [], istisnaYapabilir: false };
+  const B = sema.hastaBakiyeHareket;
+  const satirlar = await withTenant(ctx.bag, async (tx) => {
+    const odemeler = await tx
+      .select({ id: B.id, tutar: B.tutar, yontem: B.odemeYontemi, hesap: B.bankaHesapId, tarih: B.createdAt })
+      .from(B)
+      .where(and(eq(B.hastaId, hastaId), eq(B.tur, "odeme")))
+      .orderBy(desc(B.createdAt), asc(B.id));
+    const iadeler = await tx.select({ kaynak: B.kaynakHareketId, tutar: B.tutar }).from(B).where(and(eq(B.hastaId, hastaId), eq(B.tur, "iade")));
+    return { odemeler, iadeler };
+  });
+  const iadeKurus = new Map<string, number>();
+  for (const i of satirlar.iadeler) if (i.kaynak) iadeKurus.set(i.kaynak, (iadeKurus.get(i.kaynak) ?? 0) + (kurus(i.tutar) ?? 0));
+  const odemeler = satirlar.odemeler
+    .filter((o) => o.yontem)
+    .map((o) => ({ id: o.id, tarih: o.tarih, yontem: o.yontem as string, bankaHesapId: o.hesap, tutar: tl(o.tutar), kalan: ((kurus(o.tutar) ?? 0) - (iadeKurus.get(o.id) ?? 0)) / 100 }))
+    .filter((o) => o.kalan > 0);
+  return { odemeler, istisnaYapabilir: ctx.rol === "klinik_admin" };
+}
+
+const IADE_HATALARI: Record<string, string> = {
+  iade_kaynak_gecersiz: "Seçilen ödeme bu iade için geçerli değil (başka hasta/yöntem/hesap).",
+  iade_istisna_yetkisiz: "İstisna iade yalnız klinik yöneticisi tarafından yapılabilir.",
+};
+
+// Hastaya para iadesi: bakiyeyi -tutar düşürür (v_hasta_ozet) ve yönteme göre Kasa/Banka/Kredi Kartı'nda ÇIKIŞ olur.
+// KURAL (Modül 4a): iade, bağlı olduğu ödemenin kalanını aşamaz (DB tetikleyicisi + burada ön kontrol). İstisna: yalnız klinik_admin + zorunlu gerekçe.
 export async function hastaIadesiVer(
   hastaId: string,
   _onceki: SonucDurumu,
@@ -278,6 +305,9 @@ export async function hastaIadesiVer(
     tutar: formData.get("tutar"),
     tarih: formData.get("tarih"),
     aciklama: formData.get("aciklama") ?? "",
+    kaynak_hareket_id: formData.get("kaynak_hareket_id") ?? "",
+    istisna: formData.get("istisna") ?? "",
+    istisna_gerekcesi: formData.get("istisna_gerekcesi") ?? "",
     odeme_yontemi: formData.get("odeme_yontemi") ?? "",
     banka_hesap_id: formData.get("banka_hesap_id") ?? "",
   });
@@ -286,14 +316,35 @@ export async function hastaIadesiVer(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { tutar, tarih, aciklama, odeme_yontemi, banka_hesap_id } = ayristirma.data;
+  const { tutar, tarih, aciklama, kaynak_hareket_id, istisna, istisna_gerekcesi, odeme_yontemi, banka_hesap_id } = ayristirma.data;
+  const istisnaMi = istisna === "on" || istisna === "true";
+
+  if (istisnaMi) {
+    if (ctx.rol !== "klinik_admin") return { success: false, message: IADE_HATALARI.iade_istisna_yetkisiz };
+    if ((istisna_gerekcesi ?? "").length < 5) return { success: false, message: "İstisna iade için gerekçe (en az 5 karakter) zorunlu." };
+    if (!odeme_yontemi) return { success: false, message: "İade yöntemi seçilmeli." };
+    if (odeme_yontemi === "banka_havalesi" && !banka_hesap_id) return { success: false, message: "Havale iadesi için banka hesabı seçilmeli." };
+  } else if (!kaynak_hareket_id) {
+    return { success: false, message: "İade edilecek ödeme seçilmeli." };
+  }
 
   try {
     const sonuc = await withTenant(ctx.bag, async (tx) => {
-      // FK tenant'ı doğrulamaz — RLS'e tabi bu sorgu, başka kliniğin banka hesabının id'siyle iade yazılmasını engeller.
-      if (odeme_yontemi === "banka_havalesi") {
-        const hesap = await tx.select({ id: sema.klinikBankaHesaplari.id }).from(sema.klinikBankaHesaplari).where(eq(sema.klinikBankaHesaplari.id, banka_hesap_id ?? "")).limit(1);
-        if (hesap.length === 0) return { hata: "Banka hesabı bulunamadı." };
+      let yontem: "nakit" | "kredi_karti" | "banka_havalesi" | null = odeme_yontemi || null;
+      let hesapId: string | null = null;
+      if (istisnaMi) {
+        // FK tenant'ı doğrulamaz — RLS'e tabi bu sorgu, başka kliniğin banka hesabının id'siyle iade yazılmasını engeller.
+        if (odeme_yontemi === "banka_havalesi") {
+          const hesap = await tx.select({ id: sema.klinikBankaHesaplari.id }).from(sema.klinikBankaHesaplari).where(eq(sema.klinikBankaHesaplari.id, banka_hesap_id ?? "")).limit(1);
+          if (hesap.length === 0) return { hata: "Banka hesabı bulunamadı." };
+          hesapId = banka_hesap_id ?? null;
+        }
+      } else {
+        // Yöntem ve hesap KAYNAK ödemeden alınır (istemci söylediğine güvenilmez); sınır kontrolü tetikleyicide kesin, burada ön kontrol/mesaj.
+        const kaynak = (await tx.select({ hasta: sema.hastaBakiyeHareket.hastaId, tur: sema.hastaBakiyeHareket.tur, yontem: sema.hastaBakiyeHareket.odemeYontemi, hesap: sema.hastaBakiyeHareket.bankaHesapId }).from(sema.hastaBakiyeHareket).where(eq(sema.hastaBakiyeHareket.id, kaynak_hareket_id as string)).limit(1))[0];
+        if (!kaynak || kaynak.hasta !== hastaId || kaynak.tur !== "odeme" || !kaynak.yontem) return { hata: IADE_HATALARI.iade_kaynak_gecersiz };
+        yontem = kaynak.yontem as "nakit" | "kredi_karti" | "banka_havalesi";
+        hesapId = yontem === "banka_havalesi" ? kaynak.hesap : null;
       }
       if (!(await islemAnahtariniKaydet(tx, ctx.klinikId, islemAnahtariniOku(formData), "hasta_iadesi", ctx.userId))) return { tamam: true as const };
       await tx.insert(sema.hastaBakiyeHareket).values({
@@ -303,14 +354,21 @@ export async function hastaIadesiVer(
         tutar: kurusMetni(tutar),
         aciklama: aciklama ? aciklama : null,
         createdAt: tarihiSimdikiSaatleUTC(tarih),
-        odemeYontemi: odeme_yontemi,
-        bankaHesapId: odeme_yontemi === "banka_havalesi" ? banka_hesap_id : null,
+        odemeYontemi: yontem,
+        bankaHesapId: hesapId,
+        kaynakHareketId: istisnaMi ? null : (kaynak_hareket_id as string),
+        iadeIstisna: istisnaMi,
+        iadeIstisnaGerekcesi: istisnaMi ? (istisna_gerekcesi as string) : null,
       });
       return { tamam: true as const };
     });
     if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "İade kaydedilemedi." };
   } catch (e) {
-    console.error("Hasta iadesi eklenemedi:", pgHata(e).mesaj);
+    const h = pgHata(e);
+    console.error("Hasta iadesi eklenemedi:", h.mesaj);
+    const asim = /iade_asimi:kalan=([0-9.]+)/.exec(h.mesaj);
+    if (asim) return { success: false, message: `İade tutarı seçilen ödemenin kalanını (${(tl(asim[1])).toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}) aşamaz.` };
+    for (const [anahtar, mesaj] of Object.entries(IADE_HATALARI)) if (h.mesaj.includes(anahtar)) return { success: false, message: mesaj };
     return { success: false, message: "İade kaydedilemedi, lütfen tekrar deneyin." };
   }
 

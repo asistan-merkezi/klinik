@@ -22,3 +22,8 @@ Node.js (22+), internet (yalnız `npm install` için; `embedded-postgres` gerçe
 
 ## Kontroller (`node scripts/dev/kontrol-calistir.mjs`)
 İki klinikli boş bir Postgres'te (port 54331) `db/` dosyalarından şemayı kurar, örnek veri yazar ve çalıştırır: `db/kontrol/bypassrls-kontrol.sql` (RLS atlayan rol/fonksiyon, FORCE, klinik_yedek pg_hba), `db/kontrol/yetki-matrisi.sql` (hangi rol hangi tabloda ne yapabilir; `docs/yetki-matrisi.md` çıktısını üretir), anonim self-servis kayıt testi, DEFINER duman testi. Çıkış kodu 0 = hepsi geçti.
+
+
+## UYARI (2026-10-28): elle eklenen kolonlar
+
+`lib/db/sema/schema.ts` Supabase referansından üretilir; sonradan elle yazılan migration'larla gelen kolonlar (örn. 0013: `hasta_bakiye_hareket.kaynak_hareket_id`, `iade_istisna`, `iade_istisna_gerekcesi`) yeniden üretimde SİLİNİR. `yeniden-uret.mjs` çalıştırdıktan sonra bu kolonlar schema.ts'e elle geri eklenmeli (ya da üreticinin 0007+ migration'larını da referansa uygulaması sağlanmalı).

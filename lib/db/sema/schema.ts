@@ -671,6 +671,9 @@ export const hastaBakiyeHareket = pgTable("hasta_bakiye_hareket", {
 	bankaHesapId: uuid("banka_hesap_id"),
 	belgeTuru: text("belge_turu"),
 	komisyonOrani: numeric("komisyon_orani", { precision: 4, scale:  2 }),
+	kaynakHareketId: uuid("kaynak_hareket_id"),
+	iadeIstisna: boolean("iade_istisna").default(false).notNull(),
+	iadeIstisnaGerekcesi: text("iade_istisna_gerekcesi"),
 }, (table) => [
 	index("idx_hasta_bakiye_hareket_banka_hesap").using("btree", table.bankaHesapId.asc().nullsLast().op("uuid_ops")).where(sql`(banka_hesap_id IS NOT NULL)`),
 	index("idx_hasta_bakiye_hareket_hasta_id").using("btree", table.hastaId.asc().nullsLast().op("uuid_ops")),

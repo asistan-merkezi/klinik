@@ -21,14 +21,16 @@ try {
     [k.klinik, hastaSayisi]
   );
   await sup.query(
-    `insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, iskonto_tutari, odeme_yontemi, created_at)
+    `insert into hasta_bakiye_hareket(klinik_id, hasta_id, tur, tutar, iskonto_tutari, odeme_yontemi, created_at, iade_istisna, iade_istisna_gerekcesi)
      select $1,
             (select id from hasta where klinik_id = $1 offset (g % $3) limit 1),
             (array['odeme','odeme','odeme','borc','borc','iade'])[1 + g % 6],
             (10 + (g % 500))::numeric,
             0,
             case when (array['odeme','odeme','odeme','borc','borc','iade'])[1 + g % 6] = 'borc' then null else (array['nakit','banka_havalesi','kredi_karti'])[1 + g % 3] end,
-            timestamptz '2024-01-01 09:00+03' + (g * interval '15 minutes')
+            timestamptz '2024-01-01 09:00+03' + (g * interval '15 minutes'),
+            (array['odeme','odeme','odeme','borc','borc','iade'])[1 + g % 6] = 'iade',
+            case when (array['odeme','odeme','odeme','borc','borc','iade'])[1 + g % 6] = 'iade' then 'performans fixture' end
      from generate_series(1, $2) g`,
     [k.klinik, N, hastaSayisi]
   );

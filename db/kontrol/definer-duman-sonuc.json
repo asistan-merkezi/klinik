@@ -229,6 +229,16 @@
    "sonuc": "GECTI"
   },
   {
+   "ad": "hasta_bakiye_hareket_iade_siniri",
+   "imza": "hasta_bakiye_hareket_iade_siniri()",
+   "donus": "trigger",
+   "tur": "tetikleyici",
+   "uygulamaCagirir": false,
+   "anonCagirir": false,
+   "sonuc": "TETIKLEYICI",
+   "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
+  },
+  {
    "ad": "hasta_bakiye_hareket_kredi_karti_ayari",
    "imza": "hasta_bakiye_hareket_kredi_karti_ayari()",
    "donus": "trigger",

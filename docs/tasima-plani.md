@@ -12,7 +12,7 @@ Hepsi kapanmadan canlı geçiş YAPILMAZ. Durum güncel tutulur (son: 2026-10-28
 | 1 | **Seçenek B** — `user_id` güvencesi: oturum jetonunun DB'de doğrulanması (tenant türetme bugün `app.user_id`'ye güveniyor; bölüm "Bağlam güvenliği") | açık |
 | 2 | **Modül 4b** — mali kayıt iptali (fiziksel silme kalkar, iptal bayrağı + gerekçe + ters kayıt) | tasarım hazır: `docs/modul-4b-4c-tasarim.md`; taşıma bittikten sonra kodlanır |
 | 3 | **Modül 4c** — terapistin finans tablolarına RLS okumasının kapatılması (dar görünümler) | tasarım hazır; **Aşama 7b'nin ilk hedefi** |
-| 4 | **Modül 4a** — iade sınırı (ödemeden büyük iade reddi) | kullanıcı yanıtı bekliyor (bağlantı modeli + istisna) |
+| 4 | **Modül 4a** — iade sınırı (ödemeden büyük iade reddi) | **KAPANDI 2026-10-28** (0013: bağlantılı iade + yönetici istisnası, gerekçe zorunlu) |
 | 5 | **KDV yuvarlama mali müşavir teyidi** — kural: `docs/tasima-ilerleme.md` Modül 4 §1 | teyit bekliyor |
 | 6 | `db-kur.ps1` gerçek **Windows** üzerinde test | yapılmadı |
 | 7 | **E-posta göndericisi** bağlanması (şablon verisi KVKK uyumu dahil, `docs/kvkk-aktarim.md`) | açık |
@@ -165,7 +165,7 @@ Değerlendirme: fark ölçüm gürültüsü sınırında (toplu sorgularda ~%1, 
 - **Açık (Aşama 3)**: DEFINER fonksiyonların anlamlı iş akışı testleri (modül taşımasında), `klinik_uygulama` yetkilerinin kodla birlikte doğrulanması (kodda kullanılmayan 17 tablo şimdilik yetkisiz — `db/arac/yetki-ozeti.json`).
 
 ## Kararlar (2026-10-28, Modül 4 sonrası)
-- **A (iade sınırı):** kabul edildi; uygulama önce kullanıcı onayı (kaynak bağlantısı + istisna) — `docs/modul-4b-4c-tasarim.md` §4a.
+- **A (iade sınırı):** UYGULANDI — bağlantılı iade (`kaynak_hareket_id`) + istisna yalnız klinik_admin/gerekçe zorunlu; migration 0013; `docs/modul-4b-4c-tasarim.md` §4a.
 - **B+D → Modül 4b**, **C → Modül 4c**: taşıma bittikten sonra, canlıdan önce; 4c, Aşama 7b'nin ilk hedefi. Tasarım: `docs/modul-4b-4c-tasarim.md`. Şimdi kodlanmaz.
 - **E:** KDV yuvarlama kuralı belgelendi, mali müşavir teyidi üretim kapısında.
 - **Sıfır kurulumda CHECK'ler** doğrudan geçerli (migration 0012; `NOT VALID` kalmadı, eski `NOT VALID` kısıtlar da 0012'de `VALIDATE` edilir).

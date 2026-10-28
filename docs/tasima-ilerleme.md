@@ -127,7 +127,7 @@ Denetim **veritabanı tetikleyicisiyle** (v2: `hasta_bakiye_hareket`, `fatura`, 
 
 #### 8. Karar durumu (2026-10-28 güncellemesi)
 
-Kararlar: **A** iade sınırı kabul — uygulama öncesi soru bekliyor (analiz/istisna: `docs/modul-4b-4c-tasarim.md` §4a); **B+D → Modül 4b**, **C → Modül 4c** (taşıma sonrası, canlı öncesi; 4c = Aşama 7b'nin ilk hedefi; tasarım aynı dosyada); **E** KDV teyidi üretim kapısında (`docs/tasima-plani.md` başı). Aşağıdaki maddeler ilk analizdir:
+Kararlar: **A** iade sınırı **UYGULANDI** (0013; bağlantılı iade + yönetici istisnası, gerekçe zorunlu, audit'te görünür; analiz: `docs/modul-4b-4c-tasarim.md` §4a) — §1'deki "alacağı aşan iade engellenmez" ifadesi artık geçersizdir (yalnız istisna iade alacağı aşabilir); **B+D → Modül 4b**, **C → Modül 4c** (taşıma sonrası, canlı öncesi; 4c = Aşama 7b'nin ilk hedefi; tasarım aynı dosyada); **E** KDV teyidi üretim kapısında (`docs/tasima-plani.md` başı). Aşağıdaki maddeler ilk analizdir:
 
 - **A. "Ödemeden büyük iade reddi":** mevcut kural (CLAUDE.md) iadenin alacağı aşmasına izin verip uyarı verir; reddetmek iş kuralı değişikliği olduğundan **uygulanmadı**. Test mevcut davranışı belgeler (100.000 ₺ iade kabul edilir, bakiye borca düşer). İsterseniz sınır: "iade ≤ o yöntemle alınmış net tahsilat" olarak eklenir.
 - **B. "İptal edilen ödemenin bakiyeyi geri alması":** ödeme iptali özelliği YOK (defter append-only; düzeltme iade kaydıyla). Ters kayıt/iptal akışı yeni özellik olur (hangi rol, onay, Kasa/Banka etkisi) — tasarım kararı bekliyor. Taksit de veri modelinde yok; karakterizasyonda ödeme, iade, paket satışı/kullanımı, iptal edilen randevu bedeli (Modül 2) kapsandı.
