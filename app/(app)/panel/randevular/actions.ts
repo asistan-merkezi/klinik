@@ -797,24 +797,25 @@ async function paketYenilemeUyarisiIsle(bag: TenantBaglami, paketSatisId: string
     return await withTenant(bag, async (tx) => {
       const satis = (
         await tx
+          // paket_satis'e terapistin SELECT'i yok (0017): kalan hak/paket adı dar görünümden, hasta iletişimi randevu üzerinden okunur.
           .select({
-            kalanAdet: sema.paketSatis.kalanAdet,
-            klinikId: sema.paketSatis.klinikId,
+            kalanAdet: sema.vRandevuKapanis.paketKalanAdet,
+            klinikId: sema.randevu.klinikId,
             hastaId: sema.hasta.id,
             hastaAd: sema.hasta.adSoyad,
             telefon: sema.hasta.telefon,
             eposta: sema.hasta.eposta,
             wp: sema.hasta.whatsappIzinDurumu,
-            paketAd: sema.paket.ad,
+            paketAd: sema.vRandevuKapanis.paketAd,
           })
-          .from(sema.paketSatis)
-          .leftJoin(sema.hasta, eq(sema.hasta.id, sema.paketSatis.hastaId))
-          .leftJoin(sema.paket, eq(sema.paket.id, sema.paketSatis.paketId))
-          .where(eq(sema.paketSatis.id, paketSatisId))
+          .from(sema.randevu)
+          .innerJoin(sema.vRandevuKapanis, eq(sema.vRandevuKapanis.randevuId, sema.randevu.id))
+          .leftJoin(sema.hasta, eq(sema.hasta.id, sema.randevu.hastaId))
+          .where(and(eq(sema.randevu.id, randevuId), eq(sema.randevu.paketSatisId, paketSatisId)))
           .limit(1)
       )[0];
 
-      if (!satis || !paketYenilemeGerekliMi(satis.kalanAdet)) return null;
+      if (!satis || satis.kalanAdet == null || !paketYenilemeGerekliMi(satis.kalanAdet)) return null;
 
       const paketAdi = satis.paketAd ?? "Paket";
       const uyari = `${paketAdi} paketinde ${satis.kalanAdet} seans kaldı — hastaya yenileme hatırlatması yapın.`;

@@ -1,6 +1,6 @@
 // Hastalar listesi sayfasının okuma sorguları (Drizzle). Harf çubuğu/sayfalama fonksiyonları DB'de (`hasta_bas_harf_sayilari`, `hasta_harf_listesi`),
 // sıralama collation'a GÜVENMEZ (turkce_sira_anahtari). Ek veriler (adres, bakiye, aktif protokol, paket ilerlemesi) tek tur sorgu + Map ile birleşir.
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { rpc, sema, zamanlariIsoyaCevir, type Tx } from "@/lib/db";
 import type { HastaListeSatiri } from "@/types/hasta";
 import type { HastaAramaSatiri } from "./arama";
@@ -37,10 +37,10 @@ export async function listeEkVerisiGetir(tx: Tx, hastalar: HastaAramaSatiri[]): 
     tx.select({ hastaId: sema.vHastaOzet.hastaId, bakiye: sema.vHastaOzet.bakiye }).from(sema.vHastaOzet).where(inArray(sema.vHastaOzet.hastaId, ids)),
     tx.select({ hastaId: sema.vHastaDetayOzet.hastaId, protokol: sema.vHastaDetayOzet.aktifProtokolAd }).from(sema.vHastaDetayOzet).where(inArray(sema.vHastaDetayOzet.hastaId, ids)),
     tx
-      .select({ hastaId: sema.paketSatis.hastaId, kalan: sema.paketSatis.kalanAdet, seans: sema.paket.seansSayisi })
-      .from(sema.paketSatis)
-      .innerJoin(sema.paket, eq(sema.paket.id, sema.paketSatis.paketId))
-      .where(and(eq(sema.paketSatis.durum, "aktif"), inArray(sema.paketSatis.hastaId, ids))),
+      .select({ hastaId: sema.vHastaAktifPaket.hastaId, kalan: sema.vHastaAktifPaket.kalanAdet, seans: sema.paket.seansSayisi })
+      .from(sema.vHastaAktifPaket)
+      .innerJoin(sema.paket, eq(sema.paket.id, sema.vHastaAktifPaket.paketId))
+      .where(inArray(sema.vHastaAktifPaket.hastaId, ids)),
   ]);
   const adresMap = new Map(adresler.map((a) => [a.hastaId, a.adres]));
   const bakiyeMap = new Map(ozetler.map((o) => [o.hastaId, Number(o.bakiye ?? 0)]));

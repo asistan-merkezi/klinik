@@ -2025,3 +2025,28 @@ export const destekBaglami = pgTable("destek_baglami", {
 	bitis: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
 	kapatildi: timestamp({ withTimezone: true, mode: 'string' }),
 })
+
+/** EL İLE EKLENDİ (0017, Modül 4c): terapistin finans tablolarına SELECT'i yok; bu DAR görünümler (SECURITY DEFINER sahipli, kendi tenant/personel süzgeçli) yalnız durum/adet verir — TUTAR YOK. */
+export const vRandevuKapanis = pgView("v_randevu_kapanis", {
+	randevuId: uuid("randevu_id").notNull(),
+	klinikId: uuid("klinik_id").notNull(),
+	islendi: boolean().notNull(),
+	kapanisSekli: text("kapanis_sekli"),
+	paketKalanAdet: integer("paket_kalan_adet"),
+	paketAd: text("paket_ad"),
+}).existing();
+
+export const vHastaPaketOzet = pgView("v_hasta_paket_ozet", {
+	hastaId: uuid("hasta_id").notNull(),
+	klinikId: uuid("klinik_id").notNull(),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	kalanPaketHakki: bigint("kalan_paket_hakki", { mode: "number" }).notNull(),
+}).existing();
+
+export const vHastaAktifPaket = pgView("v_hasta_aktif_paket", {
+	paketSatisId: uuid("paket_satis_id").notNull(),
+	hastaId: uuid("hasta_id").notNull(),
+	klinikId: uuid("klinik_id").notNull(),
+	paketId: uuid("paket_id").notNull(),
+	kalanAdet: integer("kalan_adet").notNull(),
+}).existing();

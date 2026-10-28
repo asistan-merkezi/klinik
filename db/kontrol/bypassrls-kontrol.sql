@@ -95,6 +95,19 @@ WHERE to_regclass('bildirim_baglanti') IS NOT NULL AND NOT EXISTS (
   SELECT 1 FROM pg_policy p WHERE p.polrelid = 'bildirim_baglanti'::regclass AND p.polname = 'zorunlu_tenant_siniri' AND NOT p.polpermissive
     AND p.polroles @> ARRAY['klinik_uygulama'::regrole::oid]);
 
+-- 6f) Modül 4c (0017): hasta cari defteri / ödeme / fatura / paket satışı tablolarında klinik personeli SELECT'i ROL ŞARTLI olmalı (terapist okuyamaz). Portal (hasta_id = current_hasta_id()),
+--     sahip (klinik_sahip), RESTRICTIVE tenant sınırı ve yazma (INSERT/UPDATE/DELETE) politikaları kapsam dışı. Rol şartı olmayan "klinik_id = current_klinik_id()" SELECT politikası = HATA.
+INSERT INTO kontrol_sonuc
+SELECT 'finans_select_rol_sartsiz', 'HATA', c.relname || '.' || p.polname
+FROM pg_policy p
+JOIN pg_class c ON c.oid = p.polrelid
+WHERE c.relnamespace = 'public'::regnamespace
+  AND c.relname IN ('hasta_bakiye_hareket', 'odeme', 'odeme_kalemi', 'odeme_satiri', 'fatura', 'paket_satis')
+  AND p.polpermissive AND p.polcmd IN ('r', '*')
+  AND NOT (p.polroles @> ARRAY['klinik_sahip'::regrole::oid])
+  AND p.polname NOT LIKE '%portal%'
+  AND pg_get_expr(p.polqual, p.polrelid) !~ 'current_rol';
+
 -- 7) Bilgi: izinli istisnalar
 INSERT INTO kontrol_sonuc
 SELECT 'izinli_istisna', 'BILGI', rolname || CASE WHEN rolsuper THEN ' (süper kullanıcı)' ELSE ' (BYPASSRLS)' END

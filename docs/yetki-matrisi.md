@@ -27,7 +27,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | is_basvurusu | I |
 | seans_degerlendirme | I |
 
-## klinik_uygulama (81 tablo/görünüm)
+## klinik_uygulama (84 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
@@ -106,14 +106,17 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | tedavi_protokolu | S,I,U |
 | tedavi_protokolu_adimi | S,I,D |
 | terapist | S,I,U |
+| v_hasta_aktif_paket | S |
 | v_hasta_cari_ozet | S |
 | v_hasta_detay_ozet | S |
 | v_hasta_ozet | S |
+| v_hasta_paket_ozet | S |
 | v_personel_bilgi_durumu | S |
 | v_personel_hesap_bakiye | S |
 | v_personel_izin_bakiye | S |
+| v_randevu_kapanis | S |
 
-## klinik_yedek (104 tablo/görünüm)
+## klinik_yedek (107 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
@@ -212,14 +215,17 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | tedavi_protokolu | S |
 | tedavi_protokolu_adimi | S |
 | terapist | S |
+| v_hasta_aktif_paket | S |
 | v_hasta_cari_ozet | S |
 | v_hasta_detay_ozet | S |
 | v_hasta_ilerleme | S |
 | v_hasta_karsilastirma | S |
 | v_hasta_ozet | S |
+| v_hasta_paket_ozet | S |
 | v_personel_bilgi_durumu | S |
 | v_personel_hesap_bakiye | S |
 | v_personel_izin_bakiye | S |
+| v_randevu_kapanis | S |
 | vardiya_turu | S |
 
 ## Kodda doğrudan yetkisi olmayan tablolar (15) ve onlara yazan yollar

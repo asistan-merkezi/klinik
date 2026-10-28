@@ -51,7 +51,7 @@ export type RandevuSatir = {
    */
   paket_satis?: { kalan_adet: number; paket: { ad: string } | null } | null;
   /**
-   * Bu randevuya bağlı hasta_bakiye_hareket satırları (yalnız id+tur) — seans
+   * Seans "işlendi" mi (v_randevu_kapanis; 0017: tutar/gerçek satır istemciye GİTMEZ — işlendiyse tek sembolik { tur: "borc" }) — seans
    * tamamlandıktan sonra "Cariye Ekle"/"Ödeme Ekle" ile bir 'borc' satırı
    * yazılıp yazılmadığını anlamak için (bkz. randevu-kutusu.tsx'teki kutu
    * rengi ve randevu-detay-paneli.tsx'teki "İşlem kapanmıştır" durumu).

@@ -2,7 +2,7 @@
 // karşılığıdır ve `types/randevu.ts > RandevuSatir` şeklini üretir — yeni kolon eklenirse ikisi birlikte değişir. Tek kaynak: panel, randevular,
 // canlı çizelge yenilemesi hep `randevuSatirlariGetir`i kullanır (eskiden 3 kopya vardı, biri ayrışınca kolon sessizce kayboldu).
 // Zaman damgaları ISO'ya ÇEVRİLMİŞ döner (istemciye giden veri sınırı).
-import { and, asc, desc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sema, zamanlariIsoyaCevir, type Tx } from "@/lib/db";
 import type { RandevuDurum, RandevuSatir, SecenekSatir } from "@/types/randevu";
@@ -32,8 +32,10 @@ export async function randevuSatirlariGetir(tx: Tx, a: Aralik): Promise<RandevuS
       protokolId: sema.tedaviProtokolu.id,
       protokolAd: sema.tedaviProtokolu.ad,
       tamamlayanAd: tamamlayan.adSoyad,
-      paketKalan: sema.paketSatis.kalanAdet,
-      paketAd: sema.paket.ad,
+      // Finans tablolarına (paket_satis, hasta_bakiye_hareket) terapistin SELECT'i yok (0017): işlendi/paket bilgisi DAR görünümden gelir (tutar yok).
+      paketKalan: sema.vRandevuKapanis.paketKalanAdet,
+      paketAd: sema.vRandevuKapanis.paketAd,
+      islendi: sema.vRandevuKapanis.islendi,
     })
     .from(sema.randevu)
     .leftJoin(sema.hasta, eq(sema.hasta.id, sema.randevu.hastaId))
@@ -44,20 +46,9 @@ export async function randevuSatirlariGetir(tx: Tx, a: Aralik): Promise<RandevuS
     .leftJoin(antrenor, eq(antrenor.id, sema.randevu.antrenorId))
     .leftJoin(sema.tedaviProtokolu, eq(sema.tedaviProtokolu.id, sema.randevu.tedaviProtokoluId))
     .leftJoin(tamamlayan, eq(tamamlayan.id, sema.randevu.tamamlayanKullaniciId))
-    .leftJoin(sema.paketSatis, eq(sema.paketSatis.id, sema.randevu.paketSatisId))
-    .leftJoin(sema.paket, eq(sema.paket.id, sema.paketSatis.paketId))
+    .leftJoin(sema.vRandevuKapanis, eq(sema.vRandevuKapanis.randevuId, sema.randevu.id))
     .where(and(...kosullar))
     .orderBy(asc(sema.randevu.baslangic));
-
-  const ids = satirlar.map((s) => s.r.id);
-  const hareketler = ids.length
-    ? await tx
-        .select({ id: sema.hastaBakiyeHareket.id, tur: sema.hastaBakiyeHareket.tur, randevuId: sema.hastaBakiyeHareket.randevuId })
-        .from(sema.hastaBakiyeHareket)
-        .where(inArray(sema.hastaBakiyeHareket.randevuId, ids))
-    : [];
-  const hareketHaritasi = new Map<string, { id: string; tur: string }[]>();
-  for (const h of hareketler) if (h.randevuId) hareketHaritasi.set(h.randevuId, [...(hareketHaritasi.get(h.randevuId) ?? []), { id: h.id, tur: h.tur }]);
 
   return zamanlariIsoyaCevir(
     satirlar.map(({ r, ...e }): RandevuSatir => ({
@@ -90,7 +81,8 @@ export async function randevuSatirlariGetir(tx: Tx, a: Aralik): Promise<RandevuS
       tamamlayan_kullanici: e.tamamlayanAd == null ? null : { ad_soyad: e.tamamlayanAd },
       paket_satis_id: r.paketSatisId,
       paket_satis: r.paketSatisId && e.paketKalan != null ? { kalan_adet: e.paketKalan, paket: e.paketAd == null ? null : { ad: e.paketAd } } : null,
-      hasta_bakiye_hareket: hareketHaritasi.get(r.id) ?? [],
+      // Gerçek cari satırı (tutar!) istemciye gitmez: "işlendi" ise tek bir sembolik borç işareti (UI yalnız tur === "borc" bakar).
+      hasta_bakiye_hareket: e.islendi ? [{ id: `kapanis-${r.id}`, tur: "borc" }] : [],
     }))
   );
 }

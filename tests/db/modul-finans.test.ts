@@ -566,8 +566,8 @@ describe("rol ve yetki (eylemler + DEFINER RPC'ler)", () => {
     }
   });
 
-  it("MEVCUT DURUM (karar bekliyor): hasta cari defteri / ödeme / fatura / paket satışı satırları terapist dahil klinik rollerine SELECT açık (randevu çizelgesi 'işlem kapanmış' durumunu bunlardan türetir); terapist YAZAMAZ", async () => {
-    expect((await withTenant(tx(terapist), (t) => t.select().from(sema.hastaBakiyeHareket).limit(1))).length).toBe(1);
+  it("4c (0017): hasta cari defteri terapist için OKUNAMAZ (0 satır) ve YAZILAMAZ; ayrıntı: tests/db/modul-terapist-finans.test.ts", async () => {
+    expect((await withTenant(tx(terapist), (t) => t.select().from(sema.hastaBakiyeHareket).limit(1))).length).toBe(0);
     await reddedilmeli(withTenant(tx(terapist), (t) => t.insert(sema.hastaBakiyeHareket).values({ klinikId: F, hastaId: H, tur: "odeme", tutar: "1.00", odemeYontemi: "nakit" })), /row-level security|permission denied/);
   });
 

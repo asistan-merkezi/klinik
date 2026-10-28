@@ -97,11 +97,11 @@ export async function hastaAktifPaketleriGetir(hastaId: string): Promise<HastaAk
   const { bag } = await panelBaglami();
   const s = await withTenant(bag, (tx) =>
     tx
-      .select({ id: sema.paketSatis.id, kalan: sema.paketSatis.kalanAdet, paketAd: sema.paket.ad, islemId: sema.paket.islemTanimiId, islemAd: sema.islemTanimi.ad })
-      .from(sema.paketSatis)
-      .leftJoin(sema.paket, eq(sema.paket.id, sema.paketSatis.paketId))
+      .select({ id: sema.vHastaAktifPaket.paketSatisId, kalan: sema.vHastaAktifPaket.kalanAdet, paketAd: sema.paket.ad, islemId: sema.paket.islemTanimiId, islemAd: sema.islemTanimi.ad })
+      .from(sema.vHastaAktifPaket)
+      .leftJoin(sema.paket, eq(sema.paket.id, sema.vHastaAktifPaket.paketId))
       .leftJoin(sema.islemTanimi, eq(sema.islemTanimi.id, sema.paket.islemTanimiId))
-      .where(and(eq(sema.paketSatis.hastaId, id), eq(sema.paketSatis.durum, "aktif"), gt(sema.paketSatis.kalanAdet, 0)))
+      .where(and(eq(sema.vHastaAktifPaket.hastaId, id), gt(sema.vHastaAktifPaket.kalanAdet, 0)))
   );
   return s.map((x) => ({
     id: x.id,

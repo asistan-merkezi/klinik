@@ -32,7 +32,11 @@ Kararlar 2026-10-28. **Şimdi kodlama yok**; taşıma (Modül 5–7) bittikten s
 **Yetki:** uygulama rolünden bu tablolarda **DELETE kaldırılır** (`klinik_harcama`, `kamusal_odeme`, `nakit_banka_hareketi`, `kasa_dengeleme`, `klinik_cari_odeme`, `klinik_kredi_karti_odeme`) ve DELETE RLS politikaları düşer; UPDATE yalnız iptal alanları için kolon yetkisi (gider/kamusal düzeltme kolonları ayrıca kalır). Silme eylemleri (`giderSil`, `kamusalOdemeSil`, `nakitBankaHareketiSil`, `kasaDengelemeSil`, `cariOdemeSil`, `krediKartiOdemeSil`) "iptal et + gerekçe" diyaloğuna dönüşür. Silmeye dayanan testler (`modul-finans`: Kasa silme audit testi, işlem anahtarı DELETE testi hariç) güncellenir.
 **Test:** iptal sonrası her defter/rapor toplamı elle hesaplı değere iner; çift iptal tek etki; eşzamanlı iptal + cari ödeme; DELETE `permission denied`.
 
-## 4c. Terapist finans okuma erişimi kapatma (karar C)
+## 4c. Terapist finans okuma erişimi kapatma (karar C) — **UYGULANDI (2026-10-28, migration 0017)**
+
+**Uygulama notu:** tasarımdaki iki görünüme bir üçüncüsü eklendi: `v_hasta_aktif_paket` (hasta listesindeki "kalan/toplam seans" ve randevu formundaki aktif paket seçimi terapistte de çalışsın diye; tutar yok). `v_randevu_kapanis` ayrıca `paket_kalan_adet`/`paket_ad` taşır (çizelgedeki paket göstergesi ve paket yenileme uyarısı terapist "seansı bitir" akışında çalışsın diye; adet, tutar değil). Görünümler SECURITY INVOKER DEĞİL (sahip klinik_sahip) ama kendi tenant (`current_klinik_id()`) ve personel (`current_rol() IS NOT NULL`) süzgecini taşır, `security_barrier`. `v_hasta_ozet` paket hakkını `v_hasta_paket_ozet`ten alır; `bakiye` kolonu INVOKER kalır (terapist için 0, arayüz göstermez). `RANDEVU_SELECT` eşdeğeri `lib/randevu/sorgular.ts`: gerçek cari satırı/kimliği istemciye gitmez, "işlendi" ise tek sembolik `{ tur: "borc" }`. Muhasebe okumaya devam eder; portal politikaları aynen. Kod, yeni şemayı gerektirir (eski kod terapist oturumunda boş paket/işlendi görürdü) → aynı sürüm paketi. 4b'ye dokunulmadı. Kontrol: `db/kontrol/bypassrls-kontrol.sql` 6f.
+
+Aşağıdaki metin tasarım kaydıdır.
 
 **Bugün:** RLS `hasta_bakiye_hareket`, `odeme`, `odeme_kalemi`, `odeme_satiri`, `fatura`, `paket_satis` için klinik içindeki **her role** SELECT veriyor. Terapist iki yerden bunlara bağımlı: (1) `RANDEVU_SELECT` içindeki `hasta_bakiye_hareket(id, tur)` embed'i → "İşlem kapanmıştır" / amber kutu, (2) `v_hasta_ozet` → `kalan_paket_hakki` (paket_satis) ve `bakiye`.
 **Tasarım (dar görünümler):**
