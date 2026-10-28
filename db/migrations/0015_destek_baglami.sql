@@ -165,7 +165,7 @@ BEGIN
        AND c.relname <> 'destek_baglami'
   LOOP
     kosul := CASE WHEN t.attnotnull THEN 'klinik_id = (SELECT current_klinik_id())' ELSE 'klinik_id IS NULL OR klinik_id = (SELECT current_klinik_id())' END;
-    EXECUTE format('CREATE POLICY zorunlu_tenant_siniri ON %I AS RESTRICTIVE FOR ALL TO klinik_uygulama USING (%s) WITH CHECK (%s)', t.relname, kosul, kosul);
+    EXECUTE format('CREATE POLICY zorunlu_tenant_siniri ON %I AS RESTRICTIVE FOR ALL TO klinik_uygulama, klinik_sahip USING (%s) WITH CHECK (%s)', t.relname, kosul, kosul);
   END LOOP;
 END $$;
 

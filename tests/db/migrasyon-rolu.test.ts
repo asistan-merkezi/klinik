@@ -124,4 +124,9 @@ describe("kontrol SQL'leri: yeni kurallar ihlali yakalar", () => {
   it("klinik_migrasyon süper kullanıcı/BYPASSRLS yapılırsa bypassrls-kontrol HATA verir", async () => {
     expect(await calistir("bypassrls-kontrol.sql", ["alter role klinik_migrasyon bypassrls"])).toMatch(/bypassrls-kontrol: \d+ HATA/);
   });
+
+  it("klinik_id'li bir tabloda zorunlu_tenant_siniri politikası silinirse (ya da yeni tabloya eklenmezse) bypassrls-kontrol HATA verir", async () => {
+    expect(await calistir("bypassrls-kontrol.sql", ["drop policy zorunlu_tenant_siniri on hasta"])).toMatch(/bypassrls-kontrol: \d+ HATA/);
+    expect(await calistir("bypassrls-kontrol.sql", ["create table zz_yeni_tenant_tablosu (id int, klinik_id uuid not null); alter table zz_yeni_tenant_tablosu enable row level security; alter table zz_yeni_tenant_tablosu force row level security"])).toMatch(/bypassrls-kontrol: \d+ HATA/);
+  });
 });

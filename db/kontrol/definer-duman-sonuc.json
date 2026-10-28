@@ -26,6 +26,7 @@
    "ad": "audit_log_bolum_olustur",
    "imza": "audit_log_bolum_olustur(integer,date)",
    "donus": "jsonb",
+   "superAdminDali": false,
    "tur": "ic",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -36,6 +37,7 @@
    "ad": "audit_log_degisiklik_yaz",
    "imza": "audit_log_degisiklik_yaz()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -46,6 +48,7 @@
    "ad": "audit_log_yaz",
    "imza": "audit_log_yaz()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -56,6 +59,7 @@
    "ad": "banka_bakiye_once_toplam_tumu",
    "imza": "banka_bakiye_once_toplam_tumu(date)",
    "donus": "TABLE(banka_hesap_id uuid, toplam numeric)",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -68,12 +72,19 @@
    "c": {
     "durum": "bos"
    },
+   "d": {
+    "durum": "bos"
+   },
+   "e": {
+    "durum": "bos"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "banka_hesabi_butunluk",
    "imza": "banka_hesabi_butunluk()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -84,6 +95,7 @@
    "ad": "banka_hesabi_silme_engeli",
    "imza": "banka_hesabi_silme_engeli()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -94,6 +106,7 @@
    "ad": "current_hasta_id",
    "imza": "current_hasta_id()",
    "donus": "uuid",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -109,12 +122,21 @@
     "durum": "bos",
     "ornek": "{\"current_hasta_id\":null}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"current_hasta_id\":null}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"current_hasta_id\":null}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "current_klinik_id",
    "imza": "current_klinik_id()",
    "donus": "uuid",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -130,13 +152,22 @@
     "durum": "veri",
     "ornek": "{\"current_klinik_id\":\"11111111-1111-4111-8111-111111111111\"}"
    },
+   "d": {
+    "durum": "veri",
+    "ornek": "{\"current_klinik_id\":\"11111111-1111-4111-8111-111111111111\"}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"current_klinik_id\":null}"
+   },
    "sonuc": "TASARIM_GEREGI",
-   "ayrinti": "A:bos {\"current_klinik_id\":null} · B:veri {\"current_klinik_id\":\"22222222-2222-4222-8222-222222222222\"}"
+   "ayrinti": "A:bos {\"current_klinik_id\":null} · B:veri {\"current_klinik_id\":\"22222222-2222-4222-8222-222222222222\"} · D:veri {\"current_klinik_id\":\"11111111-1111-4111-8111-111111111111\"} · E:bos {\"current_klinik_id\":null}"
   },
   {
    "ad": "current_rol",
    "imza": "current_rol()",
    "donus": "kullanici_rol_tipi",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -152,13 +183,22 @@
     "durum": "veri",
     "ornek": "{\"current_rol\":\"klinik_admin\"}"
    },
+   "d": {
+    "durum": "veri",
+    "ornek": "{\"current_rol\":\"super_admin\"}"
+   },
+   "e": {
+    "durum": "veri",
+    "ornek": "{\"current_rol\":\"super_admin\"}"
+   },
    "sonuc": "TASARIM_GEREGI",
-   "ayrinti": "A:bos {\"current_rol\":null} · B:veri {\"current_rol\":\"klinik_admin\"}"
+   "ayrinti": "A:bos {\"current_rol\":null} · B:veri {\"current_rol\":\"klinik_admin\"} · D:veri {\"current_rol\":\"super_admin\"} · E:veri {\"current_rol\":\"super_admin\"}"
   },
   {
    "ad": "derive_klinik_id_from_parent",
    "imza": "derive_klinik_id_from_parent()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -169,6 +209,7 @@
    "ad": "destek_baglami_ac",
    "imza": "destek_baglami_ac(uuid,text,integer)",
    "donus": "timestamp with time zone",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -183,6 +224,14 @@
    "c": {
     "durum": "hata",
     "hata": "yetkisiz"
+   },
+   "d": {
+    "durum": "hata",
+    "hata": "gerekce_gecersiz"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "gerekce_gecersiz"
    },
    "sonuc": "GECTI"
   },
@@ -190,6 +239,7 @@
    "ad": "destek_baglami_aktif",
    "imza": "destek_baglami_aktif()",
    "donus": "TABLE(klinik_id uuid, bitis timestamp with time zone, gerekce text)",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -202,12 +252,22 @@
    "c": {
     "durum": "bos"
    },
-   "sonuc": "GECTI"
+   "d": {
+    "durum": "veri",
+    "ornek": "{\"klinik_id\":\"11111111-1111-4111-8111-111111111111\",\"bitis\":\"2026-10-28T07:54:13"
+   },
+   "e": {
+    "durum": "veri",
+    "ornek": "{\"klinik_id\":\"11111111-1111-4111-8111-111111111111\",\"bitis\":\"2026-10-28T07:54:13"
+   },
+   "sonuc": "TASARIM_GEREGI",
+   "ayrinti": "A:bos · B:bos · D:veri {\"klinik_id\":\"11111111-1111-4111-8111-111111111111\",\"bitis\":\"2026-10-28T07:54:13 · E:veri {\"klinik_id\":\"11111111-1111-4111-8111-111111111111\",\"bitis\":\"2026-10-28T07:54:13"
   },
   {
    "ad": "destek_baglami_kapat",
    "imza": "destek_baglami_kapat()",
    "donus": "boolean",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -223,12 +283,22 @@
     "durum": "hata",
     "hata": "yetkisiz"
    },
-   "sonuc": "GECTI"
+   "d": {
+    "durum": "veri",
+    "ornek": "{\"destek_baglami_kapat\":true}"
+   },
+   "e": {
+    "durum": "veri",
+    "ornek": "{\"destek_baglami_kapat\":true}"
+   },
+   "sonuc": "TASARIM_GEREGI",
+   "ayrinti": "A:hata · B:hata · D:veri {\"destek_baglami_kapat\":true} · E:veri {\"destek_baglami_kapat\":true}"
   },
   {
    "ad": "hasta_arsiv_ice_aktar",
    "imza": "hasta_arsiv_ice_aktar(jsonb)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -243,6 +313,14 @@
    "c": {
     "durum": "hata",
     "hata": "cannot extract elements from an object"
+   },
+   "d": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
    },
    "sonuc": "GECTI"
   },
@@ -250,6 +328,7 @@
    "ad": "hasta_bakiye_hareket_arsiv_ekle",
    "imza": "hasta_bakiye_hareket_arsiv_ekle(jsonb)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -264,6 +343,14 @@
    "c": {
     "durum": "hata",
     "hata": "cannot extract elements from an object"
+   },
+   "d": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
    },
    "sonuc": "GECTI"
   },
@@ -271,6 +358,7 @@
    "ad": "hasta_bakiye_hareket_borc_duzenle",
    "imza": "hasta_bakiye_hareket_borc_duzenle(uuid,numeric,boolean,text)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -286,12 +374,21 @@
     "durum": "hata",
     "hata": "hareket_bulunamadi"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "hareket_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "hasta_bakiye_hareket_iade_siniri",
    "imza": "hasta_bakiye_hareket_iade_siniri()",
    "donus": "trigger",
+   "superAdminDali": true,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -302,6 +399,7 @@
    "ad": "hasta_bakiye_hareket_kredi_karti_ayari",
    "imza": "hasta_bakiye_hareket_kredi_karti_ayari()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -312,6 +410,7 @@
    "ad": "hasta_belge_goruntule",
    "imza": "hasta_belge_goruntule(uuid)",
    "donus": "hasta_belge",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -327,12 +426,21 @@
     "durum": "hata",
     "hata": "belge_bulunamadi"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "belge_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "belge_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "hasta_belge_onam_dogrula",
    "imza": "hasta_belge_onam_dogrula()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -343,6 +451,7 @@
    "ad": "hasta_hassas_denetim_bilgisi_ata",
    "imza": "hasta_hassas_denetim_bilgisi_ata()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -353,6 +462,7 @@
    "ad": "hasta_hassas_klinik_id_ata",
    "imza": "hasta_hassas_klinik_id_ata()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -363,6 +473,7 @@
    "ad": "hasta_hassas_terapist_sadece_anamnez_ekle",
    "imza": "hasta_hassas_terapist_sadece_anamnez_ekle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -373,6 +484,7 @@
    "ad": "hasta_hassas_terapist_sadece_anamnez_guncelle",
    "imza": "hasta_hassas_terapist_sadece_anamnez_guncelle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -383,6 +495,7 @@
    "ad": "hasta_iliski_klinik_dogrula",
    "imza": "hasta_iliski_klinik_dogrula()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -393,6 +506,7 @@
    "ad": "hasta_portal_alan_kisitla",
    "imza": "hasta_portal_alan_kisitla()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -403,6 +517,7 @@
    "ad": "hasta_protokol_kontrendikasyon_kontrol",
    "imza": "hasta_protokol_kontrendikasyon_kontrol()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -413,6 +528,7 @@
    "ad": "hasta_qr_self_servis_mi",
    "imza": "hasta_qr_self_servis_mi(uuid)",
    "donus": "boolean",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -428,12 +544,21 @@
     "durum": "bos",
     "ornek": "{\"hasta_qr_self_servis_mi\":false}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"hasta_qr_self_servis_mi\":false}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"hasta_qr_self_servis_mi\":false}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "hasta_terapist_sadece_risk_guncelle",
    "imza": "hasta_terapist_sadece_risk_guncelle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -444,6 +569,7 @@
    "ad": "hasta_yorum_alanlari_doldur",
    "imza": "hasta_yorum_alanlari_doldur()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -454,6 +580,7 @@
    "ad": "hiz_siniri_kullan",
    "imza": "hiz_siniri_kullan(text,integer,integer,boolean)",
    "donus": "boolean",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -469,13 +596,22 @@
     "durum": "veri",
     "ornek": "{\"hiz_siniri_kullan\":true}"
    },
+   "d": {
+    "durum": "veri",
+    "ornek": "{\"hiz_siniri_kullan\":true}"
+   },
+   "e": {
+    "durum": "veri",
+    "ornek": "{\"hiz_siniri_kullan\":true}"
+   },
    "sonuc": "TASARIM_GEREGI",
-   "ayrinti": "A:veri {\"hiz_siniri_kullan\":true} · B:veri {\"hiz_siniri_kullan\":true}"
+   "ayrinti": "A:veri {\"hiz_siniri_kullan\":true} · B:veri {\"hiz_siniri_kullan\":true} · D:veri {\"hiz_siniri_kullan\":true} · E:veri {\"hiz_siniri_kullan\":true}"
   },
   {
    "ad": "is_super_admin",
    "imza": "is_super_admin()",
    "donus": "boolean",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -491,12 +627,22 @@
     "durum": "bos",
     "ornek": "{\"is_super_admin\":false}"
    },
-   "sonuc": "GECTI"
+   "d": {
+    "durum": "veri",
+    "ornek": "{\"is_super_admin\":true}"
+   },
+   "e": {
+    "durum": "veri",
+    "ornek": "{\"is_super_admin\":true}"
+   },
+   "sonuc": "TASARIM_GEREGI",
+   "ayrinti": "A:bos {\"is_super_admin\":false} · B:bos {\"is_super_admin\":false} · D:veri {\"is_super_admin\":true} · E:veri {\"is_super_admin\":true}"
   },
   {
    "ad": "islem_tanimi_etkin_fiyat",
    "imza": "islem_tanimi_etkin_fiyat(uuid,uuid)",
    "donus": "numeric",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -512,12 +658,21 @@
     "durum": "veri",
     "ornek": "{\"islem_tanimi_etkin_fiyat\":\"1000.00\"}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"islem_tanimi_etkin_fiyat\":null}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"islem_tanimi_etkin_fiyat\":null}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "islem_tanimi_fiyat_gecmisi_yaz",
    "imza": "islem_tanimi_fiyat_gecmisi_yaz()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -528,6 +683,7 @@
    "ad": "islem_tanimi_kaydet",
    "imza": "islem_tanimi_kaydet(uuid,text,numeric,numeric,numeric,numeric,numeric,text,jsonb)",
    "donus": "uuid",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -543,12 +699,21 @@
     "durum": "hata",
     "hata": "cannot get array length of a non-array"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "cannot get array length of a non-array"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "islem_tanimi_toplam_sure_guncelle",
    "imza": "islem_tanimi_toplam_sure_guncelle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -559,6 +724,7 @@
    "ad": "izin_bildirim_alicilari",
    "imza": "izin_bildirim_alicilari(text[])",
    "donus": "TABLE(personel_id uuid, telefon text, eposta text)",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -572,12 +738,20 @@
    "c": {
     "durum": "bos"
    },
+   "d": {
+    "durum": "bos"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "kasa_bakiye_once_toplam",
    "imza": "kasa_bakiye_once_toplam(date)",
    "donus": "numeric",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -590,6 +764,14 @@
     "ornek": "{\"kasa_bakiye_once_toplam\":\"0\"}"
    },
    "c": {
+    "durum": "bos",
+    "ornek": "{\"kasa_bakiye_once_toplam\":\"0\"}"
+   },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"kasa_bakiye_once_toplam\":\"0\"}"
+   },
+   "e": {
     "durum": "bos",
     "ornek": "{\"kasa_bakiye_once_toplam\":\"0\"}"
    },
@@ -599,6 +781,7 @@
    "ad": "klinik_cari_odeme_ekle",
    "imza": "klinik_cari_odeme_ekle(text,numeric,date,text,uuid,uuid,text)",
    "donus": "uuid",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -614,12 +797,21 @@
     "durum": "hata",
     "hata": "odeme_tipi_gecersiz"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "klinik_harcama_cari_butunluk",
    "imza": "klinik_harcama_cari_butunluk()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -630,6 +822,7 @@
    "ad": "klinik_pozisyonlari_seed",
    "imza": "klinik_pozisyonlari_seed()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -640,6 +833,7 @@
    "ad": "kredi_karti_bakiye_once_toplam",
    "imza": "kredi_karti_bakiye_once_toplam(date)",
    "donus": "numeric",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -655,12 +849,21 @@
     "durum": "bos",
     "ornek": "{\"kredi_karti_bakiye_once_toplam\":\"0\"}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"kredi_karti_bakiye_once_toplam\":\"0\"}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"kredi_karti_bakiye_once_toplam\":\"0\"}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "kullanici_tenant_hasta_esle",
    "imza": "kullanici_tenant_hasta_esle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -671,6 +874,7 @@
    "ad": "kullanici_tenant_kullanici_esle",
    "imza": "kullanici_tenant_kullanici_esle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -681,6 +885,7 @@
    "ad": "mesaj_kredi_senkronla",
    "imza": "mesaj_kredi_senkronla(uuid,mesaj_kanal_tipi,integer,bigint)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -696,12 +901,21 @@
     "durum": "hata",
     "hata": "mismatched parentheses at or near \")\""
    },
+   "d": {
+    "durum": "hata",
+    "hata": "mismatched parentheses at or near \")\""
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "mismatched parentheses at or near \")\""
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "mesaj_kredi_yukle",
    "imza": "mesaj_kredi_yukle(uuid,mesaj_kanal_tipi,integer,numeric,text)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "ic",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -712,6 +926,7 @@
    "ad": "nakit_banka_hareketi_hesap_butunluk",
    "imza": "nakit_banka_hareketi_hesap_butunluk()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -722,6 +937,7 @@
    "ad": "odeme_olustur",
    "imza": "odeme_olustur(uuid,numeric,boolean,text,jsonb,jsonb)",
    "donus": "uuid",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -737,12 +953,21 @@
     "durum": "hata",
     "hata": "cannot extract elements from an object"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "hasta_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "paket_satis_arsiv_ekle",
    "imza": "paket_satis_arsiv_ekle(uuid,jsonb)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -758,12 +983,21 @@
     "durum": "hata",
     "hata": "cannot extract elements from an object"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "paket_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_hassas_kaydet",
    "imza": "personel_hassas_kaydet(uuid,text,text)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -779,12 +1013,21 @@
     "durum": "bos",
     "ornek": "{\"personel_hassas_kaydet\":\"\"}"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_hassas_maskeli_getir",
    "imza": "personel_hassas_maskeli_getir(uuid)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -800,12 +1043,21 @@
     "durum": "bos",
     "ornek": "{\"personel_hassas_maskeli_getir\":{\"pasaport_var\":false,\"pasaport_son2\":null,\"tc_"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_hesap_hareket_donem_ekle",
    "imza": "personel_hesap_hareket_donem_ekle(uuid,numeric,numeric)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -818,6 +1070,14 @@
     "hata": "donem_bulunamadi"
    },
    "c": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi"
+   },
+   "d": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi"
+   },
+   "e": {
     "durum": "hata",
     "hata": "donem_bulunamadi"
    },
@@ -827,6 +1087,7 @@
    "ad": "personel_hesap_hareket_ekle",
    "imza": "personel_hesap_hareket_ekle(uuid,text,numeric,date,text,text,uuid)",
    "donus": "uuid",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -842,12 +1103,21 @@
     "durum": "hata",
     "hata": "tur_gecersiz"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_izin_cakisanlari_getir",
    "imza": "personel_izin_cakisanlari_getir(uuid)",
    "donus": "TABLE(personel_id uuid, ad_soyad text, baslangic_tarih date, bitis_tarih date)",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -860,12 +1130,19 @@
    "c": {
     "durum": "bos"
    },
+   "d": {
+    "durum": "bos"
+   },
+   "e": {
+    "durum": "bos"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_izin_hak_gun_hesapla",
    "imza": "personel_izin_hak_gun_hesapla(uuid)",
    "donus": "numeric",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -881,12 +1158,21 @@
     "durum": "veri",
     "ornek": "{\"personel_izin_hak_gun_hesapla\":\"14\"}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"personel_izin_hak_gun_hesapla\":null}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"personel_izin_hak_gun_hesapla\":null}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_izin_talebi_onayla",
    "imza": "personel_izin_talebi_onayla(uuid)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -899,6 +1185,14 @@
     "hata": "talep_bulunamadi"
    },
    "c": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "d": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "e": {
     "durum": "hata",
     "hata": "talep_bulunamadi"
    },
@@ -908,6 +1202,7 @@
    "ad": "personel_izin_talebi_reddet",
    "imza": "personel_izin_talebi_reddet(uuid,text)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -920,6 +1215,14 @@
     "hata": "talep_bulunamadi"
    },
    "c": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "d": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "e": {
     "durum": "hata",
     "hata": "talep_bulunamadi"
    },
@@ -929,6 +1232,7 @@
    "ad": "personel_izin_talebi_yonetici_iptal",
    "imza": "personel_izin_talebi_yonetici_iptal(uuid)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -944,12 +1248,21 @@
     "durum": "hata",
     "hata": "talep_bulunamadi"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_izin_talep_iptal_et",
    "imza": "personel_izin_talep_iptal_et(uuid)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -965,12 +1278,21 @@
     "durum": "hata",
     "hata": "talep_bulunamadi"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "talep_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_izin_talep_olustur",
    "imza": "personel_izin_talep_olustur(uuid,text,date,date,text,text)",
    "donus": "uuid",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -986,12 +1308,21 @@
     "durum": "hata",
     "hata": "tip_gecersiz"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_puantaj_donem_kapat",
    "imza": "personel_puantaj_donem_kapat(uuid,integer,integer)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1007,12 +1338,21 @@
     "durum": "hata",
     "hata": "new row for relation \"personel_puantaj_donem\" violates check constraint \"personel_puantaj_donem_yil_check\""
    },
+   "d": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "personel_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_puantaj_donem_yeniden_ac",
    "imza": "personel_puantaj_donem_yeniden_ac(uuid,integer,integer)",
    "donus": "void",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1028,12 +1368,21 @@
     "durum": "hata",
     "hata": "donem_bulunamadi_veya_zaten_acik"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi_veya_zaten_acik"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "donem_bulunamadi_veya_zaten_acik"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_puantaj_donemi_acik_mi",
    "imza": "personel_puantaj_donemi_acik_mi(uuid,date)",
    "donus": "boolean",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1049,12 +1398,21 @@
     "durum": "veri",
     "ornek": "{\"personel_puantaj_donemi_acik_mi\":true}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"personel_puantaj_donemi_acik_mi\":false}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"personel_puantaj_donemi_acik_mi\":false}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_puantaj_fm_onay_denetim",
    "imza": "personel_puantaj_fm_onay_denetim()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1065,6 +1423,7 @@
    "ad": "personel_puantaj_kendi_kaydet",
    "imza": "personel_puantaj_kendi_kaydet(text)",
    "donus": "jsonb",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1080,12 +1439,21 @@
     "durum": "hata",
     "hata": "tur_gecersiz"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "tur_gecersiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "personel_puantaj_planlanan_getir",
    "imza": "personel_puantaj_planlanan_getir(uuid,date)",
    "donus": "TABLE(vardiya_turu_id uuid, baslangic time without time zone, bitis time without time zone)",
+   "superAdminDali": true,
    "tur": "ic",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1096,6 +1464,7 @@
    "ad": "personel_puantaj_varsayilanlari_doldur",
    "imza": "personel_puantaj_varsayilanlari_doldur()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1106,6 +1475,7 @@
    "ad": "pozisyon_pasif_engelle",
    "imza": "pozisyon_pasif_engelle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1116,6 +1486,7 @@
    "ad": "qr_kodu_aktif_mi",
    "imza": "qr_kodu_aktif_mi(uuid,text)",
    "donus": "boolean",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": false,
    "anonCagirir": true,
@@ -1131,12 +1502,21 @@
     "durum": "veri",
     "ornek": "{\"qr_kodu_aktif_mi\":true}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"qr_kodu_aktif_mi\":false}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"qr_kodu_aktif_mi\":false}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_anket_uygun_mu",
    "imza": "randevu_anket_uygun_mu(uuid)",
    "donus": "boolean",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -1152,12 +1532,21 @@
     "durum": "bos",
     "ornek": "{\"randevu_anket_uygun_mu\":false}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"randevu_anket_uygun_mu\":false}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"randevu_anket_uygun_mu\":false}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_arsiv_ice_aktar",
    "imza": "randevu_arsiv_ice_aktar(jsonb)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1173,12 +1562,21 @@
     "durum": "hata",
     "hata": "cannot extract elements from an object"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "cannot extract elements from an object"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_cihaz_rezervasyon_tetikle",
    "imza": "randevu_cihaz_rezervasyon_tetikle()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1189,6 +1587,7 @@
    "ad": "randevu_cihaz_rezervasyon_yenile",
    "imza": "randevu_cihaz_rezervasyon_yenile(uuid)",
    "donus": "void",
+   "superAdminDali": false,
    "tur": "ic",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1199,6 +1598,7 @@
    "ad": "randevu_gelis_isaretle",
    "imza": "randevu_gelis_isaretle(uuid,integer)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1214,12 +1614,21 @@
     "durum": "degisiklik",
     "ornek": "{\"randevu_gelis_isaretle\":{\"yontem\":\"yok\",\"hasta_id\":\"10000000-0000-4000-8000-00"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_gelmedi_isaretle",
    "imza": "randevu_gelmedi_isaretle(uuid)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1235,12 +1644,21 @@
     "durum": "degisiklik",
     "ornek": "{\"randevu_gelmedi_isaretle\":{\"hasta_id\":\"10000000-0000-4000-8000-000000000003\",\""
    },
+   "d": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_iptal_et",
    "imza": "randevu_iptal_et(uuid,text,boolean,boolean)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1256,12 +1674,21 @@
     "durum": "degisiklik",
     "ornek": "{\"randevu_iptal_et\":{\"bedelli\":false,\"hasta_id\":\"10000000-0000-4000-8000-0000000"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_iptal_geri_al",
    "imza": "randevu_iptal_geri_al(uuid)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1277,12 +1704,21 @@
     "durum": "hata",
     "hata": "randevu_iptal_degil"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_iptal_talebi_gec_iptal_ata",
    "imza": "randevu_iptal_talebi_gec_iptal_ata()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1293,6 +1729,7 @@
    "ad": "randevu_iptal_talebi_klinik_id_ata",
    "imza": "randevu_iptal_talebi_klinik_id_ata()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1303,6 +1740,7 @@
    "ad": "randevu_on_form_dogrula",
    "imza": "randevu_on_form_dogrula()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1313,6 +1751,7 @@
    "ad": "randevu_seans_bedelini_isle",
    "imza": "randevu_seans_bedelini_isle(uuid,numeric,text,uuid,text,timestamp with time zone,text)",
    "donus": "jsonb",
+   "superAdminDali": true,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1328,12 +1767,21 @@
     "durum": "hata",
     "hata": "seans_tamamlanmamis"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "randevu_bulunamadi"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "randevu_talebi_klinik_id_ata",
    "imza": "randevu_talebi_klinik_id_ata()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1344,6 +1792,7 @@
    "ad": "resepsiyon_puantaj_gorebilir_mi",
    "imza": "resepsiyon_puantaj_gorebilir_mi()",
    "donus": "boolean",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1359,12 +1808,21 @@
     "durum": "bos",
     "ornek": "{\"resepsiyon_puantaj_gorebilir_mi\":false}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"resepsiyon_puantaj_gorebilir_mi\":false}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"resepsiyon_puantaj_gorebilir_mi\":false}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "resmi_tatil_onerisi_karar",
    "imza": "resmi_tatil_onerisi_karar(integer,text,boolean,date[])",
    "donus": "integer",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1380,12 +1838,21 @@
     "durum": "hata",
     "hata": "bayram_gecersiz"
    },
+   "d": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "e": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "seans_degerlendirme_alanlari_doldur",
    "imza": "seans_degerlendirme_alanlari_doldur()",
    "donus": "trigger",
+   "superAdminDali": false,
    "tur": "tetikleyici",
    "uygulamaCagirir": false,
    "anonCagirir": false,
@@ -1396,6 +1863,7 @@
    "ad": "seans_degerlendirme_baglam_getir",
    "imza": "seans_degerlendirme_baglam_getir(uuid)",
    "donus": "TABLE(klinik_ad text, zaten_dolduruldu boolean)",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": true,
@@ -1409,12 +1877,19 @@
     "durum": "veri",
     "ornek": "{\"klinik_ad\":\"klinikbir\",\"zaten_dolduruldu\":false}"
    },
+   "d": {
+    "durum": "bos"
+   },
+   "e": {
+    "durum": "bos"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "terapist_id_giris_yapan_kullaniciya_ait_mi",
    "imza": "terapist_id_giris_yapan_kullaniciya_ait_mi(uuid)",
    "donus": "boolean",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1430,12 +1905,21 @@
     "durum": "bos",
     "ornek": "{\"terapist_id_giris_yapan_kullaniciya_ait_mi\":false}"
    },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"terapist_id_giris_yapan_kullaniciya_ait_mi\":false}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"terapist_id_giris_yapan_kullaniciya_ait_mi\":false}"
+   },
    "sonuc": "GECTI"
   },
   {
    "ad": "terapist_uygunluk_getir",
    "imza": "terapist_uygunluk_getir(uuid,date,date)",
    "donus": "jsonb",
+   "superAdminDali": false,
    "tur": "cagrilabilir",
    "uygulamaCagirir": true,
    "anonCagirir": false,
@@ -1450,6 +1934,14 @@
    "c": {
     "durum": "bos",
     "ornek": "{\"terapist_uygunluk_getir\":{\"cikis_tarihi\":null,\"izinli_gunler\":[]}}"
+   },
+   "d": {
+    "durum": "bos",
+    "ornek": "{\"terapist_uygunluk_getir\":null}"
+   },
+   "e": {
+    "durum": "bos",
+    "ornek": "{\"terapist_uygunluk_getir\":null}"
    },
    "sonuc": "GECTI"
   }

@@ -411,3 +411,110 @@ afterAll(async () => {
     await s.end();
   }
 }, 120_000);
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Ön adım B: DEFINER fonksiyonlarda "is_super_admin()" dalları, destek bağlamı (K1) altında BAŞKA kliniğin (K2) GEÇERLİ kayıtlarına işlem yapamamalı.
+// (Önceden: DEFINER fonksiyonlar klinik_sahip olarak çalışır; "TO PUBLIC" izin politikalarındaki "OR is_super_admin()" sahibe de uygulandığından
+//  super_admin K2 satırlarını görüp değiştirebiliyordu. 0015'teki RESTRICTIVE politika klinik_sahip'e de uygulanır.)
+describe("DEFINER taraması: destek bağlamı başka klinik verisi sızdırmaz / değiştirmez", () => {
+  const ARGS = (k2: Record<string, string>): [string, unknown[]][] => [
+    ["select randevu_gelis_isaretle($1::uuid, null)", [k2.randevu]],
+    ["select randevu_gelmedi_isaretle($1::uuid)", [k2.randevu]],
+    ["select randevu_iptal_et($1::uuid, 'sızıntı denemesi', false, false)", [k2.randevu]],
+    ["select randevu_iptal_geri_al($1::uuid)", [k2.randevu]],
+    ["select randevu_seans_bedelini_isle($1::uuid, 100, 'x', null, null, now(), null)", [k2.randevu]],
+    ["select personel_hassas_maskeli_getir($1::uuid)", [k2.personel]],
+    ["select personel_hassas_kaydet($1::uuid, '12345678901', null)", [k2.personel]],
+    ["select personel_hesap_hareket_ekle($1::uuid, 'prim', 10, current_date, 'x', null, null)", [k2.personel]],
+    ["select personel_puantaj_donem_kapat($1::uuid, 2026, 9)", [k2.personel]],
+    ["select personel_puantaj_donem_yeniden_ac($1::uuid, 2026, 9)", [k2.personel]],
+    ["select personel_puantaj_donemi_acik_mi($1::uuid, current_date)", [k2.personel]],
+    ["select personel_izin_hak_gun_hesapla($1::uuid)", [k2.personel]],
+    ["select islem_tanimi_etkin_fiyat($1::uuid, $2::uuid)", [k2.islem, k2.hasta]],
+    ["select seans_degerlendirme_baglam_getir($1::uuid)", [k2.randevu]],
+    ["select hasta_belge_goruntule($1::uuid)", [k2.hasta]],
+    ["select hasta_bakiye_hareket_borc_duzenle($1::uuid, 0, false, null)", [k2.hasta]],
+    ["select personel_izin_talebi_onayla($1::uuid)", [randomUUID()]],
+  ];
+  const parmak = async () =>
+    (await sql<{ h: string }>(
+      `select md5(concat_ws('|',
+         (select coalesce(string_agg(r::text, '|' order by id), '') from randevu r where klinik_id = $1),
+         (select coalesce(string_agg(h::text, '|' order by id), '') from hasta_bakiye_hareket h where klinik_id = $1),
+         (select coalesce(string_agg(p::text, '|' order by personel_id), '') from personel_hassas p where personel_id in (select id from personel where klinik_id = $1)),
+         (select coalesce(string_agg(x::text, '|' order by id), '') from personel_hesap_hareket x where klinik_id = $1),
+         (select coalesce(string_agg(d::text, '|' order by id), '') from personel_puantaj_donem d where klinik_id = $1))) h`,
+      [K2.klinik]
+    ))[0].h;
+
+  it("super_admin (K1 destek bağlamı) K2'nin geçerli kayıtlarında 21 DEFINER çağrısıyla veri OKUYAMAZ/DEĞİŞTİREMEZ; K2 verisi parmak izi aynı kalır", async () => {
+    await sql("insert into destek_baglami(kullanici_id, klinik_id, gerekce, bitis) values ($1, $2, 'DEFINER sızıntı taraması', now() + interval '20 minutes')", [SA, K1.klinik]);
+    const once = await parmak();
+    const d = duzenekOlustur();
+    const c = await d.baglanRol("klinik_uygulama");
+    const sizan: string[] = [];
+    try {
+      for (const [sorgu, p] of ARGS(K2)) {
+        await c.query("BEGIN");
+        await c.query("select set_config('app.user_id', $1, true), set_config('app.tenant_id', $2, true)", [SA, K1.klinik]);
+        await c.query("SAVEPOINT s");
+        try {
+          const r = await c.query(sorgu, p);
+          const deger = Object.values(r.rows[0] ?? {})[0];
+          // izinli sonuçlar: null / false / boş nesne. Veri (K2 kimliği, ad, tutar...) dönerse sızıntıdır.
+          const metin = JSON.stringify(deger);
+          if (deger !== null && deger !== false && metin !== "{}" && metin !== "[]" && metin !== '""') sizan.push(`${sorgu.slice(0, 40)} → ${metin.slice(0, 80)}`);
+        } catch {
+          // iş kuralı / yetki hatası = reddedildi (beklenen)
+        }
+        await c.query("ROLLBACK");
+      }
+    } finally {
+      await c.end();
+      await sql("update destek_baglami set kapatildi = now() where kullanici_id = $1 and kapatildi is null", [SA]);
+    }
+    expect(sizan).toEqual([]);
+    expect(await parmak(), "K2 verisi değişmemeli").toBe(once);
+  });
+
+  it("super_admin bağlamsız: aynı çağrılar hiçbir klinikte işlem yapamaz", async () => {
+    const once = await parmak();
+    const d = duzenekOlustur();
+    const c = await d.baglanRol("klinik_uygulama");
+    try {
+      for (const [sorgu, p] of ARGS(K2)) {
+        await c.query("BEGIN");
+        await c.query("select set_config('app.user_id', $1, true), set_config('app.tenant_id', $2, true)", [SA, K2.klinik]); // bağlam yok → tenant NULL
+        await c.query("SAVEPOINT s");
+        const r = await c.query(sorgu, p).then((x) => x.rows[0], () => null);
+        const deger = r ? Object.values(r)[0] : null;
+        expect([null, false, undefined], sorgu).toContainEqual(deger === "{}" ? null : deger);
+        await c.query("ROLLBACK");
+      }
+    } finally {
+      await c.end();
+    }
+    expect(await parmak()).toBe(once);
+  });
+
+  it("duyarlılık kanıtı (mutasyon): RESTRICTIVE politikalar kaldırılırsa aynı çağrılar K2 verisini DEĞİŞTİRİR — test sızıntıyı yakalayabiliyor", async () => {
+    const c = await superBaglan();
+    try {
+      await c.query("BEGIN");
+      await c.query("drop policy zorunlu_tenant_siniri on randevu");
+      await c.query("insert into destek_baglami(kullanici_id, klinik_id, gerekce, bitis) values ($1, $2, 'mutasyon kanıtı', now() + interval '20 minutes')", [SA, K1.klinik]);
+      const once = (await c.query("select durum::text from randevu where id = $1", [K2.randevu])).rows[0].durum;
+      await c.query("select set_config('app.user_id', $1, true), set_config('app.tenant_id', $2, true)", [SA, K1.klinik]);
+      await c.query("set local role klinik_uygulama");
+      await c.query("savepoint s");
+      await c.query("select randevu_gelmedi_isaretle($1::uuid)", [K2.randevu]).catch(() => c.query("rollback to s"));
+      await c.query("reset role");
+      const sonra = (await c.query("select durum::text from randevu where id = $1", [K2.randevu])).rows[0].durum;
+      expect(sonra).not.toBe(once);
+    } finally {
+      await c.query("ROLLBACK").catch(() => {});
+      await c.end();
+    }
+  });
+});
+

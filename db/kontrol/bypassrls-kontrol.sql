@@ -73,6 +73,21 @@ INSERT INTO kontrol_sonuc
 SELECT 'migrasyon_ayricalikli', 'HATA', rolname FROM pg_roles
 WHERE rolname = 'klinik_migrasyon' AND (rolsuper OR rolbypassrls OR rolcreaterole OR rolcreatedb OR rolreplication);
 
+-- 6d) Zorunlu tenant sınırı (0015): klinik_id kolonlu her RLS'li tabloda RESTRICTIVE `zorunlu_tenant_siniri` politikası (klinik_uygulama + klinik_sahip=DEFINER rolü) BULUNMALI.
+--     Eksikse super_admin'in "OR is_super_admin()" dalları (destek bağlamı) başka kliniğin verisini sızdırabilir. Yeni klinik_id'li tablo eklerken
+--     0015'teki DO bloğu desenini uygulayın. İstisna: destek_baglami (yalnız sahip politikası; hiçbir uygulama rolüne yetki yok).
+INSERT INTO kontrol_sonuc
+SELECT 'zorunlu_tenant_siniri_yok', 'HATA', c.relname
+FROM pg_class c
+JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'klinik_id' AND NOT a.attisdropped
+WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p') AND NOT c.relispartition AND c.relrowsecurity
+  AND c.relname <> 'destek_baglami'
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+     WHERE p.polrelid = c.oid AND p.polname = 'zorunlu_tenant_siniri' AND NOT p.polpermissive
+       AND p.polroles @> ARRAY['klinik_uygulama'::regrole::oid, 'klinik_sahip'::regrole::oid]
+  );
+
 -- 7) Bilgi: izinli istisnalar
 INSERT INTO kontrol_sonuc
 SELECT 'izinli_istisna', 'BILGI', rolname || CASE WHEN rolsuper THEN ' (süper kullanıcı)' ELSE ' (BYPASSRLS)' END
