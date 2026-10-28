@@ -70,7 +70,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | klinik_kredi_karti_odeme | S,I,D |
 | klinik_kredi_kartlari | S,I,U,D |
 | klinik_muhasebe_entegrasyonu | I,U |
-| kullanici | S,I,U,D |
+| kullanici | S,I,U |
 | mesaj_kredi_hareketleri | S |
 | mesaj_kredileri | S |
 | mesaj_kurallari | S,I,U |

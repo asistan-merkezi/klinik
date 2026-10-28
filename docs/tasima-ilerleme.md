@@ -4,7 +4,8 @@
 
 ## NEREDEN DEVAM EDİLECEK (bir sonraki oturum için)
 
-**Durum (2026-10-28):** Modül 1–4 BİTTİ (Modül 3 muayene, **Modül 4 ödeme/cari/finans/paket/işlem tanımları**). Sıradaki: **Modül 5 (personel ve puantaj, QR puantaj; `lib/qr/{klinik-bilgisi,qr-kod-aktif-mi}.ts` sarmalayıcıları burada silinecek; `lib/personel/{donem-maasi,seans-sayisi}.ts` içindeki eski supabase sürümleri + `hakedis` kuruş aritmetiği)**. Modül 4 karar bekleyen maddeler: docs/tasima-ilerleme.md Modül 4 §8 (iade sınırı, ödeme iptali/ters kayıt, terapist cari defter SELECT, silinebilen yönetim kayıtları). Yeni ortak parçalar: `lib/para.ts` (tüm para aritmetiği), `lib/finans/{okuma,eylem,idempotans,tutar}.ts`, `components/panel/islem-anahtari.tsx` (mali formlara gizli idempotency anahtarı), migration **0012**, `GIZLI_VERI_ANAHTARI` ortam değişkeni (Paraşüt secret şifreleme; adı `docs/sunucu-kurulum.md`te). Modül 7 bakım betiği: `islem_anahtari` 2 günden eski satır temizliği (klinik başına `withTenant`).
+**Durum (2026-10-28, son):** Modül 5 (personel/puantaj) BİTTİ — sıradaki Modül 6 (destek, yönetim vb.). Kalıntı Modül 7: lib/personel/{donem-maasi,seans-sayisi}.ts eski sürümleri + personel cron route.
+**Önceki durum:** Modül 1–4 BİTTİ (Modül 3 muayene, **Modül 4 ödeme/cari/finans/paket/işlem tanımları**). Sıradaki: **Modül 5 (personel ve puantaj, QR puantaj; `lib/qr/{klinik-bilgisi,qr-kod-aktif-mi}.ts` sarmalayıcıları burada silinecek; `lib/personel/{donem-maasi,seans-sayisi}.ts` içindeki eski supabase sürümleri + `hakedis` kuruş aritmetiği)**. Modül 4 karar bekleyen maddeler: docs/tasima-ilerleme.md Modül 4 §8 (iade sınırı, ödeme iptali/ters kayıt, terapist cari defter SELECT, silinebilen yönetim kayıtları). Yeni ortak parçalar: `lib/para.ts` (tüm para aritmetiği), `lib/finans/{okuma,eylem,idempotans,tutar}.ts`, `components/panel/islem-anahtari.tsx` (mali formlara gizli idempotency anahtarı), migration **0012**, `GIZLI_VERI_ANAHTARI` ortam değişkeni (Paraşüt secret şifreleme; adı `docs/sunucu-kurulum.md`te). Modül 7 bakım betiği: `islem_anahtari` 2 günden eski satır temizliği (klinik başına `withTenant`).
 
 **Durum (2026-10-27, oturum 2):** Aşama 4 ön adımları tamam. **Tenant DB'de türetme (Seçenek A, 0007) UYGULANDI** (`kullanici_tenant` eşlemesi; `app.tenant_id` yalnız super_admin/klinik_anonim/bakım/süper kullanıcı oturumunda geçerli; 13 yeni test, performans farkı ölçüm gürültüsünde — `docs/tasima-plani.md`). **Modül 2a (realtime altyapısı) BİTTİ**: `lib/realtime/` + `/api/canli` SSE + `useCanliOlaylar` + 0008 NOTIFY tetikleyicileri; 3 tüketici Supabase realtime'sız (veri çekimleri hâlâ supabase-js — Modül 2'de sunucuya taşınacak). **Modül 1 BİTTİ** (kalıntı: `lib/auth/eylem-yetkisi.ts` 8 çağıran bitene kadar, `lib/supabase/*` en sonda). **Modül 2 (hasta ve randevu) BİTTİ.** Sıradaki: **Modül 3 (muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto)** — belge/foto yükleme Modül 2'de büyük ölçüde yapıldı. (Eski not:) — `lib/randevu/queries.ts` + `RANDEVU_SELECT` Drizzle karşılığı (canli-cizelge/tablet-ekrani/randevu-bildirimleri'ndeki `createClient()` veri çekimlerini sunucu eylemi/route'a taşı; `useCanliOlaylar`'ın `onOlay/onSenkron` geri çağrıları bu yeni çekimi tetikler), QR kayıt/anket (gizli `klinik_id` kaldır, `anonimUcCalistir`), `lib/qr/hiz-siniri.ts` sil.
 **Yöntem:** `eylemYetkisiGetir` (eski, supabase döndürür) taşınmamış modüller için KALIYOR; taşınan modüller `lib/auth/yetki.ts > eylemYetkisi` (bağlam döndürür) kullanır. Sayfalarda `oturumBaglami()` + `tenantGerekli(ctx)` + `withTenant`. Tenant türetme Seçenek A uygulandı; Seçenek B (oturum jetonunu DB'de doğrulama) üretim öncesi karar noktası.
@@ -19,7 +20,7 @@
 | 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bitti** | 48 / 49 | 1 |
 | 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bitti** | 10 / 10 | 0 |
 | 4 | Ödeme / cari / finans / paket / işlem tanımları | **bitti** | 31 / 31 | 0 |
-| 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 18 / 20 | 2 |
+| 5 | Personel ve puantaj (QR akışı dahil) | **bitti** | 18 / 20 | 2 |
 | 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 2 / 10 | 8 |
 | 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 1 / 17 | 16 |
 | | **Toplam** | | 122 / 155 | **33** |
@@ -153,7 +154,8 @@ Kararlar: **A** iade sınırı **UYGULANDI** (0013; bağlantılı iade + yöneti
 
 ## Modül 5 — Personel ve puantaj (QR akışı dahil)
 
-- Durum: **bekliyor**
+- Durum: **bitti**
+- Not: Taşındı: personel hub/detay/eylemler (hesap oluşturma = kimlik hesabı + tek tenant transaction, hata olursa kimlik hesabı geri silinir; işten çıkışta hesap devre dışı + oturumlar iptal), iş başvuruları, pozisyon tanımları, izin (talep/onay/ret/iptal, manuel izin-rapor), puantaj cetveli (gün, FM onayı, dönem kapat/aç), maaş ayarları + cari hesap + toplu ödeme (kuruş, idempotency anahtarı), QR puantaj (kısa kod → klinik, kişi oturumdan). Hakediş/maaş aritmetiği kuruşa geçti (lib/maas.ts, lib/personel/hakedis.ts; oranlaKurus yarım-yukarı). Yeni migration 0014 (izin_bildirim_alicilari, dar DEFINER). Dosyalar diskte: izin belgesi + kaşe (personel-belge) — SUNUM ROTASI YOK (UI yalnız 'yüklendi' der; PDF formu Modül 7). KALINTI: lib/personel/{donem-maasi,seans-sayisi}.ts eski supabase sürümleri (personel dönem kapama cron'u için, Modül 7). KARAR BEKLEYEN: muhasebe rolünün izin talebi bildirimi mesaj_kuyrugu INSERT politikası (0011) muhasebeyi kapsamadığı için kuyruğa yazılmıyor (best-effort). Testler: tests/db/modul-personel.test.ts (22).
 - Kalan dosyalar (2):
   - `lib/personel/donem-maasi.ts`
   - `lib/personel/seans-sayisi.ts`

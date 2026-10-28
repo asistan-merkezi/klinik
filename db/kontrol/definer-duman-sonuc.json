@@ -496,6 +496,25 @@
    "ayrinti": "dolaylı: ilgili tabloya yazan örnek veri / anonim kayıt testleri tenant bağlamıyla tetikledi"
   },
   {
+   "ad": "izin_bildirim_alicilari",
+   "imza": "izin_bildirim_alicilari(text[])",
+   "donus": "TABLE(personel_id uuid, telefon text, eposta text)",
+   "tur": "cagrilabilir",
+   "uygulamaCagirir": true,
+   "anonCagirir": false,
+   "a": {
+    "durum": "hata",
+    "hata": "yetkisiz"
+   },
+   "b": {
+    "durum": "bos"
+   },
+   "c": {
+    "durum": "bos"
+   },
+   "sonuc": "GECTI"
+  },
+  {
    "ad": "kasa_bakiye_once_toplam",
    "imza": "kasa_bakiye_once_toplam(date)",
    "donus": "numeric",
