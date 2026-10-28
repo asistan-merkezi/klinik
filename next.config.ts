@@ -4,6 +4,9 @@ import bundleAnalyzer from "@next/bundle-analyzer";
 const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "true" });
 
 const nextConfig: NextConfig = {
+  // Windows Server dağıtımı (deploy/windows/guncelle.ps1): `.next/standalone/server.js` + izlenen node_modules tek klasörde çıkar;
+  // `.next/static` ve `public` sürüm klasörüne betikle kopyalanır. Sunucuda `npm ci` gerekmez, `node server.js` yeter.
+  output: "standalone",
   // puppeteer-core + @sparticuz/chromium Node.js API'lerine (fs, child_process)
   // ve büyük native binary'lere dayanıyor — Next.js'in serverless fonksiyon
   // bundler'ının bunları paketlemeye çalışıp bozması yerine dışarıda

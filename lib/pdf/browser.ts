@@ -26,7 +26,7 @@ export async function pdfIcinTarayiciBaslat(): Promise<Browser> {
     });
   }
 
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH ?? yerelChromeYoluBul();
+  const executablePath = process.env.CHROMIUM_PATH ?? process.env.PUPPETEER_EXECUTABLE_PATH ?? yerelChromeYoluBul();
   if (!executablePath) {
     throw new Error(
       "Yerel Chrome/Chromium bulunamadı. PUPPETEER_EXECUTABLE_PATH ortam değişkenini bir Chrome/Chromium yürütülebilir dosyasına ayarlayın."

@@ -1,7 +1,43 @@
-# Caddy yapılandırması (Windows VM). Alan adı ve yol değerleri kurulumda değiştirilir; gizli değer içermez.
-# Cloudflare proxy KAPALI (yalnız DNS): TLS doğrudan burada sonlanır (docs/sunucu-kurulum.md).
+# Caddy yapılandırması (Windows VM). Alan adı servis-kur.ps1 -AlanAdi ile değiştirilir; gizli değer içermez.
+# Cloudflare proxy KAPALI (yalnız DNS): TLS doğrudan burada sonlanır (docs/sunucu-kurulum.md 3c — KVKK).
+# Sertifika: Caddy otomatik (Let's Encrypt). 80 ve 443 dışarıya açık olmalı (HTTP-01/TLS-ALPN-01 için).
 klinik.ornek.com.tr {
-	# Güvenilen tek istemci IP kaynağı: uygulama x-real-ip başlığına güvenir (hız sınırı IP hash'i); dışarıdan gelen değer ezilir.
+	# --- Cloudflare IP aralıkları (NOTU, ŞU AN PASİF) ---
+	# Proxy KAPALI olduğu için "yalnız Cloudflare IP'lerinden gelen trafik" kısıtı UYGULANMAZ; açılırsa herkes bloklanırdı.
+	# Proxy bilinçli olarak açılırsa (KVKK onayı sonrası): https://www.cloudflare.com/ips-v4 ve /ips-v6 listesi güncel çekilip
+	#   @cloudflare_disi not remote_ip <aralıklar>
+	#   respond @cloudflare_disi 403
+	# ve `servers { trusted_proxies static <aralıklar> }` + header_up X-Real-IP {client_ip} ile gerçek IP alınır. Windows güvenlik
+	# duvarında da 443 yalnız bu aralıklara açılmalıdır. SSE yolu (/api/canli) için Cloudflare 100 sn sınırı ayrıca ele alınmalı.
+
+	# Belge/foto yükleme üst sınırı (uygulama 10 MB'a izin verir, form alanları için pay); aşan istek uygulamaya hiç ulaşmaz.
+	request_body {
+		max_size 25MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Kamera: hasta foto yükleme için aynı kaynak; mikrofon/konum/ödeme kapalı.
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		-Server
+		-X-Powered-By
+	}
+	# NOT: Content-Security-Policy BİLİNÇLİ yok — Next.js satır içi betikleri nonce'suz çalışıyor; CSP için nonce altyapısı gerekir
+	# (ayrı iş). Eklenirse önce Content-Security-Policy-Report-Only ile denenmeli.
+
+	log {
+		output file C:/klinik/log/caddy-erisim.log {
+			roll_size 50MiB
+			roll_keep 14
+			roll_keep_for 336h
+		}
+		format json
+	}
+
 	# Canlı olay akışı (SSE, /api/canli): ARABELLEK KAPALI olmalı. flush_interval -1 olmazsa Caddy olayları biriktirir,
 	# canlı çizelge/tablet güncellemeleri gecikir ya da hiç gelmez. Sıkıştırma akışı arabelleğe alabilir; bu yüzden `encode` yalnız
 	# SSE dışındaki yolda (alttaki genel handle) açıktır.
@@ -9,11 +45,12 @@ klinik.ornek.com.tr {
 	handle @canli {
 		reverse_proxy localhost:3000 {
 			flush_interval -1
+			# Güvenilen tek istemci IP kaynağı: uygulama x-real-ip başlığına güvenir (hız sınırı IP hash'i); dışarıdan gelen değer ezilir.
 			header_up X-Real-IP {remote_host}
 			transport http {
 				# Yanıt başlığı hemen döner; gövde (akış) süre sınırı OLMAMALI. Sunucu bağlantıyı en fazla 10 dk sonra kendisi kapatır
 				# (lib/realtime/sse.ts SSE_OMUR_MS) ve istemci yeniden bağlanır; ping 25 sn'de bir gider.
-				response_header_timeout 30s
+				response_header_timeout 90s
 				dial_timeout 5s
 				keepalive 30s
 			}
@@ -24,6 +61,16 @@ klinik.ornek.com.tr {
 		encode zstd gzip
 		reverse_proxy localhost:3000 {
 			header_up X-Real-IP {remote_host}
+			# Yavaş sorgular (Raporlar, PDF üretimi) için en az 90 sn; 120 sn seçildi.
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 120s
+				read_timeout 120s
+				write_timeout 120s
+			}
+			# Uygulama yeniden başlarken (guncelle.ps1) kısa kesintide istekleri 10 sn'ye kadar bekletip yeniden dene.
+			lb_try_duration 10s
+			lb_try_interval 500ms
 		}
 	}
 }
