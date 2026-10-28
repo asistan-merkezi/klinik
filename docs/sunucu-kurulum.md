@@ -122,3 +122,19 @@ Yedek, geri yüklenip doğrulanmadıkça yedek sayılmaz. Kurulumda ve sonra **h
 
 ## 6. Sıra
 Bu belge Aşama 1 (sunucu), Aşama 8 (yedek/sertleştirme) ve Aşama 9 (deploy) sırasında doldurulur; her komut denendikten sonra eklenir (denenmemiş komut yazılmaz).
+
+
+## 7. GIZLI_VERI_ANAHTARI — saklama ve rotasyon
+
+Veritabanında saklanan dış servis gizlilerini (şu an Paraşüt `client_secret`) şifreleyen 32 baytlık AES-256-GCM anahtarıdır (`lib/guvenlik/gizli-sifrele.ts`). Değeri hiçbir dosyaya/koda yazılmaz; yalnız `uygulama.env`'de tutulur.
+
+**Kural: anahtar, veritabanı yedeğiyle AYNI yerde saklanmaz.** Yedek (`yedek.ps1` çıktısı, dış kopya dahil) ve bu anahtar ayrı ortamlarda/ayrı erişim yetkisiyle tutulur; ikisi birlikte ele geçirilirse gizliler çözülür. Anahtarın yedeği ayrıca (yedek kasasından farklı bir yerde, en az iki yetkili kişide) saklanır; **anahtar kaybolursa** şifreli gizliler çözülemez ve Ayarlar > Muhasebe Sync'ten yeniden girilir (veri kaybı değil, yeniden giriş).
+
+**Üretim:** `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` (çıktı terminalde kalır; geçmişe/loga/sohbete yapıştırılmaz) → doğrudan `uygulama.env`'e.
+
+**Rotasyon (yılda en az bir kez; ayrıca anahtardan şüphelenilince veya anahtara erişimi olan kişi ayrılınca):**
+1. Yeni anahtarı üret; eski anahtarı geçiş süresince `GIZLI_VERI_ANAHTARI_ESKI` olarak yanına koy. *Uygulama notu:* iki anahtarlı çözme (`enc:v1` eski / `enc:v2` yeni) rotasyon betiğiyle birlikte eklenecek; o zamana kadar rotasyon adım 2b ile (yeniden girme) yapılır.
+2. (a) Betik: her klinik için `withTenant` ile satırı eski anahtarla çöz → yeni anahtarla şifrele → yaz; (b) betik yokken: yeni anahtarı devreye al, her klinik yöneticisi Muhasebe Sync'te secret'ı yeniden girer (yeni anahtarla şifrelenir).
+3. Tüm kliniklerin yeniden şifrelendiği doğrulanınca eski anahtarı ortamdan sil; eski anahtarın tüm kopyalarını (kasa dahil) imha et, tarihçeye yalnız sürüm/tarih notu düş (anahtarın kendisi değil).
+4. Yeni anahtarın yedeğini (yukarıdaki kural) al; uygulama servisini yeniden başlat.
+5. İhlal şüphesinde: anahtarı hemen döndür **ve** Paraşüt tarafında client secret'ı yenile (şifreleme eski secret'ı korumaz).

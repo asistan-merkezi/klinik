@@ -33,12 +33,12 @@ GRANT SELECT, INSERT, DELETE ON islem_anahtari TO klinik_uygulama;
 -- ---------------------------------------------------------------------------------------------------------------------------------------------
 
 -- 1) Hasta cari defterinde negatif/sıfır tutar ve tutarı aşan iskonto DB düzeyinde de reddedilir (uygulama + RPC'lerin yanında son savunma).
---    NOT VALID: yalnız YENİ ve değiştirilen satırlara uygulanır (arşivden aktarılan eski veri bozulmasın); veri taşıma sonrası VALIDATE edilir.
+--   : yalnız YENİ ve değiştirilen satırlara uygulanır (arşivden aktarılan eski veri bozulmasın); veri taşıma sonrası VALIDATE edilir.
 --    'borc' satırında tutar 0 olabilir (ücretsiz seans); odeme/iade/kredi her zaman pozitif.
 ALTER TABLE hasta_bakiye_hareket
-  ADD CONSTRAINT hasta_bakiye_hareket_tutar_negatif_degil CHECK (tutar >= 0) NOT VALID,
-  ADD CONSTRAINT hasta_bakiye_hareket_tutar_pozitif CHECK (tur = 'borc' OR tutar > 0) NOT VALID,
-  ADD CONSTRAINT hasta_bakiye_hareket_iskonto_aralik CHECK (iskonto_tutari >= 0 AND iskonto_tutari <= tutar) NOT VALID;
+  ADD CONSTRAINT hasta_bakiye_hareket_tutar_negatif_degil CHECK (tutar >= 0),
+  ADD CONSTRAINT hasta_bakiye_hareket_tutar_pozitif CHECK (tur = 'borc' OR tutar > 0),
+  ADD CONSTRAINT hasta_bakiye_hareket_iskonto_aralik CHECK (iskonto_tutari >= 0 AND iskonto_tutari <= tutar);
 
 -- 2) islem_tanimi_kaydet: adımlardaki cihaz / pozisyon kimlikleri ÇAĞIRANIN kliniğine ait olmalı (FK tenant'ı doğrulamaz).
 CREATE OR REPLACE FUNCTION public.islem_tanimi_kaydet(p_id uuid, p_ad text, p_vita_fiyat numeric, p_plus_fiyat numeric, p_elit_fiyat numeric, p_prime_fiyat numeric, p_kdv_orani numeric, p_muhasebe_hizmet_ismi text, p_adimlar jsonb)
@@ -142,3 +142,9 @@ BEGIN
   RETURN v_islem_id;
 END;
 $function$;
+
+-- 3) 0002'de (Supabase'ten kalma) NOT VALID oluşturulmuş eski-veri CHECK'leri sıfır kurulumda doğrudan geçerli yapılır (tablolar boş; anlıktır).
+ALTER TABLE hasta_bakiye_hareket VALIDATE CONSTRAINT hasta_bakiye_hareket_iade_yontem_zorunlu;
+ALTER TABLE nakit_banka_hareketi VALIDATE CONSTRAINT nakit_banka_hareketi_farkli_hesap;
+ALTER TABLE anket_yaniti VALIDATE CONSTRAINT anket_yaniti_metin_uzunluk;
+ALTER TABLE seans_degerlendirme VALIDATE CONSTRAINT seans_degerlendirme_metin_uzunluk;
