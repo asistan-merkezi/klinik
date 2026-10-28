@@ -1,6 +1,6 @@
 "use server";
 
-// Hasta Detayı sekmelerinin OKUMA/yazma eylemleri (react-query kancaları bunları çağırır; eskiden tarayıcıdan doğrudan Supabase).
+// Hasta Detayı sekmelerinin OKUMA/yazma eylemleri (react-query kancaları bunları çağırır; eskiden tarayıcıdan doğrudan veritabanı istemcisi).
 // Hepsi: oturum + rol kapısı (KODDA, RLS'e ek) + withTenant. Tenant ve kullanıcı oturumdan gelir; hastaId/kayıt id'leri doğrulanır (uuid + tenant içinde var mı).
 import { and, asc, desc, eq, inArray, lt, ne, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";

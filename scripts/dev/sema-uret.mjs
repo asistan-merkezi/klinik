@@ -1,4 +1,4 @@
-// (scripts/dev/ altında; bağımlılıklar scripts/dev/package.json) Referans veritabanından (172 migration'ın Supabase-uyumluluk katmanıyla uygulandığı geçici Postgres)
+// (scripts/dev/ altında; bağımlılıklar scripts/dev/package.json) Referans veritabanından (172 eski migration'ın uyumluluk katmanıyla uygulandığı geçici Postgres)
 // düz Postgres temel şemasını üretir. Çıktı: db/migrations/0002_temel_sema.sql + db/seed/0001_referans_veri.sql
 //
 // Kullanım: docs/sema-uretim.md (scripts/dev/yeniden-uret.mjs her şeyi sırayla yapar)
@@ -57,7 +57,7 @@ function donustur(t) {
 
 // ---- Eklentiler / başlık ----
 e("-- OTOMATİK ÜRETİLDİ: db/arac/sema-uret.mjs — elle düzenleme; kuralı değiştir, yeniden üret.");
-e("-- Kaynak: 172 migration (supabase/migrations) + supabase/bekleyen/20261003110000_puantaj_pin_kaldir.sql");
+e("-- Kaynak: 172 eski migration (db/arsiv/eski-migrationlar) + db/arsiv/eski-bekleyen/20261003110000_puantaj_pin_kaldir.sql");
 e("-- Çalıştıran rol: klinik_sahip (scripts/db-kur.ps1). Önce 0001_kimlik_ve_baglam.sql uygulanmış olmalı.");
 e("SET check_function_bodies = off;");
 e("SET search_path = public, extensions;");

@@ -659,7 +659,6 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
     return { success: false, message: "Tarih/saat geçersiz." };
   }
 
-  let eskiBaslangic: string;
   let hastaId: string;
   try {
     const sonuc = await withTenant(y.bag, async (tx) => {
@@ -688,7 +687,6 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
       return { eski: new Date(mevcut.baslangic).toISOString(), hastaId: mevcut.hastaId };
     });
     if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Randevu ertelenemedi." };
-    eskiBaslangic = sonuc.eski;
     hastaId = sonuc.hastaId;
   } catch (e) {
     const h = pgHata(e);
@@ -702,7 +700,7 @@ export async function randevuErtele(randevuId: string, formData: FormData): Prom
   revalidatePath("/panel/randevular");
   revalidatePath("/panel");
   revalidateHastaDetay(hastaId);
-  after(() => randevuOlayMesajiTetikle(y.bag, randevuId, "randevu_iptal", { eskiBaslangic }));
+  after(() => randevuOlayMesajiTetikle(y.bag, randevuId, "randevu_iptal"));
   return {
     success: true,
     message: `Randevu ${ayristirma.data.tarih} ${ayristirma.data.saat} saatine ertelendi.`,
@@ -829,12 +827,7 @@ async function paketYenilemeUyarisiIsle(bag: TenantBaglami, paketSatisId: string
           aliciTipi: "hasta",
           aliciId: satis.hastaId,
           adres: { telefon: satis.telefon, eposta: satis.eposta, whatsappIzni: satis.wp ?? false },
-          degiskenler: {
-            hasta_adi: satis.hastaAd ?? "",
-            paket_adi: paketAdi,
-            kalan_seans: String(satis.kalanAdet),
-            klinik_adi: klinik?.ad ?? "",
-          },
+          klinikAdi: klinik?.ad ?? "",
           idempotencyTemeli: `hasta_paket_seans_azaldi:${paketSatisId}:${satis.kalanAdet}`,
         });
       }

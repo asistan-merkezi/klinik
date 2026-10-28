@@ -73,7 +73,11 @@ export function TalepSatiri({ talep }: { talep: IzinTalebiAdminSatir }) {
           {IZIN_TIP_ETIKETLERI[talep.tip]} · {formatDate(talep.baslangic_tarih)} – {formatDate(talep.bitis_tarih)} · {talep.gun_sayisi} gün
         </span>
         {talep.gerekce && <span className="text-sm">{talep.gerekce}</span>}
-        {talep.belge_url && <span className="text-xs text-muted-foreground">Belge yüklendi</span>}
+        {talep.belge_url && (
+          <a href={`/api/personel-belge/izin/${talep.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2">
+            Belgeyi görüntüle
+          </a>
+        )}
         {talep.durum === "reddedildi" && talep.red_gerekce && (
           <span className="text-sm text-rose-600 dark:text-rose-400">Red gerekçesi: {talep.red_gerekce}</span>
         )}

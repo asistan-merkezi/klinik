@@ -1,12 +1,13 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { and, eq } from "drizzle-orm";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi } from "@/lib/auth/yetki";
 import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
-import { bilinmeyenDegiskenleriBul } from "@/lib/mesaj/degisken-dogrula";
-import { kuyrukSatiriniIsle } from "@/lib/mesaj/kuyruk-isle";
+import { metniDoldur, sablonuDogrula } from "@/lib/mesaj/icerik";
+import { bildirimBaglantisiUret } from "@/lib/mesaj/baglanti";
 import { sessizSaatAraligiGecerliMi } from "@/lib/mesaj/sessiz-saat";
 import type { MesajKanal } from "@/types/mesajlasma";
 
@@ -15,26 +16,9 @@ type SonucDurumu = { success: boolean; message: string };
 const MESAJ_METNI_MAX_UZUNLUK = 1000;
 
 async function klinikAdminDogrula() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol, klinik_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!kullanici || kullanici.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return null;
-  }
-
-  return { supabase, klinikId: kullanici.klinik_id };
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || !y.klinikId || y.ctx.rol !== "klinik_admin") return null;
+  return { bag: y.bag, klinikId: y.klinikId, kullaniciId: y.ctx.userId };
 }
 
 type KuralGuncellemeAlanlari = {
@@ -66,26 +50,30 @@ export async function kuralGuncelle(tetikleyiciKodu: string, alanlar: KuralGunce
   }
 
   const metin = alanlar.mesaj_metni.trim().slice(0, MESAJ_METNI_MAX_UZUNLUK);
-  const bilinmeyenler = bilinmeyenDegiskenleriBul(metin, tanim.gecerliDegiskenler);
-  if (bilinmeyenler.length > 0) {
-    return { success: false, message: `Bilinmeyen değişken(ler): ${bilinmeyenler.map((d) => `{{${d}}}`).join(", ")}` };
+  // KVKK: mesajda yalnız {{klinik_adi}} ve {{baglanti}} olabilir; kimlik/IBAN/kart/telefon/e-posta deseni içeren metin kaydedilmez.
+  const kontrol = sablonuDogrula(metin);
+  if (!kontrol.gecerli) {
+    return {
+      success: false,
+      message:
+        kontrol.neden === "bilinmeyen_degisken"
+          ? `Bilinmeyen değişken(ler): ${(kontrol.ayrinti ?? []).map((d) => `{{${d}}}`).join(", ")}. Yalnız {{klinik_adi}} ve {{baglanti}} kullanılabilir.`
+          : "Mesaj metni kimlik, IBAN, kart, telefon veya e-posta benzeri bilgi içeremez.",
+    };
   }
 
-  const { error } = await yetki.supabase.from("mesaj_kurallari").upsert(
-    {
-      klinik_id: yetki.klinikId,
-      tetikleyici_kodu: tetikleyiciKodu,
-      aktif: alanlar.aktif,
-      sms_aktif: alanlar.sms_aktif,
-      whatsapp_aktif: alanlar.whatsapp_aktif,
-      mail_aktif: alanlar.mail_aktif,
-      mesaj_metni: metin,
-    },
-    { onConflict: "klinik_id,tetikleyici_kodu" }
-  );
-
-  if (error) {
-    console.error("Mesaj kuralı güncellenemedi:", error.message);
+  try {
+    await withTenant(yetki.bag, (tx) =>
+      tx
+        .insert(sema.mesajKurallari)
+        .values({ klinikId: yetki.klinikId, tetikleyiciKodu: tetikleyiciKodu, aktif: alanlar.aktif, smsAktif: alanlar.sms_aktif, whatsappAktif: alanlar.whatsapp_aktif, mailAktif: alanlar.mail_aktif, mesajMetni: metin })
+        .onConflictDoUpdate({
+          target: [sema.mesajKurallari.klinikId, sema.mesajKurallari.tetikleyiciKodu],
+          set: { aktif: alanlar.aktif, smsAktif: alanlar.sms_aktif, whatsappAktif: alanlar.whatsapp_aktif, mailAktif: alanlar.mail_aktif, mesajMetni: metin },
+        })
+    );
+  } catch (e) {
+    console.error("Mesaj kuralı güncellenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
@@ -95,102 +83,62 @@ export async function kuralGuncelle(tetikleyiciKodu: string, alanlar: KuralGunce
 
 const KANAL_ALAN = { sms: "sms_aktif", whatsapp: "whatsapp_aktif", mail: "mail_aktif" } as const;
 
-const KUYRUK_DURUM_MESAJI: Record<string, (aliciAdres: string, hataMesaji?: string) => SonucDurumu> = {
-  gonderildi: (aliciAdres) => ({ success: true, message: `Test mesajı gönderildi (${aliciAdres}).` }),
-  hata: (_a, hata) => ({ success: false, message: `Gönderilemedi: ${hata ?? "bilinmeyen hata"}` }),
-  iptal: (_a, hata) => ({
-    success: false,
-    message: hata === "kredi yetersiz" ? "Bu kanalda yeterli kredi yok." : `İptal edildi: ${hata ?? "bilinmeyen sebep"}`,
-  }),
-  beklemede: (_a, hata) => ({ success: false, message: `Geçici bir hata oluştu, otomatik tekrar denenecek: ${hata ?? ""}` }),
-};
-
 /**
- * Kural düzenleme dialogundaki "Test Gönder" — gerçek gönderim yolunun
- * (mesaj_kuyrugu → kredi düşümü → adapter → durum) TAMAMINI, sadece
- * test_mi=true işaretiyle çalıştırır. Alıcı HER ZAMAN giriş yapmış
- * kullanıcının kendi telefonu/e-postası — başka birine test mesajı
- * gönderilemez. Kuyruğa ekleme + işleme adımları service role (admin)
- * client'ıyla yapılıyor çünkü authenticated kullanıcının mesaj_kuyrugu'na
- * hiç INSERT/UPDATE RLS policy'si yok (bkz. Faz 1 migration) — yetki
- * kontrolü burada, bu fonksiyonun başında, service role client'a hiç
- * dokunulmadan ÖNCE yapılıyor.
+ * "Test Gönder": test_mi=true işaretiyle kuyruğa bir satır yazar; gerçek gönderimi kuyruk işçisi (zamanlanmış betik, birkaç dakika içinde) yapar.
+ * Alıcı HER ZAMAN giriş yapmış yöneticinin kendi telefonu/e-postasıdır. Kullanıcı oturumu kuyruk satırını işleyemez (yalnız ekleyebilir);
+ * eskiden burada servis rolüyle anında gönderim denenirdi. İçerik de KVKK kuralına tabidir: tek kullanımlık bağlantı taşıyan sabit metin.
  */
 export async function testGonder(tetikleyiciKodu: string, kanal: MesajKanal): Promise<SonucDurumu> {
   const yetki = await klinikAdminDogrula();
-  if (!yetki) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-
+  if (!yetki) return { success: false, message: "Bu işlem için yetkiniz yok." };
   const tanim = tetikleyiciGetir(tetikleyiciKodu);
-  if (!tanim) {
-    return { success: false, message: "Geçersiz tetikleyici." };
-  }
+  if (!tanim) return { success: false, message: "Geçersiz tetikleyici." };
 
-  const {
-    data: { user: authUser },
-  } = await yetki.supabase.auth.getUser();
-  if (!authUser) {
-    return { success: false, message: "Oturum bulunamadı." };
-  }
+  try {
+    const sonuc = await withTenant(yetki.bag, async (tx) => {
+      const kural = (
+        await tx
+          .select({ aktif: sema.mesajKurallari.aktif, sms_aktif: sema.mesajKurallari.smsAktif, whatsapp_aktif: sema.mesajKurallari.whatsappAktif, mail_aktif: sema.mesajKurallari.mailAktif, metin: sema.mesajKurallari.mesajMetni })
+          .from(sema.mesajKurallari)
+          .where(and(eq(sema.mesajKurallari.klinikId, yetki.klinikId), eq(sema.mesajKurallari.tetikleyiciKodu, tetikleyiciKodu)))
+          .limit(1)
+      )[0];
+      if (!kural || !kural.aktif || !kural[KANAL_ALAN[kanal]]) return { success: false, message: "Bu kural veya kanal aktif değil — önce kaydedin." };
 
-  const { data: kural } = await yetki.supabase
-    .from("mesaj_kurallari")
-    .select("aktif, sms_aktif, whatsapp_aktif, mail_aktif, mesaj_metni")
-    .eq("klinik_id", yetki.klinikId)
-    .eq("tetikleyici_kodu", tetikleyiciKodu)
-    .maybeSingle();
+      const kisi = (
+        await tx
+          .select({ telefon: sema.kullanici.telefon, eposta: sema.personel.eposta })
+          .from(sema.kullanici)
+          .leftJoin(sema.personel, eq(sema.personel.kullaniciId, sema.kullanici.id))
+          .where(eq(sema.kullanici.id, yetki.kullaniciId))
+          .limit(1)
+      )[0];
+      const aliciAdres = kanal === "mail" ? kisi?.eposta : kisi?.telefon;
+      if (!aliciAdres) return { success: false, message: kanal === "mail" ? "Hesabınızda e-posta bulunamadı." : "Hesabınızda telefon numarası bulunamadı." };
 
-  if (!kural || !kural.aktif || !kural[KANAL_ALAN[kanal]]) {
-    return { success: false, message: "Bu kural veya kanal aktif değil — önce kaydedin." };
-  }
-
-  let aliciAdres: string | null;
-  if (kanal === "mail") {
-    aliciAdres = authUser.email ?? null;
-  } else {
-    const { data: kullaniciSatiri } = await yetki.supabase.from("kullanici").select("telefon").eq("id", authUser.id).single();
-    aliciAdres = kullaniciSatiri?.telefon ?? null;
-  }
-
-  if (!aliciAdres) {
-    return {
-      success: false,
-      message: kanal === "mail" ? "Hesabınızda e-posta bulunamadı." : "Hesabınızda telefon numarası bulunamadı.",
-    };
-  }
-
-  const admin = createAdminClient();
-  const { data: yeniSatir, error: eklemeHata } = await admin
-    .from("mesaj_kuyrugu")
-    .insert({
-      klinik_id: yetki.klinikId,
-      tetikleyici_kodu: tetikleyiciKodu,
-      kanal,
-      alici_tipi: "personel",
-      alici_id: authUser.id,
-      alici_adres: aliciAdres,
-      gonderilecek_metin: kural.mesaj_metni,
-      test_mi: true,
-      idempotency_anahtari: `test:${yetki.klinikId}:${tetikleyiciKodu}:${kanal}:${crypto.randomUUID()}`,
-    })
-    .select("id")
-    .single();
-
-  if (eklemeHata || !yeniSatir) {
-    console.error("Test mesajı kuyruğa eklenemedi:", eklemeHata?.message);
+      const sablon = kural.metin || tanim.varsayilanMesajMetni;
+      if (!sablonuDogrula(sablon).gecerli) return { success: false, message: "Mesaj metni KVKK içerik kuralına uymuyor." };
+      const klinik = (await tx.select({ ad: sema.klinik.ad }).from(sema.klinik).where(eq(sema.klinik.id, yetki.klinikId)).limit(1))[0];
+      const baglanti = await bildirimBaglantisiUret(tx, { klinikId: yetki.klinikId, aliciTipi: "personel", tetikleyiciKodu });
+      await tx.insert(sema.mesajKuyrugu).values({
+        klinikId: yetki.klinikId,
+        tetikleyiciKodu,
+        kanal,
+        aliciTipi: "personel",
+        aliciId: yetki.kullaniciId,
+        aliciAdres,
+        gonderilecekMetin: metniDoldur(sablon, { klinikAdi: klinik?.ad ?? "Klinik", baglanti }),
+        testMi: true,
+        idempotencyAnahtari: `${yetki.klinikId}:test:${tetikleyiciKodu}:${kanal}:${randomUUID()}`,
+      });
+      return { success: true, message: "Test mesajı kuyruğa alındı; birkaç dakika içinde gönderilir." };
+    });
+    revalidatePath("/panel/ayarlar/mesajlasma");
+    return sonuc;
+  } catch (e) {
+    console.error("Test mesajı kuyruğa eklenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Test gönderilemedi, lütfen tekrar deneyin." };
   }
-
-  const sonuc = await kuyrukSatiriniIsle(admin, yeniSatir.id);
-
-  revalidatePath("/panel/ayarlar/mesajlasma");
-  revalidatePath(`/panel/ayarlar/mesajlasma/kredi/${kanal}`);
-
-  return (KUYRUK_DURUM_MESAJI[sonuc.durum] ?? (() => ({ success: false, message: "Bilinmeyen durum." })))(
-    aliciAdres,
-    sonuc.hataMesaji
-  );
 }
 
 /**
@@ -207,23 +155,16 @@ export async function sessizSaatKaydet(kapali: boolean, baslangic: string, bitis
     return { success: false, message: "Başlangıç ve bitiş saati farklı ve SS:DD biçiminde olmalı." };
   }
 
-  const { data: mevcutSatir } = await yetki.supabase
-    .from("klinik_ayarlar")
-    .select("ayarlar")
-    .eq("klinik_id", yetki.klinikId)
-    .maybeSingle();
-  const mevcut = (mevcutSatir?.ayarlar as Record<string, unknown> | null) ?? {};
-
-  const { error } = await yetki.supabase.from("klinik_ayarlar").upsert(
-    {
-      klinik_id: yetki.klinikId,
-      ayarlar: { ...mevcut, mesaj_sessiz_saat: kapali ? { kapali: true } : { baslangic, bitis } },
-    },
-    { onConflict: "klinik_id" }
-  );
-
-  if (error) {
-    console.error("Sessiz saat kaydedilemedi:", error.message);
+  try {
+    await withTenant(yetki.bag, async (tx) => {
+      // Aynı jsonb'de başka anahtarlar (qr_kodlari, kasa, sidebar_gizli…) var: read-modify-write, yalnız bu anahtar değişir.
+      const mevcutSatir = (await tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, yetki.klinikId)).limit(1).for("update"))[0];
+      const mevcut = (mevcutSatir?.ayarlar as Record<string, unknown> | null) ?? {};
+      const ayarlar = { ...mevcut, mesaj_sessiz_saat: kapali ? { kapali: true } : { baslangic, bitis } };
+      await tx.insert(sema.klinikAyarlar).values({ klinikId: yetki.klinikId, ayarlar }).onConflictDoUpdate({ target: sema.klinikAyarlar.klinikId, set: { ayarlar } });
+    });
+  } catch (e) {
+    console.error("Sessiz saat kaydedilemedi:", pgHata(e).mesaj);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 

@@ -1,6 +1,6 @@
 "use server";
 
-// İstemci bileşenlerinin (react-query kancaları, canlı çizelge, bildirimler) kullandığı OKUMA eylemleri. Eskiden tarayıcıdan doğrudan Supabase
+// İstemci bileşenlerinin (react-query kancaları, canlı çizelge, bildirimler) kullandığı OKUMA eylemleri. Eskiden tarayıcıdan doğrudan veritabanı istemcisi
 // (RLS'li) çağrılıyordu; artık oturum + withTenant üzerinden sunucuda çalışır. Tenant/rol oturumdan gelir, istemciden asla.
 // Girdiler doğrulanır (uuid/tarih); hata durumunda istemci kancası fırlatılan hatayı react-query ile gösterir.
 import { and, asc, eq, gt, gte, inArray, lt, notInArray, or } from "drizzle-orm";

@@ -16,7 +16,7 @@ export const ROL_GRUPLARI = {
 
 /**
  * Sayfa (Server Component) düzeyinde rol kapısı — her sayfanın kendi
- * `supabase.auth.getUser()` + `kullanici` SELECT + `rol === ...` zincirini
+ * oturum çözümleme + `kullanici` SELECT + `rol === ...` zincirini
  * tekrarlamasının yerine geçer.
  *
  *  - Oturum yoksa            → /giris

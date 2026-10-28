@@ -1,19 +1,15 @@
 import { TETIKLEYICILER, type TetikleyiciTanimi } from "./tetikleyiciler";
-
-/** Elle gönderimde bağlamsız doldurulabilen tek değişkenler (tutar/randevu tarihi vb. bağlam ister). */
-const MANUEL_DEGISKENLER = ["hasta_adi", "klinik_adi"];
+import { IZINLI_DEGISKENLER, metniDoldur } from "./icerik";
 
 /**
- * Resepsiyon/yönetici hasta detayından elle gönderebilir: hastaya dönük (bölüm personel DEĞİL) ve yalnız
- * hasta adı/klinik adıyla dolan şablonlar. Tutar/randevu tarihi/paket adı isteyenler bağlam gerektirdiği için
- * (yanlış değerle gitmesin diye) listede yok — onlar ilgili olayda otomatik gider.
+ * Resepsiyon/yönetici hasta detayından elle gönderebilir: hastaya dönük (bölüm personel DEĞİL) şablonlar. Tüm şablonlar yalnız izinli
+ * değişkenleri (klinik adı + bağlantı) taşıdığından bağlam gerektirmez; ticari olanlar için hastanın ticari ileti onayı ayrıca aranır.
  */
 export function manuelGonderilebilirTetikleyiciler(): TetikleyiciTanimi[] {
-  return TETIKLEYICILER.filter(
-    (t) => t.bolum !== "personel" && t.gecerliDegiskenler.every((d) => MANUEL_DEGISKENLER.includes(d))
-  );
+  return TETIKLEYICILER.filter((t) => t.bolum !== "personel" && t.gecerliDegiskenler.every((d) => IZINLI_DEGISKENLER.includes(d)));
 }
 
-export function manuelMetniDoldur(sablon: string, degiskenler: { hasta_adi: string; klinik_adi: string }): string {
-  return sablon.replace(/\{\{(\w+)\}\}/g, (tam, ad: string) => (degiskenler as Record<string, string>)[ad] ?? tam);
+/** Önizleme: gerçek bağlantı gönderim anında üretilir (tek kullanımlık). */
+export function manuelOnizleme(sablon: string, klinikAdi: string): string {
+  return metniDoldur(sablon, { klinikAdi: klinikAdi || "Klinik", baglanti: "[tek kullanımlık bağlantı]" });
 }

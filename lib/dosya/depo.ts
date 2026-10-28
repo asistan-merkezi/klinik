@@ -1,4 +1,4 @@
-// Dosya deposu (Supabase Storage yerine): web kökü DIŞINDAKİ DOSYA_KOKU klasörü. Dosyalar doğrudan servis edilmez; yalnız yetkili route'lar okur.
+// Dosya deposu: web kökü DIŞINDAKİ DOSYA_KOKU klasörü. Dosyalar doğrudan servis edilmez; yalnız yetkili route'lar okur.
 // Düzen: DOSYA_KOKU/<kategori>/<segment>/<segment>/.../<ad>.<uzanti> (ör. klinik-logo/<klinik_id>/logo.png, hasta-belge/<klinik_id>/<hasta_id>/<kategori>/<belge_id>.<ext>).
 // Güvenlik: her yol parçası beyaz listeyle doğrulanır (.. / mutlak yol / ters eğik çizgi / boş parça reddedilir) ve çözümlenen yol kökün İÇİNDE kalmalıdır.
 import fs from "node:fs/promises";

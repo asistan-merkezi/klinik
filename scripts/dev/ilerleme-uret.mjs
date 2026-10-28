@@ -8,7 +8,7 @@ const KOK = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 // Kurallar SIRALIDIR: ilk eşleşen kazanır (özel olan genelden önce).
 const MODULLER = [
-  { id: 7, ad: "Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot", durum: "bekliyor", not: "Cron route'ları scripts/'e (bakim_rolu) taşınıp silinecek; PDF -> CHROMIUM_PATH; mesaj merkezi istemcisi withTenant; chatbot bayrakla kapalı." },
+  { id: 7, ad: "Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot", durum: "bitti", not: "Taşındı: PDF (sistem Chrome, semafor, ağ/dosya erişimi kapalı), e-posta (Resend), KVKK uyumlu mesaj içeriği + tek kullanımlık bağlantılar (/b/[token]), kuyruk işçisi, cron route'ları → scripts/bakim (bakim_rolu + klinik başına sistem bağlamı, Task Scheduler), izin belgesi/kaşe sunumu, SSE oturum denetimi, Supabase/Vercel final temizliği. Yeni migration: 0016. Ayrıntı ve KARAR BEKLEYEN maddeler aşağıda." },
   { id: 1, ad: "Kullanıcı/profil, klinik ayarları, ortak yardımcılar", durum: "bitti", not: "Taşınan: lib/auth (oturum bağlamı, gecerliKullanici/gecerliHasta, yetki.ts), panel layout/actions, ayarlar (şirket bilgileri, yetkilendirme, muhasebe sync), dosya deposu (lib/dosya, logo route'ları), gece zorunlu çıkış (sunucu tarafı, ScheduledLogout silindi), oturum kilidi dosyaları silindi. KALINTI (bilinçli): lib/auth/eylem-yetkisi.ts (8 taşınmamış çağıran var) ve lib/supabase/* son modülde silinecek; yeni migration 0006 (parasut_secret_var)." },
   { id: 4, ad: "Ödeme / cari / finans / paket / işlem tanımları", durum: "bitti", not: "Taşındı: Kasa/Banka/Kredi Kartı, Giderler (4 sekme), Gelirler Takibi/Faturalar, Raporlar, kategori-iskonto, paketler, tedavi tanımları, ödeme-paket arşiv sihirbazı. Yeni: lib/para.ts (kuruş aritmetiği, tek yuvarlama kuralı), mali eylemlerde idempotency (0012 islem_anahtari), defter CHECK'leri, islem_tanimi_kaydet tenant doğrulaması, Paraşüt secret şifreleme. Ayrıntı ve KARAR BEKLEYEN maddeler (§8) aşağıda." },
   { id: 5, ad: "Personel ve puantaj (QR akışı dahil)", durum: "bitti", not: "Taşındı: personel hub/detay/eylemler (hesap oluşturma = kimlik hesabı + tek tenant transaction, hata olursa kimlik hesabı geri silinir; işten çıkışta hesap devre dışı + oturumlar iptal), iş başvuruları, pozisyon tanımları, izin (talep/onay/ret/iptal, manuel izin-rapor), puantaj cetveli (gün, FM onayı, dönem kapat/aç), maaş ayarları + cari hesap + toplu ödeme (kuruş, idempotency anahtarı), QR puantaj (kısa kod → klinik, kişi oturumdan). Hakediş/maaş aritmetiği kuruşa geçti (lib/maas.ts, lib/personel/hakedis.ts; oranlaKurus yarım-yukarı). Yeni migration 0014 (izin_bildirim_alicilari, dar DEFINER). Dosyalar diskte: izin belgesi + kaşe (personel-belge) — SUNUM ROTASI YOK (UI yalnız 'yüklendi' der; PDF formu Modül 7). KALINTI: lib/personel/{donem-maasi,seans-sayisi}.ts eski supabase sürümleri (personel dönem kapama cron'u için, Modül 7). KARAR BEKLEYEN: muhasebe rolünün izin talebi bildirimi mesaj_kuyrugu INSERT politikası (0011) muhasebeyi kapsamadığı için kuyruğa yazılmıyor (best-effort). Testler: tests/db/modul-personel.test.ts (22)." },
@@ -26,7 +26,7 @@ const KURALLAR = [
 ];
 const modulBul = (dosya) => (KURALLAR.find(([, r]) => r.test(dosya)) ?? [6])[0];
 
-const taranan = ["app", "lib", "components", "proxy.ts"];
+const taranan = ["app", "lib", "components", "proxy.ts", "scripts/bakim", "tests/db", "tests/e2e"];
 function tara(yol, cikti = []) {
   const tam = path.join(KOK, yol);
   if (!fs.existsSync(tam)) return cikti;
@@ -52,6 +52,7 @@ md += `## Özet\n\n| # | Modül | Durum | Taşınan / Toplam | Kalan Supabase im
 for (const s of satirlar) md += `| ${s.id} | ${s.ad} | **${s.durum}** | ${s.tasinan} / ${s.toplam} | ${s.kalan} |\n`;
 const tb = satirlar.reduce((a, s) => a + s.toplam, 0), tk = satirlar.reduce((a, s) => a + s.kalan, 0);
 md += `| | **Toplam** | | ${tb - tk} / ${tb} | **${tk}** |\n\n`;
+md += `**Kalan Supabase importları: ${tumKalan.length}**\n\n`;
 md += `Not: "Toplam" taşıma başlangıcındaki dosya listesidir (\`scripts/dev/tasima-baslangic.txt\`, ${baslangic.length} dosya); sayım \`@supabase\`, \`@/lib/supabase\` ve \`createAdminClient\` kullanan dosyaları kapsar. \`lib/supabase/*\` en sonda silinir.\n\n`;
 for (const s of satirlar) {
   md += `## Modül ${s.id} — ${s.ad}\n\n- Durum: **${s.durum}**${s.not ? `\n- Not: ${s.not}` : ""}\n- Kalan dosyalar (${s.kalan}):${s.kalan ? "\n" + s.kalanDosyalar.map((d) => `  - \`${d}\``).join("\n") : " —"}\n\n`;

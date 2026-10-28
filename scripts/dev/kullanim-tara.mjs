@@ -1,4 +1,4 @@
-// Koddaki Supabase sorgularını tarar: hangi tablo/görünüm hangi işlemle (SELECT/INSERT/UPDATE/DELETE) kullanılıyor.
+// Koddaki veritabanı sorgularını tarar: hangi tablo/görünüm hangi işlemle (SELECT/INSERT/UPDATE/DELETE) kullanılıyor.
 // Çıktı: db/arac/kod-kullanimi.json (ham kayıtlar; şema üretici bunu katalogla çözümleyip yetkilere çevirir).
 // Kullanım:  node scripts/dev/kullanim-tara.mjs      (repo kökünden)
 // Sınır: statik tarama. Değişkenle verilen tablo adları ve zincirleme dışı kullanım "belirsiz" listesine düşer.
@@ -108,7 +108,7 @@ for (const yol of TARANACAK.flatMap((y) => dosyalar(y))) {
     if (/Array$|Buffer$|Object$|Uint8Array$/.test(kaynak.slice(Math.max(0, m.index - 12), m.index))) continue;
     belirsiz.push({ dosya: yol.replace(/\\/g, "/"), satir: satirNo(m.index), ifade: m[0].trim() });
   }
-  // Eski: supabase.rpc("ad"; yeni: rpc(tx, "ad" (lib/db/rpc.ts)
+  // rpc(tx, "ad" (lib/db/rpc.ts)
   for (const m of kaynak.matchAll(/(?:[.]rpc\(|(?<![A-Za-z0-9_.])rpc(?:<[\s\S]{0,400}?>)?\(\s*[A-Za-z_][A-Za-z0-9_.]*\s*,)\s*(["'`])([a-z_0-9]+)\1/g)) {
     const liste = rpc.get(m[2]) ?? [];
     liste.push(`${yol.replace(/\\/g, "/")}:${satirNo(m.index)}`);

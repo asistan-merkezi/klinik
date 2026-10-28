@@ -3,7 +3,7 @@ import { alanHassasMi, GIZLI_METIN, desenleriMaskele } from "./maskele";
 
 /**
  * Denetim Geçmişi (klinik_admin) gösterim yardımcıları — audit_log satırını
- * insan okur özete çevirir. Saf fonksiyonlar (Supabase'e dokunmaz).
+ * insan okur özete çevirir. Saf fonksiyonlar (veritabanına dokunmaz).
  *
  * İKİ detay şekli var:
  *  - v1 (eski audit_log_yaz): `detay` = tüm satır kopyası (UPDATE'te yalnız YENİ).

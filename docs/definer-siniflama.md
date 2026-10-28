@@ -7,9 +7,9 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 - Başlangıç: **83** SECURITY DEFINER fonksiyon (temel şemanın ilk üretimi).
 - **3 kaldırıldı/taşındı** (`personel_giris_epostasi`, `portal_giris_epostasi` kaldırıldı; `klinik_qr_bilgisi_getir` `tanima` şemasına taşındı), **1 INVOKER'a çevrildi** (`personel_izin_is_gunu_sayisi`).
 - **2 yeni** DEFINER (`tanima.klinik_qr_bilgisi_getir`, `tanima.randevu_klinik_cozumle`; sahibi RLS atlamayan, dar `klinik_tanima` rolü).
-- Sonuç: **88 public + 2 tanima = 90 DEFINER** kalır. Hiçbirinin sahibi BYPASSRLS/süper kullanıcı değildir (`db/kontrol/bypassrls-kontrol.sql`).
-- Tetikleyici fonksiyonlar: 33; doğrudan çağrılabilen: 55.
-- Duman testi (A bağlam yok / B yanlış tenant / C doğru tenant / **D destek bağlamı: başka kliniğin kayıtları / E destek bağlamı + sahte tenant**): {"IC":4,"TETIKLEYICI":33,"GECTI":45,"TASARIM_GEREGI":6}. **SIZINTI = 0.**
+- Sonuç: **89 public + 2 tanima = 91 DEFINER** kalır. Hiçbirinin sahibi BYPASSRLS/süper kullanıcı değildir (`db/kontrol/bypassrls-kontrol.sql`).
+- Tetikleyici fonksiyonlar: 33; doğrudan çağrılabilen: 56.
+- Duman testi (A bağlam yok / B yanlış tenant / C doğru tenant / **D destek bağlamı: başka kliniğin kayıtları / E destek bağlamı + sahte tenant**): {"IC":4,"TETIKLEYICI":33,"GECTI":46,"TASARIM_GEREGI":6}. **SIZINTI = 0.**
 
 ## Destek bağlamı etkisi (Ön adım B, 2026-10-28) — Aşama 7b'nin İLK HEDEFİ
 
@@ -44,6 +44,7 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 | `banka_bakiye_once_toplam_tumu` | Dönem başı banka bakiyesi (tüm hesaplar/hesap bazında), net kart komisyonu dahil. | toplam | DEFINER kalacak | boş / false / NULL | super_admin dalı VAR; D(başka klinik, bağlam K1): bos, E(sahte tenant): bos → başka klinik: reddedildi/boş |
 | `banka_hesabi_butunluk` | havale satırı banka_hesap_id'siz veya başka kliniğin hesabıyla yazılamaz. | butunluk | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer | super_admin dalı yok |
 | `banka_hesabi_silme_engeli` | Bağlı kaydı olan banka hesabının silinmesini engeller. | butunluk | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer | super_admin dalı yok |
+| `bildirim_baglantisi_kullan` | Tek kullanımlık bildirim bağlantısını (token sha256) tüketir; alıcı tipini ve (hasta için) portal kısa kodunu döner (0016). | anon Tenant'sız çağrılır; yalnız hash ile arar; geçersiz/kullanılmış/süresi dolmuş ayrımı sızdırılmaz; EXECUTE yalnız klinik_uygulama (hız sınırı route'ta, fail-closed). | DEFINER kalacak | boş / false / NULL | super_admin dalı yok; D(başka klinik, bağlam K1): bos, E(sahte tenant): bos → başka klinik: reddedildi/boş |
 | `current_hasta_id` | Portal oturumundaki hastanın id'si (kullanici_tenant eşlemesinden, aktif). | baglam | DEFINER kalacak | boş / false / NULL | super_admin dalı yok; D(başka klinik, bağlam K1): bos, E(sahte tenant): bos → başka klinik: reddedildi/boş |
 | `current_klinik_id` | Çağıranın tenant'ı: oturumlu kullanıcıda kendi eşleme satırından (app.tenant_id YOK SAYILIR); yalnız super_admin / klinik_anonim / bakım / süper kullanıcı oturumunda app.tenant_id (0007). | baglam | DEFINER kalacak | boş / false / NULL (tasarım gereği) | super_admin dalı yok; D(başka klinik, bağlam K1): veri, E(sahte tenant): bos → yalnız kendi bağlamı (tasarım gereği) |
 | `current_rol` | Çağıranın rolü (kullanici kendi satırı). | baglam | DEFINER kalacak | boş / false / NULL (tasarım gereği) | super_admin dalı yok; D(başka klinik, bağlam K1): veri, E(sahte tenant): veri → yalnız kendi bağlamı (tasarım gereği) |
@@ -74,7 +75,7 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 | `islem_tanimi_fiyat_gecmisi_yaz` | Fiyat değişikliklerini geçmiş tablosuna yazar. | denetim | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer | super_admin dalı yok |
 | `islem_tanimi_kaydet` | Tedavi tanımı + adımlarını atomik diff ile kaydeder. | rpc | DEFINER kalacak | hata: yetkisiz | super_admin dalı VAR; D(başka klinik, bağlam K1): hata, E(sahte tenant): hata → başka klinik: reddedildi/boş |
 | `islem_tanimi_toplam_sure_guncelle` | Üst tanımın süresini adımların toplamı olarak günceller. | denetim | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer | super_admin dalı yok |
-| `izin_bildirim_alicilari` | İzin talebi bildirimi için aktif klinik_admin/muhasebe iletişim bilgisi (0014). | rpc Yalnız çağıranın kliniği; telefon/e-posta. | DEFINER kalacak | hata: yetkisiz | super_admin dalı yok; D(başka klinik, bağlam K1): bos, E(sahte tenant): hata → başka klinik: reddedildi/boş |
+| `izin_talebi_yoneticiye_bildir` | Muhasebe/resepsiyon/terapist adına açılan izin talebinin bildirimini YALNIZ kliniğin klinik_admin'lerine kuyruğa yazar (0016): alıcı rolü DB'de kilitli, çağıran adres veremez, mesajda veri yok, her mesaja tek kullanımlık bağlantı üretir. | rpc current_klinik_id() + rol + talep sahipliği + talep ≤10 dk ve beklemede; bağlantı tabanı yalnız orijin; search_path sabit; anonim EXECUTE yok. | DEFINER kalacak | hata: yetkisiz | super_admin dalı yok; D(başka klinik, bağlam K1): hata, E(sahte tenant): hata → başka klinik: reddedildi/boş |
 | `kasa_bakiye_once_toplam` | Dönem başı kasa bakiyesi (İstanbul gün sınırı). | toplam | DEFINER kalacak | boş / false / NULL | super_admin dalı VAR; D(başka klinik, bağlam K1): bos, E(sahte tenant): bos → başka klinik: reddedildi/boş |
 | `klinik_cari_odeme_ekle` | Cari ödemesi ekler (advisory lock, bakiyeyi aşamaz). | rpc | DEFINER kalacak | hata: yetkisiz | super_admin dalı yok; D(başka klinik, bağlam K1): hata, E(sahte tenant): hata → başka klinik: reddedildi/boş |
 | `klinik_harcama_cari_butunluk` | Ödemelerin altına düşüren harcama değişikliğini reddeder. | butunluk | DEFINER kalacak | çağrılamaz (tetikleyici); bağlamsız yazım sahip politikası/FK ile düşer | super_admin dalı yok |
@@ -133,6 +134,7 @@ Tarih: 2026-10-27 · Dal: `tasima/windows-postgres`. Otomatik veri: `scripts/dev
 
 | Fonksiyon | Ne yapıyordu | Karar |
 |---|---|---|
+| `izin_bildirim_alicilari` | İzin bildirimi için yönetici telefon/e-posta listesi (0014). | KALDIRILDI (0016). İletişim bilgisini istemciye döndürüyordu; yerine izin_talebi_yoneticiye_bildir (alıcıyı DB seçer, istemciye adres dönmez). |
 | `personel_giris_epostasi` | Telefon → personel e-postası (anon çağırabiliyordu). | KALDIRILDI. Supabase auth.users'a bağlıydı ve FORCE RLS altında tenant'sız çalışmaz (boş döner); anonim telefon→e-posta eşlemesi enumeration yüzeyiydi. Yerine Better Auth girişi (kimlik_rolu) — docs/giris-akislari.md. |
 | `portal_giris_epostasi` | Telefon → sentetik portal e-postası (anon). | KALDIRILDI (aynı gerekçe). |
 | `klinik_qr_bilgisi_getir` | Kısa kod → klinik. | tanima.klinik_qr_bilgisi_getir'e TAŞINDI (public sürüm FORCE RLS altında boş dönerdi). |

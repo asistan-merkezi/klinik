@@ -1,10 +1,9 @@
 import { eq } from "drizzle-orm";
 import { sema, withTenant, type TenantBaglami, type Tx } from "@/lib/db";
-import { formatDateTime } from "@/lib/datetime";
 import { anlikMesajTetikle } from "./anlik-tetikle";
 import { randevuMesajAnahtari, type RandevuOlayKodu } from "./randevu-hatirlatma-kurali";
 
-// Hatırlatma taraması (cron) için bkz. randevu-hatirlatma-tarama.ts (geçici, Modül 7).
+// Hatırlatma taraması için bkz. randevu-hatirlatma-tarama.ts (scripts/bakim/mesaj-kuyruk-isle).
 
 type RandevuMesajSatiri = {
   id: string;
@@ -58,8 +57,6 @@ async function satiriKuyrugaYaz(
   tx: Tx,
   kod: RandevuOlayKodu,
   r: RandevuMesajSatiri,
-  baslangic: string,
-  ekDegiskenler: Record<string, string>,
   anahtarSatiri: { baslangic: string; durum?: string | null; iptal_tarihi?: string | null }
 ): Promise<void> {
   if (!r.hasta) return;
@@ -69,13 +66,7 @@ async function satiriKuyrugaYaz(
     aliciTipi: "hasta",
     aliciId: r.hasta.id,
     adres: { telefon: r.hasta.telefon, eposta: r.hasta.eposta, whatsappIzni: r.hasta.whatsappIzinDurumu },
-    degiskenler: {
-      hasta_adi: r.hasta.adSoyad,
-      randevu_tarihi: formatDateTime(baslangic),
-      terapist_adi: r.terapistAdi,
-      klinik_adi: r.klinikAdi,
-      ...ekDegiskenler,
-    },
+    klinikAdi: r.klinikAdi,
     idempotencyTemeli: randevuMesajAnahtari(kod, { id: r.id, ...anahtarSatiri }),
   });
 }
@@ -84,32 +75,27 @@ async function satiriKuyrugaYaz(
  * Bir randevu OLAYI (oluşturma/iptal/erteleme/gelmedi) sonrası hastaya hizmet mesajını kuyruğa yazar.
  * `bag` çağıranın (oturumlu personel) tenant bağlamıdır; `after()` içinde kendi withTenant'ı açılır (istek transaction'ı bitmiştir).
  * Best-effort: hata asla çağıran işlemi bozmaz, yalnız loglanır. Kural yoksa/pasifse ya da hastanın adresi yoksa sessizce atlanır.
- * `erteleme`: yeni başlangıç verilirse mesaj "ertelendi" olarak, ESKİ tarih + yeni tarihle gider.
  */
 export async function randevuOlayMesajiTetikle(
   bag: TenantBaglami,
   randevuId: string,
-  kod: "randevu_onay" | "randevu_iptal" | "randevu_gelmedi",
-  secenekler: { eskiBaslangic?: string } = {}
+  kod: "randevu_onay" | "randevu_iptal" | "randevu_gelmedi"
 ): Promise<void> {
   try {
     await withTenant(bag, async (tx) => {
       const data = await randevuMesajSatiri(tx, randevuId);
       if (!data) return;
       if (kod === "randevu_iptal") {
-        const ertelendi = data.durum === "ertelendi" && secenekler.eskiBaslangic;
         await satiriKuyrugaYaz(
           tx,
           kod,
           data,
-          ertelendi ? secenekler.eskiBaslangic! : data.baslangic,
-          { randevu_durumu: ertelendi ? `${formatDateTime(data.baslangic)} tarihine ertelendi` : "iptal edildi" },
           // Anahtar: erteleme için YENİ saat (her erteleme ayrı bildirim), iptal için iptal zamanı.
           { baslangic: data.baslangic, durum: data.durum, iptal_tarihi: data.iptalTarihi }
         );
         return;
       }
-      await satiriKuyrugaYaz(tx, kod, data, data.baslangic, {}, { baslangic: data.baslangic, durum: data.durum, iptal_tarihi: data.iptalTarihi });
+      await satiriKuyrugaYaz(tx, kod, data, { baslangic: data.baslangic, durum: data.durum, iptal_tarihi: data.iptalTarihi });
     });
   } catch (hata) {
     console.error(`[mesaj] randevu mesajı kuyruğa yazılamadı (${kod}, randevu ${randevuId}):`, hata);

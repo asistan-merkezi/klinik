@@ -1,6 +1,6 @@
 "use server";
 
-// Belge sekmesi okuma eylemleri (eskiden tarayıcıdan doğrudan Supabase). Yalnız belge görebilen roller; tenant oturumdan gelir.
+// Belge sekmesi okuma eylemleri (eskiden tarayıcıdan doğrudan veritabanı istemcisi). Yalnız belge görebilen roller; tenant oturumdan gelir.
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { sema, withTenant, zamanlariIsoyaCevir } from "@/lib/db";
 import { eylemYetkisi } from "@/lib/auth/yetki";

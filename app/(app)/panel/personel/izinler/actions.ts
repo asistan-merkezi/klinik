@@ -6,7 +6,6 @@ import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { pgHata, rpc, sema, withTenant, type TenantBaglami } from "@/lib/db";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
-import { IZIN_DURUM_ETIKETLERI, type IzinDurum } from "@/types/izin";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -20,7 +19,7 @@ async function adminOturumu() {
 }
 
 /** Sonuç bildirimi (en iyi çaba): talebi açan personele; kuyruk yazımı kullanıcının kendi tenant bağlamıyla. */
-async function sonucBildir(bag: TenantBaglami, talepId: string, durum: IzinDurum) {
+async function sonucBildir(bag: TenantBaglami, talepId: string) {
   try {
     await withTenant(bag, async (tx) => {
       const t = (
@@ -40,7 +39,7 @@ async function sonucBildir(bag: TenantBaglami, talepId: string, durum: IzinDurum
         aliciTipi: "personel",
         aliciId: t.personelId,
         adres: { telefon: t.telefon ?? null, eposta: t.eposta },
-        degiskenler: { personel_adi: t.adSoyad, izin_durumu: IZIN_DURUM_ETIKETLERI[durum], klinik_adi: t.klinikAd ?? "" },
+        klinikAdi: t.klinikAd ?? "",
       });
     });
   } catch (e) {
@@ -66,7 +65,7 @@ export async function izinTalebiOnayla(talepId: string): Promise<SonucDurumu> {
     return { success: false, message: mesaj };
   }
 
-  await sonucBildir(o.bag, talepId, "onaylandi");
+  await sonucBildir(o.bag, talepId);
 
   revalidatePath("/panel/personel/izinler");
   revalidatePath("/panel/personel/izinlerim");
@@ -90,7 +89,7 @@ export async function izinTalebiReddet(talepId: string, redGerekce: string): Pro
     return { success: false, message: m === "gecersiz_durum_gecisi" ? "Bu talep artık reddedilemez (beklemede değil)." : "Reddedilemedi, lütfen tekrar deneyin." };
   }
 
-  await sonucBildir(o.bag, talepId, "reddedildi");
+  await sonucBildir(o.bag, talepId);
 
   revalidatePath("/panel/personel/izinler");
   revalidatePath("/panel/personel/izinlerim");

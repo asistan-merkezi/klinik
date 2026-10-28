@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Wallet } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,7 @@ import { KrediTakip, type KrediTakipGorunum, type KrediTakipMesaj } from "@/comp
 import { KrediYukleme } from "@/components/mesajlasma/KrediYukleme";
 import { KANAL_ETIKET, type MesajKanal, type MesajKrediHareketi } from "@/types/mesajlasma";
 import { tetikleyiciGetir } from "@/lib/mesaj/tetikleyiciler";
-import { merkezdenBakiyeCek, merkezdenKrediPaketleriCek } from "@/lib/mesaj/merkez-client";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { merkezdenKrediPaketleriCek } from "@/lib/mesaj/merkez-client";
 import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import { raporAyDonemi, raporGunDonemi, raporYilDonemi } from "@/lib/raporlar/donem";
 import { krediOdemeBaslat } from "./actions";
@@ -62,7 +62,7 @@ export default async function KrediDetaySayfasi({
   const kanal = kanalParam as MesajKanal;
 
   const { kullanici } = await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar/mesajlasma" });
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
   const klinikId = kullanici.klinik_id;
   if (!klinikId) {
@@ -73,30 +73,21 @@ export default async function KrediDetaySayfasi({
     );
   }
 
-  // Ödeme sayfasından dönüşte merkezdeki güncel bakiyeyi hemen yansıt (saatlik
-  // cron'u beklemeden). Versiyon guard'ı RPC'de — eski bir yanıt yeniyi ezmez.
-  if (odeme === "donuldu") {
-    const merkez = await merkezdenBakiyeCek(klinikId, kanal);
-    if (merkez.ulasildi) {
-      const { error } = await createAdminClient().rpc("mesaj_kredi_senkronla", {
-        p_klinik_id: klinikId,
-        p_kanal: kanal,
-        p_bakiye: merkez.bakiye,
-        p_versiyon: merkez.bakiyeVersiyonu,
-      });
-      if (error) console.error("Ödeme dönüşü kredi senkronu başarısız:", error.message);
-    }
-  }
+  // Ödeme dönüşünde bakiye, kredi-senkron bakım işiyle (saatlik) merkezden yansır: kullanıcı oturumu yerel bakiyeyi yazamaz.
+  const odemeDonusu = odeme === "donuldu";
 
   const sekme: "takip" | "yukle" = sekmeParam === "yukle" ? "yukle" : "takip";
   const taban = `/panel/ayarlar/mesajlasma/kredi/${kanal}`;
 
-  const { data: bakiyeSatiri } = await supabase
-    .from("mesaj_kredileri")
-    .select("bakiye, son_senkron_zamani")
-    .eq("klinik_id", klinikId)
-    .eq("kanal", kanal)
-    .maybeSingle<{ bakiye: number; son_senkron_zamani: string | null }>();
+  const bakiyeSatiri = (
+    await withTenant(bag, (tx) =>
+      tx
+        .select({ bakiye: sema.mesajKredileri.bakiye, son_senkron_zamani: sema.mesajKredileri.sonSenkronZamani })
+        .from(sema.mesajKredileri)
+        .where(and(eq(sema.mesajKredileri.klinikId, klinikId), eq(sema.mesajKredileri.kanal, kanal)))
+        .limit(1)
+    )
+  )[0];
 
   const bugun = bugunIstanbulTarihi();
 
@@ -124,22 +115,13 @@ export default async function KrediDetaySayfasi({
 
     type KuyrukSatiri = { id: string; tetikleyici_kodu: string; gonderim_zamani: string; alici_adres: string };
 
-    // 1000 satır sınırında sessiz kesilmesin diye sayfalı okunur (tarih + id sıralı).
-    const satirlar = await tumSayfalariOku<KuyrukSatiri>((bas, son) =>
-      supabase
-        .from("mesaj_kuyrugu")
-        .select("id, tetikleyici_kodu, gonderim_zamani, alici_adres")
-        .eq("klinik_id", klinikId)
-        .eq("kanal", kanal)
-        .eq("durum", "gonderildi")
-        .eq("test_mi", false)
-        .gte("gonderim_zamani", donem.baslangic)
-        .lt("gonderim_zamani", donem.bitis)
-        .order("gonderim_zamani", { ascending: false })
-        .order("id", { ascending: false })
-        .range(bas, son)
-        .returns<KuyrukSatiri[]>()
-    );
+    const satirlar: KuyrukSatiri[] = (await withTenant(bag, (tx) =>
+      tx
+        .select({ id: sema.mesajKuyrugu.id, tetikleyici_kodu: sema.mesajKuyrugu.tetikleyiciKodu, gonderim_zamani: sema.mesajKuyrugu.gonderimZamani, alici_adres: sema.mesajKuyrugu.aliciAdres })
+        .from(sema.mesajKuyrugu)
+        .where(and(eq(sema.mesajKuyrugu.klinikId, klinikId), eq(sema.mesajKuyrugu.kanal, kanal), eq(sema.mesajKuyrugu.durum, "gonderildi"), eq(sema.mesajKuyrugu.testMi, false), gte(sema.mesajKuyrugu.gonderimZamani, donem.baslangic), lt(sema.mesajKuyrugu.gonderimZamani, donem.bitis)))
+        .orderBy(desc(sema.mesajKuyrugu.gonderimZamani), desc(sema.mesajKuyrugu.id))
+    )) as KuyrukSatiri[];
 
     const mesajlar: KrediTakipMesaj[] =
       gorunum === "gunluk"
@@ -197,16 +179,16 @@ export default async function KrediDetaySayfasi({
       />
     );
   } else {
-    const [paketSonucu, hareketSonucu] = await Promise.all([
+    const [paketSonucu, hareketler] = await Promise.all([
       merkezdenKrediPaketleriCek(kanal),
-      supabase
-        .from("mesaj_kredi_hareketleri")
-        .select("id, kanal, tip, miktar, tutar, aciklama, created_at")
-        .eq("klinik_id", klinikId)
-        .eq("kanal", kanal)
-        .order("created_at", { ascending: false })
-        .limit(50)
-        .returns<MesajKrediHareketi[]>(),
+      withTenant(bag, (tx) =>
+        tx
+          .select({ id: sema.mesajKrediHareketleri.id, kanal: sema.mesajKrediHareketleri.kanal, tip: sema.mesajKrediHareketleri.tip, miktar: sema.mesajKrediHareketleri.miktar, tutar: sema.mesajKrediHareketleri.tutar, aciklama: sema.mesajKrediHareketleri.aciklama, created_at: sema.mesajKrediHareketleri.createdAt })
+          .from(sema.mesajKrediHareketleri)
+          .where(and(eq(sema.mesajKrediHareketleri.klinikId, klinikId), eq(sema.mesajKrediHareketleri.kanal, kanal)))
+          .orderBy(desc(sema.mesajKrediHareketleri.createdAt))
+          .limit(50)
+      ),
     ]);
 
     icerik = (
@@ -219,7 +201,7 @@ export default async function KrediDetaySayfasi({
               ? "Asistan Merkezi bağlantısı henüz kurulmadı — fiyat çizelgesi şu an alınamıyor."
               : "Asistan Merkezi'ne ulaşılamadı, fiyat çizelgesi alınamadı. Lütfen daha sonra tekrar deneyin."
         }
-        hareketler={hareketSonucu.data ?? []}
+        hareketler={hareketler.map((h) => ({ ...h, tutar: h.tutar === null ? null : Number(h.tutar) })) as MesajKrediHareketi[]}
         action={krediOdemeBaslat.bind(null, kanal)}
       />
     );
@@ -245,7 +227,7 @@ export default async function KrediDetaySayfasi({
             <p className="text-3xl font-semibold tabular-nums">{bakiyeSatiri?.bakiye ?? 0}</p>
             <p className="text-xs text-muted-foreground">
               {bakiyeSatiri?.son_senkron_zamani
-                ? `Merkezle son senkron: ${new Date(bakiyeSatiri.son_senkron_zamani).toLocaleString("tr-TR")}`
+                ? `Merkezle son senkron: ${new Date(bakiyeSatiri.son_senkron_zamani).toLocaleString("tr-TR")}${odemeDonusu ? " — ödemeniz işlendiyse bakiye birazdan güncellenir." : ""}`
                 : "Henüz merkezle senkronize edilmedi."}
             </p>
           </CardContent>

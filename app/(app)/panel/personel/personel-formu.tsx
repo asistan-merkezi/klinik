@@ -491,6 +491,11 @@ export function PersonelFormu(props: Props) {
               <div className="flex flex-col gap-2 sm:col-span-2">
                 <Label htmlFor="kase_dosya">Kaşe Görseli {initialMesleki?.kase_gorsel_url && "(kayıtlı görsel var, seçilirse değişir)"}</Label>
                 <input id="kase_dosya" name="kase_dosya" type="file" accept="image/png,image/jpeg,image/webp" disabled={isPending} className={inputClass} />
+                {duzenleMi && initialMesleki?.kase_gorsel_url && (
+                  <a href={`/api/personel-belge/kase/${props.personelId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2">
+                    Kayıtlı kaşeyi görüntüle
+                  </a>
+                )}
               </div>
             </div>
           )}

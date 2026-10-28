@@ -41,6 +41,8 @@ jobs:
       - run: npm test
       - run: npm run build   # next build, output: standalone (tip denetimi dahil)
 
+      - run: npm run bakim:derle   # scripts/bakim/*.ts → bakim-dist/*.mjs (pakete girer)
+
       - name: Sürüm paketi
         shell: pwsh
         run: |

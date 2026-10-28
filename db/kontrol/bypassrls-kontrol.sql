@@ -81,12 +81,19 @@ SELECT 'zorunlu_tenant_siniri_yok', 'HATA', c.relname
 FROM pg_class c
 JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'klinik_id' AND NOT a.attisdropped
 WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p') AND NOT c.relispartition AND c.relrowsecurity
-  AND c.relname <> 'destek_baglami'
+  AND c.relname NOT IN ('destek_baglami', 'bildirim_baglanti')
   AND NOT EXISTS (
     SELECT 1 FROM pg_policy p
      WHERE p.polrelid = c.oid AND p.polname = 'zorunlu_tenant_siniri' AND NOT p.polpermissive
        AND p.polroles @> ARRAY['klinik_uygulama'::regrole::oid, 'klinik_sahip'::regrole::oid]
   );
+
+-- 6e) bildirim_baglanti (0016): token anonim akışta tenant'sız aranır → klinik_sahip için BİLİNÇLİ istisna; web uygulaması (klinik_uygulama) için RESTRICTIVE sınır ZORUNLU.
+INSERT INTO kontrol_sonuc
+SELECT 'bildirim_baglanti_tenant_siniri_yok', 'HATA', 'bildirim_baglanti'
+WHERE to_regclass('bildirim_baglanti') IS NOT NULL AND NOT EXISTS (
+  SELECT 1 FROM pg_policy p WHERE p.polrelid = 'bildirim_baglanti'::regclass AND p.polname = 'zorunlu_tenant_siniri' AND NOT p.polpermissive
+    AND p.polroles @> ARRAY['klinik_uygulama'::regrole::oid]);
 
 -- 7) Bilgi: izinli istisnalar
 INSERT INTO kontrol_sonuc

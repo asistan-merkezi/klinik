@@ -1,6 +1,6 @@
 // 0002_temel_sema.sql ve tohum verisini YENİDEN ÜRETİR (adım adım: docs/sema-uretim.md).
-//   1) Geçici Postgres kümesi 'ref' (port 54330) + Supabase uyumluluk katmanı (supabase-uyumluluk.sql)
-//   2) supabase/migrations (172) sırayla + supabase/bekleyen/…puantaj_pin_kaldir.sql
+//   1) Geçici Postgres kümesi 'ref' (port 54330) + eski migration uyumluluk katmanı (eski-migration-uyumluluk.sql)
+//   2) db/arsiv/eski-migrationlar (172) sırayla + db/arsiv/eski-bekleyen/…puantaj_pin_kaldir.sql
 //   3) kod → tablo kullanım taraması (kullanim-tara.mjs)  4) sema-uret.mjs → db/migrations/0002, db/seed
 // Kullanım: cd scripts/dev && npm install && node yeniden-uret.mjs
 import fs from "node:fs";
@@ -15,9 +15,9 @@ try {
   await admin.query("create database ref");
   await admin.end();
   const c = await kume.baglan("ref");
-  await c.query(fs.readFileSync(path.join(KOK, "scripts/dev/supabase-uyumluluk.sql"), "utf8"));
+  await c.query(fs.readFileSync(path.join(KOK, "scripts/dev/eski-migration-uyumluluk.sql"), "utf8"));
 
-  const dizin = path.join(KOK, "supabase/migrations");
+  const dizin = path.join(KOK, "db/arsiv/eski-migrationlar");
   const dosyalar = fs.readdirSync(dizin).filter((f) => f.endsWith(".sql")).sort();
   // Bu migration canlı kliniğin SABİT UUID'sine veri yazar (DDL yok); boş veritabanında geçici klinikle çalıştırılır, katalog tohumu kalır.
   const SABIT_KLINIK = "20260918100000_pozisyon_katalogu_departman_yapisi.sql";
@@ -34,7 +34,7 @@ try {
       await c.query("rollback").catch(() => {});
     }
   }
-  await c.query(oku("supabase/bekleyen/20261003110000_puantaj_pin_kaldir.sql"));
+  await c.query(oku("db/arsiv/eski-bekleyen/20261003110000_puantaj_pin_kaldir.sql"));
   await c.end();
   console.log(`referans: ${dosyalar.length} migration, ${hata} hata`);
   if (hata) throw new Error("referans kurulumunda hata var, üretim durduruldu");

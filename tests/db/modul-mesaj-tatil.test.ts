@@ -62,7 +62,7 @@ describe("mesaj kuyruğu: kullanıcı bağlamıyla yazım", () => {
     expect("secenekler" in sec && sec.secenekler.length).toBeGreaterThan(0);
     const s = await hastaMesajiGonder(K1.hasta, { kod: "hasta_kayit_hosgeldin", metin: "Merhaba", kanallar: ["sms", "mail"] });
     expect(s.success, JSON.stringify(s)).toBe(true);
-    const q = await sql("select 1 from mesaj_kuyrugu where tetikleyici_kodu = 'hasta_kayit_hosgeldin' and alici_id = $1 and idempotency_anahtari like 'manuel:%'", [K1.hasta]);
+    const q = await sql("select 1 from mesaj_kuyrugu where tetikleyici_kodu = 'hasta_kayit_hosgeldin' and alici_id = $1 and idempotency_anahtari like '%:manuel:%'", [K1.hasta]);
     expect(q.length).toBe(2);
   });
 

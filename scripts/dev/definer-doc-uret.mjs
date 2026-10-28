@@ -34,7 +34,8 @@ const M = {
   destek_baglami_ac: ["super_admin için süre sınırlı (≤120 dk), gerekçeli destek bağlamı açar; hedef kliniğin audit_log'una yazar (0015).", "sistem", "DEFINER kalacak", "Yalnız is_super_admin(); aynı anda tek aktif bağlam."],
   destek_baglami_kapat: ["Aktif destek bağlamını kapatır (denetim satırı yazar).", "sistem", "DEFINER kalacak", "Yalnız is_super_admin()."],
   destek_baglami_aktif: ["Çağıranın (super_admin) aktif destek bağlamı (klinik, bitiş, gerekçe).", "baglam", "DEFINER kalacak", "Yalnız kendi kaydı döner."],
-  izin_bildirim_alicilari: ["İzin talebi bildirimi için aktif klinik_admin/muhasebe iletişim bilgisi (0014).", "rpc", "DEFINER kalacak", "Yalnız çağıranın kliniği; telefon/e-posta."],
+  izin_talebi_yoneticiye_bildir: ["Muhasebe/resepsiyon/terapist adına açılan izin talebinin bildirimini YALNIZ kliniğin klinik_admin'lerine kuyruğa yazar (0016): alıcı rolü DB'de kilitli, çağıran adres veremez, mesajda veri yok, her mesaja tek kullanımlık bağlantı üretir.", "rpc", "DEFINER kalacak", "current_klinik_id() + rol + talep sahipliği + talep ≤10 dk ve beklemede; bağlantı tabanı yalnız orijin; search_path sabit; anonim EXECUTE yok."],
+  bildirim_baglantisi_kullan: ["Tek kullanımlık bildirim bağlantısını (token sha256) tüketir; alıcı tipini ve (hasta için) portal kısa kodunu döner (0016).", "anon", "DEFINER kalacak", "Tenant'sız çağrılır; yalnız hash ile arar; geçersiz/kullanılmış/süresi dolmuş ayrımı sızdırılmaz; EXECUTE yalnız klinik_uygulama (hız sınırı route'ta, fail-closed)."],
   hasta_bakiye_hareket_iade_siniri: ["İade, bağlantılı ödemenin kalanını aşamaz; istisna yalnız klinik_admin + zorunlu gerekçe (0013).", "butunluk", "DEFINER kalacak", "Kaynak ödeme satırını FOR UPDATE kilitler."],
   terapist_uygunluk_getir: ["Terapistin izin/rapor/çıkış durumuna göre randevu uygunluğu (0009).", "rpc", "DEFINER kalacak", "Yalnız çağıranın kliniği."],
   derive_klinik_id_from_parent: ["Alt tablo satırına klinik_id'yi üst satırdan türetir (genel).", "turet"],
@@ -111,6 +112,7 @@ const M = {
   "tanima.randevu_klinik_cozumle": ["Randevu id'sinden klinik id'si (anket bağlantısı).", "anon", "YENİ (tanima şeması, sahibi klinik_tanima)", "Uygulama dönen id'yi app.tenant_id yapıp anket işlemlerini tenant içinde yürütür."],
 };
 const KALDIRILDI = [
+  ["izin_bildirim_alicilari", "İzin bildirimi için yönetici telefon/e-posta listesi (0014).", "KALDIRILDI (0016). İletişim bilgisini istemciye döndürüyordu; yerine izin_talebi_yoneticiye_bildir (alıcıyı DB seçer, istemciye adres dönmez)."],
   ["personel_giris_epostasi", "Telefon → personel e-postası (anon çağırabiliyordu).", "KALDIRILDI. Supabase auth.users'a bağlıydı ve FORCE RLS altında tenant'sız çalışmaz (boş döner); anonim telefon→e-posta eşlemesi enumeration yüzeyiydi. Yerine Better Auth girişi (kimlik_rolu) — docs/giris-akislari.md."],
   ["portal_giris_epostasi", "Telefon → sentetik portal e-postası (anon).", "KALDIRILDI (aynı gerekçe)."],
   ["klinik_qr_bilgisi_getir", "Kısa kod → klinik.", "tanima.klinik_qr_bilgisi_getir'e TAŞINDI (public sürüm FORCE RLS altında boş dönerdi)."],

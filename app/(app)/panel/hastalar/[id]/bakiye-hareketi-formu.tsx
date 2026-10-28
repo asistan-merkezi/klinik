@@ -92,7 +92,7 @@ export function BakiyeHareketiEkleButonu({
   // Ödeme yöntemi (nakit/kredi kartı/havale) ve belgelendirme cinsi
   // (fatura/fiş/serbest) hem yapılandırılmış kolonlara (odeme_yontemi,
   // belge_turu) hem (geriye dönük görünürlük için) açıklama metnine etiket
-  // olarak ekleniyor (bkz. supabase/migrations/20260916091000 ve
+  // olarak ekleniyor (bkz. eski migration 20260916091000 ve
   // .../hasta_bakiye_hareket_belge_turu.sql).
   const etiketOnEki = `${ODEME_TIPI_ETIKETLERI[odemeTipi]} · ${BELGE_TURU_ETIKETLERI[belgeTuru]}`;
   const birlesikAciklama = aciklamaMetni.trim() ? `${etiketOnEki} — ${aciklamaMetni.trim()}` : etiketOnEki;

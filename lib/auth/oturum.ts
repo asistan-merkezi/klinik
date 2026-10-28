@@ -90,7 +90,7 @@ export async function requireSessionContext(basliklar: Headers): Promise<OturumB
   return ctx;
 }
 
-/** Rol kapısı: yetkisizse 403. `super_admin` her kümeyi geçer (mevcut eylemYetkisiGetir kuralı). */
+/** Rol kapısı: yetkisizse 403. `super_admin` her kümeyi geçer (eylemYetkisi kuralı). */
 export function rolGerekli(ctx: OturumBaglami, roller: readonly OturumRolu[]): void {
   if (ctx.rol === "super_admin" || roller.includes(ctx.rol)) return;
   throw new OturumHatasi(403, "Bu işlem için yetkiniz yok.");

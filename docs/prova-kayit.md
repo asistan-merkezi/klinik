@@ -155,3 +155,30 @@ Her hata için bir satır: **tam hata mesajı** (parola/jeton/anahtar/kişisel v
 - ☐ Açık dump/tar dosyaları ve geri yüklenen deneme veritabanı silindi.
 - ☐ Tüm checkpoint'ler birleştirilip silindi; VM üretime dönüştürülmedi (temiz kurulum yapılacak).
 - ☐ Bulunan sapmalar `docs/sunucu-kurulum.md` (§8–§12) ve `deploy/windows/*.ps1` içine işlendi; `docs/tasima-plani.md` üretim kapısı #6 ve #13 güncellendi.
+
+---
+
+## 5. Modül 7 — bakım betikleri, e-posta ve belge sunumu: yerelde denenenler / denenemeyenler (2026-10-28)
+
+**Yerelde denendi (geliştirici makinesi, gömülü Postgres 18):**
+
+| Ne | Nasıl | Sonuç |
+|---|---|---|
+| Betiklerin tek dosyaya paketlenmesi | `npm run bakim:derle` (esbuild) → `bakim-dist/*.mjs`; `deploy/windows/paketle.ps1` yerelde çalıştırıldı (Git Bash `tar`'ı yerine sistem `tar.exe` ile) | Zip içinde `bakim\*.mjs` (6 betik) ve `scripts\gorevleri-kur.ps1` var |
+| Betiklerin gerçek süreç olarak çalışması | `tests/db/modul-mesaj-bakim.test.ts`: `audit-log-bolum-olustur` ve `temizlik` paketlenmiş `.mjs` ile `bakim_rolu` bağlantısında çalıştırıldı; bağlantı yokken çıkış kodu 2, parola günlüğe yazılmıyor | geçti |
+| Betik çekirdekleri (hatırlatma taraması, kuyruk işçisi, temizlik, resmi tatil, audit bölümleri, dönem kapama) | Aynı testler `bakim_rolu` + `SET LOCAL ROLE klinik_uygulama` ile (üretimdeki rol modeli) | geçti; ikinci çalışma çift kayıt yazmıyor |
+| Personel dönem kapama eşdeğerliği | `tests/db/modul-donem-kapat.test.ts`: betik çekirdeği ile elle "Dönem Kapat" aynı fixture'da kuruş kuruşa aynı hakediş; eski Supabase sürümleri silinmeden önce karşılaştırıldı | geçti |
+| `gorevleri-kur.ps1` | `-OnIzleme` ile 6 görev tanımı (yollar, tetikleyiciler, zaman aşımları) yazdırıldı | tanımlar doğru; **kayıt denenmedi** |
+| SSE oturum denetimi | birim + route testi (`realtime.test.ts`, `tests/db/canli-oturum.test.ts`) + Playwright `canli.spec.ts` | geçti |
+
+**Denenemedi — sunucuda B turunda yapılmalı (23. adımın devamı):**
+
+| # | Ne | Beklenen | Not |
+|---|---|---|---|
+| M7-1 | `gorevleri-kur.ps1` gerçek kayıt: yönetici PowerShell + `svc-klinik-bakim` parolası; aylık tetikleyici `MSFT_TaskMonthlyTrigger` (`DaysOfMonth=1`, `MonthsOfYear=4095`) Windows Server'da kabul ediliyor mu | 6 görev `\Klinik\` altında görünür; `Get-ScheduledTask` aylık/günlük/tekrarlı tetikleyici gösterir | Parola betiğin belleğinde kalır, diske yazılmaz |
+| M7-2 | Her görevi `schtasks /Run /TN \Klinik\<ad>` ile çalıştır; `Get-ScheduledTaskInfo` `LastTaskResult` | `0` (tamam) ya da `1` (kısmi hata, günlüğe bakılır); `2` = yapılandırma sorunu | Toplu iş oturumu (`SeBatchLogonRight`) gerekir — 23. adımdaki haklar |
+| M7-3 | `svc-klinik-bakim` `bakim.env`'i okuyabiliyor, `uygulama.env`'i okuyamıyor; `C:\klinik\logakim` yazılabiliyor; `node --env-file` Windows servis hesabında çalışıyor | Günlük satırları `C:\klinik\logakim\<ad>.log` içinde; parola/anahtar yok | `bakim.env`: `BAKIM_DATABASE_URL`, `BETTER_AUTH_URL`, `RESEND_*`, `MESAJ_MERKEZ_*`, `BAKIM_LOG_KLASORU` |
+| M7-4 | **Sunucu çıkış izni**: tasarımda çıkış yalnız GitHub 443'tür. `api.resend.com` (e-posta), Asistan Merkezi adresi (SMS/WhatsApp) ve `date.nager.at` (resmi tatil önerileri) için 443 çıkışı AÇILMADAN e-posta/SMS gitmez, Nager önerileri yazılmaz (sabit tatiller yine yazılır) | `mesaj-kuyruk-isle` günlüğünde "Resend'e ulaşılamadı" yoksa açıktır | **Açık karar**: güvenlik duvarı kuralı + KVKK (Resend EU, alıcı adresi gider) |
+| M7-5 | Gerçek Resend gönderimi: `RESEND_TEST_API_KEY=… npx vitest run lib/mesaj/eposta-resend.entegrasyon.test.ts` ve şifre sıfırlama akışı (`/sifremi-unuttum` → gelen kutusu) | `delivered@resend.dev` testi geçer; sıfırlama bağlantısı 30 dk geçerli, tek kullanımlık | Bu oturumda anahtar yoktu; test atlandı |
+| M7-6 | Tarayıcıda: `/b/<token>` bağlantısı (personel ve hasta), izin belgesi "Belgeyi görüntüle", yönetici "Kayıtlı kaşeyi görüntüle", SSE `oturum` olayı sonrası sayfa yenileme | İlgili giriş sayfası / belge açılır; başka rol 403 | Route'lar DB testlerinde doğrulandı, arayüz bağlantıları görülmedi |
+| M7-7 | Gerçek Chrome/Edge ile PDF (9. adım) — `CHROMIUM_PATH` sunucudaki yola ayarlı | 3 PDF formu iner | `lib/pdf/uretici.test.ts` ve `tests/db/modul-pdf.test.ts` yerel Chrome ile geçti |

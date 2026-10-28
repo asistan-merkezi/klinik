@@ -2001,3 +2001,27 @@ export const auditLog = pgTable("audit_log", {
 	detay: jsonb(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 })
+
+/** EL İLE EKLENDİ (0016): bildirim bağlantıları — token'ın KENDİSİ saklanmaz, yalnız sha256. */
+export const bildirimBaglanti = pgTable("bildirim_baglanti", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	klinikId: uuid("klinik_id").notNull(),
+	tokenHash: text("token_hash").notNull(),
+	aliciTipi: text("alici_tipi").notNull(),
+	tetikleyiciKodu: text("tetikleyici_kodu"),
+	klinikKisaKod: text("klinik_kisa_kod"),
+	sonKullanma: timestamp("son_kullanma", { withTimezone: true, mode: 'string' }).notNull(),
+	kullanildi: timestamp({ withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+})
+
+/** EL İLE EKLENDİ (0015): super_admin destek bağlamı. Uygulama rolünün tablo yetkisi YOK; yalnız destek_baglami_* DEFINER fonksiyonları yazar. */
+export const destekBaglami = pgTable("destek_baglami", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	kullaniciId: uuid("kullanici_id").notNull(),
+	klinikId: uuid("klinik_id").notNull(),
+	gerekce: text().notNull(),
+	baslangic: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	bitis: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
+	kapatildi: timestamp({ withTimezone: true, mode: 'string' }),
+})

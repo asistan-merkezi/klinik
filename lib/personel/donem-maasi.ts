@@ -1,5 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { parcalara, tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { asc, inArray } from "drizzle-orm";
 import { sema, type Tx } from "@/lib/db";
 import { tl } from "@/lib/para";
@@ -34,34 +32,7 @@ export function donemMaasi(
   return Number((secilen ?? sirali[0]).maas);
 }
 
-/**
- * personel_id → maaş geçmişi. RLS'e tabidir (klinik_admin/muhasebe görür); göremeyen rol için boş
- * döner ve donemMaasi personel.maas'a düşer.
- */
-export async function maasGecmisiGetir(
-  supabase: SupabaseClient,
-  personelIdler: string[]
-): Promise<Map<string, MaasGecmisiSatiri[]>> {
-  const sonuc = new Map<string, MaasGecmisiSatiri[]>();
-  for (const parca of parcalara([...new Set(personelIdler)])) {
-    const satirlar = await tumSayfalariOku<MaasGecmisiSatiri & { id: string; personel_id: string }>((bas, son) =>
-      supabase
-        .from("personel_ucret")
-        .select("id, personel_id, gecerlilik_tarihi, maas, created_at")
-        .in("personel_id", parca)
-        .order("id")
-        .range(bas, son)
-    );
-    for (const s of satirlar) {
-      const liste = sonuc.get(s.personel_id) ?? [];
-      liste.push({ gecerlilik_tarihi: s.gecerlilik_tarihi, maas: Number(s.maas), created_at: s.created_at });
-      sonuc.set(s.personel_id, liste);
-    }
-  }
-  return sonuc;
-}
-
-/** `maasGecmisiGetir`in Drizzle/withTenant karşılığı (RLS'e tabidir). Eski supabase sürümü personel modülü (Modül 5) taşınana kadar kalır. */
+/** personel_id → maaş geçmişi (RLS'e tabidir: klinik_admin/muhasebe görür; göremeyen rol için boş döner ve donemMaasi personel.maas'a düşer). */
 export async function maasGecmisiGetirTx(tx: Tx, personelIdler: string[]): Promise<Map<string, MaasGecmisiSatiri[]>> {
   const sonuc = new Map<string, MaasGecmisiSatiri[]>();
   const ids = [...new Set(personelIdler)];

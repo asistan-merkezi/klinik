@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { sema, withTenant, type TenantBaglami, type Tx } from "@/lib/db";
 import { anlikMesajTetikle } from "./anlik-tetikle";
-import { hosgeldinAnahtari, odemeAlindiAnahtari, paketSatisOzetiAnahtari, paketSatisTazeMi, tutarMetni } from "./hasta-mesaji-kurali";
+import { hosgeldinAnahtari, odemeAlindiAnahtari, paketSatisOzetiAnahtari, paketSatisTazeMi } from "./hasta-mesaji-kurali";
 
 // Bu fonksiyonlar kullanıcı isteğinden doğan olaylar içindir (after() ile çağrılır): çağıranın tenant bağlamı (`bag`) ile kendi withTenant'ını açar.
 
@@ -36,7 +36,7 @@ export async function hastaHosgeldinTetikle(bag: TenantBaglami, hastaId: string)
         aliciTipi: "hasta",
         aliciId: b.hasta.id,
         adres: adres(b.hasta),
-        degiskenler: { hasta_adi: b.hasta.adSoyad, klinik_adi: b.klinikAdi },
+        klinikAdi: b.klinikAdi,
         idempotencyTemeli: hosgeldinAnahtari(b.hasta.id),
       });
     });
@@ -72,7 +72,7 @@ export async function paketSatisOzetiMesajiTetikle(bag: TenantBaglami, hastaId: 
           aliciTipi: "hasta",
           aliciId: b.hasta.id,
           adres: adres(b.hasta),
-          degiskenler: { hasta_adi: b.hasta.adSoyad, paket_adi: satis.paketAd ?? "Paket", seans_sayisi: String(satis.kalanAdet), klinik_adi: b.klinikAdi },
+          klinikAdi: b.klinikAdi,
           idempotencyTemeli: paketSatisOzetiAnahtari(satis.id),
         });
       }
@@ -86,7 +86,7 @@ export async function paketSatisOzetiMesajiTetikle(bag: TenantBaglami, hastaId: 
 export async function odemeAlindiMesajiTetikle(
   bag: TenantBaglami,
   hastaId: string,
-  tutar: number,
+  _tutar: number,
   kaynak: { hareketId: string } | { randevuId: string }
 ): Promise<void> {
   try {
@@ -99,7 +99,7 @@ export async function odemeAlindiMesajiTetikle(
         aliciTipi: "hasta",
         aliciId: b.hasta.id,
         adres: adres(b.hasta),
-        degiskenler: { hasta_adi: b.hasta.adSoyad, tutar: tutarMetni(tutar), klinik_adi: b.klinikAdi },
+        klinikAdi: b.klinikAdi,
         idempotencyTemeli: odemeAlindiAnahtari(kaynak),
       });
     });

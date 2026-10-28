@@ -5,11 +5,9 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { pgHata, rpc, sema, withTenant, type TenantBaglami } from "@/lib/db";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
-import { anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
+import { baglantiTabani } from "@/lib/mesaj/baglanti";
 import { dosyaSil, dosyaYaz } from "@/lib/dosya/depo";
 import { icerikTipiDogrula } from "@/lib/dosya/imza";
-import { IZIN_TIP_ETIKETLERI, type IzinTip } from "@/types/izin";
-import { formatDate } from "@/lib/datetime";
 
 const IZIN_BELGE_TURLERI: Record<string, string> = {
   "application/pdf": "pdf",
@@ -107,9 +105,10 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
     belgeUrl = belgeParcalari.join("/");
   }
 
+  let olusan: { personel_izin_talep_olustur: string }[];
   try {
-    await withTenant(bag, (tx) =>
-      rpc(tx, "personel_izin_talep_olustur", {
+    olusan = await withTenant(bag, (tx) =>
+      rpc<{ personel_izin_talep_olustur: string }>(tx, "personel_izin_talep_olustur", {
         p_personel_id: personel.id,
         p_tip: tip,
         p_baslangic_tarih: baslangic_tarih,
@@ -132,26 +131,10 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
   }
 
   // Yöneticilere bildirim — RPC başarıyla döndükten SONRA, en iyi çaba: bildirim gönderilemese bile talep oluştu, kullanıcıya hata gösterilmez.
+  // Dar DEFINER fonksiyon: alıcılar YALNIZ bu kliniğin klinik_admin'leridir (çağıran adres veremez); mesajda kişisel veri yok, tek kullanımlık bağlantı var.
   try {
-    await withTenant(bag, async (tx) => {
-      const yoneticiler = await rpc<{ personel_id: string; telefon: string | null; eposta: string | null }>(tx, "izin_bildirim_alicilari", { p_roller: ["klinik_admin", "muhasebe"] });
-      const degiskenler = {
-        personel_adi: personel.adSoyad,
-        izin_tip: IZIN_TIP_ETIKETLERI[tip as IzinTip],
-        tarih_araligi: `${formatDate(baslangic_tarih)} – ${formatDate(bitis_tarih)}`,
-        klinik_adi: personel.klinikAd ?? "",
-      };
-      for (const yonetici of yoneticiler) {
-        await anlikMesajTetikle(tx, {
-          klinikId: personel.klinikId,
-          tetikleyiciKodu: "personel_izin_talebi_yeni",
-          aliciTipi: "personel",
-          aliciId: yonetici.personel_id,
-          adres: { telefon: yonetici.telefon, eposta: yonetici.eposta },
-          degiskenler,
-        });
-      }
-    });
+    const talepId = olusan[0]?.personel_izin_talep_olustur;
+    if (talepId) await withTenant(bag, (tx) => rpc(tx, "izin_talebi_yoneticiye_bildir", { p_talep_id: talepId, p_taban: baglantiTabani() }));
   } catch (bildirimHatasi) {
     console.error("İzin talebi bildirimi gönderilemedi:", pgHata(bildirimHatasi).mesaj);
   }

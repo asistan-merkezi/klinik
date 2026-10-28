@@ -1,5 +1,4 @@
 // proxy.ts oturum kapısı (Next.js 16 proxy, Node.js runtime): oturumu Better Auth'tan (veritabanı) okur, saf karar fonksiyonuna verir.
-// Eski lib/supabase/middleware.ts'in yerini alır; matcher ve /panel, /portal yönlendirme davranışı korunmuştur.
 import { NextResponse, type NextRequest } from "next/server";
 import { oturumOku } from "./oturum";
 import { proxyKarari, type ProxyOturumu } from "./proxy-karari";

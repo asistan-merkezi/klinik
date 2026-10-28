@@ -1,7 +1,7 @@
 ﻿<#
  Sürüm paketini üretir (CI'da .github/workflows/derle.yml çağırır; elle de çalışır). `next build` (output: standalone) ÇIKTISI hazır olmalı.
  Paket içeriği (zip kökü = çalışma dizini):  standalone çıktısı (server.js, node_modules, .next) + .next\static + public
-   + db\migrations + db\kontrol + db\kurulum + db\seed + deploy\windows + scripts\db-kur.ps1 + SURUM.txt (1. satır sürüm etiketi, 2. satır commit, 3. satır tarih).
+   + db\migrations + db\kontrol + db\kurulum + db\seed + deploy\windows + bakim\*.mjs + scripts\db-kur.ps1 + scripts\gorevleri-kur.ps1 + SURUM.txt (1. satır sürüm etiketi, 2. satır commit, 3. satır tarih).
  Çıktı:  <Cikis>\klinik-<Surum>.zip  ve  klinik-<Surum>.zip.sha256  ("<sha256>  <dosya adı>").
  Güvenlik: pakette .env*, *.pem, deploy.env benzeri dosya OLAMAZ (varsa betik başarısız olur); sunucuda derleme/npm yoktur, paket DEĞİŞMEDEN çalışır.
  Kullanım:  .\deploy\windows\paketle.ps1 -Surum v1.0.0 -Commit <sha> -Cikis dist
@@ -37,8 +37,12 @@ foreach ($d in "db\migrations", "db\kontrol", "db\kurulum", "db\seed") {
   Kopyala $d (Join-Path $paket $d)
 }
 Kopyala "deploy\windows" (Join-Path $paket "deploy\windows")
+# Bakim betikleri (Task Scheduler): `npm run bakim:derle` ciktisi (tek dosyalik .mjs, node ile calisir). scripts\windows\gorevleri-kur.ps1 de pakete girer.
+if (-not (Test-Path "bakim-dist\audit-log-bolum-olustur.mjs")) { throw "bakim-dist yok: once 'npm run bakim:derle'." }
+Kopyala "bakim-dist" (Join-Path $paket "bakim")
 New-Item -ItemType Directory -Force -Path (Join-Path $paket "scripts") | Out-Null
 Copy-Item "scripts\db-kur.ps1" (Join-Path $paket "scripts\db-kur.ps1")
+Copy-Item "scripts\windows\gorevleri-kur.ps1" (Join-Path $paket "scripts\gorevleri-kur.ps1")
 @($Surum, $Commit, (Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")) | Set-Content -Path (Join-Path $paket "SURUM.txt") -Encoding ASCII
 
 # Gizli dosya denetimi (node_modules içindeki üçüncü taraf örnek dosyaları hariç)

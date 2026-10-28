@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { eylemYetkisi } from "@/lib/auth/yetki";
 import { merkezdenKrediPaketleriCek, merkezdenOdemeOturumuOlustur } from "@/lib/mesaj/merkez-client";
 import type { MesajKanal } from "@/types/mesajlasma";
 
@@ -23,18 +23,8 @@ export async function krediOdemeBaslat(kanal: MesajKanal, _onceki: SonucDurumu, 
     return { success: false, message: "Geçersiz kanal." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-
-  if (!kullanici?.klinik_id || kullanici.rol !== "klinik_admin") {
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.klinikId || y.ctx.rol !== "klinik_admin") {
     return { success: false, message: "Kredi satın alma yetkisi yalnız klinik yöneticisine aittir." };
   }
 
@@ -59,7 +49,7 @@ export async function krediOdemeBaslat(kanal: MesajKanal, _onceki: SonucDurumu, 
   const protokol = baslik.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const donusUrl = `${protokol}://${host}/panel/ayarlar/mesajlasma/kredi/${kanal}?sekme=takip&odeme=donuldu`;
 
-  const oturum = await merkezdenOdemeOturumuOlustur({ klinikId: kullanici.klinik_id, kanal, paketId, donusUrl });
+  const oturum = await merkezdenOdemeOturumuOlustur({ klinikId: y.klinikId, kanal, paketId, donusUrl });
   if (!oturum.ulasildi) {
     console.error("Ödeme oturumu için merkeze ulaşılamadı:", oturum.hata);
     return { success: false, message: "Asistan Merkezi ödeme sistemine ulaşılamadı, lütfen daha sonra tekrar deneyin." };

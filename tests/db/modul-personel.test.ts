@@ -2,9 +2,9 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { sql as drizzleSql } from "drizzle-orm";
-import { ortamKur, personelKur, hastaKur, superBaglan, tenantBaglami, tenantdaCalistir, reddedilmeli } from "./yardimci";
+import { ortamKur, personelKur, hastaKur, superBaglan, tenantBaglami, tenantdaCalistir } from "./yardimci";
 import { oturumAc } from "./oturum-durumu";
-import { rpc, sema, withTenant } from "@/lib/db";
+import { sema, withTenant } from "@/lib/db";
 import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { pozisyonAktifDurumDegistir } from "@/app/(app)/panel/ayarlar/personel-tanimlama/actions";
 import { basvuruDurumGuncelle } from "@/app/(app)/panel/personel/basvurular/actions";
@@ -38,7 +38,6 @@ async function sql<T = Record<string, unknown>>(q: string, p: unknown[] = []): P
   }
 }
 const yaz = (q: string, p: unknown[] = []) => tenantdaCalistir(P, (c) => c.query(q, p));
-const tx = (kullanici: string) => tenantBaglami({ klinik: P, kullanici });
 
 beforeAll(async () => {
   const o = ortamKur();
@@ -94,24 +93,7 @@ describe("tenant izolasyonu ve rol kapıları", () => {
       expect((await topluHesapHareketiEkle(null, fd({})))?.message, rol).toBe(YETKISIZ_MESAJI);
     }
   });
-
-  it("DEFINER izin_bildirim_alicilari: yalnız yönetici+muhasebe iletişimi, yalnız kendi klinik; hasta ve anonim reddedilir", async () => {
-    const alicilar = await withTenant(tx(terapistU1), (t) => rpc<{ personel_id: string }>(t, "izin_bildirim_alicilari", {}));
-    expect(alicilar.map((a) => a.personel_id)).toEqual([PADMIN]); // muhasebe/terapist/resepsiyon kullanıcılarının personel kaydı yok → yalnız yönetici
-    const baska = await withTenant(tenantBaglami({ klinik: K2.klinik, kullanici: admin2 }), (t) => rpc<{ personel_id: string }>(t, "izin_bildirim_alicilari", {}));
-    expect(baska.map((a) => a.personel_id)).not.toContain(PADMIN);
-    const c = await superBaglan();
-    try {
-      await c.query("BEGIN");
-      await c.query("SET LOCAL ROLE klinik_anonim");
-      await expect(c.query("select * from izin_bildirim_alicilari()")).rejects.toThrow(/permission denied/);
-    } finally {
-      await c.query("ROLLBACK").catch(() => {});
-      await c.end();
-    }
-    const hasta = await hastaKur({ klinikId: P });
-    await reddedilmeli(withTenant(tenantBaglami({ klinik: P, kullanici: hasta.kullaniciId }), (t) => rpc(t, "izin_bildirim_alicilari", {})), /yetkisiz/);
-  });
+  // izin_bildirim_alicilari (iletişim bilgisini istemciye döndüren fonksiyon) 0016'da kaldırıldı; yerine izin_talebi_yoneticiye_bildir: tests/db/modul-mesaj-bakim.test.ts
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------

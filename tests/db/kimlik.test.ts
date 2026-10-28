@@ -205,6 +205,8 @@ describe("ilk girişte şifre değiştirme zorunluluğu ve şifre değiştirme",
     ctx = await getSessionContext(cerezBasligi(degisti.ok ? (degisti.cerezler ?? []) : []));
     expect(ctx?.sifreDegistirmeli).toBe(false);
     expect(proxyKarari("/portal", { tur: "hasta", sifreDegistirmeli: false })).toEqual({ tur: "gec" });
+    // Mesaj bağlantısı oturumsuz çalışmalı (giriş sayfasına kendisi yönlendirir)
+    expect(proxyKarari("/b/abcdefghijklmnopqrstuvwxyz012345", null)).toEqual({ tur: "gec" });
     // eski şifre artık çalışmaz, yenisi çalışır
     expect((await hastaGirisi({ klinikKodu: "klinikbir", telefon: h.telefon, sifre: h.sifre, basliklar: basliklar(yeniIp()), cihazKimligi: cihaz() })).ok).toBe(false);
     const yeni = await hastaGirisi({ klinikKodu: "klinikbir", telefon: h.telefon, sifre: "YeniSifre12345", basliklar: basliklar(yeniIp()), cihazKimligi: cihaz() });

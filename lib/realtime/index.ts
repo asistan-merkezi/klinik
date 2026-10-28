@@ -27,4 +27,4 @@ export function canliTekil(): Tekil {
 export { Dagitici, type AboneMesaji } from "./dagitici";
 export { PgDinleyici } from "./dinleyici";
 export * from "./olay";
-export { sseYaniti, SSE_BASLIKLARI, SSE_OMUR_MS } from "./sse";
+export { sseYaniti, SSE_BASLIKLARI, SSE_OMUR_MS, OTURUM_BITTI_OLAYI } from "./sse";

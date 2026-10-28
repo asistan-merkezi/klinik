@@ -3,7 +3,7 @@
 Tarih: 2026-10-26 · Dal: `tasima/windows-postgres`. Üretici: `db/arac/sema-uret.mjs`; çıktılar `db/migrations/0001–0003`, `db/seed/0001_referans_veri.sql`; kurulum `db/kurulum/00–02`; denetim `db/kontrol/bypassrls-kontrol.sql`; orkestrasyon `scripts/db-kur.ps1`.
 
 ## Nasıl üretildi
-172 migration + `supabase/bekleyen/…puantaj_pin_kaldir.sql`, gerçek Postgres 18.4'te, yalnız `auth`/`storage`/roller/`supabase_realtime` uyumluluk katmanıyla uygulandı (171/172 hatasız; `20260918100000` sabit prod klinik UUID'li bir veri düzeltmesi olduğundan geçici klinikle çalıştırıldı, katalog tohumu alındı). Ortaya çıkan katalogdan temel şema yazıldı ve **Supabase katmanı olmayan boş bir Postgres'e** kurulup denendi.
+172 migration + `db/arsiv/eski-bekleyen/…puantaj_pin_kaldir.sql`, gerçek Postgres 18.4'te, yalnız `auth`/`storage`/roller/`supabase_realtime` uyumluluk katmanıyla uygulandı (171/172 hatasız; `20260918100000` sabit prod klinik UUID'li bir veri düzeltmesi olduğundan geçici klinikle çalıştırıldı, katalog tohumu alındı). Ortaya çıkan katalogdan temel şema yazıldı ve **Supabase katmanı olmayan boş bir Postgres'e** kurulup denendi.
 
 ## Sonuç sayıları (kurulu veritabanında)
 90 tablo (86 uygulama + 4 kimlik/oturum) · 10 view/matview · 106 fonksiyon (83'ü SECURITY DEFINER, hepsinde `search_path` sabit) · 141 tetikleyici · 306 politika · **76 tabloda FORCE RLS**. Envanterdeki "≈88 tablo / ≈125 fonksiyon" tahminine karşı gerçek: 86 uygulama tablosu (+4 kimlik) ve 100 uygulama fonksiyonu (+ bağlam/kimlik).

@@ -63,19 +63,22 @@ Miras kapalı, yalnız ilgili hesap; çapraz hesaplara açık **Deny**. Tek kayn
 - `surumler`: uygulama + bakım hesabı RX (kod **salt-okunur**); `indirme`: yalnız yönetici; `log`: uygulama/caddy/bakım Modify; `dosya`: uygulama Modify, yedek RX; `yedek`: yedek Modify; `caddy-veri`: caddy Modify.
 
 **Doğrulama (bitti kriteri)**: `svc-klinik-bakim` ile (`runas`) `type C:\klinik\gizli\uygulama.env` → "Erişim engellendi"; uygulama sürecinin ortamında `BAKIM_DATABASE_URL`/`MIGRASYON_DATABASE_URL` görünmüyor; `icacls C:\klinik\guncel\server.js` uygulama hesabı için yalnız `RX`. Yönetici hesapları dosyaları okuyabilir (sunucu yöneticisine güven varsayılır; Administrators üyeleri ayrıca belgelenir).
-Betikler `node --env-file=C:\klinik\gizli\bakim.env C:\klinik\guncel\scripts\<is>.mjs` ile başlar (bakım betiklerinin paketlenmesi Modül 7) ve env değerlerini loga yazmaz. Aynı Windows hesabının süreçleri birbirinin ortamını okuyabildiğinden ayrım **hesap** düzeyindedir.
+Betikler `node --env-file=C:\klinik\gizli\bakim.env C:\klinik\guncel\bakim\<is>.mjs` ile başlar (paketleme: `npm run bakim:derle` → `paketle.ps1`) ve env değerlerini loga yazmaz. Aynı Windows hesabının süreçleri birbirinin ortamını okuyabildiğinden ayrım **hesap** düzeyindedir.
 
 ## 3b. Zamanlanmış işler (Task Scheduler)
 
 Sunucu saat dilimi **Turkey Standard Time** (UTC+3, yaz saati yok); görev saatleri doğrudan İstanbul saatidir. Görevler `svc-klinik-bakim` ile "oturum açılsa da açılmasa da" çalışır; hata olay günlüğüne veri içermeyen satır olarak yazılır.
 
-| Betik (`scripts/`) | Sıklık | Eski cron (UTC) → İstanbul | Not |
+| Betik (paket: `bakim\<ad>.mjs`, kaynak `scripts/bakim/<ad>.ts`) | Sıklık (İstanbul) | Eski cron (UTC) | Not |
 |---|---|---|---|
-| `personel-donem-otomatik-kapat.mjs` | Ayın 1'i 06:00 | `0 3 1 * *` → 06:00 | Son 3 ay, idempotent, 8'li eşzamanlı |
-| `audit-log-bolum-olustur.mjs` | Ayın 1'i 05:00 | `0 2 1 * *` → 05:00 | Pencereyi 3 ay ileri taşır |
-| `resmi-tatil-guncelle.mjs` | Ayın 1'i 07:00 | `0 4 1 * *` → 07:00 | Global `resmi_tatil` + klinik önerileri |
-| `mesaj-kuyruk-isle.mjs` | 5 dk'da bir | (merkez zamanlayıcı) | Kuyruk + randevu hatırlatma taraması |
-| `kredi-senkron.mjs` | Saatlik | (merkez zamanlayıcı) | Merkez bakiyesi → yerel yansıma |
+| `audit-log-bolum-olustur` | Ayın 1'i 05:00 | `0 2 1 * *` | Pencereyi 3 ay ileri taşır; DEFAULT partition'da satır varsa çıkış 1 |
+| `personel-donem-otomatik-kapat` | Ayın 1'i 06:00 | `0 3 1 * *` | Son 3 ay; elle "Dönem Kapat"la aynı hakediş; kişi/ay başına tek transaction; kapalı ama hakedişsiz dönem yeniden denenir |
+| `resmi-tatil-guncelle` | Ayın 1'i 07:00 | `0 4 1 * *` | Global sabit tatiller (bakim_rolu) + klinik başına dini bayram önerileri (Nager.Date erişilemezse sabitler yine yazılır) |
+| `temizlik` | Her gün 04:30 | (yeni) | `islem_anahtari` >2 gün, süresi dolmuş `bildirim_baglanti` >1 gün |
+| `mesaj-kuyruk-isle` | 5 dk'da bir | (merkez zamanlayıcı) | Randevu hatırlatma taraması + kuyruk (e-posta → Resend, SMS/WhatsApp → merkez); klinik başına saatlik 300 / tur 25 |
+| `kredi-senkron` | Saatlik | (merkez zamanlayıcı) | Merkez bakiyesi → yerel yansıma; `MESAJ_MERKEZ_*` yoksa atlanır |
+
+Kurulum: `C:\klinik\guncel\scripts\gorevleri-kur.ps1` (yönetici PowerShell; `svc-klinik-bakim` parolası sorulur, `-OnIzleme` kaydetmeden listeler, `-Kaldir` siler). Görevler `\Klinik\` klasörüne kaydedilir; aylık tetikleyici `MSFT_TaskMonthlyTrigger`, "kaçan çalıştırma açılışta telafi edilir", çalışan örnek varken yenisi başlamaz. `bakim.env` ayrıca `BETTER_AUTH_URL` (mesajdaki bağlantı tabanı), `RESEND_API_KEY`/`RESEND_GONDEREN` ve `BAKIM_LOG_KLASORU` (örn. `C:\klinik\log\bakim`) içerir (`deploy/windows/env.production.ornek`). Çıkış kodu: 0 tamam · 1 kısmi hata (diğer klinikler işlendi) · 2 betik çalışamadı; JSON günlük satırları gizli değer/kişisel veri içermez.
 
 Betikler bakim_rolu ile bağlanıp `klinik` listesini okur; her klinik için `BEGIN; SET LOCAL ROLE klinik_uygulama; SET LOCAL app.tenant_id …` (`withTenant`) ile işler. Çift çalışma: Task Scheduler "çalışan örnek varken yenisini başlatma" + işin kendi idempotency'si.
 

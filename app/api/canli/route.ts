@@ -17,7 +17,14 @@ export async function GET(request: Request) {
   if (!tablolar) return json(400, "Geçersiz tablo listesi.");
 
   const { dagitici } = canliTekil();
-  const yanit = sseYaniti({ dagitici, klinikId: ctx.tenantId, kullaniciId: ctx.userId, tablolar, signal: request.signal });
+  const { tenantId, userId } = ctx;
+  // Her ping'de (25 sn) oturum baştaki başlıklarla YENİDEN çözülür: iptal edilmiş/süresi dolmuş/devre dışı oturum, farklı kullanıcı ya da klinik
+  // bağlamı değişmişse (ör. destek bağlamı bitti) bağlantı kapanır. Çözümleme hatası da kapatır (fail-closed).
+  const oturumGecerliMi = async () => {
+    const g = await getSessionContext(request.headers);
+    return !!g && g.tur === "personel" && g.userId === userId && g.tenantId === tenantId && !g.sifreDegistirmeli;
+  };
+  const yanit = sseYaniti({ dagitici, klinikId: tenantId, kullaniciId: userId, tablolar, signal: request.signal, oturumGecerliMi });
   if (!yanit) return json(429, "Çok fazla açık canlı bağlantı.");
   return yanit;
 }

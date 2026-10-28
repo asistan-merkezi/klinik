@@ -26,7 +26,7 @@ export const HESAP_HAREKET_YONU: Record<HesapHareketTuru, 1 | -1> = {
   odeme: -1,
 };
 
-/** Ödeme tipi seçimi sadece bu türlerde anlamlı — Kasa/Banka'nın "Giden" tarafı buradan besleniyor (bkz. supabase/migrations/20260916090000). */
+/** Ödeme tipi seçimi sadece bu türlerde anlamlı — Kasa/Banka'nın "Giden" tarafı buradan besleniyor (bkz. eski migration 20260916090000). */
 export const ODEME_TIPI_GOSTERILEN_TURLER: ManuelHesapHareketTuru[] = ["odeme", "avans"];
 
 /**

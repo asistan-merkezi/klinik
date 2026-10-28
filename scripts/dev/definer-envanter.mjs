@@ -12,7 +12,7 @@ try {
     from pg_proc p where p.pronamespace='public'::regnamespace and p.prosecdef and p.prokind='f' and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e') order by 1`)).rows;
   const tablolar = (await c.query(`select relname from pg_class where relnamespace='public'::regnamespace and relkind in ('r','p','v','m') and not relispartition`)).rows.map((r) => r.relname);
   await c.end();
-  const mig = path.join(KOK, "supabase/migrations");
+  const mig = path.join(KOK, "db/arsiv/eski-migrationlar");
   const dosyalar = fs.readdirSync(mig).filter((x) => x.endsWith(".sql")).sort().reverse();
   const kaynaklar = new Map(dosyalar.map((d) => [d, fs.readFileSync(path.join(mig, d), "utf8")]));
   const cikti = f.map((x) => {

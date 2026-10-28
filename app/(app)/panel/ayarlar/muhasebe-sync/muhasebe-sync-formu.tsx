@@ -13,7 +13,7 @@ export function MuhasebeSyncFormu({ durum }: { durum: MuhasebeEntegrasyonDurum |
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">
-        Bu bilgiler yalnızca Supabase&apos;te (RLS ile izole, disk seviyesinde şifreli) saklanır ve
+        Bu bilgiler yalnızca kliniğin veritabanında (RLS ile izole, uygulama düzeyinde şifreli) saklanır ve
         sadece Muhasebe Sync tarafından kullanılır. Client Secret kaydedildikten sonra bir daha
         ekranda gösterilmez — değiştirmek istemediğinizde alanı boş bırakabilirsiniz.
       </p>

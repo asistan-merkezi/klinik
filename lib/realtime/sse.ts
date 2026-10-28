@@ -20,6 +20,9 @@ export function mesajiBicimle(m: AboneMesaji): string {
   return "event: ping\ndata: {}\n\n";
 }
 
+/** Oturum artık geçersiz: istemci yeniden bağlanmayı bırakır ve sayfayı yeniler (proxy giriş sayfasına yönlendirir). */
+export const OTURUM_BITTI_OLAYI = 'event: oturum\ndata: {"gecerli":false}\n\n';
+
 /** Abonelik kurar ve SSE Response döner; kullanıcı bağlantı sınırı aşıldıysa null (route 429 verir). */
 export function sseYaniti(o: {
   dagitici: Dagitici;
@@ -28,6 +31,11 @@ export function sseYaniti(o: {
   tablolar: ReadonlySet<CanliTablo>;
   signal: AbortSignal;
   omurMs?: number;
+  /**
+   * Her ping'de (25 sn) çağrılır: oturum hâlâ geçerli mi (iptal, gece kapanışı, hesap devre dışı, destek bağlamı bitişi)? false döner ya da
+   * HATA fırlatırsa (doğrulanamıyorsa) bağlantı KAPATILIR — fail-closed; istemci yeniden bağlanırken oturum zaten baştan doğrulanır (401 → durur).
+   */
+  oturumGecerliMi?: () => Promise<boolean>;
 }): Response | null {
   const enc = new TextEncoder();
   let kaldir: (() => void) | null = null;
@@ -47,6 +55,26 @@ export function sseYaniti(o: {
     }
   };
 
+  let denetliyor = false;
+  const oturumuDenetle = () => {
+    if (!o.oturumGecerliMi || denetliyor) return; // önceki denetim sürerken yenisi başlatılmaz
+    denetliyor = true;
+    o.oturumGecerliMi()
+      .catch(() => false)
+      .then((gecerli) => {
+        if (gecerli || kapali) return;
+        try {
+          denetleyici?.enqueue(enc.encode(OTURUM_BITTI_OLAYI));
+        } catch {
+          /* akış zaten kapalı */
+        }
+        kapat();
+      })
+      .finally(() => {
+        denetliyor = false;
+      });
+  };
+
   const gonder = (m: AboneMesaji): boolean => {
     if (kapali || !denetleyici) return false;
     if ((denetleyici.desiredSize ?? 1) <= 0) {
@@ -55,6 +83,7 @@ export function sseYaniti(o: {
     }
     try {
       denetleyici.enqueue(enc.encode(mesajiBicimle(m)));
+      if (m.tur === "ping") oturumuDenetle();
       return true;
     } catch {
       kapat();

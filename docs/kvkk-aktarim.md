@@ -1,6 +1,6 @@
 # KVKK — Yurt Dışı / Üçüncü Taraf Aktarım Taraması
 
-Tarih: 2026-10-26 · Dal: `tasima/windows-postgres`. Bu belge hukuki görüş değildir; sınıflandırmalar hukuk onayına tabidir.
+Tarih: 2026-10-26 (taramanın yapıldığı gün) · **Güncelleme 2026-10-28: 28 şablon bulgusu KAPATILDI (Modül 7)** · Dal: `tasima/windows-postgres`. Bu belge hukuki görüş değildir; sınıflandırmalar hukuk onayına tabidir.
 
 ## Kural (taşıma kararı)
 
@@ -13,8 +13,8 @@ Tarih: 2026-10-26 · Dal: `tasima/windows-postgres`. Bu belge hukuki görüş de
 
 | Nokta | Kod | Giden veri | Durum |
 |---|---|---|---|
-| E-posta (merkez → Resend EU) | `lib/mesaj/merkez-client.ts` (`mail → eposta`), şablonlar `lib/mesaj/tetikleyiciler.ts` + `mesaj_kurallari.mesaj_metni` | Şablon metni (ad, tarih, tutar, paket…) + alıcı adresi | **İhlal var** (aşağıda). Repoda doğrudan Resend çağrısı yok; Resend'e gidişi merkez projesi yapıyor — orada konu/ek/log politikası ayrıca doğrulanmalı |
-| SMS / WhatsApp (merkez) | aynı | Aynı 28 şablon metni + telefon | **İhlal var**: e-postayla aynı kural uygulanır (aşağıda "Mesaj şablonları — tüm kanallar") |
+| E-posta (doğrudan Resend EU) | `lib/mesaj/eposta-resend.ts` (düz metin, ek ve HTML yok, sabit konu "Klinik bildirimi", `Idempotency-Key`), şablonlar `lib/mesaj/icerik.ts` | Yalnız klinik adı + tek kullanımlık bağlantı + alıcı adresi | **KAPATILDI** (2026-10-28): 28 şablonun hepsi `GENEL_MESAJ_METNI`; serbest metin kaydederken ve göndermeden önce doğrulanır. Alıcı adresi servise gider (veri işleme sözleşmesi/aydınlatma metni) |
+| SMS / WhatsApp (merkez) | `lib/mesaj/merkez-client.ts` + aynı şablonlar | Klinik adı + tek kullanımlık bağlantı + telefon | **KAPATILDI** (2026-10-28): e-postayla aynı kural (aşağıda) |
 | LLM (destek chatbotu) | `app/api/destek-chatbot/route.ts` (AI Gateway, `anthropic/claude-sonnet-5`) | Kullanıcının sohbet mesajları (serbest metin, kişisel/sağlık verisi yazılabilir) | **Kapalı olacak** (feature flag, plan Aşama 3). İstemci tarafı filtre yok |
 | Mesaj merkezi API | `lib/mesaj/merkez-client.ts` | `disKullaniciId = klinik_id`, alıcı, metin | Ayrı proje; konum/sözleşme teyit edilmedi |
 | Cloudflare (DNS/proxy) | — | Trafik üzerinden geçer (TLS sonlandırma Cloudflare'de olacaksa içerik de) | Karar: proxy açık mı (Full strict) — hukukla netleşmeli |
@@ -60,9 +60,13 @@ Kişisel sayılanlar: `*_adi` (hasta/personel/terapist adı), `tutar`. Sağlık/
 | 27 | muhasebe_taksit_hatirlatma | hasta_adi, tutar, klinik_adi | ad + tutar + taksit |
 | 28 | muhasebe_donem_ekstre | hasta_adi, klinik_adi | ad + hesap ekstresi |
 
-**Sonuç: 28 şablonun 28'i kuralı ihlal ediyor** (hepsinde en az bir ad değişkeni var; çoğunda ayrıca sağlık hizmeti, tarih veya finansal içerik). Hiçbir şablonda bağlantı değişkeni (`{{baglanti}}`) yok; kodda bağlantı üretimi de yok.
+**Sonuç (tarama anı): 28 şablonun 28'i kuralı ihlal ediyordu — ŞİMDİ 0 (kapatıldı)** (hepsinde en az bir ad değişkeni var; çoğunda ayrıca sağlık hizmeti, tarih veya finansal içerik). Hiçbir şablonda bağlantı değişkeni (`{{baglanti}}`) yok; kodda bağlantı üretimi de yok.
 
-## Önerilen uyum yolu (Aşama 7'de yapılacak; şimdi yazılmadı)
+## Uyum yolu — UYGULANDI (Modül 7, 2026-10-28)
+
+Aşağıdaki öneriler yapıldı: değişken beyaz listesi `IZINLI_DEGISKENLER` (`klinik_adi`, `baglanti`) — 28 şablonun hepsi `GENEL_MESAJ_METNI`; bağlantı üretimi `lib/mesaj/baglanti.ts` + `/b/[token]` (tek kullanımlık, 72 sa, IP başına 30/10 dk hız sınırı, fail-closed, oturum AÇMAZ); doğrulama `sablonuDogrula` (kaydederken `kuralGuncelle`, göndermeden hemen önce `satiriGonder` ve `anlikMesajTetikle`; bilinmeyen değişken ve kimlik/IBAN/kart/telefon/e-posta deseni reddedilir); ek yok; elle mesaj şablondan sunucuda üretilir (serbest metin kabul edilmez). Testler: `lib/mesaj/icerik.test.ts` (28 şablon), `tests/db/modul-mesaj-bakim.test.ts`. **Açık**: kliniğin serbest metnindeki ad-soyad gibi desensiz kişisel veriyi kod yakalayamaz (yönetici sorumluluğu); ilk gönderimden önce Resend tarafında konu/log/saklama ayarları doğrulanmalı; 28 tetikleyicinin hizmet/ticari sınıflandırması hukuk onayında.
+
+### Orijinal öneri listesi (tarihsel)
 
 1. E-posta kanalına özel **ayrı değişken beyaz listesi**: yalnız `klinik_adi` ve yeni `baglanti` (imzalı, kısa ömürlü, tek kullanımlık portal/panel bağlantısı). `degisken-dogrula.ts` kanal bilgisini alacak; `mail_aktif=true` kural, e-posta dışı kanallarda izinli değişkenleri içeriyorsa kaydetme reddedilir.
 2. E-posta için **ayrı varsayılan metinler** (ör. "{{klinik_adi}} size bir bildirim gönderdi. Görüntülemek için: {{baglanti}}"); konu satırı da sabit ve veri içermeyen ("Klinik bildirimi").

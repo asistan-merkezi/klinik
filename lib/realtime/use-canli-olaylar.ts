@@ -1,6 +1,6 @@
 "use client";
 
-// Ortak canlı olay kancası (SSE, /api/canli). Supabase Realtime'ın yerine geçer; tüm tüketiciler bunu kullanır.
+// Ortak canlı olay kancası (SSE, /api/canli). tüm tüketiciler bunu kullanır.
 //  - onOlay(olay):  sunucudan {t, i} geldi (veri YOK) → tüketici veriyi normal yetkili yoldan yeniden çeker.
 //  - onSenkron():   bağlantı (yeniden) kuruldu / sunucu dinleyicisi yeniden bağlandı / ağ geri geldi → kesintide kaçanları telafi için yeniden çek.
 //                   İlk bağlantıda ÇAĞRILMAZ (ilk veri sayfayla zaten gelmiştir).
@@ -86,6 +86,14 @@ export function useCanliOlaylar(sec: {
         senkronRef.current?.();
       });
       kaynak.addEventListener("ping", sessizligiSifirla);
+      // Sunucu oturumun bittiğini bildirdi (iptal / gece kapanışı / devre dışı): yeniden bağlanma; sayfayı yenile → proxy giriş sayfasına yönlendirir.
+      kaynak.addEventListener("oturum", () => {
+        iptal = true;
+        if (sessizlik) clearTimeout(sessizlik);
+        kaynak.close();
+        setDurum("kopuk");
+        window.location.reload();
+      });
       kaynak.onerror = () => {
         setDurum("kopuk");
         // CLOSED: tarayıcı vazgeçti (401/429/ağ yok) → elle geri çekilmeli yeniden dene. CONNECTING: tarayıcı kendisi deniyor.

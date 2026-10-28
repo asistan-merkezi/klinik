@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { MessageSquareText, MessageCircle, Mail } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
 import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { BOLUM_SIRASI, KANAL_SIRASI, KANAL_ETIKET, type MesajBolum, type EtkinMesajKurali, type MesajKredi } from "@/types/mesajlasma";
+import { BOLUM_SIRASI, KANAL_SIRASI, KANAL_ETIKET, type MesajBolum, type EtkinMesajKurali } from "@/types/mesajlasma";
 import { etkinKurallariOlustur, type MesajKuraliDbSatiri } from "@/lib/mesaj/kural-cozumle";
 import { sessizSaatAyariCoz } from "@/lib/mesaj/sessiz-saat";
 import { BolumKartGrubu } from "./bolum-kart-grubu";
@@ -19,8 +21,6 @@ const KANAL_IKON = {
 
 export default async function MesajlasmaSayfasi() {
   const { kullanici } = await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar" });
-  const supabase = await createClient();
-
   const klinikId = kullanici.klinik_id;
   if (!klinikId) {
     return (
@@ -30,24 +30,22 @@ export default async function MesajlasmaSayfasi() {
     );
   }
 
-  const [kurallarSonuc, bakiyelerSonuc, ayarSonuc] = await Promise.all([
-    supabase
-      .from("mesaj_kurallari")
-      .select("id, tetikleyici_kodu, aktif, sms_aktif, whatsapp_aktif, mail_aktif, mesaj_metni")
-      .eq("klinik_id", klinikId)
-      .returns<MesajKuraliDbSatiri[]>(),
-    supabase
-      .from("mesaj_kredileri")
-      .select("kanal, bakiye, updated_at, son_senkron_zamani, merkez_bakiye_versiyonu")
-      .eq("klinik_id", klinikId)
-      .returns<MesajKredi[]>(),
-    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId).maybeSingle(),
-  ]);
+  const { bag } = await panelBaglami();
+  const [kurallar, bakiyeler, ayarSatiri] = await withTenant(bag, (tx) =>
+    Promise.all([
+      tx
+        .select({ id: sema.mesajKurallari.id, tetikleyici_kodu: sema.mesajKurallari.tetikleyiciKodu, aktif: sema.mesajKurallari.aktif, sms_aktif: sema.mesajKurallari.smsAktif, whatsapp_aktif: sema.mesajKurallari.whatsappAktif, mail_aktif: sema.mesajKurallari.mailAktif, mesaj_metni: sema.mesajKurallari.mesajMetni })
+        .from(sema.mesajKurallari)
+        .where(eq(sema.mesajKurallari.klinikId, klinikId)),
+      tx.select({ kanal: sema.mesajKredileri.kanal, bakiye: sema.mesajKredileri.bakiye }).from(sema.mesajKredileri).where(eq(sema.mesajKredileri.klinikId, klinikId)),
+      tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, klinikId)).limit(1),
+    ])
+  );
 
-  const sessizSaat = sessizSaatAyariCoz((ayarSonuc.data?.ayarlar as Record<string, unknown> | null)?.mesaj_sessiz_saat);
+  const sessizSaat = sessizSaatAyariCoz((ayarSatiri[0]?.ayarlar as Record<string, unknown> | null)?.mesaj_sessiz_saat);
 
-  const etkinKurallar = etkinKurallariOlustur(kurallarSonuc.data ?? []);
-  const bakiyeMap = new Map(bakiyelerSonuc.data?.map((b) => [b.kanal, b.bakiye]) ?? []);
+  const etkinKurallar = etkinKurallariOlustur(kurallar as MesajKuraliDbSatiri[]);
+  const bakiyeMap = new Map(bakiyeler.map((b) => [b.kanal, b.bakiye]));
 
   const bolumGruplari = new Map<MesajBolum, EtkinMesajKurali[]>();
   for (const bolum of BOLUM_SIRASI) bolumGruplari.set(bolum, []);

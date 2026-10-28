@@ -59,7 +59,7 @@ export async function hastalariListele() {
 }
 ```
 
-### Bakım betikleri (Task Scheduler → `scripts/*.mjs`)
+### Bakım betikleri (Task Scheduler → `bakim/*.mjs`, kaynak `scripts/bakim/*.ts`)
 ```ts
 import { bakimKlinikleriniDolas } from "@/lib/db/bakim";   // BAKIM_DATABASE_URL (bakim_rolu)
 const sonuclar = await bakimKlinikleriniDolas(async (tx, klinik) => { /* bu klinikte iş (RLS'e tabi) */ });
@@ -127,9 +127,9 @@ Sıra: hız sınırı (IP+kod, **fail-closed**) → kısa kod → klinik (`tanim
 
 ## 9. Bilinen sınırlar
 - Tenant bağlamı uygulamadan gelir (DB bunu doğrulayamaz); savunma: tek kapı (`lib/db`), ESLint, RLS, anonim politikalarda QR/klinik eşleşmesi.
-- Eski Supabase tabanlı sayfa/eylemler (161 dosya) henüz taşınmadı: bu dalda `gecerliKullanici`/`gecerliHasta`/`eylemYetkisiGetir` hâlâ Supabase oturumunu bekler → panel/portal sayfaları modül modül `getSessionContext` + `withTenant`'a geçirilecek (Aşama 3 devamı, `docs/service-role-siniflama.md`). `components/scheduled-logout.tsx` (gece zorla çıkış) ve `lib/qr/hiz-siniri.ts` (fail-open) bu taşımada değişecek.
+- Tüm sayfa/eylemler `getSessionContext` + `withTenant` üzerindedir (Modül 1–7); Supabase kalıntısı yok.
 - Tek oturum kilidi yazılmadı (`oturum.cihaz_kimligi` ve `son_etkinlik` hazır).
-- E-posta göndericisi bağlı değil (varsayılan: gönderme + uyarı).
+- E-posta: Resend bağlı; `RESEND_API_KEY`/`RESEND_GONDEREN` girilmezse şifre sıfırlama e-postası gitmez (hata günlüğe yazılır).
 
 ## Canlı olaylar (SSE + LISTEN/NOTIFY)
 

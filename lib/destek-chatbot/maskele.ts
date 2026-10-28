@@ -13,6 +13,13 @@ export function metniMaskele(metin: string): string {
   return KALIPLAR.reduce((m, [kalip, yerine]) => m.replace(kalip, yerine), metin);
 }
 
+/** Metinde kaç kimlik/IBAN/kart/telefon/e-posta DESENİ var (mesaj şablonu doğrulaması için). */
+export function desenleriMaskeleSayisi(metin: string): number {
+  let n = 0;
+  for (const [kalip] of KALIPLAR) n += [...metin.matchAll(new RegExp(kalip.source, kalip.flags.includes("g") ? kalip.flags : kalip.flags + "g"))].length;
+  return n;
+}
+
 type Parca = { type: string; text?: string };
 
 /** UIMessage listesindeki tüm metin parçalarını maskeler; metin dışı parçalar (dosya, araç çağrısı) DÜŞÜRÜLÜR — modele yalnız maskeli metin gider. */

@@ -1,5 +1,4 @@
-// Server action / route / sayfa düzeyinde yetki kapıları (YENİ kimlik katmanı). Eski `eylemYetkisiGetir` (Supabase istemcisi döndürür) taşınmamış
-// modüller için `eylem-yetkisi.ts`te KALIR; son modülde silinir.
+// Server action / route / sayfa düzeyinde yetki kapıları (kimlik katmanı: Better Auth oturumu + withTenant bağlamı).
 import { redirect } from "next/navigation";
 import { tenantGerekli, OturumHatasi, type OturumBaglami, type OturumRolu } from "./oturum";
 import { oturumBaglami } from "./gecerli-kullanici";

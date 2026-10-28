@@ -1,124 +1,149 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+// Mesaj kuyruğu işçisi (scripts/bakim/mesaj-kuyruk-isle). Üç ayrı adım, HTTP çağrısı hiçbir DB transaction'ının içinde YAPILMAZ:
+//   1) kuyrukSatirlariniAl  — klinik başına kısa transaction: takılı satırları kurtar, kota içinde kalan satırları ATOMİK olarak 'gonderiliyor'a al
+//   2) satiriGonder         — transaction DIŞINDA: e-posta Resend'e, SMS/WhatsApp merkeze (kredi kontrolü merkezde)
+//   3) sonucuKaydet         — klinik başına kısa transaction: durumu yaz, merkezin bakiyesini yerel yansımaya senkronla
+// Tenant sınırı: her adım tek bir kliniğin tenant bağlamında çalışır (RLS), bir klinik başka kliniğin satırına dokunamaz.
+import { and, asc, eq, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { rpc, sema, type Tx } from "@/lib/db";
 import { merkezeGonder } from "./merkez-client";
 import { hataDegerlendir } from "./hata-kodlari";
+import { resendIleGonder } from "./eposta-resend";
+import { EPOSTA_KONUSU, sablonuDogrula } from "./icerik";
 import type { MesajKanal, MesajKuyrukDurum } from "@/types/mesajlasma";
 
-// Merkeze hiç ulaşılamadığında (ağ hatası, yapılandırılmamış) geçici hata
-// backoff'u: 1. deneme sonrası 5dk, 2. sonrası 30dk, 3. (son) deneme sonrası
-// 2sa — 3. deneme de başarısız olursa durum='hata'.
-const GERI_CEKILME_DAKIKA = [5, 30, 120];
+/** Geçici hata backoff'u: 1. deneme sonrası 5dk, 2. sonrası 30dk, 3. deneme de başarısızsa durum='hata'. */
+export const GERI_CEKILME_DAKIKA = [5, 30, 120];
 const MAKS_DENEME = GERI_CEKILME_DAKIKA.length;
+/** Bu süreden uzun 'gonderiliyor'da kalan satır, çöken bir işlemden kalmıştır. */
+export const TAKILI_SATIR_DK = 10;
+/** HIZ SINIRI: bir klinik son 60 dakikada en fazla bu kadar mesaj gönderebilir (kredisi olsa bile); aşırı tüketimi/hatalı döngüyü sınırlar. */
+export const SAATLIK_KLINIK_LIMITI = 300;
+export const TUR_BASINA_KLINIK_LIMITI = 25;
 
-type KuyrukSatiri = {
+export type KuyrukSatiri = {
   id: string;
-  klinik_id: string;
+  klinikId: string;
   kanal: MesajKanal;
-  alici_adres: string;
-  gonderilecek_metin: string;
-  tetikleyici_kodu: string;
-  test_mi: boolean;
-  deneme_sayisi: number;
-  idempotency_anahtari: string;
+  aliciAdres: string;
+  metin: string;
+  tetikleyiciKodu: string;
+  testMi: boolean;
+  denemeSayisi: number;
+  idempotencyAnahtari: string;
 };
 
-export type KuyrukIslemSonucu = { durum: MesajKuyrukDurum; hataMesaji?: string };
+type Bakiye = { kalan: number; versiyon: number };
+export type GonderSonucu =
+  | { tur: "gonderildi"; saglayiciMesajId?: string; bakiye?: Bakiye }
+  | { tur: "kalici"; durum: MesajKuyrukDurum; hata: string; bakiye?: Bakiye }
+  | { tur: "gecici"; hata: string };
 
-async function bakiyeyiSenkronla(admin: SupabaseClient, klinikId: string, kanal: MesajKanal, bakiye: number, versiyon: number) {
-  const { error } = await admin.rpc("mesaj_kredi_senkronla", {
-    p_klinik_id: klinikId,
-    p_kanal: kanal,
-    p_bakiye: bakiye,
-    p_versiyon: versiyon,
-  });
-  if (error) {
-    console.error("[mesaj] mesaj_kredi_senkronla hatası:", error.message);
-  }
+/** Saf: bu turda alınabilecek satır sayısı (saatlik kota ve tur sınırı). */
+export function alinabilirSatirSayisi(sonSaattekiGonderim: number, saatlikLimit = SAATLIK_KLINIK_LIMITI, turLimiti = TUR_BASINA_KLINIK_LIMITI): number {
+  return Math.max(0, Math.min(turLimiti, saatlikLimit - sonSaattekiGonderim));
 }
 
-/**
- * mesaj_kuyrugu'nda TEK bir satırı işler: merkeze (Asistan Merkezi) /api/gonder
- * çağrısı yapar, yanıta göre durumu günceller ve merkezden dönen kalanBakiye/
- * bakiyeVersiyonu'nu yerel mesaj_kredileri'ne SENKRONLAR (hiçbir zaman yerelde
- * hesaplamaz — bkz. mesaj_kredi_senkronla'nın versiyon guard'ı). Hem cron
- * worker'ın (/api/cron/mesaj-kuyruk-isle, 5dk'da bir) hem Test Gönder'in TEK
- * ortak yolu.
- *
- * ÖNEMLİ: `admin` SADECE service role client olmalı (createAdminClient()) —
- * bu fonksiyon RLS'e güvenmiyor, yetki kontrolünü çağıran taraf (cron route
- * CRON_SECRET ile, Test Gönder server action'ı klinik_admin oturum
- * kontrolüyle) kendisi, bu fonksiyona gelmeden ÖNCE yapar.
- */
-export async function kuyrukSatiriniIsle(admin: SupabaseClient, satirId: string): Promise<KuyrukIslemSonucu> {
-  // 1) Satırı ATOMİK olarak claim et. Postgres'te UPDATE...WHERE satır
-  // düzeyinde atomiktir — sadece hâlâ 'beklemede' olan satır 'gonderiliyor'a
-  // geçer, eşzamanlı iki worker/istek aynı satırı iki kez işleyemez.
-  const { data: satir, error: claimHata } = await admin
-    .from("mesaj_kuyrugu")
-    .update({ durum: "gonderiliyor", isleme_alinma_zamani: new Date().toISOString() })
-    .eq("id", satirId)
-    .eq("durum", "beklemede")
-    .select("id, klinik_id, kanal, alici_adres, gonderilecek_metin, tetikleyici_kodu, test_mi, deneme_sayisi, idempotency_anahtari")
-    .maybeSingle<KuyrukSatiri>();
+/** Saf: geçici hata sonrası sıradaki durum. */
+export function geciciHataSonrasi(denemeSayisi: number, simdi: Date): { durum: "beklemede" | "hata"; denemeSayisi: number; planlananZaman?: Date } {
+  const yeni = denemeSayisi + 1;
+  if (yeni >= MAKS_DENEME) return { durum: "hata", denemeSayisi: yeni };
+  return { durum: "beklemede", denemeSayisi: yeni, planlananZaman: new Date(simdi.getTime() + GERI_CEKILME_DAKIKA[yeni - 1] * 60_000) };
+}
 
-  if (claimHata || !satir) {
-    return { durum: "beklemede", hataMesaji: "satır zaten işleniyor veya beklemede değil" };
+const K = sema.mesajKuyrugu;
+
+/** Adım 1. `tx`: o kliniğin sistem bağlamı (bakimOturumuAc().klinikte). */
+export async function kuyrukSatirlariniAl(tx: Tx, klinikId: string, simdi = new Date()): Promise<KuyrukSatiri[]> {
+  const esik = new Date(simdi.getTime() - TAKILI_SATIR_DK * 60_000).toISOString();
+  await tx
+    .update(K)
+    .set({ durum: "beklemede", hataMesaji: "işlem yarıda kaldı, yeniden denenecek" })
+    .where(and(eq(K.klinikId, klinikId), eq(K.durum, "gonderiliyor"), or(isNull(K.islemeAlinmaZamani), lt(K.islemeAlinmaZamani, esik))));
+
+  const saatOnce = new Date(simdi.getTime() - 3_600_000).toISOString();
+  const [{ adet }] = await tx
+    .select({ adet: sql<number>`count(*)::int` })
+    .from(K)
+    .where(and(eq(K.klinikId, klinikId), eq(K.testMi, false), or(and(eq(K.durum, "gonderildi"), gte(K.gonderimZamani, saatOnce)), eq(K.durum, "gonderiliyor"))));
+  const limit = alinabilirSatirSayisi(adet);
+  if (limit === 0) return [];
+
+  const adaylar = await tx
+    .select({ id: K.id })
+    .from(K)
+    .where(and(eq(K.klinikId, klinikId), eq(K.durum, "beklemede"), lte(K.planlananZaman, simdi.toISOString())))
+    .orderBy(asc(K.planlananZaman))
+    .limit(limit);
+  if (adaylar.length === 0) return [];
+
+  // Atomik claim: yalnız hâlâ 'beklemede' olan satır 'gonderiliyor'a geçer; eşzamanlı iki işçi aynı satırı iki kez alamaz.
+  const alinan = await tx
+    .update(K)
+    .set({ durum: "gonderiliyor", islemeAlinmaZamani: simdi.toISOString() })
+    .where(and(eq(K.klinikId, klinikId), eq(K.durum, "beklemede"), inArray(K.id, adaylar.map((a) => a.id))))
+    .returning({
+      id: K.id,
+      klinikId: K.klinikId,
+      kanal: K.kanal,
+      aliciAdres: K.aliciAdres,
+      metin: K.gonderilecekMetin,
+      tetikleyiciKodu: K.tetikleyiciKodu,
+      testMi: K.testMi,
+      denemeSayisi: K.denemeSayisi,
+      idempotencyAnahtari: K.idempotencyAnahtari,
+    });
+  return alinan as KuyrukSatiri[];
+}
+
+/** Adım 2. DB bağlantısı KULLANMAZ. */
+export async function satiriGonder(satir: KuyrukSatiri): Promise<GonderSonucu> {
+  // Göndermeden hemen önce son KVKK doğrulaması: kuyruğa başka yoldan giren kişisel veri desenli metin dışarı çıkmaz.
+  // Kuyruk metni doldurulmuş olduğundan {{...}} kalmamalı; desen taraması yeterlidir.
+  // Bağlantı (rastgele token) desen taramasından ÇIKARILIR: ardışık rakamlar telefon/kimlik desenine yanlış eşleşirdi.
+  const kontrol = sablonuDogrula(satir.metin.replace(/https?:\/\/\S+/g, ""));
+  if (!kontrol.gecerli) return { tur: "kalici", durum: "iptal", hata: "icerik_kurali_ihlali" };
+
+  if (satir.kanal === "mail") {
+    const s = await resendIleGonder({ alici: satir.aliciAdres, konu: EPOSTA_KONUSU, metin: satir.metin, idempotencyKey: satir.idempotencyAnahtari });
+    if (s.ok) return { tur: "gonderildi", saglayiciMesajId: s.saglayiciId || undefined };
+    return s.kalici ? { tur: "kalici", durum: "hata", hata: s.hata } : { tur: "gecici", hata: s.hata };
   }
 
-  // 2) Merkeze gönder — kredi kontrolü/düşümü/gönderim merkezin sorumluluğu.
   const sonuc = await merkezeGonder({
-    klinikId: satir.klinik_id,
+    klinikId: satir.klinikId,
     kanal: satir.kanal,
-    aliciAdres: satir.alici_adres,
-    metin: satir.gonderilecek_metin,
-    idempotencyKey: satir.idempotency_anahtari,
-    testMi: satir.test_mi,
-    tetikleyiciKodu: satir.tetikleyici_kodu,
+    aliciAdres: satir.aliciAdres,
+    metin: satir.metin,
+    idempotencyKey: satir.idempotencyAnahtari,
+    testMi: satir.testMi,
+    tetikleyiciKodu: satir.tetikleyiciKodu,
   });
-
-  if (!sonuc.ulasildi) {
-    // Merkeze hiç ulaşılamadı — bakiye bilgisi YOK, senkronlanmaz. Ağ
-    // hatası her zaman geçici sayılır.
-    return await geciciHataIsle(admin, satir, sonuc.hata);
-  }
-
-  // Merkez yanıt verdi (başarılı/başarısız fark etmez) — kalanBakiye her
-  // zaman güvenilir, senkronla.
-  await bakiyeyiSenkronla(admin, satir.klinik_id, satir.kanal, sonuc.kalanBakiye, sonuc.bakiyeVersiyonu);
-
-  if (sonuc.basarili) {
-    await admin
-      .from("mesaj_kuyrugu")
-      .update({
-        durum: "gonderildi",
-        gonderim_zamani: new Date().toISOString(),
-        saglayici_mesaj_id: sonuc.saglayiciMesajId ?? null,
-      })
-      .eq("id", satir.id);
-    return { durum: "gonderildi" };
-  }
-
+  if (!sonuc.ulasildi) return { tur: "gecici", hata: sonuc.hata };
+  const bakiye = { kalan: sonuc.kalanBakiye, versiyon: sonuc.bakiyeVersiyonu };
+  if (sonuc.basarili) return { tur: "gonderildi", saglayiciMesajId: sonuc.saglayiciMesajId, bakiye };
   const { kalici, kaliciDurum } = hataDegerlendir(sonuc.hata);
-
-  if (kalici) {
-    await admin.from("mesaj_kuyrugu").update({ durum: kaliciDurum, hata_mesaji: sonuc.hata }).eq("id", satir.id);
-    return { durum: kaliciDurum, hataMesaji: sonuc.hata };
-  }
-
-  return await geciciHataIsle(admin, satir, sonuc.hata);
+  return kalici ? { tur: "kalici", durum: kaliciDurum, hata: sonuc.hata, bakiye } : { tur: "gecici", hata: sonuc.hata };
 }
 
-async function geciciHataIsle(admin: SupabaseClient, satir: KuyrukSatiri, hataMesaji: string): Promise<KuyrukIslemSonucu> {
-  const yeniDeneme = satir.deneme_sayisi + 1;
-  if (yeniDeneme >= MAKS_DENEME) {
-    await admin.from("mesaj_kuyrugu").update({ durum: "hata", hata_mesaji: hataMesaji, deneme_sayisi: yeniDeneme }).eq("id", satir.id);
-    return { durum: "hata", hataMesaji };
+/** Adım 3. */
+export async function sonucuKaydet(tx: Tx, satir: KuyrukSatiri, sonuc: GonderSonucu, simdi = new Date()): Promise<MesajKuyrukDurum> {
+  const where = and(eq(K.id, satir.id), eq(K.klinikId, satir.klinikId), eq(K.durum, "gonderiliyor"));
+  if (sonuc.tur !== "gecici" && sonuc.bakiye) {
+    // Merkez yanıt verdiyse kalan bakiye her zaman güvenilirdir; versiyon guard'ı RPC içinde (eski yanıt yeniyi ezmez).
+    await rpc(tx, "mesaj_kredi_senkronla", { p_klinik_id: satir.klinikId, p_kanal: satir.kanal, p_bakiye: sonuc.bakiye.kalan, p_versiyon: sonuc.bakiye.versiyon });
   }
-
-  const bekleyecekDk = GERI_CEKILME_DAKIKA[yeniDeneme - 1];
-  const yeniZaman = new Date(Date.now() + bekleyecekDk * 60_000).toISOString();
-  await admin
-    .from("mesaj_kuyrugu")
-    .update({ durum: "beklemede", hata_mesaji: hataMesaji, deneme_sayisi: yeniDeneme, planlanan_zaman: yeniZaman })
-    .eq("id", satir.id);
-  return { durum: "beklemede", hataMesaji };
+  if (sonuc.tur === "gonderildi") {
+    await tx.update(K).set({ durum: "gonderildi", gonderimZamani: simdi.toISOString(), saglayiciMesajId: sonuc.saglayiciMesajId ?? null }).where(where);
+    return "gonderildi";
+  }
+  if (sonuc.tur === "kalici") {
+    await tx.update(K).set({ durum: sonuc.durum, hataMesaji: sonuc.hata }).where(where);
+    return sonuc.durum;
+  }
+  const sonraki = geciciHataSonrasi(satir.denemeSayisi, simdi);
+  await tx
+    .update(K)
+    .set({ durum: sonraki.durum, hataMesaji: sonuc.hata, denemeSayisi: sonraki.denemeSayisi, ...(sonraki.planlananZaman ? { planlananZaman: sonraki.planlananZaman.toISOString() } : {}) })
+    .where(where);
+  return sonraki.durum;
 }

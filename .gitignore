@@ -148,8 +148,6 @@ next-env.d.ts
 .DS_Store
 *.pem
 
-# Supabase local
-supabase/.temp
 .playwright-mcp/
 
 # Playwright
@@ -161,3 +159,4 @@ playwright-report/
 *.key
 .minisign/
 minisign.key
+bakim-dist/

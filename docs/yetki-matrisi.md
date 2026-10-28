@@ -27,12 +27,13 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | is_basvurusu | I |
 | seans_degerlendirme | I |
 
-## klinik_uygulama (80 tablo/görünüm)
+## klinik_uygulama (81 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
 | anket_yaniti | S,I,U |
 | audit_log | S,I |
+| bildirim_baglanti | I,D |
 | cihaz | S,I,U |
 | destek_talebi | S,I,U |
 | fatura | S |
@@ -112,12 +113,13 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | v_personel_hesap_bakiye | S |
 | v_personel_izin_bakiye | S |
 
-## klinik_yedek (103 tablo/görünüm)
+## klinik_yedek (104 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
 | anket_yaniti | S |
 | audit_log | S |
+| bildirim_baglanti | S |
 | cihaz | S |
 | destek_baglami | S |
 | destek_talebi | S |

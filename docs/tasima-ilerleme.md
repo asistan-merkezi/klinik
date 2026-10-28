@@ -4,27 +4,29 @@
 
 ## NEREDEN DEVAM EDİLECEK (bir sonraki oturum için)
 
-**Durum (2026-10-28, Modül 6 sonrası):** Modül 1–6 BİTTİ. Sıradaki: **Modül 7** (PDF, e-posta/mesaj, cron→scripts/bakim_rolu, chatbot dışı kalan supabase kalıntıları, personel cron route, final temizlik: @supabase/*, vercel.json, lib/supabase/*, lib/auth/eylem-yetkisi.ts). Modül 6 ayrıntısı: docs/tasima-ilerleme.md Modül 6 notu; 0015 destek bağlamı + zorunlu tenant sınırı (docs/platform-katmani.md).
-**Önceki:**  Modül 5 (personel/puantaj) BİTTİ — sıradaki Modül 6 (destek, yönetim vb.). Kalıntı Modül 7: lib/personel/{donem-maasi,seans-sayisi}.ts eski sürümleri + personel cron route.
-**Önceki durum:** Modül 1–4 BİTTİ (Modül 3 muayene, **Modül 4 ödeme/cari/finans/paket/işlem tanımları**). Sıradaki: **Modül 5 (personel ve puantaj, QR puantaj; `lib/qr/{klinik-bilgisi,qr-kod-aktif-mi}.ts` sarmalayıcıları burada silinecek; `lib/personel/{donem-maasi,seans-sayisi}.ts` içindeki eski supabase sürümleri + `hakedis` kuruş aritmetiği)**. Modül 4 karar bekleyen maddeler: docs/tasima-ilerleme.md Modül 4 §8 (iade sınırı, ödeme iptali/ters kayıt, terapist cari defter SELECT, silinebilen yönetim kayıtları). Yeni ortak parçalar: `lib/para.ts` (tüm para aritmetiği), `lib/finans/{okuma,eylem,idempotans,tutar}.ts`, `components/panel/islem-anahtari.tsx` (mali formlara gizli idempotency anahtarı), migration **0012**, `GIZLI_VERI_ANAHTARI` ortam değişkeni (Paraşüt secret şifreleme; adı `docs/sunucu-kurulum.md`te). Modül 7 bakım betiği: `islem_anahtari` 2 günden eski satır temizliği (klinik başına `withTenant`).
+**Durum (2026-10-28, Modül 7 sonrası): Supabase → Windows + PostgreSQL + Better Auth taşıması KOD olarak BİTTİ. Kalan Supabase importları: 0.** Modül 1–7 tamam (Modül 7: PDF sistem Chrome'u, Resend e-posta, KVKK uyumlu mesaj içeriği + tek kullanımlık bağlantılar, kuyruk işçisi, cron→Task Scheduler betikleri, izin/kaşe belge sunumu, SSE oturum denetimi, final temizlik). Ayrıntı: Modül 7 bölümü (aşağıda) ve `docs/prova-kayit.md`.
 
-**Durum (2026-10-27, oturum 2):** Aşama 4 ön adımları tamam. **Tenant DB'de türetme (Seçenek A, 0007) UYGULANDI** (`kullanici_tenant` eşlemesi; `app.tenant_id` yalnız super_admin/klinik_anonim/bakım/süper kullanıcı oturumunda geçerli; 13 yeni test, performans farkı ölçüm gürültüsünde — `docs/tasima-plani.md`). **Modül 2a (realtime altyapısı) BİTTİ**: `lib/realtime/` + `/api/canli` SSE + `useCanliOlaylar` + 0008 NOTIFY tetikleyicileri; 3 tüketici Supabase realtime'sız (veri çekimleri hâlâ supabase-js — Modül 2'de sunucuya taşınacak). **Modül 1 BİTTİ** (kalıntı: `lib/auth/eylem-yetkisi.ts` 8 çağıran bitene kadar, `lib/supabase/*` en sonda). **Modül 2 (hasta ve randevu) BİTTİ.** Sıradaki: **Modül 3 (muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto)** — belge/foto yükleme Modül 2'de büyük ölçüde yapıldı. (Eski not:) — `lib/randevu/queries.ts` + `RANDEVU_SELECT` Drizzle karşılığı (canli-cizelge/tablet-ekrani/randevu-bildirimleri'ndeki `createClient()` veri çekimlerini sunucu eylemi/route'a taşı; `useCanliOlaylar`'ın `onOlay/onSenkron` geri çağrıları bu yeni çekimi tetikler), QR kayıt/anket (gizli `klinik_id` kaldır, `anonimUcCalistir`), `lib/qr/hiz-siniri.ts` sil.
-**Yöntem:** `eylemYetkisiGetir` (eski, supabase döndürür) taşınmamış modüller için KALIYOR; taşınan modüller `lib/auth/yetki.ts > eylemYetkisi` (bağlam döndürür) kullanır. Sayfalarda `oturumBaglami()` + `tenantGerekli(ctx)` + `withTenant`. Tenant türetme Seçenek A uygulandı; Seçenek B (oturum jetonunu DB'de doğrulama) üretim öncesi karar noktası.
-**Test yöntemi:** her modül için `tests/db/modul-<ad>.test.ts` (izolasyon + rol + gerçek yazma). Eylemler Next istek bağlamı istediğinden testler eylemlerin kullandığı Drizzle ifadelerini birebir sınar.
+**Sıradaki iş (kod dışı):** `docs/prova-kayit.md` provasını gerçek Windows Server VM'de koş (özellikle 9. adım uygulama duman testi, 23. adım görev hesapları + `scripts/windows/gorevleri-kur.ps1`); üretim kapıları `docs/tasima-plani.md`. DEFINER taraması (81+ fonksiyon) sonucu `docs/definer-siniflama.md` "Destek bağlamı etkisi" sütununda; 7b'nin ilk hedefi o listedir.
+
+**Yöntem (kalıcı):** Sayfalarda `panelBaglami()` / `oturumBaglami()` + `tenantGerekli(ctx)` + `withTenant`; eylemlerde `lib/auth/yetki.ts > eylemYetkisi`; bakım işlerinde `lib/db/bakim.ts > bakimOturumuAc`. Her modül için `tests/db/modul-<ad>.test.ts` (izolasyon + rol + gerçek yazma; eylemler Next istek bağlamı istediğinden testler gerçek eylem/route kodunu oturum taklidiyle çağırır). Para: `lib/para.ts` (kuruş), mali formlarda `components/panel/islem-anahtari.tsx` (idempotency).
+
+**Bilinçli sınırlar / açık kararlar:** bkz. kök `CLAUDE.md > Yol Haritası` ve Modül 7 "karar bekleyen" listesi.
 
 
 ## Özet
 
 | # | Modül | Durum | Taşınan / Toplam | Kalan Supabase import'lu dosya |
 |---|---|---|---|---|
-| 1 | Kullanıcı/profil, klinik ayarları, ortak yardımcılar | **bitti** | 12 / 18 | 6 |
-| 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bitti** | 48 / 49 | 1 |
+| 1 | Kullanıcı/profil, klinik ayarları, ortak yardımcılar | **bitti** | 18 / 18 | 0 |
+| 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bitti** | 49 / 49 | 0 |
 | 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bitti** | 10 / 10 | 0 |
 | 4 | Ödeme / cari / finans / paket / işlem tanımları | **bitti** | 31 / 31 | 0 |
-| 5 | Personel ve puantaj (QR akışı dahil) | **bitti** | 18 / 20 | 2 |
+| 5 | Personel ve puantaj (QR akışı dahil) | **bitti** | 20 / 20 | 0 |
 | 6 | Destek ve yönetim (destek, chatbot, talep/şikayet, denetim geçmişi, gelmeme analizi, destek bağlamı) | **bitti** | 10 / 10 | 0 |
-| 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 2 / 17 | 15 |
-| | **Toplam** | | 131 / 155 | **24** |
+| 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bitti** | 17 / 17 | 0 |
+| | **Toplam** | | 155 / 155 | **0** |
+
+**Kalan Supabase importları: 0**
 
 Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-baslangic.txt`, 155 dosya); sayım `@supabase`, `@/lib/supabase` ve `createAdminClient` kullanan dosyaları kapsar. `lib/supabase/*` en sonda silinir.
 
@@ -32,20 +34,13 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
 
 - Durum: **bitti**
 - Not: Taşınan: lib/auth (oturum bağlamı, gecerliKullanici/gecerliHasta, yetki.ts), panel layout/actions, ayarlar (şirket bilgileri, yetkilendirme, muhasebe sync), dosya deposu (lib/dosya, logo route'ları), gece zorunlu çıkış (sunucu tarafı, ScheduledLogout silindi), oturum kilidi dosyaları silindi. KALINTI (bilinçli): lib/auth/eylem-yetkisi.ts (8 taşınmamış çağıran var) ve lib/supabase/* son modülde silinecek; yeni migration 0006 (parasut_secret_var).
-- Kalan dosyalar (6):
-  - `lib/auth/eylem-yetkisi.ts`
-  - `lib/supabase/admin.ts`
-  - `lib/supabase/client.ts`
-  - `lib/supabase/middleware.ts`
-  - `lib/supabase/sayfali-okuma.ts`
-  - `lib/supabase/server.ts`
+- Kalan dosyalar (0): —
 
 ## Modül 2 — Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil)
 
 - Durum: **bitti**
 - Not: Taşındı: randevu (actions, sorgular, canlı çizelge/tablet/bildirimler sunucu verisiyle), hasta (liste, detay, actions, veri-actions), portal, QR ön kayıt/anket/iş başvurusu/seans anketi (kısa kod + anonim kapı, gizli klinik_id kalktı, lib/qr/hiz-siniri silindi), hasta belgeleri (diskte, yetkili route /api/hasta-belge/[id], imza doğrulama), arşiv içe aktarma (hasta/randevu), QR yönetimi, resmi tatiller, elle mesaj. Yeni migration: 0009 (terapist_uygunluk_getir), 0010 (hasta_kullanici INSERT), 0011 (mesaj kuyruğu INSERT + kural SELECT). KALINTI (bilinçli, sonraki modüller): lib/qr/{klinik-bilgisi,qr-kod-aktif-mi}.ts ince sarmalayıcı (puantaj, Modül 5), lib/mesaj/randevu-hatirlatma-tarama.ts + lib/tatil/oneri-uret-admin.ts (cron, Modül 7), odeme-paket arşiv sihirbazı (Modül 4), PDF route'ları (Modül 7). KARAR BEKLEYEN: (1) resmi tatil `Şimdi kontrol et` butonu artık yazmıyor (global resmi_tatil/öneri yazımı yalnız aylık betikte; kullanıcıya yazma yetkisi verilmedi); (2) elle hasta mesajı anında göndermiyor, kuyruğa alıyor (kuyruk işçisi gönderir); (3) 0011 politikaları (mesaj_kurallari SELECT + mesaj_kuyrugu INSERT, klinik_admin/resepsiyon/terapist) service-role-siniflama (b) kararının gerektirdiği dar yetkilerdir.
-- Kalan dosyalar (1):
-  - `lib/tatil/oneri-uret-admin.ts`
+- Kalan dosyalar (0): —
 
 ## Modül 3 — Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto
 
@@ -157,9 +152,7 @@ Kararlar: **A** iade sınırı **UYGULANDI** (0013; bağlantılı iade + yöneti
 
 - Durum: **bitti**
 - Not: Taşındı: personel hub/detay/eylemler (hesap oluşturma = kimlik hesabı + tek tenant transaction, hata olursa kimlik hesabı geri silinir; işten çıkışta hesap devre dışı + oturumlar iptal), iş başvuruları, pozisyon tanımları, izin (talep/onay/ret/iptal, manuel izin-rapor), puantaj cetveli (gün, FM onayı, dönem kapat/aç), maaş ayarları + cari hesap + toplu ödeme (kuruş, idempotency anahtarı), QR puantaj (kısa kod → klinik, kişi oturumdan). Hakediş/maaş aritmetiği kuruşa geçti (lib/maas.ts, lib/personel/hakedis.ts; oranlaKurus yarım-yukarı). Yeni migration 0014 (izin_bildirim_alicilari, dar DEFINER). Dosyalar diskte: izin belgesi + kaşe (personel-belge) — SUNUM ROTASI YOK (UI yalnız 'yüklendi' der; PDF formu Modül 7). KALINTI: lib/personel/{donem-maasi,seans-sayisi}.ts eski supabase sürümleri (personel dönem kapama cron'u için, Modül 7). KARAR BEKLEYEN: muhasebe rolünün izin talebi bildirimi mesaj_kuyrugu INSERT politikası (0011) muhasebeyi kapsamadığı için kuyruğa yazılmıyor (best-effort). Testler: tests/db/modul-personel.test.ts (22).
-- Kalan dosyalar (2):
-  - `lib/personel/donem-maasi.ts`
-  - `lib/personel/seans-sayisi.ts`
+- Kalan dosyalar (0): —
 
 ## Modül 6 — Destek ve yönetim (destek, chatbot, talep/şikayet, denetim geçmişi, gelmeme analizi, destek bağlamı)
 
@@ -169,24 +162,30 @@ Kararlar: **A** iade sınırı **UYGULANDI** (0013; bağlantılı iade + yöneti
 
 ## Modül 7 — Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot
 
-- Durum: **bekliyor**
-- Not: Cron route'ları scripts/'e (bakim_rolu) taşınıp silinecek; PDF -> CHROMIUM_PATH; mesaj merkezi istemcisi withTenant; chatbot bayrakla kapalı.
-- Kalan dosyalar (15):
-  - `app/(app)/panel/ayarlar/mesajlasma/actions.ts`
-  - `app/(app)/panel/ayarlar/mesajlasma/kredi/[kanal]/actions.ts`
-  - `app/(app)/panel/ayarlar/mesajlasma/kredi/[kanal]/page.tsx`
-  - `app/(app)/panel/ayarlar/mesajlasma/page.tsx`
-  - `app/api/cron/audit-log-bolum-olustur/route.ts`
-  - `app/api/cron/kredi-senkron/route.ts`
-  - `app/api/cron/mesaj-kuyruk-isle/route.ts`
-  - `app/api/cron/personel-donem-otomatik-kapat/route.ts`
-  - `app/api/cron/resmi-tatil-guncelle/route.ts`
-  - `app/api/hasta-cari-hareketler/pdf/route.ts`
-  - `app/api/hasta-kayit-formu/pdf/route.ts`
-  - `app/api/is-basvuru-formu/pdf/route.ts`
-  - `lib/mesaj/anlik-tetikle.ts`
-  - `lib/mesaj/kuyruk-isle.ts`
-  - `lib/mesaj/randevu-hatirlatma-tarama.ts`
+- Durum: **bitti**
+- Not: Taşındı: PDF (sistem Chrome, semafor, ağ/dosya erişimi kapalı), e-posta (Resend), KVKK uyumlu mesaj içeriği + tek kullanımlık bağlantılar (/b/[token]), kuyruk işçisi, cron route'ları → scripts/bakim (bakim_rolu + klinik başına sistem bağlamı, Task Scheduler), izin belgesi/kaşe sunumu, SSE oturum denetimi, Supabase/Vercel final temizliği. Yeni migration: 0016. Ayrıntı ve KARAR BEKLEYEN maddeler aşağıda.
+- Kalan dosyalar (0): —
+
+### Modül 7 ayrıntıları (2026-10-28)
+
+**Ön adımlar (commit 43a1c65):** (A) `db/kontrol/bypassrls-kontrol.sql` — `klinik_id` kolonlu her RLS'li tabloda RESTRICTIVE `zorunlu_tenant_siniri` yoksa HATA (`test:db` + CI `veritabani` işi + `kontrol-calistir`); tek bilinçli istisna `destek_baglami` ve `bildirim_baglanti` (token anonim akışta tenant'sız aranır; uygulama rolü için sınır ZORUNLU, ayrı kontrol 6e). (B) 81 DEFINER taraması: `docs/definer-siniflama.md` "Destek bağlamı etkisi" sütunu; bulgu: DEFINER'lar `klinik_sahip` olarak çalıştığından PUBLIC politikalardaki `OR is_super_admin()` dalı sahibe de uygulanıyor ve destek bağlamı başka klinik verisi sızdırıyordu → 0015'te RESTRICTIVE politika `klinik_sahip`'e de uygulandı; duman testine D/E bağlamları + mutasyon kanıtı eklendi. Şimdi 89 satır: 2 yeni DEFINER (`izin_talebi_yoneticiye_bildir`, `bildirim_baglantisi_kullan`) listede, hiç SIZINTI yok. **Aşama 7b'nin ilk hedefi bu listedir** (super_admin dalı olan fonksiyonlar).
+
+**1. PDF (commit cb7867b + bu tur):** sistem Chrome/Edge (`CHROMIUM_PATH`), en fazla 2 eşzamanlı işlem, zaman aşımı, ağ/`file://` kapalı, tenant kapılı route'lar, şablonlarda kaçışlama; `@sparticuz/chromium` paketi ve `next.config.ts` ayarları kaldırıldı.
+
+**2. E-posta:** `lib/mesaj/eposta-resend.ts` (Resend EU, düz metin, `Idempotency-Key`), varsayılan gönderici (şifre sıfırlama gerçekten e-posta atar; yapılandırma yoksa açık hata), 28 şablon → `GENEL_MESAJ_METNI`, `lib/mesaj/icerik.ts` doğrulama, `/b/[token]` bağlantıları (0016 `bildirim_baglanti`). Test: birim (`eposta-resend.test.ts`, `icerik.test.ts`) + gerçek Resend (`eposta-resend.entegrasyon.test.ts`, `RESEND_TEST_API_KEY` yoksa atlanır — **bu oturumda anahtar olmadığından çalıştırılmadı**).
+
+**3. Mesaj çıkış uçları:** `anlikMesajTetikle` yalnız Tx (admin sürümü silindi), klinik kimliğiyle ön ekli idempotency anahtarı, satır başına ayrı bağlantı (savepoint'te: çakışırsa bağlantı da geri alınır); kuyruk işçisi 3 adımlı (claim → HTTP dışarıda → sonuç), saatlik klinik kotası, geçici/kalıcı hata ayrımı; `izin_talebi_yoneticiye_bildir` (alıcı klinik_admin'e DB'de kilitli; 3 durumlu test `modul-mesaj-bakim.test.ts`). `izin_bildirim_alicilari` (iletişim bilgisini istemciye döndürüyordu) KALDIRILDI.
+
+**4. Cron → scripts/bakim:** 6 betik + `lib/db/bakim.ts > bakimOturumuAc`, `lib/personel/donem-kapat.ts`, `lib/tatil/guncelleme.ts`, `lib/bakim/temizlik.ts`; `npm run bakim:derle` (esbuild), `paketle.ps1`/CI güncellendi, `scripts/windows/gorevleri-kur.ps1`. Eski `lib/personel/{donem-maasi,seans-sayisi}.ts` Supabase sürümleri silinmeden önce aynı fixture'da yeni sürümlerle karşılaştırıldı (aynı sonuç) ve altın değerlere çevrildi (`tests/db/modul-donem-kapat.test.ts`); betik çekirdeği ile elle "Dönem Kapat" kuruş kuruşa aynı hakedişi yazıyor.
+
+**5. Belge sunumu:** `/api/personel-belge/izin/[talepId]` (talep sahibi + klinik_admin) ve `/api/personel-belge/kase/[personelId]` (yalnız klinik_admin); kayıtlı yol kalıba uymalı (tenant/kişi/uzantı) → path traversal ve çapraz-tenant yol işaretleri 404; UI "Belgeyi görüntüle" / "Kayıtlı kaşeyi görüntüle". Test: `tests/db/modul-personel-belge.test.ts`.
+
+**6. SSE:** her 25 sn'lik ping'de oturum yeniden çözülür; geçersiz/başka kullanıcı/başka klinik/geçici şifre/çözümleme hatası → `event: oturum` + kapanış (fail-closed), istemci yeniden bağlanmaz ve sayfayı yeniler. Test: `realtime.test.ts` (birim) + `tests/db/canli-oturum.test.ts` (route).
+
+**7. Final temizlik:** `lib/supabase/*`, `eylem-yetkisi`, `createAdminClient`, `cron-yetki`, `vercel.json`, `@supabase/*` ve `@sparticuz/chromium` paketleri silindi; eski Supabase migration geçmişi `db/arsiv/eski-migrationlar` + `eski-bekleyen` altına taşındı (yalnız `scripts/dev/yeniden-uret.mjs`/`definer-envanter.mjs` okur); kod yorumlarındaki anmalar temizlendi; CLAUDE.md yeni mimariyle yeniden yazıldı.
+
+**KARAR BEKLEYEN:** (1) Elle hasta mesajı ve "Test Gönder" anında göndermez, kuyruğa alır (kullanıcı oturumu kuyruk satırını işleyemez); elle mesajda metin düzenlenemez (sunucu şablondan üretir). (2) Ödeme dönüşünde kredi bakiyesi `kredi-senkron` (saatlik) ile yansır; kullanıcı oturumu yerel bakiyeyi yazamaz. (3) Bağlantı yalnız giriş sayfasına yönlendirir (veri/oturum yok); tarayıcı ön izleme robotları token'ı tüketebilir — etkisi yalnız yönlendirmedir. (4) Bakım betikleri saatleri sunucu saat dilimine (Turkey Standard Time) göredir. (5) Muhasebe izin belgesini göremez (izin talepleri RLS'te yalnız yönetici/sahibe açık). (6) Kliniğin serbest şablonundaki desensiz kişisel veri (ad-soyad) koddan yakalanamaz.
+
 
 ## Taşırken temizlenecekler (takip)
 

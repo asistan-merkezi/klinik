@@ -1,4 +1,4 @@
-// Postgres fonksiyonu (eski Supabase `.rpc()`) çağrısı: adlandırılmış argümanlarla `select * from fn(p_x => $1, ...)`.
+// Postgres fonksiyonu çağrısı: adlandırılmış argümanlarla `select * from fn(p_x => $1, ...)`.
 // Fonksiyon adı SABİT bir dize olmalıdır (kullanım tarayıcısı `rpc(tx, "ad"` kalıbından EXECUTE yetkisini türetir; scripts/dev/kullanim-tara.mjs).
 // Dönüş: satır dizisi (skaler dönen fonksiyonlarda tek kolon, kolon adı fonksiyon adıdır).
 import { sql } from "drizzle-orm";

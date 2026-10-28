@@ -19,7 +19,7 @@ import { bolum, alan, onay, sayfa, imzaSatiri, formBasligi, css, kacir, renk, st
 type IkonTuru = "uyari" | "damla";
 
 /**
- * Emoji (⚠ 🩸) yerine — @sparticuz/chromium'un Lambda ortamında emoji
+ * Emoji (⚠ 🩸) yerine — serverless ortamlarında emoji
  * font'u yok (sistem fontu minimal), glyph bulunamayıp boş kutu basıyordu.
  * Font gömmek (Noto Color Emoji ~10MB) bundle'ı şişirir ve siyah-beyaz
  * baskıda renkli emoji zaten anlamsız — onun yerine lucide-react'in

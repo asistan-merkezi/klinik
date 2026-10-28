@@ -9,15 +9,13 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:db": "vitest run --config vitest.db.config.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "bakim:derle": "node scripts/bakim/derle.mjs"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.62",
     "@base-ui/react": "^1.6.0",
     "@node-rs/argon2": "^2.2.2",
-    "@sparticuz/chromium": "149.0.0",
-    "@supabase/ssr": "^0.12.3",
-    "@supabase/supabase-js": "^2.110.8",
     "@tanstack/react-query": "^5.101.4",
     "ai": "^7.0.59",
     "better-auth": "^1.7.14",
@@ -53,6 +51,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "shadcn": "^4.21.1",

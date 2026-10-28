@@ -21,12 +21,14 @@ const eslintConfig = defineConfig([
     // drizzle-kit pull çıktısı (scripts/dev/drizzle-cek.mjs ile yeniden üretilir)
     "lib/db/sema/**",
     "scripts/dev/node_modules/**",
+    // esbuild çıktısı (npm run bakim:derle)
+    "bakim-dist/**",
     "scripts/dev/.veri/**",
   ]),
   // withTenant dışında doğrudan sorgu çalıştırmayı engelle: havuz/pg/drizzle-pg yalnız lib/db ve lib/auth (kimlik) içinde import edilebilir.
   {
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
-    ignores: ["lib/db/**", "lib/auth/**", "lib/realtime/dinleyici.ts", "scripts/dev/**", "db/kontrol/**", "tests/db/**", "tests/e2e/**", "**/*.test.ts", "**/*.test.tsx"],
+    ignores: ["lib/db/**", "lib/auth/**", "lib/realtime/dinleyici.ts", "scripts/dev/**", "scripts/bakim/**", "db/kontrol/**", "tests/db/**", "tests/e2e/**", "**/*.test.ts", "**/*.test.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",

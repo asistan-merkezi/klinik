@@ -128,7 +128,7 @@ export function MesajAtModal({
 
         {secenekler && secilen && (
           <div className="flex flex-col gap-3">
-            <Textarea value={metin} onChange={(e) => setMetin(e.target.value)} rows={5} maxLength={1000} aria-label="Mesaj metni" />
+            <Textarea value={metin} readOnly rows={5} maxLength={1000} aria-label="Mesaj metni (önizleme)" />
 
             <fieldset className="flex flex-wrap gap-x-4 gap-y-2">
               <legend className="sr-only">Kanal</legend>

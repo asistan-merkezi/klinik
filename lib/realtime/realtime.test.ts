@@ -139,4 +139,83 @@ describe("sseYaniti", () => {
       vi.useRealTimers();
     }
   });
+
+  describe("oturum denetimi (her 25 sn'lik ping'de)", () => {
+    const bekleMikro = async () => {
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    };
+    const kur = (oturumGecerliMi: () => Promise<boolean>) => {
+      const d = new Dagitici();
+      const r = sseYaniti({ dagitici: d, klinikId: K1, kullaniciId: "u1", tablolar: new Set(["randevu"]), signal: new AbortController().signal, oturumGecerliMi })!;
+      return { d, r };
+    };
+    const tumunuOku = async (r: Response) => {
+      const reader = r.body!.getReader();
+      const dec = new TextDecoder();
+      let s = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) return s;
+        s += dec.decode(value);
+      }
+    };
+
+    it("oturum geçerliyse her ping'de denetlenir ve bağlantı AÇIK kalır", async () => {
+      const denetim = vi.fn(async () => true);
+      const { d } = kur(denetim);
+      d.ping();
+      await bekleMikro();
+      d.ping();
+      await bekleMikro();
+      expect(denetim).toHaveBeenCalledTimes(2);
+      expect(d.toplamAbone()).toBe(1);
+    });
+
+    it("oturum geçersizse 'oturum' olayı gönderilir, akış kapanır ve abonelik düşer", async () => {
+      const { d, r } = kur(async () => false);
+      d.ping();
+      await bekleMikro();
+      expect(d.toplamAbone()).toBe(0);
+      const metin = await tumunuOku(r);
+      expect(metin).toContain("event: ping");
+      expect(metin).toContain(`event: oturum${String.fromCharCode(10)}data: {"gecerli":false}`);
+    });
+
+    it("denetim HATA verirse (doğrulanamıyor) fail-closed: bağlantı kapanır", async () => {
+      const { d, r } = kur(async () => {
+        throw new Error("veritabanı yok");
+      });
+      d.ping();
+      await bekleMikro();
+      expect(d.toplamAbone()).toBe(0);
+      expect(await tumunuOku(r)).toContain("event: oturum");
+    });
+
+    it("denetim sürerken gelen ikinci ping yeni denetim BAŞLATMAZ (birikme yok)", async () => {
+      let coz!: (v: boolean) => void;
+      const denetim = vi.fn(() => new Promise<boolean>((res) => (coz = res)));
+      const { d } = kur(denetim);
+      d.ping();
+      d.ping();
+      d.ping();
+      expect(denetim).toHaveBeenCalledTimes(1);
+      coz(true);
+      await bekleMikro();
+      d.ping();
+      expect(denetim).toHaveBeenCalledTimes(2);
+    });
+
+    it("denetim yalnız ping'de çalışır; olaylarda çalışmaz; denetim verilmediyse eski davranış korunur", async () => {
+      const denetim = vi.fn(async () => true);
+      const { d } = kur(denetim);
+      d.dagit({ tablo: "randevu", id: ID, klinikId: K1 });
+      await bekleMikro();
+      expect(denetim).not.toHaveBeenCalled();
+      const d2 = new Dagitici();
+      sseYaniti({ dagitici: d2, klinikId: K1, kullaniciId: "u1", tablolar: new Set(["randevu"]), signal: new AbortController().signal });
+      d2.ping();
+      await bekleMikro();
+      expect(d2.toplamAbone()).toBe(1);
+    });
+  });
 });

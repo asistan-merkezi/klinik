@@ -7,22 +7,9 @@ const nextConfig: NextConfig = {
   // Windows Server dağıtımı (deploy/windows/guncelle.ps1): `.next/standalone/server.js` + izlenen node_modules tek klasörde çıkar;
   // `.next/static` ve `public` sürüm klasörüne betikle kopyalanır. Sunucuda `npm ci` gerekmez, `node server.js` yeter.
   output: "standalone",
-  // puppeteer-core + @sparticuz/chromium Node.js API'lerine (fs, child_process)
-  // ve büyük native binary'lere dayanıyor — Next.js'in serverless fonksiyon
-  // bundler'ının bunları paketlemeye çalışıp bozması yerine dışarıda
-  // (node_modules'ten olduğu gibi) bırakılması gerekiyor.
-  serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
-  // @sparticuz/chromium kendi .br (brotli) binary'lerinin yolunu
-  // `import.meta.url` ile ÇALIŞMA ANINDA hesaplıyor (bkz. paket içindeki
-  // getBinPath()) — literal bir require()/import() olmadığı için Next'in
-  // dosya izleme (file tracing) statik analizi bu 67MB'lık dosyaları
-  // otomatik bulamıyor; elle dahil edilmezse serverless fonksiyonda
-  // "Could not find Chromium"/ENOENT ile çalışma anında patlar.
-  outputFileTracingIncludes: {
-    "/api/hasta-kayit-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/is-basvuru-formu/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/hasta-cari-hareketler/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
-  },
+  // puppeteer-core Node.js API'lerine (fs, child_process) dayanır: Next'in bundler'ı paketlemesin, node_modules'ten olduğu gibi yüklensin.
+  // PDF için tarayıcı sistem Chrome/Edge'dir (CHROMIUM_PATH); pakete ikili dosya GİRMEZ.
+  serverExternalPackages: ["puppeteer-core"],
   async headers() {
     return [
       {

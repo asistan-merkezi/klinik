@@ -1,6 +1,6 @@
 // Inter Regular (400) woff2, Google Fonts'tan indirilip base64 gömüldü.
 // Puppeteer PDF şablonu (lib/pdf) setContent() ile render edildiği için harici
-// font/stylesheet URL'leri çalışmıyor — @sparticuz/chromium'un Lambda ortamında
+// font/stylesheet URL'leri çalışmıyor — sunucuda
 // sistem fontu da bulunmayabileceğinden (Türkçe karakterler kutu/eksik glif
 // olarak basılabilir), font burada self-contained data URI olarak gömülü.
 // latin: temel ASCII + Latin-1 (ç ö ü Ç Ö Ü dahil). latin-ext: ş Ş ğ Ğ ı İ dahil.

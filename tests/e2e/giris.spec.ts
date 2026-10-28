@@ -1,7 +1,5 @@
 // Giriş duman testi (gerçek tarayıcı): Next server action + Better Auth çerez yazımı + proxy yönlendirmeleri.
-// Giriş SONRASI sayfalar (/panel, /portal) modül taşıması bitene kadar eski Supabase'li kodu çalıştırır ve oturumu göremeyip /giris'e geri atar.
-// Bu yüzden hedef, sunucu eyleminin YÖNLENDİRME BAŞLIĞINDAN (x-action-redirect) ve proxy'nin yönlendirme yanıtlarından (maxRedirects:0) okunur;
-// sayfa içeriği doğrulanmaz. (Panel taşındıktan sonra bu testler nihai URL/içerik doğrulamasıyla sıkılaştırılır.)
+// Hedef, sunucu eyleminin YÖNLENDİRME BAŞLIĞINDAN (x-action-redirect) ve proxy'nin yönlendirme yanıtlarından (maxRedirects:0) okunur; sayfa içeriği doğrulanmaz.
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
@@ -72,7 +70,6 @@ test.describe("personel girişi", () => {
     expect(c!.path).toBe("/");
     const cihaz = (await page.context().cookies()).find((x) => x.name === "klinik_cihaz");
     expect(cihaz?.httpOnly).toBe(true);
-    // (/panel'in nihai davranışı modül taşıması bitince doğrulanacak: eski sayfa Supabase oturumu bekleyip /giris'e geri yönlendirir)
   });
 
   test("telefon ile giriş (resepsiyon) /panel'e yönlenir; admin telefonla GİREMEZ", async ({ page, browser }) => {

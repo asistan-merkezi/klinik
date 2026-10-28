@@ -1,4 +1,4 @@
-// İki klinikli deneme düzeneği: db/ dosyalarından (Supabase katmanı OLMADAN) boş bir Postgres'e kurar ve iki kliniğe örnek veri yazar.
+// İki klinikli deneme düzeneği: db/ dosyalarından boş bir Postgres'e kurar ve iki kliniğe örnek veri yazar.
 // Kullanım (kontrol-calistir.mjs içinden): const duzenek = await testKumesiKur();
 import fs from "node:fs";
 import path from "node:path";
