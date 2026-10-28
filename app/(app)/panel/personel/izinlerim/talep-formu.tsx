@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
+import { izinIsGunuSayisi } from "../izin-veri-actions";
 import { IZIN_TIP_SECENEKLERI } from "@/types/izin";
 import { izinTalebiOlustur } from "./actions";
 
@@ -76,14 +76,10 @@ export function TalepFormu({ personelSecici }: { personelSecici: PersonelSecici 
     const istekNo = ++sonIstekRef.current;
     setSayaçYukleniyor(true);
     const zamanlayici = setTimeout(async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase.rpc("personel_izin_is_gunu_sayisi", {
-        p_baslangic: yeniBaslangic,
-        p_bitis: yeniBitis,
-      });
+      const sonuc = await izinIsGunuSayisi(yeniBaslangic, yeniBitis);
       if (istekNo !== sonIstekRef.current) return; // eskimiş istek, yok say
       setSayaçYukleniyor(false);
-      if (!error) setIsGunuSayisi(data as number);
+      if (sonuc !== null) setIsGunuSayisi(sonuc);
     }, 300);
 
     return () => clearTimeout(zamanlayici);

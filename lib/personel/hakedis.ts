@@ -1,4 +1,5 @@
 import { maasHesapla, type MaasHesapParametreleri } from "@/lib/maas";
+import { kurus, tlTopla } from "@/lib/para";
 
 /**
  * Puantaj Cetveli'nin "Hakediş (₺)" kolonu için TEK kaynak — hiçbir UI
@@ -41,9 +42,6 @@ export type HakedisSonucu = {
   kaynak: "ledger" | "tahmini";
 };
 
-function yuvarla2(deger: number): number {
-  return Math.round(deger * 100) / 100;
-}
 
 export function hakedisHesapla(girdi: HakedisGirdisi): HakedisSonucu {
   const parametreler: MaasHesapParametreleri = girdi.terapistAyarlari
@@ -62,13 +60,14 @@ export function hakedisHesapla(girdi: HakedisGirdisi): HakedisSonucu {
   parametreler.istenCikisTarihi = girdi.istenCikisTarihi;
 
   const hesap = maasHesapla(parametreler, girdi.tamamlananSeansSayisi, 0);
-  const mesai = yuvarla2((girdi.fmSaatlikUcret ?? 0) * girdi.onayliFmSaat);
+  // Saatlik ücret (kuruş tamsayı) × onaylı saat (süre; para değil) → kuruşa yuvarlanır.
+  const mesai = Math.round((kurus(girdi.fmSaatlikUcret ?? 0) ?? 0) * girdi.onayliFmSaat) / 100;
 
   return {
     taban: hesap.taban,
     prim: hesap.prim,
     mesai,
-    toplam: yuvarla2(hesap.taban + hesap.prim + mesai),
+    toplam: tlTopla([hesap.taban, hesap.prim, mesai]),
     kaynak: "tahmini",
   };
 }
@@ -79,9 +78,9 @@ export function hakedisKapaliDonemToplami(satirlar: { tur: string; tutar: number
   let prim = 0;
   let mesai = 0;
   for (const s of satirlar) {
-    if (s.tur === "hakedis") taban += s.tutar;
-    else if (s.tur === "prim") prim += s.tutar;
-    else if (s.tur === "mesai") mesai += s.tutar;
+    if (s.tur === "hakedis") taban = tlTopla([taban, s.tutar]);
+    else if (s.tur === "prim") prim = tlTopla([prim, s.tutar]);
+    else if (s.tur === "mesai") mesai = tlTopla([mesai, s.tutar]);
   }
-  return { taban, prim, mesai, toplam: yuvarla2(taban + prim + mesai), kaynak: "ledger" };
+  return { taban, prim, mesai, toplam: tlTopla([taban, prim, mesai]), kaynak: "ledger" };
 }

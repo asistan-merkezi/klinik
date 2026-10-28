@@ -1,11 +1,13 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { anlikMesajTetikleAdmin as anlikMesajTetikle, klinikAdminleriniGetir } from "@/lib/mesaj/anlik-tetikle";
+import { eq } from "drizzle-orm";
+import { pgHata, rpc, sema, withTenant, type TenantBaglami } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
+import { anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
+import { dosyaSil, dosyaYaz } from "@/lib/dosya/depo";
+import { icerikTipiDogrula } from "@/lib/dosya/imza";
 import { IZIN_TIP_ETIKETLERI, type IzinTip } from "@/types/izin";
 import { formatDate } from "@/lib/datetime";
 
@@ -25,67 +27,42 @@ const talepSemasi = z.object({
   gerekce: z.string().trim().optional(),
 });
 
-type HedefPersonel = { id: string; ad_soyad: string; klinik_id: string; klinik: { ad: string } | null };
+/** Tüm personel rolleri kendi izin talebini yönetebilir (RPC'ler sahiplik/rolü içeride doğrular). */
+const PERSONEL_ROLLERI = ["klinik_admin", "resepsiyon", "terapist", "muhasebe"] as const;
 
-async function kendiPersoneliGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type HedefPersonel = { id: string; adSoyad: string; klinikId: string; klinikAd: string | null };
 
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: personel } = await supabase
-    .from("personel")
-    .select("id, ad_soyad, klinik_id, klinik:klinik_id(ad)")
-    .eq("kullanici_id", user.id)
-    .maybeSingle<HedefPersonel>();
-
-  return { supabase, personel };
+async function personelBul(bag: TenantBaglami, kosul: { id?: string; kullaniciId?: string }): Promise<HedefPersonel | null> {
+  const satir = (
+    await withTenant(bag, (tx) =>
+      tx
+        .select({ id: sema.personel.id, adSoyad: sema.personel.adSoyad, klinikId: sema.personel.klinikId, klinikAd: sema.klinik.ad })
+        .from(sema.personel)
+        .leftJoin(sema.klinik, eq(sema.klinik.id, sema.personel.klinikId))
+        .where(kosul.id ? eq(sema.personel.id, kosul.id) : eq(sema.personel.kullaniciId, kosul.kullaniciId ?? ""))
+        .limit(1)
+    )
+  )[0];
+  return satir ?? null;
 }
 
 /**
- * klinik_admin/muhasebe formdan bir personel_id seçmişse ONUN adına talep
- * oluşturulur (RPC tarafı da bu iki rolü ayrıca yetkilendirir, bkz.
- * personel_izin_talep_olustur) — aksi halde her zaman çağıranın kendi
- * personel kaydına düşer (mevcut self-servis davranış, değişmedi).
+ * klinik_admin/muhasebe formdan bir personel_id seçmişse ONUN adına talep oluşturulur (RPC tarafı da bu iki rolü ayrıca yetkilendirir) —
+ * aksi halde her zaman çağıranın kendi personel kaydına düşer (self-servis). Tenant dışı kimlik RLS ile görünmez → "bulunamadı".
  */
-async function hedefPersoneliCoz(formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-  const secimYapabilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "muhasebe";
-
-  const secilenPersonelId = formData.get("personel_id");
-  if (secimYapabilir && typeof secilenPersonelId === "string" && secilenPersonelId) {
-    const { data: personel } = await supabase
-      .from("personel")
-      .select("id, ad_soyad, klinik_id, klinik:klinik_id(ad)")
-      .eq("id", secilenPersonelId)
-      .maybeSingle<HedefPersonel>();
-    return { supabase, personel };
-  }
-
-  const { data: personel } = await supabase
-    .from("personel")
-    .select("id, ad_soyad, klinik_id, klinik:klinik_id(ad)")
-    .eq("kullanici_id", user.id)
-    .maybeSingle<HedefPersonel>();
-
-  return { supabase, personel };
-}
-
 export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, personel } = await hedefPersoneliCoz(formData);
+  const y = await eylemYetkisi(PERSONEL_ROLLERI);
+  if (!y.yetkili || !y.bag || !y.klinikId) return { success: false, message: YETKISIZ_MESAJI };
+  const bag = y.bag;
+
+  const secimYapabilir = y.ctx.rol === "klinik_admin" || y.ctx.rol === "muhasebe";
+  const secilen = formData.get("personel_id");
+  const personel =
+    secimYapabilir && typeof secilen === "string" && secilen
+      ? z.string().uuid().safeParse(secilen).success
+        ? await personelBul(bag, { id: secilen })
+        : null
+      : await personelBul(bag, { kullaniciId: y.ctx.userId });
   if (!personel) {
     return { success: false, message: "Personel bulunamadı." };
   }
@@ -103,14 +80,12 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
 
   const { tip, baslangic_tarih, bitis_tarih, gerekce } = ayristirma.data;
 
-  // Belge yükleme — personel-belge bucket'ının INSERT RLS'i klinik_admin-only
-  // (kaşe görseli için kurulmuştu), o yüzden yükleme burada admin client ile
-  // yapılıyor (personelHesabiOlustur'daki kaşe görseli yüklemesiyle aynı desen).
+  // Belge: DOSYA_KOKU/personel-belge/<klinik>/izin/<personel>/<zaman>.<uzantı>. Tür ve boyut sunucuda zorlanır (formdaki `accept` yalnız ipucu),
+  // uzantı kullanıcı adından değil MIME türünden; dosya imzası (magic number) türle uyuşmalı.
   let belgeUrl: string | null = null;
+  let belgeParcalari: string[] | null = null;
   const belgeDosyasi = formData.get("belge");
   if (belgeDosyasi instanceof File && belgeDosyasi.size > 0) {
-    // Yükleme service-role ile yapıldığı için tür/boyut sunucuda da zorlanır
-    // (formdaki `accept` yalnız tarayıcı ipucu); uzantı kullanıcı adından değil türden.
     const uzanti = IZIN_BELGE_TURLERI[belgeDosyasi.type];
     if (!uzanti) {
       return { success: false, message: "Belge yalnız PDF, JPG veya PNG olabilir." };
@@ -118,62 +93,67 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
     if (belgeDosyasi.size > IZIN_BELGE_MAX_BYTE) {
       return { success: false, message: "Belge en fazla 10 MB olabilir." };
     }
-    const adminClient = createAdminClient();
-    const yol = `${personel.klinik_id}/izin/${personel.id}/${Date.now()}.${uzanti}`;
-    const { error: yuklemeHatasi } = await adminClient.storage
-      .from("personel-belge")
-      .upload(yol, belgeDosyasi, { contentType: belgeDosyasi.type });
-    if (yuklemeHatasi) {
-      console.error("İzin belgesi yüklenemedi:", yuklemeHatasi);
+    const veri = Buffer.from(await belgeDosyasi.arrayBuffer());
+    if (!icerikTipiDogrula(belgeDosyasi.type, veri)) {
+      return { success: false, message: "Belge içeriği dosya türüyle uyuşmuyor." };
+    }
+    belgeParcalari = [personel.klinikId, "izin", personel.id, `${Date.now()}.${uzanti}`];
+    try {
+      await dosyaYaz("personel-belge", belgeParcalari, veri);
+    } catch (e) {
+      console.error("İzin belgesi yüklenemedi:", e instanceof Error ? e.message : e);
       return { success: false, message: "Belge yüklenemedi, lütfen tekrar deneyin." };
     }
-    belgeUrl = yol;
+    belgeUrl = belgeParcalari.join("/");
   }
 
-  const { error } = await supabase.rpc("personel_izin_talep_olustur", {
-    p_personel_id: personel.id,
-    p_tip: tip,
-    p_baslangic_tarih: baslangic_tarih,
-    p_bitis_tarih: bitis_tarih,
-    p_gerekce: gerekce ? gerekce : null,
-    p_belge_url: belgeUrl,
-  });
-
-  if (error) {
-    console.error("İzin talebi oluşturulamadı:", error);
+  try {
+    await withTenant(bag, (tx) =>
+      rpc(tx, "personel_izin_talep_olustur", {
+        p_personel_id: personel.id,
+        p_tip: tip,
+        p_baslangic_tarih: baslangic_tarih,
+        p_bitis_tarih: bitis_tarih,
+        p_gerekce: gerekce ? gerekce : null,
+        p_belge_url: belgeUrl,
+      })
+    );
+  } catch (e) {
+    const m = pgHata(e).mesaj;
+    console.error("İzin talebi oluşturulamadı:", m);
+    if (belgeParcalari) await dosyaSil("personel-belge", belgeParcalari).catch(() => undefined); // yetim dosya bırakma
     const mesaj =
-      error.message === "gun_sayisi_sifir"
+      m === "gun_sayisi_sifir"
         ? "Seçilen tarih aralığında hiç iş günü yok (hafta tatili/resmi tatil)."
-        : error.message === "tarih_araligi_gecersiz"
+        : m === "tarih_araligi_gecersiz"
           ? "Bitiş tarihi başlangıçtan önce olamaz."
           : "İzin talebi oluşturulamadı, lütfen tekrar deneyin.";
     return { success: false, message: mesaj };
   }
 
-  // Yöneticilere bildirim — RPC başarıyla döndükten SONRA, en iyi çaba (best
-  // effort): bildirim gönderilemese bile talep zaten oluşturuldu, kullanıcıya
-  // hata gösterilmez.
+  // Yöneticilere bildirim — RPC başarıyla döndükten SONRA, en iyi çaba: bildirim gönderilemese bile talep oluştu, kullanıcıya hata gösterilmez.
   try {
-    const adminClient = createAdminClient();
-    const yoneticiler = await klinikAdminleriniGetir(adminClient, personel.klinik_id, ["klinik_admin", "muhasebe"]);
-    const degiskenler = {
-      personel_adi: personel.ad_soyad,
-      izin_tip: IZIN_TIP_ETIKETLERI[tip as IzinTip],
-      tarih_araligi: `${formatDate(baslangic_tarih)} – ${formatDate(bitis_tarih)}`,
-      klinik_adi: personel.klinik?.ad ?? "",
-    };
-    for (const yonetici of yoneticiler) {
-      await anlikMesajTetikle(adminClient, {
-        klinikId: personel.klinik_id,
-        tetikleyiciKodu: "personel_izin_talebi_yeni",
-        aliciTipi: "personel",
-        aliciId: yonetici.personelId,
-        adres: { telefon: yonetici.telefon, eposta: yonetici.eposta },
-        degiskenler,
-      });
-    }
+    await withTenant(bag, async (tx) => {
+      const yoneticiler = await rpc<{ personel_id: string; telefon: string | null; eposta: string | null }>(tx, "izin_bildirim_alicilari", { p_roller: ["klinik_admin", "muhasebe"] });
+      const degiskenler = {
+        personel_adi: personel.adSoyad,
+        izin_tip: IZIN_TIP_ETIKETLERI[tip as IzinTip],
+        tarih_araligi: `${formatDate(baslangic_tarih)} – ${formatDate(bitis_tarih)}`,
+        klinik_adi: personel.klinikAd ?? "",
+      };
+      for (const yonetici of yoneticiler) {
+        await anlikMesajTetikle(tx, {
+          klinikId: personel.klinikId,
+          tetikleyiciKodu: "personel_izin_talebi_yeni",
+          aliciTipi: "personel",
+          aliciId: yonetici.personel_id,
+          adres: { telefon: yonetici.telefon, eposta: yonetici.eposta },
+          degiskenler,
+        });
+      }
+    });
   } catch (bildirimHatasi) {
-    console.error("İzin talebi bildirimi gönderilemedi:", bildirimHatasi);
+    console.error("İzin talebi bildirimi gönderilemedi:", pgHata(bildirimHatasi).mesaj);
   }
 
   revalidatePath("/panel/personel/izinlerim");
@@ -182,20 +162,22 @@ export async function izinTalebiOlustur(_onceki: SonucDurumu, formData: FormData
 }
 
 export async function izinTalebiIptalEt(talepId: string): Promise<SonucDurumu> {
-  const { supabase, personel } = await kendiPersoneliGetir();
+  const y = await eylemYetkisi(PERSONEL_ROLLERI);
+  if (!y.yetkili || !y.bag) return { success: false, message: YETKISIZ_MESAJI };
+  if (!z.string().uuid().safeParse(talepId).success) return { success: false, message: "Talep bulunamadı." };
+
+  const personel = await personelBul(y.bag, { kullaniciId: y.ctx.userId });
   if (!personel) {
     return { success: false, message: "Personel kaydınız bulunamadı." };
   }
 
-  const { error } = await supabase.rpc("personel_izin_talep_iptal_et", { p_talep_id: talepId });
-
-  if (error) {
-    console.error("İzin talebi iptal edilemedi:", error);
-    const mesaj =
-      error.message === "gecersiz_durum_gecisi"
-        ? "Bu talep artık iptal edilemez (beklemede değil)."
-        : "İptal edilemedi, lütfen tekrar deneyin.";
-    return { success: false, message: mesaj };
+  try {
+    // RPC yalnız talebin SAHİBİ personelin iptaline izin verir.
+    await withTenant(y.bag, (tx) => rpc(tx, "personel_izin_talep_iptal_et", { p_talep_id: talepId }));
+  } catch (e) {
+    const m = pgHata(e).mesaj;
+    console.error("İzin talebi iptal edilemedi:", m);
+    return { success: false, message: m === "gecersiz_durum_gecisi" ? "Bu talep artık iptal edilemez (beklemede değil)." : "İptal edilemedi, lütfen tekrar deneyin." };
   }
 
   revalidatePath("/panel/personel/izinlerim");

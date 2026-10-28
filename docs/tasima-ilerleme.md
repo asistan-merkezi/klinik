@@ -19,10 +19,10 @@
 | 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bitti** | 48 / 49 | 1 |
 | 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bitti** | 10 / 10 | 0 |
 | 4 | Ödeme / cari / finans / paket / işlem tanımları | **bitti** | 31 / 31 | 0 |
-| 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 1 / 20 | 19 |
+| 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 18 / 20 | 2 |
 | 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 2 / 10 | 8 |
 | 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 1 / 17 | 16 |
-| | **Toplam** | | 105 / 155 | **50** |
+| | **Toplam** | | 122 / 155 | **33** |
 
 Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-baslangic.txt`, 155 dosya); sayım `@supabase`, `@/lib/supabase` ve `createAdminClient` kullanan dosyaları kapsar. `lib/supabase/*` en sonda silinir.
 
@@ -154,24 +154,7 @@ Kararlar: **A** iade sınırı **UYGULANDI** (0013; bağlantılı iade + yöneti
 ## Modül 5 — Personel ve puantaj (QR akışı dahil)
 
 - Durum: **bekliyor**
-- Kalan dosyalar (19):
-  - `app/(app)/panel/ayarlar/personel-tanimlama/actions.ts`
-  - `app/(app)/panel/ayarlar/personel-tanimlama/page.tsx`
-  - `app/(app)/panel/personel/actions.ts`
-  - `app/(app)/panel/personel/basvurular/actions.ts`
-  - `app/(app)/panel/personel/basvurular/page.tsx`
-  - `app/(app)/panel/personel/izinler/actions.ts`
-  - `app/(app)/panel/personel/izinler/page.tsx`
-  - `app/(app)/panel/personel/izinler/talep-satiri.tsx`
-  - `app/(app)/panel/personel/izinlerim/actions.ts`
-  - `app/(app)/panel/personel/izinlerim/page.tsx`
-  - `app/(app)/panel/personel/izinlerim/talep-formu.tsx`
-  - `app/(app)/panel/personel/page.tsx`
-  - `app/(app)/panel/personel/puantaj-cetveli/actions.ts`
-  - `app/(app)/panel/personel/puantaj-cetveli/page.tsx`
-  - `app/(app)/panel/personel/[id]/actions.ts`
-  - `app/(app)/panel/personel/[id]/page.tsx`
-  - `app/(app)/puantaj/[kisaKod]/[tur]/actions.ts`
+- Kalan dosyalar (2):
   - `lib/personel/donem-maasi.ts`
   - `lib/personel/seans-sayisi.ts`
 

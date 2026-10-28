@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
 import { Briefcase } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type { Pozisyon } from "@/types/pozisyon";
@@ -8,28 +9,17 @@ import { PozisyonlarListesi } from "./pozisyonlar-listesi";
 import { OzelPozisyonDialog } from "./ozel-pozisyon-dialog";
 
 export default async function PersonelTanimlamaSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-
-  const [{ data: pozisyonSonucu }, { data: personelSonucu }] = await Promise.all([
-    supabase
-      .from("pozisyonlar")
-      .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
-      .returns<Pozisyon[]>(),
-    supabase.from("personel").select("pozisyon_id").eq("aktif", true),
-  ]);
-
-  const pozisyonlar = pozisyonSonucu ?? [];
+  const v = await withTenant(bag, async (tx) => ({
+    pozisyon: await tx
+      .select({ id: sema.pozisyonlar.id, ad: sema.pozisyonlar.ad, grup: sema.pozisyonlar.grup, sira: sema.pozisyonlar.sira, aktif: sema.pozisyonlar.aktif, sistem_erisimi: sema.pozisyonlar.sistemErisimi, varsayilan_rol: sema.pozisyonlar.varsayilanRol, ucret_tipi: sema.pozisyonlar.ucretTipi, puantaj_modu: sema.pozisyonlar.puantajModu, ozel_mi: sema.pozisyonlar.ozelMi })
+      .from(sema.pozisyonlar),
+    personel: await tx.select({ pozisyon_id: sema.personel.pozisyonId }).from(sema.personel).where(eq(sema.personel.aktif, true)),
+  }));
+  const pozisyonlar = v.pozisyon as Pozisyon[];
+  const personelSonucu = v.personel;
 
   // Özel Pozisyon Ekle'deki Departman seçimi — mevcut pozisyonlardaki grup
   // adlarından türetilir (sabit bir liste değil, katalog değişirse otomatik
@@ -44,7 +34,7 @@ export default async function PersonelTanimlamaSayfasi() {
   // "Deneme İçin Oluştur" kısayolu sadece aktif ama hiç aktif çalışanı olmayan
   // pozisyonlarda gösterilir (bkz. pozisyon-satiri.tsx).
   const calisaniOlanPozisyonIdleri = [
-    ...new Set((personelSonucu ?? []).map((p) => p.pozisyon_id).filter((id): id is string => id !== null)),
+    ...new Set(personelSonucu.map((p) => p.pozisyon_id).filter((id): id is string => id !== null)),
   ];
 
   return (

@@ -1,16 +1,14 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
-import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import { pgHata, rpc, withTenant } from "@/lib/db";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { tenantGerekli } from "@/lib/auth/oturum";
+import { klinikQrBilgisi, qrAktifMi } from "@/lib/guvenlik/anonim-uc";
 
 type SonucDurumu = { success: boolean; message: string; adSoyad?: string; saat?: string } | null;
 
-const semasi = z.object({
-  klinik_id: z.string().uuid("Geçersiz bağlantı."),
-  tur: z.enum(["giris", "cikis"]),
-});
+const TUR = z.enum(["giris", "cikis"]);
 
 const HATA_MESAJLARI: Record<string, string> = {
   yetkisiz: "Oturumunuz bulunamadı, lütfen tekrar giriş yapın.",
@@ -25,53 +23,43 @@ const HATA_MESAJLARI: Record<string, string> = {
 };
 
 /**
- * QR ile puantaj — kimlik KULLANICI OTURUMUNDAN gelir (PIN yok). Kişi/saat
- * istemciden alınmaz: RPC `auth.uid()` ile personeli bulur, saati sunucuda
- * `now()` ile yazar (bkz. personel_puantaj_kendi_kaydet, migration 20261003100000).
- * Sayfa kapısı (`page.tsx`) server action'ı korumaz — QR'ın açık olması ve QR'ın
- * kullanıcının kendi kliniğine ait olması burada ayrıca zorlanır.
+ * QR ile puantaj — kimlik KULLANICI OTURUMUNDAN gelir (PIN yok). Kişi/saat/klinik istemciden alınmaz: klinik QR'ın KISA KODUNDAN çözülür
+ * (tanima), oturumdaki kullanıcının kliniğiyle eşleşmeli; RPC `auth.uid()` ile personeli bulur, saati sunucuda `now()` ile yazar
+ * (bkz. personel_puantaj_kendi_kaydet). Sayfa kapısı server action'ı korumaz — QR'ın açık olması ve kliniğin eşleşmesi burada ayrıca zorlanır.
  */
-export async function puantajKendiKaydet(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const ayristirma = semasi.safeParse({
-    klinik_id: formData.get("klinik_id"),
-    tur: formData.get("tur"),
-  });
+export async function puantajKendiKaydet(kisaKod: string, turHam: string, _onceki: SonucDurumu, _formData: FormData): Promise<SonucDurumu> {
+  void _formData;
+  const tur = TUR.safeParse(turHam);
+  if (!tur.success) return { success: false, message: "Geçersiz işlem." };
 
-  if (!ayristirma.success) {
-    return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
-  }
-
-  const { klinik_id, tur } = ayristirma.data;
-
-  const oturum = await gecerliKullanici();
-  if (!oturum?.kullanici?.klinik_id) {
+  const ctx = await oturumBaglami();
+  if (!ctx || ctx.tur !== "personel" || !ctx.tenantId) {
     return { success: false, message: HATA_MESAJLARI.yetkisiz };
   }
 
+  const klinik = await klinikQrBilgisi(kisaKod);
+  if (!klinik) return { success: false, message: "Geçersiz bağlantı." };
   // Başka kliniğin QR'ını okutan kişi o klinikte kayıt açamaz.
-  if (oturum.kullanici.klinik_id !== klinik_id) {
+  if (ctx.tenantId !== klinik.id) {
     return { success: false, message: "Bu QR kodu sizin kliniğinize ait değil." };
   }
 
-  const aktif = await qrKoduAktifMi(klinik_id, tur === "giris" ? "puantaj_giris" : "puantaj_cikis");
-  if (!aktif) {
+  if (!(await qrAktifMi(klinik.id, tur.data === "giris" ? "puantaj_giris" : "puantaj_cikis"))) {
     return { success: false, message: "Bu puantaj bağlantısı artık aktif değil." };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("personel_puantaj_kendi_kaydet", { p_tur: tur });
-
-  if (error) {
-    console.error("Puantaj kendi kaydı başarısız:", error);
-    return { success: false, message: HATA_MESAJLARI[error.message] ?? "Kaydedilemedi, lütfen tekrar deneyin." };
+  try {
+    const r = await withTenant(tenantGerekli(ctx), (tx) => rpc<{ personel_puantaj_kendi_kaydet: { ad_soyad?: string; saat?: string } | null }>(tx, "personel_puantaj_kendi_kaydet", { p_tur: tur.data }));
+    const sonuc = r[0]?.personel_puantaj_kendi_kaydet ?? null;
+    return {
+      success: true,
+      message: tur.data === "giris" ? "Giriş kaydedildi." : "Çıkış kaydedildi.",
+      adSoyad: sonuc?.ad_soyad,
+      saat: sonuc?.saat,
+    };
+  } catch (e) {
+    const m = pgHata(e).mesaj;
+    console.error("Puantaj kendi kaydı başarısız:", m);
+    return { success: false, message: HATA_MESAJLARI[m] ?? "Kaydedilemedi, lütfen tekrar deneyin." };
   }
-
-  const sonuc = data as { ad_soyad?: string; saat?: string } | null;
-
-  return {
-    success: true,
-    message: tur === "giris" ? "Giriş kaydedildi." : "Çıkış kaydedildi.",
-    adSoyad: sonuc?.ad_soyad,
-    saat: sonuc?.saat,
-  };
 }

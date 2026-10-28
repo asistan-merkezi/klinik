@@ -1,63 +1,40 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Briefcase } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { acikBasvurulariGetir, pozisyonlariGetir } from "@/lib/personel/sorgular";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { QrKart } from "@/components/panel/qr-kart";
 import { IsBasvuruFormuPdfButonu } from "@/components/panel/is-basvuru-formu-pdf-butonu";
-import type { IsBasvurusu } from "@/types/personel";
-import type { Pozisyon } from "@/types/pozisyon";
 import { BasvuruListesi } from "./basvuru-listesi";
 import { BasvuruArsivi } from "./basvuru-arsivi";
 
 export default async function BasvurularSayfasi() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol, klinik_id").eq("id", user.id).single();
-
-  if (kullanici?.rol !== "klinik_admin") {
+  const { ctx, bag } = await panelBaglami();
+  if (ctx.rol !== "klinik_admin") {
     redirect("/panel/personel");
   }
 
-  const klinikId = kullanici.klinik_id;
+  let kisaKod: string | null | undefined;
+  let liste: Awaited<ReturnType<typeof acikBasvurulariGetir>> = [];
+  let pozisyonlar: Awaited<ReturnType<typeof pozisyonlariGetir>> = [];
+  let error = false;
+  try {
+    // "Olumlu / Onayla" ile açılan Personel Ekle formunun Pozisyon seçimi için yalnız aktif pozisyonlar (Ayarlar → Personel Tanımlama).
+    const v = await withTenant(bag, async (tx) => ({
+      kisaKod: (await tx.select({ k: sema.klinik.qrKisaKod }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0]?.k,
+      liste: await acikBasvurulariGetir(tx, bag.tenantId),
+      pozisyonlar: await pozisyonlariGetir(tx, true),
+    }));
+    ({ kisaKod, liste, pozisyonlar } = v);
+  } catch (e) {
+    console.error("Başvurular çekilemedi:", e);
+    error = true;
+  }
 
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("qr_kisa_kod")
-    .eq("id", klinikId ?? "")
-    .maybeSingle();
-  const kisaKod = klinik?.qr_kisa_kod;
-
-  const { data: basvurular, error } = await supabase
-    .from("is_basvurusu")
-    .select(
-      "id, ad_soyad, telefon, eposta, dogum_tarihi, tc_kimlik_no, adres, pozisyon, bizi_nereden_duydunuz, calismaya_baslama_tarihi, calisma_sekli, beklenen_ucret, egitim_okul_bolum, egitim_mezuniyet_yili, egitim_sertifikalar, is_deneyimi, referanslar, durum, personel_id, created_at"
-    )
-    .eq("klinik_id", klinikId ?? "")
-    .neq("durum", "olumlu")
-    .order("created_at", { ascending: false })
-    .returns<IsBasvurusu[]>();
-
-  // "Olumlu / Onayla" ile açılan Personel Ekle formunun Pozisyon seçimi için —
-  // sadece aktif pozisyonlar (bkz. Ayarlar → Personel Tanımlama).
-  const { data: pozisyonlarSonucu } = await supabase
-    .from("pozisyonlar")
-    .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
-    .eq("aktif", true)
-    .order("sira")
-    .returns<Pozisyon[]>();
-  const pozisyonlar = pozisyonlarSonucu ?? [];
-
-  const liste = basvurular ?? [];
   const bekleyenler = liste.filter((b) => b.durum === "beklemede");
 
   return (

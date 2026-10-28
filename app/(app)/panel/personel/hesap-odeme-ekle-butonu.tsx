@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
@@ -159,6 +160,7 @@ export function HesapOdemeEkleButonu({
             <DialogTitle>Ödeme Ekle</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
             <input type="hidden" name="tur" value={ODEME_KATEGORI_TUR[etkinKategori]} />
             <input type="hidden" name="odeme_tipi" value={odemeTipiGosterilir ? (odemeTipi ?? "") : ""} />
             <input type="hidden" name="kalemler_json" value={kalemlerJson} />

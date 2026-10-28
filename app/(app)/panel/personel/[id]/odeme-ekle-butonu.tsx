@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -124,6 +125,7 @@ export function OdemeEkleButonu({
             <DialogTitle>Ödeme Ekle</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
             <input type="hidden" name="tur" value={KATEGORI_TUR[kategori]} />
             <input type="hidden" name="odeme_tipi" value={odemeTipiGosterilir ? (odemeTipi ?? "") : ""} />
 

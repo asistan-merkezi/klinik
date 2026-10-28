@@ -1,12 +1,14 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarCheck2, FileHeart } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, desc, eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { izinTalepleriniYoneticiGetir } from "@/lib/personel/sorgular";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDate } from "@/lib/datetime";
-import type { IzinTalebiAdminSatir } from "@/types/izin";
 import { TalepSatiri } from "./talep-satiri";
 import { ManuelIzinEkleDialog } from "./manuel-izin-ekle-dialog";
 import { ManuelRaporEkleDialog } from "./manuel-rapor-ekle-dialog";
@@ -18,44 +20,37 @@ type RaporSatiri = {
 };
 
 export default async function IzinlerSayfasi() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-  if (kullanici?.rol !== "klinik_admin") {
+  const { ctx, bag } = await panelBaglami();
+  if (ctx.rol !== "klinik_admin") {
     notFound();
   }
 
-  const [{ data: talepler, error }, { data: personelListesi }, { data: raporlar }] = await Promise.all([
-    supabase
-      .from("personel_izin_talebi")
-      .select(
-        "id, personel_id, tip, baslangic_tarih, bitis_tarih, gun_sayisi, gerekce, belge_url, durum, red_gerekce, degerlendiren_kullanici_id, degerlendirme_tarihi, iptal_eden_kullanici_id, iptal_tarihi, created_at, personel:personel_id(ad_soyad, gorev)"
-      )
-      .order("created_at", { ascending: false })
-      .limit(200)
-      .returns<IzinTalebiAdminSatir[]>(),
-    supabase.from("personel").select("id, ad_soyad, gorev").eq("aktif", true).order("ad_soyad"),
-    supabase
-      .from("personel_puantaj")
-      .select("tarih, not_metni, personel:personel_id(ad_soyad, gorev)")
-      .eq("durum", "raporlu")
-      .order("tarih", { ascending: false })
-      .limit(50)
-      .returns<RaporSatiri[]>(),
-  ]);
+  let liste: Awaited<ReturnType<typeof izinTalepleriniYoneticiGetir>> = [];
+  let personelListesi: { id: string; ad_soyad: string; gorev: string }[] = [];
+  let raporListesi: RaporSatiri[] = [];
+  let error = false;
+  try {
+    const v = await withTenant(bag, async (tx) => ({
+      talepler: await izinTalepleriniYoneticiGetir(tx),
+      personel: await tx.select({ id: sema.personel.id, ad_soyad: sema.personel.adSoyad, gorev: sema.personel.gorev }).from(sema.personel).where(eq(sema.personel.aktif, true)).orderBy(asc(sema.personel.adSoyad)),
+      raporlar: await tx
+        .select({ tarih: sema.personelPuantaj.tarih, not_metni: sema.personelPuantaj.notMetni, ad: sema.personel.adSoyad, gorev: sema.personel.gorev })
+        .from(sema.personelPuantaj)
+        .leftJoin(sema.personel, eq(sema.personel.id, sema.personelPuantaj.personelId))
+        .where(eq(sema.personelPuantaj.durum, "raporlu"))
+        .orderBy(desc(sema.personelPuantaj.tarih))
+        .limit(50),
+    }));
+    liste = v.talepler;
+    personelListesi = v.personel as typeof personelListesi;
+    raporListesi = v.raporlar.map((r) => ({ tarih: r.tarih, not_metni: r.not_metni, personel: r.ad === null ? null : { ad_soyad: r.ad, gorev: r.gorev as string } }));
+  } catch (e) {
+    console.error("İzin takibi çekilemedi:", e);
+    error = true;
+  }
 
-  const liste = talepler ?? [];
   const bekleyenler = liste.filter((t) => t.durum === "beklemede");
   const sonuclananlar = liste.filter((t) => t.durum !== "beklemede");
-  const raporListesi = raporlar ?? [];
 
   return (
     <div className="flex-1 bg-background">
@@ -70,8 +65,8 @@ export default async function IzinlerSayfasi() {
           icon={CalendarCheck2}
           actions={
             <>
-              <ManuelIzinEkleDialog personelListesi={personelListesi ?? []} />
-              <ManuelRaporEkleDialog personelListesi={personelListesi ?? []} />
+              <ManuelIzinEkleDialog personelListesi={personelListesi} />
+              <ManuelRaporEkleDialog personelListesi={personelListesi} />
             </>
           }
         />

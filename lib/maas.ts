@@ -1,4 +1,5 @@
 import type { MaasHesaplamaModeli } from "@/types/personel";
+import { kurus, oranlaKurus, tlTopla } from "@/lib/para";
 
 export type MaasHesapParametreleri = {
   maas_hesaplama_modeli: MaasHesaplamaModeli;
@@ -82,7 +83,8 @@ export function maasHesapla(
       parametreler.istenCikisTarihi
     );
     if (oran < 1) {
-      taban = Math.round(sabitMaas * oran * 100) / 100;
+      // Kuruş aritmetiği (lib/para.ts): maaş × çalışılan gün / ay günü, kuruşa yarım yukarı.
+      taban = oranlaKurus(kurus(sabitMaas) ?? 0, calisilanGun, toplamGun) / 100;
       kismiAciklama = ` (${calisilanGun}/${toplamGun} gün oranlı)`;
     }
   }
@@ -96,7 +98,7 @@ export function maasHesapla(
   // seçilemiyor) dahil, o modelde de prim_sabit_tutar girilmişse uygulanmalı.
   const birimPrim = parametreler.prim_sabit_tutar ?? 0;
   if (birimPrim > 0) {
-    prim += tamamlananSeansSayisi * birimPrim;
+    prim = tlTopla([prim, ((kurus(birimPrim) ?? 0) * tamamlananSeansSayisi) / 100]);
     ekAciklama += ` + ${tamamlananSeansSayisi} seans × ${paraFormat(birimPrim)} prim`;
   }
 
@@ -107,7 +109,7 @@ export function maasHesapla(
     const bonus = parametreler.baraj_bonus_tutari ?? 0;
     const barajAsildi = tamamlananSeansSayisi > baraj;
     if (barajAsildi) {
-      prim += bonus;
+      prim = tlTopla([prim, bonus]);
       ekAciklama += ` + baraj (${baraj} seans) aşıldı, ${paraFormat(bonus)} bonus`;
     } else {
       ekAciklama += ` + baraj (${baraj} seans) aşılmadı — bonus yok`;
@@ -120,7 +122,7 @@ export function maasHesapla(
     taban,
     prim,
     ekstra_toplam: ekstraHakedisToplami,
-    toplam: taban + prim + ekstraHakedisToplami,
+    toplam: tlTopla([taban, prim, ekstraHakedisToplami]),
     aciklama,
   };
 }

@@ -1,7 +1,12 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { User, CreditCard, CalendarClock } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { and, asc, count, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
+import { rpc, sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tl, tlTopla } from "@/lib/para";
+import { bankaHesaplariniGetir } from "@/lib/finans/okuma";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -9,6 +14,7 @@ import { ModuleCard } from "@/components/panel/module-card";
 import {
   CALISMA_TIPI_SECENEKLERI,
   ROL_SECENEKLERI,
+  type CalismaTipi,
   type MaasGecmisiSatir,
   type PersonelAcilKisi,
   type PersonelDetay,
@@ -18,7 +24,6 @@ import {
   type TerapistAyarlari,
 } from "@/types/personel";
 import { HESAP_HAREKET_TUR_ETIKETLERI, HESAP_HAREKET_YONU, type HesapBakiye, type HesapHareket } from "@/types/hesap-hareket";
-import type { KlinikBankaHesabi } from "@/types/klinik";
 import type { Pozisyon } from "@/types/pozisyon";
 import { ayAraligi, gunAraligi, haftaAraligi, telefonGoster } from "@/lib/utils";
 import { maasHesapla } from "@/lib/maas";
@@ -39,14 +44,9 @@ export default async function PersonelDetaySayfasi({
   const { id } = await params;
   const { ay: ayParam, tab, odemeEkle } = await searchParams;
   const sekme: Sekme = tab === "kisisel" || tab === "odemeler" ? tab : undefined;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
+  const { ctx, bag } = await panelBaglami();
+  if (!z.string().uuid().safeParse(id).success) {
+    notFound();
   }
 
   const gun = gunAraligi();
@@ -55,192 +55,163 @@ export default async function PersonelDetaySayfasi({
   const ayCari = ayAraligi();
   const [ayYilStr, ayAyStr] = ayCari.param.split("-");
 
-  // Bu 7 sorgu birbirinden bağımsız (hepsi sadece `id`/`user.id` ve sabit
-  // tarih aralıklarına ihtiyaç duyuyor) — önceden art arda (waterfall)
-  // çalıştırılıyordu, sayfa render'ı öncesi ~6 sıralı round-trip'e mal
-  // oluyordu. Şimdi tek round-trip'te paralel çalışıyor.
-  const [
-    kullaniciSonucu,
-    personelSonucu,
-    terapistSonucu,
-    hareketSonucu,
-    bakiyeSonucu,
-    donemSonucu,
-    puantajAySonucu,
-    bugunSonucu,
-    bankaHesabiSonucu,
-  ] = await Promise.all([
-    supabase.from("kullanici").select("rol").eq("id", user.id).single(),
-    supabase
-      .from("personel")
-      .select(
-        "id, ad_soyad, gorev, pozisyon_id, maas, fm_saatlik_ucret, aktif, kullanici_id, il, ilce, mahalle, adres, dogum_tarihi, dogum_yeri, cinsiyet, eposta, departman, calisma_tipi, sgk_sicil_no, ise_giris_tarihi, isten_cikis_tarihi, ise_baslama_notu, imza_yetkilisi_mi, kullanici:kullanici_id(telefon, rol)"
-      )
-      .eq("id", id)
-      .single<PersonelDetay>(),
-    supabase
-      .from("terapist")
-      .select("id, maas_hesaplama_modeli, prim_sabit_tutar, baraj_seans_sayisi, baraj_bonus_tutari")
-      .eq("personel_id", id)
-      .maybeSingle<TerapistAyarlari>(),
-    supabase
-      .from("personel_hesap_hareket")
-      .select("id, personel_id, tur, tutar, tarih, aciklama, kaynak_id, created_at, odeme_tipi, banka_hesap_id")
-      .eq("personel_id", id)
-      .gte("tarih", ay.baslangicTarih)
-      .lt("tarih", ay.bitisTarih)
-      .order("tarih", { ascending: false })
-      .returns<HesapHareket[]>(),
-    supabase.from("v_personel_hesap_bakiye").select("*").eq("personel_id", id).maybeSingle<HesapBakiye>(),
-    supabase
-      .from("personel_puantaj_donem")
-      .select("durum, snapshot_net_saat, snapshot_onayli_fm_saat")
-      .eq("personel_id", id)
-      .eq("yil", Number(ayYilStr))
-      .eq("ay", Number(ayAyStr))
-      .maybeSingle(),
-    supabase
-      .from("personel_puantaj")
-      .select("net_calisma_dakika, fazla_mesai_dakika, fm_onay_durumu")
-      .eq("personel_id", id)
-      .gte("tarih", ayCari.baslangicTarih)
-      .lt("tarih", ayCari.bitisTarih),
-    supabase
-      .from("personel_puantaj")
-      .select("giris_saat, durum")
-      .eq("personel_id", id)
-      .eq("tarih", bugunTarih())
-      .maybeSingle(),
-    supabase
-      .from("klinik_banka_hesaplari")
-      .select("id, banka_adi, sube")
-      .order("sort_order")
-      .returns<KlinikBankaHesabi[]>(),
-  ]);
+  const yonetici = ctx.rol === "klinik_admin";
+  const rol = ctx.rol;
 
-  const kullanici = kullaniciSonucu.data;
-  const personel = personelSonucu.data;
+  const v = await withTenant(bag, async (tx) => {
+    const personelSatiri = (
+      await tx
+        .select({
+          id: sema.personel.id, ad_soyad: sema.personel.adSoyad, gorev: sema.personel.gorev, pozisyon_id: sema.personel.pozisyonId, maas: sema.personel.maas,
+          fm_saatlik_ucret: sema.personel.fmSaatlikUcret, aktif: sema.personel.aktif, kullanici_id: sema.personel.kullaniciId, il: sema.personel.il, ilce: sema.personel.ilce,
+          mahalle: sema.personel.mahalle, adres: sema.personel.adres, dogum_tarihi: sema.personel.dogumTarihi, dogum_yeri: sema.personel.dogumYeri, cinsiyet: sema.personel.cinsiyet,
+          eposta: sema.personel.eposta, departman: sema.personel.departman, calisma_tipi: sema.personel.calismaTipi, sgk_sicil_no: sema.personel.sgkSicilNo,
+          ise_giris_tarihi: sema.personel.iseGirisTarihi, isten_cikis_tarihi: sema.personel.istenCikisTarihi, ise_baslama_notu: sema.personel.iseBaslamaNotu,
+          imza_yetkilisi_mi: sema.personel.imzaYetkilisiMi, k_telefon: sema.kullanici.telefon, k_rol: sema.kullanici.rol,
+        })
+        .from(sema.personel)
+        .leftJoin(sema.kullanici, eq(sema.kullanici.id, sema.personel.kullaniciId))
+        .where(eq(sema.personel.id, id))
+        .limit(1)
+    )[0];
+    if (!personelSatiri) return null;
 
-  if (!personel) {
+    const terapistSatiri = (
+      await tx
+        .select({ id: sema.terapist.id, maas_hesaplama_modeli: sema.terapist.maasHesaplamaModeli, prim_sabit_tutar: sema.terapist.primSabitTutar, baraj_seans_sayisi: sema.terapist.barajSeansSayisi, baraj_bonus_tutari: sema.terapist.barajBonusTutari })
+        .from(sema.terapist)
+        .where(eq(sema.terapist.personelId, id))
+        .limit(1)
+    )[0];
+
+    const H = sema.personelHesapHareket;
+    const P = sema.personelPuantaj;
+    const randevuSayisi = async (bas: string, bit: string) =>
+      terapistSatiri
+        ? (
+            await tx
+              .select({ n: count() })
+              .from(sema.randevu)
+              .where(and(eq(sema.randevu.terapistId, terapistSatiri.id), inArray(sema.randevu.durum, ["geldi", "gecikmeli_geldi", "tamamlandi"]), gte(sema.randevu.baslangic, bas), lt(sema.randevu.baslangic, bit)))
+          )[0].n
+        : 0;
+
+    return {
+      personel: personelSatiri,
+      terapist: terapistSatiri,
+      hareketler: await tx
+        .select({ id: H.id, personel_id: H.personelId, tur: H.tur, tutar: H.tutar, tarih: H.tarih, aciklama: H.aciklama, kaynak_id: H.kaynakId, created_at: H.createdAt, odeme_tipi: H.odemeTipi, banka_hesap_id: H.bankaHesapId })
+        .from(H)
+        .where(and(eq(H.personelId, id), gte(H.tarih, ay.baslangicTarih), lt(H.tarih, ay.bitisTarih)))
+        .orderBy(desc(H.tarih), desc(H.createdAt)),
+      bakiye: (await tx.select().from(sema.vPersonelHesapBakiye).where(eq(sema.vPersonelHesapBakiye.personelId, id)).limit(1))[0] ?? null,
+      donem: (
+        await tx
+          .select({ durum: sema.personelPuantajDonem.durum, net: sema.personelPuantajDonem.snapshotNetSaat, fm: sema.personelPuantajDonem.snapshotOnayliFmSaat })
+          .from(sema.personelPuantajDonem)
+          .where(and(eq(sema.personelPuantajDonem.personelId, id), eq(sema.personelPuantajDonem.yil, Number(ayYilStr)), eq(sema.personelPuantajDonem.ay, Number(ayAyStr))))
+          .limit(1)
+      )[0] ?? null,
+      puantajAy: await tx
+        .select({ net_calisma_dakika: P.netCalismaDakika, fazla_mesai_dakika: P.fazlaMesaiDakika, fm_onay_durumu: P.fmOnayDurumu })
+        .from(P)
+        .where(and(eq(P.personelId, id), gte(P.tarih, ayCari.baslangicTarih), lt(P.tarih, ayCari.bitisTarih))),
+      bugun: (await tx.select({ giris_saat: P.girisSaat, durum: P.durum }).from(P).where(and(eq(P.personelId, id), eq(P.tarih, bugunTarih()))).limit(1))[0] ?? null,
+      bankaHesaplari: await bankaHesaplariniGetir(tx),
+      acil: yonetici ? ((await tx.select({ id: sema.personelAcilKisi.id, ad_soyad: sema.personelAcilKisi.adSoyad, yakinlik: sema.personelAcilKisi.yakinlik, telefon: sema.personelAcilKisi.telefon }).from(sema.personelAcilKisi).where(eq(sema.personelAcilKisi.personelId, id)).limit(1))[0] ?? null) : null,
+      mesleki: yonetici
+        ? ((
+            await tx
+              .select({
+                diploma_no: sema.personelMeslekiBelge.diplomaNo, uzmanlik_belge_no: sema.personelMeslekiBelge.uzmanlikBelgeNo, meslek_odasi_sicil_no: sema.personelMeslekiBelge.meslekOdasiSicilNo,
+                saglik_bakanligi_tescil_no: sema.personelMeslekiBelge.saglikBakanligiTescilNo, e_imza_sertifika_seri_no: sema.personelMeslekiBelge.eImzaSertifikaSeriNo,
+                e_imza_gecerlilik_tarihi: sema.personelMeslekiBelge.eImzaGecerlilikTarihi, kase_gorsel_url: sema.personelMeslekiBelge.kaseGorselUrl,
+                mali_sorumluluk_sigorta_police_no: sema.personelMeslekiBelge.maliSorumlulukSigortaPoliceNo, mali_sorumluluk_sigorta_bitis_tarihi: sema.personelMeslekiBelge.maliSorumlulukSigortaBitisTarihi,
+              })
+              .from(sema.personelMeslekiBelge)
+              .where(eq(sema.personelMeslekiBelge.personelId, id))
+              .limit(1)
+          )[0] ?? null)
+        : null,
+      egitim: yonetici
+        ? await tx.select({ id: sema.personelEgitim.id, derece: sema.personelEgitim.derece, okul: sema.personelEgitim.okul, bolum: sema.personelEgitim.bolum, yil: sema.personelEgitim.yil }).from(sema.personelEgitim).where(eq(sema.personelEgitim.personelId, id)).orderBy(asc(sema.personelEgitim.createdAt))
+        : [],
+      hassas: yonetici ? ((await rpc<{ personel_hassas_maskeli_getir: PersonelHassasMaskeli | null }>(tx, "personel_hassas_maskeli_getir", { p_personel_id: id }))[0]?.personel_hassas_maskeli_getir ?? null) : null,
+      gunSayisi: await randevuSayisi(gun.baslangic, gun.bitis),
+      haftaSayisi: await randevuSayisi(hafta.baslangic, hafta.bitis),
+      aySayisi: await randevuSayisi(ay.baslangic, ay.bitis),
+      maasGecmisi: terapistSatiri
+        ? await tx.select({ id: sema.personelUcret.id, maas: sema.personelUcret.maas, gecerlilik_tarihi: sema.personelUcret.gecerlilikTarihi }).from(sema.personelUcret).where(eq(sema.personelUcret.personelId, id)).orderBy(desc(sema.personelUcret.gecerlilikTarihi)).limit(24)
+        : [],
+      // Düzenle formunun Pozisyon seçimi için — aktif pozisyonlar + (varsa) personelin şu an bağlı olduğu pasif pozisyon (seçim kaybolmasın diye).
+      pozisyonlar: yonetici
+        ? await tx
+            .select({ id: sema.pozisyonlar.id, ad: sema.pozisyonlar.ad, grup: sema.pozisyonlar.grup, sira: sema.pozisyonlar.sira, aktif: sema.pozisyonlar.aktif, sistem_erisimi: sema.pozisyonlar.sistemErisimi, varsayilan_rol: sema.pozisyonlar.varsayilanRol, ucret_tipi: sema.pozisyonlar.ucretTipi, puantaj_modu: sema.pozisyonlar.puantajModu, ozel_mi: sema.pozisyonlar.ozelMi })
+            .from(sema.pozisyonlar)
+            .where(personelSatiri.pozisyon_id ? or(eq(sema.pozisyonlar.aktif, true), eq(sema.pozisyonlar.id, personelSatiri.pozisyon_id)) : eq(sema.pozisyonlar.aktif, true))
+            .orderBy(asc(sema.pozisyonlar.sira))
+        : [],
+    };
+  });
+
+  if (!v) {
     notFound();
   }
 
-  const yonetici = kullanici?.rol === "klinik_admin";
-  const kendisi = personel.kullanici_id === user.id;
-  // muhasebe: kişisel bilgi/düzenleme yetkisi YOK (aşağıdaki tüm {yonetici && ...}
-  // blokları hâlâ klinik_admin'e özel) — sadece sayfaya erişip Cari Hesap'ı
-  // görebilmeli, çünkü personel_hesap_hareket RLS'i ve Hesap sekmesi hub'daki
-  // per-personel linkler zaten muhasebe'ye açık; bu gate onları engellemesin.
-  const muhasebeErisimi = kullanici?.rol === "muhasebe";
+  const num = (x: string | null) => (x === null ? null : Number(x));
+  const personel: PersonelDetay = {
+    ...v.personel,
+    maas: v.personel.maas === null ? null : tl(v.personel.maas),
+    fm_saatlik_ucret: v.personel.fm_saatlik_ucret === null ? null : tl(v.personel.fm_saatlik_ucret),
+    cinsiyet: v.personel.cinsiyet as PersonelDetay["cinsiyet"],
+    calisma_tipi: v.personel.calisma_tipi as CalismaTipi | null,
+    kullanici: v.personel.k_rol === null ? null : { telefon: v.personel.k_telefon, rol: v.personel.k_rol as PersonelDetay["kullanici"] extends infer K ? (K extends { rol: infer R } ? R : never) : never },
+  };
+  const terapist: TerapistAyarlari | null = v.terapist
+    ? {
+        id: v.terapist.id,
+        maas_hesaplama_modeli: v.terapist.maas_hesaplama_modeli as TerapistAyarlari["maas_hesaplama_modeli"],
+        prim_sabit_tutar: v.terapist.prim_sabit_tutar === null ? null : tl(v.terapist.prim_sabit_tutar),
+        baraj_seans_sayisi: v.terapist.baraj_seans_sayisi,
+        baraj_bonus_tutari: v.terapist.baraj_bonus_tutari === null ? null : tl(v.terapist.baraj_bonus_tutari),
+      }
+    : null;
+
+  const kendisi = personel.kullanici_id === ctx.userId;
+  // muhasebe: kişisel bilgi/düzenleme yetkisi YOK (aşağıdaki tüm {yonetici && ...} blokları hâlâ klinik_admin'e özel) — sadece sayfaya erişip Cari Hesap'ı
+  // görebilmeli, çünkü personel_hesap_hareket RLS'i ve Hesap sekmesi hub'daki per-personel linkler zaten muhasebe'ye açık.
+  const muhasebeErisimi = rol === "muhasebe";
 
   if (!yonetici && !kendisi && !muhasebeErisimi) {
     notFound();
   }
 
-  const terapist = terapistSonucu.data;
+  const acilKisi = v.acil as PersonelAcilKisi | null;
+  const mesleki = v.mesleki as PersonelMeslekiBelge | null;
+  const egitim = v.egitim as PersonelEgitim[];
+  const maasGecmisi: MaasGecmisiSatir[] = v.maasGecmisi.map((m) => ({ id: m.id, maas: tl(m.maas), gecerlilik_tarihi: m.gecerlilik_tarihi })) as MaasGecmisiSatir[];
+  const maskeliHassas = v.hassas;
+  const pozisyonlar = v.pozisyonlar as unknown as Pozisyon[];
+  const bankaHesapListesi = v.bankaHesaplari;
 
-  const [acilSonucu, meslekiSonucu, egitimSonucu, hassasSonucu, gunSonucu, haftaSonucu, aySonucu, maasGecmisiSonucu, pozisyonlarSonucu] = await Promise.all([
-    yonetici
-      ? supabase
-          .from("personel_acil_kisi")
-          .select("id, ad_soyad, yakinlik, telefon")
-          .eq("personel_id", id)
-          .maybeSingle<PersonelAcilKisi>()
-      : Promise.resolve({ data: null as PersonelAcilKisi | null }),
-    yonetici
-      ? supabase
-          .from("personel_mesleki_belge")
-          .select(
-            "diploma_no, uzmanlik_belge_no, meslek_odasi_sicil_no, saglik_bakanligi_tescil_no, e_imza_sertifika_seri_no, e_imza_gecerlilik_tarihi, kase_gorsel_url, mali_sorumluluk_sigorta_police_no, mali_sorumluluk_sigorta_bitis_tarihi"
-          )
-          .eq("personel_id", id)
-          .maybeSingle<PersonelMeslekiBelge>()
-      : Promise.resolve({ data: null as PersonelMeslekiBelge | null }),
-    yonetici
-      ? supabase
-          .from("personel_egitim")
-          .select("id, derece, okul, bolum, yil")
-          .eq("personel_id", id)
-          .order("created_at", { ascending: true })
-          .returns<PersonelEgitim[]>()
-      : Promise.resolve({ data: null as PersonelEgitim[] | null }),
-    yonetici
-      ? supabase.rpc("personel_hassas_maskeli_getir", { p_personel_id: id })
-      : Promise.resolve({ data: null as PersonelHassasMaskeli | null }),
-    terapist
-      ? supabase
-          .from("randevu")
-          .select("id", { count: "exact", head: true })
-          .eq("terapist_id", terapist.id)
-          .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-          .gte("baslangic", gun.baslangic)
-          .lt("baslangic", gun.bitis)
-      : Promise.resolve({ count: 0 }),
-    terapist
-      ? supabase
-          .from("randevu")
-          .select("id", { count: "exact", head: true })
-          .eq("terapist_id", terapist.id)
-          .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-          .gte("baslangic", hafta.baslangic)
-          .lt("baslangic", hafta.bitis)
-      : Promise.resolve({ count: 0 }),
-    terapist
-      ? supabase
-          .from("randevu")
-          .select("id", { count: "exact", head: true })
-          .eq("terapist_id", terapist.id)
-          .in("durum", ["geldi", "gecikmeli_geldi", "tamamlandi"])
-          .gte("baslangic", ay.baslangic)
-          .lt("baslangic", ay.bitis)
-      : Promise.resolve({ count: 0 }),
-    terapist
-      ? supabase
-          .from("personel_ucret")
-          .select("id, maas, gecerlilik_tarihi")
-          .eq("personel_id", id)
-          .order("gecerlilik_tarihi", { ascending: false })
-          .limit(24)
-          .returns<MaasGecmisiSatir[]>()
-      : Promise.resolve({ data: null as MaasGecmisiSatir[] | null }),
-    // Düzenle formunun Pozisyon seçimi için — aktif pozisyonlar + (varsa)
-    // personelin şu an bağlı olduğu pasif pozisyon (seçim kaybolmasın diye).
-    yonetici
-      ? supabase
-          .from("pozisyonlar")
-          .select("id, ad, grup, sira, aktif, sistem_erisimi, varsayilan_rol, ucret_tipi, puantaj_modu, ozel_mi")
-          .or(personel.pozisyon_id ? `aktif.eq.true,id.eq.${personel.pozisyon_id}` : "aktif.eq.true")
-          .order("sira")
-          .returns<Pozisyon[]>()
-      : Promise.resolve({ data: null as Pozisyon[] | null }),
-  ]);
+  const gunSayisi = v.gunSayisi;
+  const haftaSayisi = v.haftaSayisi;
+  const aySayisi = v.aySayisi;
 
-  const acilKisi = acilSonucu.data;
-  const mesleki = meslekiSonucu.data;
-  const egitim = egitimSonucu.data ?? [];
-  const maasGecmisi = maasGecmisiSonucu.data ?? [];
-  const maskeliHassas = (hassasSonucu.data as PersonelHassasMaskeli | null) ?? null;
-  const pozisyonlar = pozisyonlarSonucu.data ?? [];
-
-  const gunSayisi = gunSonucu.count ?? 0;
-  const haftaSayisi = haftaSonucu.count ?? 0;
-  const aySayisi = aySonucu.count ?? 0;
-
-  const hareketler = hareketSonucu.data ?? [];
-  const bakiye = bakiyeSonucu.data ?? null;
+  const hareketler: HesapHareket[] = v.hareketler.map((h) => ({ ...h, tutar: tl(h.tutar) })) as unknown as HesapHareket[];
+  const bakiye: HesapBakiye | null = v.bakiye
+    ? { personel_id: v.bakiye.personelId as string, klinik_id: v.bakiye.klinikId as string, toplam_hakedis: tl(v.bakiye.toplamHakedis), toplam_odenen: tl(v.bakiye.toplamOdenen), bakiye: tl(v.bakiye.bakiye) }
+    : null;
+  void num;
   // Bu ayki "ekstra" (taban dışı) pozitif hareketler — hakedis (taban, ayrı
   // satırda gösteriliyor) ve avans/kesinti/odeme (bakiyeyi AZALTAN, "maliyet"
   // değil) hariç.
-  const ekstraToplami = hareketler
-    .filter((h) => HESAP_HAREKET_YONU[h.tur] === 1 && h.tur !== "hakedis")
-    .reduce((acc, h) => acc + h.tutar, 0);
+  const ekstraToplami = tlTopla(hareketler.filter((h) => HESAP_HAREKET_YONU[h.tur] === 1 && h.tur !== "hakedis").map((h) => h.tutar));
 
   // Görüntülenen ay içinde verilmiş avans toplamı — "+ Ödeme Ekle"de Maaş
   // seçilince tutar önerisinden düşülür (maaş ödemesi net gitsin, avans
   // ayrıca bir daha ödenmesin diye).
-  const buAykiAvansToplami = hareketler
-    .filter((h) => h.tur === "avans")
-    .reduce((acc, h) => acc + h.tutar, 0);
+  const buAykiAvansToplami = tlTopla(hareketler.filter((h) => h.tur === "avans").map((h) => h.tutar));
 
   const hesap: ReturnType<typeof maasHesapla> | null = terapist
     ? maasHesapla(
@@ -270,11 +241,11 @@ export default async function PersonelDetaySayfasi({
   // (donem/puantajAy/bugun sorguları yukarıdaki ana Promise.all'a taşındı.)
   let cizelgeNetSaat = 0;
   let cizelgeFmSaat = 0;
-  if (donemSonucu.data?.durum === "kapali") {
-    cizelgeNetSaat = donemSonucu.data.snapshot_net_saat ?? 0;
-    cizelgeFmSaat = donemSonucu.data.snapshot_onayli_fm_saat ?? 0;
+  if (v.donem?.durum === "kapali") {
+    cizelgeNetSaat = Number(v.donem.net ?? 0);
+    cizelgeFmSaat = Number(v.donem.fm ?? 0);
   } else {
-    const satirlar = puantajAySonucu.data ?? [];
+    const satirlar = v.puantajAy;
     cizelgeNetSaat = dakikaSaate(satirlar.reduce((acc, s) => acc + (s.net_calisma_dakika ?? 0), 0));
     cizelgeFmSaat = dakikaSaate(
       satirlar
@@ -284,7 +255,7 @@ export default async function PersonelDetaySayfasi({
   }
   const cizelgeSubtitle = `${ayCari.etiket} · ${saatEtiket(cizelgeNetSaat)} sa · ${saatEtiket(cizelgeFmSaat)} sa FM`;
 
-  const bugunKaydi = bugunSonucu.data;
+  const bugunKaydi = v.bugun;
   const cizelgeDot: "emerald" | "sky" | "muted" = bugunKaydi?.giris_saat
     ? "emerald"
     : bugunKaydi?.durum === "izinli" || bugunKaydi?.durum === "raporlu"
@@ -303,7 +274,7 @@ export default async function PersonelDetaySayfasi({
             guncelBakiye={bakiye?.bakiye ?? 0}
             sabitMaas={personel.maas}
             buAykiAvansToplami={buAykiAvansToplami}
-            bankaHesaplari={bankaHesabiSonucu.data ?? []}
+            bankaHesaplari={bankaHesapListesi}
             otomatikAc={odemeEkle === "1"}
           />
         )}

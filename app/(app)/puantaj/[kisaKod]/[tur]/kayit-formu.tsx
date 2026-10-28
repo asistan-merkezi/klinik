@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { formatTime } from "@/lib/datetime";
 import { puantajKendiKaydet } from "./actions";
 
-export function KayitFormu({ klinikId, tur }: { klinikId: string; tur: "giris" | "cikis" }) {
-  const [durum, formAction, isPending] = useActionState(puantajKendiKaydet, null);
+export function KayitFormu({ kisaKod, tur }: { kisaKod: string; tur: "giris" | "cikis" }) {
+  const [durum, formAction, isPending] = useActionState(puantajKendiKaydet.bind(null, kisaKod, tur), null);
 
   if (durum?.success) {
     return (
@@ -26,9 +26,6 @@ export function KayitFormu({ klinikId, tur }: { klinikId: string; tur: "giris" |
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <input type="hidden" name="klinik_id" value={klinikId} />
-      <input type="hidden" name="tur" value={tur} />
-
       {durum && !durum.success && (
         <p role="alert" className="text-sm text-destructive">
           {durum.message}

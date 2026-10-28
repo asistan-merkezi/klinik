@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { klinikQrBilgisiGetir } from "@/lib/qr/klinik-bilgisi";
-import { qrKoduAktifMi } from "@/lib/qr/qr-kod-aktif-mi";
+import { klinikQrBilgisi, qrAktifMi } from "@/lib/guvenlik/anonim-uc";
 import { gecerliKullanici } from "@/lib/auth/gecerli-kullanici";
 import { KamuFormKarti, KamuFormBulunamadi } from "@/components/panel/kamu-form-karti";
 import { KayitFormu } from "./kayit-formu";
@@ -16,14 +15,14 @@ export default async function PuantajSayfasi({
     notFound();
   }
 
-  const klinik = await klinikQrBilgisiGetir(kisaKod);
+  const klinik = await klinikQrBilgisi(kisaKod);
 
   if (!klinik) {
     return <KamuFormBulunamadi />;
   }
 
   const tip = tur === "giris" ? "puantaj_giris" : "puantaj_cikis";
-  const aktif = await qrKoduAktifMi(klinik.id, tip);
+  const aktif = await qrAktifMi(klinik.id, tip);
 
   const baslik = tur === "giris" ? "Personel Girişi" : "Personel Çıkışı";
 
@@ -60,7 +59,7 @@ export default async function PuantajSayfasi({
       baslik={baslik}
       aciklama={ad ? `Merhaba, ${ad}` : "Hesabınızla devam edin."}
     >
-      <KayitFormu klinikId={klinik.id} tur={tur} />
+      <KayitFormu kisaKod={kisaKod} tur={tur} />
     </KamuFormKarti>
   );
 }

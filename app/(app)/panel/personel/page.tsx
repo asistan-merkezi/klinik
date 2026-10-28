@@ -2,12 +2,16 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Users, Briefcase } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { and, asc, count, eq, gte, lt } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tl, tlTopla } from "@/lib/para";
+import { bankaHesaplariniGetir } from "@/lib/finans/okuma";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type { PersonelSatir } from "@/types/personel";
-import type { KlinikBankaHesabi } from "@/types/klinik";
 import { ayAraligi } from "@/lib/utils";
 import { PersonelListesi } from "./personel-listesi";
 import { PersonelSekmeCubugu } from "./sekme-cubugu";
@@ -20,19 +24,14 @@ export default async function PersonelSayfasi({
   searchParams: Promise<{ tab?: string; ay?: string }>;
 }) {
   const { tab, ay: ayParam } = await searchParams;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const ctx = await oturumBaglami();
+  if (!ctx || ctx.tur !== "personel") {
     redirect("/giris");
   }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-  const rol = kullanici?.rol ?? null;
+  const rol = ctx.rol;
   const yonetici = rol === "klinik_admin";
+  // Klinik bağlamı ister (super_admin'de yok → 403).
+  const { bag } = await panelBaglami();
 
   const izinliSekmeler = PERSONEL_SEKME_TANIMLARI.filter((s) => personelSekmeErisimVarMi(s, rol));
   const istenenSekme = PERSONEL_SEKME_TANIMLARI.some((s) => s.key === tab) ? (tab as PersonelSekme) : "liste";
@@ -55,25 +54,39 @@ export default async function PersonelSayfasi({
   // Rozet için sekme fark etmeksizin hep çekiliyor (yönetici Liste'deyken bile
   // "onay bekleyen var" görmeli) — tek satır count sorgusu, maliyeti düşük.
   if (yonetici) {
-    const { count } = await supabase
-      .from("personel_izin_talebi")
-      .select("id", { count: "exact", head: true })
-      .eq("durum", "beklemede");
-    bekleyenIzinSayisi = count ?? 0;
+    const sayim = await withTenant(bag, (tx) => tx.select({ n: count() }).from(sema.personelIzinTalebi).where(eq(sema.personelIzinTalebi.durum, "beklemede")));
+    bekleyenIzinSayisi = sayim[0]?.n ?? 0;
   }
 
   if (aktifSekme === "liste") {
-    const [{ data: personelSonucu, error }, { data: bilgiDurumu }] = await Promise.all([
-      supabase
-        .from("personel")
-        .select("id, ad_soyad, gorev, maas, aktif, kullanici:kullanici_id(telefon), pozisyon:pozisyon_id(ad, grup, sira)")
-        .order("ad_soyad")
-        .returns<PersonelSatir[]>(),
-      supabase.from("v_personel_bilgi_durumu").select("personel_id, bilgiler_tamam"),
-    ]);
+    let personelSonucu: PersonelSatir[] = [];
+    let error = false;
+    const tamamlikMap = new Map<string, boolean>();
+    try {
+      const v = await withTenant(bag, async (tx) => ({
+        personel: await tx
+          .select({
+            id: sema.personel.id, ad_soyad: sema.personel.adSoyad, gorev: sema.personel.gorev, maas: sema.personel.maas, aktif: sema.personel.aktif,
+            telefon: sema.kullanici.telefon, poz_ad: sema.pozisyonlar.ad, poz_grup: sema.pozisyonlar.grup, poz_sira: sema.pozisyonlar.sira,
+          })
+          .from(sema.personel)
+          .leftJoin(sema.kullanici, eq(sema.kullanici.id, sema.personel.kullaniciId))
+          .leftJoin(sema.pozisyonlar, eq(sema.pozisyonlar.id, sema.personel.pozisyonId))
+          .orderBy(asc(sema.personel.adSoyad)),
+        durum: await tx.select({ id: sema.vPersonelBilgiDurumu.personelId, tamam: sema.vPersonelBilgiDurumu.bilgilerTamam }).from(sema.vPersonelBilgiDurumu),
+      }));
+      for (const d of v.durum) if (d.id) tamamlikMap.set(d.id, Boolean(d.tamam));
+      personelSonucu = v.personel.map((p) => ({
+        id: p.id, ad_soyad: p.ad_soyad, gorev: p.gorev, maas: p.maas === null ? null : tl(p.maas), aktif: p.aktif,
+        kullanici: p.telefon === null ? null : { telefon: p.telefon },
+        pozisyon: p.poz_ad === null ? null : { ad: p.poz_ad, grup: p.poz_grup as string, sira: p.poz_sira as number },
+      })) as unknown as PersonelSatir[];
+    } catch (e) {
+      console.error("Personel listesi çekilemedi:", e);
+      error = true;
+    }
 
-    const tamamlikMap = new Map((bilgiDurumu ?? []).map((d) => [d.personel_id, d.bilgiler_tamam]));
-    const personelListesi = (personelSonucu ?? []).map((p) => ({
+    const personelListesi = personelSonucu.map((p) => ({
       ...p,
       bilgiler_tamam: tamamlikMap.get(p.id) ?? false,
     }));
@@ -112,37 +125,30 @@ export default async function PersonelSayfasi({
 
   if (aktifSekme === "hesap") {
     const ay = ayAraligi(ayParam);
-    const [{ data: personelListesi }, { data: bakiyeler }, { data: buAykiAvanslar }, { data: bankaHesaplari }] =
-      await Promise.all([
-        // aktif=false filtrelenmiyor (eski Personel Takip ekranı da filtrelemiyordu) —
-        // işten ayrılmış ama hâlâ alacağı olan personel bakiye özetinden kaybolmamalı.
-        supabase.from("personel").select("id, ad_soyad, gorev, maas").order("ad_soyad"),
-        supabase.from("v_personel_hesap_bakiye").select("personel_id, bakiye"),
-        supabase
-          .from("personel_hesap_hareket")
-          .select("personel_id, tutar")
-          .eq("tur", "avans")
-          .gte("tarih", ay.baslangicTarih)
-          .lt("tarih", ay.bitisTarih),
-        supabase
-          .from("klinik_banka_hesaplari")
-          .select("id, banka_adi, sube")
-          .order("sort_order")
-          .returns<KlinikBankaHesabi[]>(),
-      ]);
+    const v = await withTenant(bag, async (tx) => ({
+      // aktif=false filtrelenmiyor (eski Personel Takip ekranı da filtrelemiyordu) — işten ayrılmış ama hâlâ alacağı olan personel bakiye özetinden kaybolmamalı.
+      personel: await tx.select({ id: sema.personel.id, ad_soyad: sema.personel.adSoyad, gorev: sema.personel.gorev, maas: sema.personel.maas }).from(sema.personel).orderBy(asc(sema.personel.adSoyad)),
+      bakiyeler: await tx.select({ id: sema.vPersonelHesapBakiye.personelId, bakiye: sema.vPersonelHesapBakiye.bakiye }).from(sema.vPersonelHesapBakiye),
+      avanslar: await tx
+        .select({ id: sema.personelHesapHareket.personelId, tutar: sema.personelHesapHareket.tutar })
+        .from(sema.personelHesapHareket)
+        .where(and(eq(sema.personelHesapHareket.tur, "avans"), gte(sema.personelHesapHareket.tarih, ay.baslangicTarih), lt(sema.personelHesapHareket.tarih, ay.bitisTarih))),
+      bankaHesaplari: await bankaHesaplariniGetir(tx),
+    }));
+    const bankaHesaplari = v.bankaHesaplari;
+    const personelListesi = v.personel;
 
-    const bakiyeMap = new Map((bakiyeler ?? []).map((b) => [b.personel_id, b.bakiye]));
-    const avansMap = new Map<string, number>();
-    for (const h of buAykiAvanslar ?? []) {
-      avansMap.set(h.personel_id, (avansMap.get(h.personel_id) ?? 0) + h.tutar);
-    }
+    const bakiyeMap = new Map(v.bakiyeler.map((b) => [b.id as string, tl(b.bakiye)]));
+    const avansListe = new Map<string, string[]>();
+    for (const h of v.avanslar) avansListe.set(h.id, [...(avansListe.get(h.id) ?? []), h.tutar]);
+    const avansMap = new Map([...avansListe].map(([id, liste]) => [id, tlTopla(liste)]));
 
-    const satirlar: HesapOzetSatir[] = (personelListesi ?? []).map((p) => ({
+    const satirlar: HesapOzetSatir[] = personelListesi.map((p) => ({
       personelId: p.id,
       adSoyad: p.ad_soyad,
       gorev: p.gorev,
       bakiye: bakiyeMap.get(p.id) ?? 0,
-      maas: p.maas,
+      maas: p.maas === null ? null : tl(p.maas),
       buAykiAvans: avansMap.get(p.id) ?? 0,
     }));
 
@@ -152,7 +158,7 @@ export default async function PersonelSayfasi({
         ayEtiketi={ay.etiket}
         oncekiParam={ay.oncekiParam}
         sonrakiParam={ay.sonrakiParam}
-        bankaHesaplari={bankaHesaplari ?? []}
+        bankaHesaplari={bankaHesaplari}
         yonetici={yonetici}
       />
     );

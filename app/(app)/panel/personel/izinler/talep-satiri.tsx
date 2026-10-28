@@ -7,20 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime, bugunIstanbulTarihi } from "@/lib/datetime";
-import { IZIN_DURUM_ETIKETLERI, IZIN_DURUM_TONLARI, IZIN_TIP_ETIKETLERI, type IzinCakisan, type IzinTalebiAdminSatir } from "@/types/izin";
+import { IZIN_DURUM_ETIKETLERI, IZIN_DURUM_TONLARI, IZIN_TIP_ETIKETLERI, type IzinTalebiAdminSatir } from "@/types/izin";
+import { izinCakisanlariGetir } from "../izin-veri-actions";
 import { izinTalebiOnayla, izinTalebiReddet, izinTalebiYoneticiIptalEt } from "./actions";
 
 function useCakisanlar(talepId: string, etkin: boolean) {
   return useQuery({
     queryKey: ["izin_cakisanlari", talepId],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase.rpc("personel_izin_cakisanlari_getir", { p_talep_id: talepId });
-      if (error) throw error;
-      return (data ?? []) as IzinCakisan[];
-    },
+    queryFn: () => izinCakisanlariGetir(talepId),
     enabled: etkin,
     staleTime: 30_000,
   });

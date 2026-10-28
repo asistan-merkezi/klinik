@@ -1,57 +1,42 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { and, asc, eq } from "drizzle-orm";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-async function yetkiliKlinikAdminGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  if (!kullanici || kullanici.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { supabase, klinikId: null as string | null, yetkisiz: true as const };
-  }
-
-  return { supabase, klinikId: kullanici.klinik_id, yetkisiz: false as const };
+/** Yalnız klinik_admin (RLS ile aynı küme); tenant ve kullanıcı oturumdan. */
+async function adminOturumu() {
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || !y.klinikId || y.ctx.rol !== "klinik_admin") return null;
+  return { bag: y.bag, klinikId: y.klinikId };
 }
+
+const UUID = z.string().uuid();
 
 // ---------------------------------------------------------------------
 // Pozisyonlar
 // ---------------------------------------------------------------------
 
 export async function pozisyonAktifDurumDegistir(pozisyonId: string, yeniDurum: boolean): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
+  if (!UUID.safeParse(pozisyonId).success) return { success: false, message: "Pozisyon bulunamadı." };
 
-  const { error } = await supabase
-    .from("pozisyonlar")
-    .update({ aktif: yeniDurum })
-    .eq("id", pozisyonId)
-    .eq("klinik_id", klinikId);
-
-  if (error) {
-    console.error("Pozisyon durumu değiştirilemedi:", error);
-    const mesaj =
-      error.message?.includes("pozisyon_personel_bagli")
-        ? "Bu pozisyonda hâlâ aktif personel var — önce onları başka bir pozisyona taşıyın."
-        : "Değiştirilemedi, lütfen tekrar deneyin.";
+  try {
+    const g = await withTenant(o.bag, (tx) =>
+      tx.update(sema.pozisyonlar).set({ aktif: yeniDurum }).where(and(eq(sema.pozisyonlar.id, pozisyonId), eq(sema.pozisyonlar.klinikId, o.klinikId))).returning({ id: sema.pozisyonlar.id })
+    );
+    if (g.length === 0) return { success: false, message: "Pozisyon bulunamadı." };
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Pozisyon durumu değiştirilemedi:", h.mesaj);
+    const mesaj = h.mesaj.includes("pozisyon_personel_bagli")
+      ? "Bu pozisyonda hâlâ aktif personel var — önce onları başka bir pozisyona taşıyın."
+      : "Değiştirilemedi, lütfen tekrar deneyin.";
     return { success: false, message: mesaj };
   }
 
@@ -60,19 +45,17 @@ export async function pozisyonAktifDurumDegistir(pozisyonId: string, yeniDurum: 
 }
 
 export async function pozisyonSistemErisimiDegistir(pozisyonId: string, yeniDurum: boolean): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
+  if (!UUID.safeParse(pozisyonId).success) return { success: false, message: "Pozisyon bulunamadı." };
 
-  const { error } = await supabase
-    .from("pozisyonlar")
-    .update({ sistem_erisimi: yeniDurum })
-    .eq("id", pozisyonId)
-    .eq("klinik_id", klinikId);
-
-  if (error) {
-    console.error("Pozisyon sistem erişimi değiştirilemedi:", error);
+  try {
+    const g = await withTenant(o.bag, (tx) =>
+      tx.update(sema.pozisyonlar).set({ sistemErisimi: yeniDurum }).where(and(eq(sema.pozisyonlar.id, pozisyonId), eq(sema.pozisyonlar.klinikId, o.klinikId))).returning({ id: sema.pozisyonlar.id })
+    );
+    if (g.length === 0) return { success: false, message: "Pozisyon bulunamadı." };
+  } catch (e) {
+    console.error("Pozisyon sistem erişimi değiştirilemedi:", pgHata(e).mesaj);
     return { success: false, message: "Değiştirilemedi, lütfen tekrar deneyin." };
   }
 
@@ -89,10 +72,8 @@ const ozelPozisyonSemasi = z.object({
 });
 
 export async function ozelPozisyonOlustur(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = ozelPozisyonSemasi.safeParse({
     grup: formData.get("grup"),
@@ -105,37 +86,36 @@ export async function ozelPozisyonOlustur(_onceki: SonucDurumu, formData: FormDa
 
   const { grup, ad } = ayristirma.data;
 
-  // Rol/ücret tipi/puantaj modu artık ayrıca sorulmuyor — seçilen departmandaki
-  // mevcut bir pozisyondan (en küçük sıralı) devralınır, yeni ünvan aynı
-  // departmanın tipik ayarlarıyla sisteme girer.
-  const { data: ornekPozisyon } = await supabase
-    .from("pozisyonlar")
-    .select("varsayilan_rol, ucret_tipi, puantaj_modu")
-    .eq("klinik_id", klinikId)
-    .eq("grup", grup)
-    .order("sira", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (!ornekPozisyon) {
-    return { success: false, message: "Departman bulunamadı." };
-  }
-
-  const { error } = await supabase.from("pozisyonlar").insert({
-    klinik_id: klinikId,
-    ad,
-    grup,
-    sira: 999,
-    sistem_erisimi: false,
-    varsayilan_rol: ornekPozisyon.varsayilan_rol,
-    ucret_tipi: ornekPozisyon.ucret_tipi,
-    puantaj_modu: ornekPozisyon.puantaj_modu,
-    ozel_mi: true,
-  });
-
-  if (error) {
-    console.error("Özel pozisyon oluşturulamadı:", error);
-    if (error.code === "23505") {
+  try {
+    const hata = await withTenant(o.bag, async (tx) => {
+      // Rol/ücret tipi/puantaj modu artık ayrıca sorulmuyor — seçilen departmandaki mevcut bir pozisyondan (en küçük sıralı) devralınır.
+      const ornek = (
+        await tx
+          .select({ varsayilanRol: sema.pozisyonlar.varsayilanRol, ucretTipi: sema.pozisyonlar.ucretTipi, puantajModu: sema.pozisyonlar.puantajModu })
+          .from(sema.pozisyonlar)
+          .where(and(eq(sema.pozisyonlar.klinikId, o.klinikId), eq(sema.pozisyonlar.grup, grup)))
+          .orderBy(asc(sema.pozisyonlar.sira))
+          .limit(1)
+      )[0];
+      if (!ornek) return "Departman bulunamadı.";
+      await tx.insert(sema.pozisyonlar).values({
+        klinikId: o.klinikId,
+        ad,
+        grup,
+        sira: 999,
+        sistemErisimi: false,
+        varsayilanRol: ornek.varsayilanRol,
+        ucretTipi: ornek.ucretTipi,
+        puantajModu: ornek.puantajModu,
+        ozelMi: true,
+      });
+      return null;
+    });
+    if (hata) return { success: false, message: hata };
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Özel pozisyon oluşturulamadı:", h.mesaj);
+    if (h.kod === "23505") {
       return { success: false, message: "Bu isimde bir pozisyon zaten var." };
     }
     return { success: false, message: "Oluşturulamadı, lütfen tekrar deneyin." };

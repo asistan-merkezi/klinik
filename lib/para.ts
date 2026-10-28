@@ -97,3 +97,9 @@ export function tlTopla(liste: readonly (number | string | null | undefined)[]):
 export function tlFark(a: number | string, b: number | string): number {
   return ((kurus(a) ?? 0) - (kurus(b) ?? 0)) / 100;
 }
+
+/** `k` kuruşun pay/payda oranı (örn. kısmi ay: maaş × çalışılan gün / ay günü), kuruşa YARIM YUKARI. payda > 0, pay ≥ 0 tamsayı. */
+export function oranlaKurus(k: number, pay: number, payda: number): number {
+  if (!Number.isInteger(pay) || !Number.isInteger(payda) || payda <= 0) throw new Error("oran_gecersiz");
+  return Number(bolYuvarla(BigInt(k) * BigInt(pay), BigInt(payda)));
+}

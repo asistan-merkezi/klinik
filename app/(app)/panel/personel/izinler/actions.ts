@@ -1,85 +1,72 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { anlikMesajTetikleAdmin as anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { pgHata, rpc, sema, withTenant, type TenantBaglami } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
+import { anlikMesajTetikle } from "@/lib/mesaj/anlik-tetikle";
 import { IZIN_DURUM_ETIKETLERI, type IzinDurum } from "@/types/izin";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-async function yetkiliBaglantiGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const UUID = z.string().uuid();
 
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("klinik_id, rol").eq("id", user.id).single();
-
-  return { supabase, klinikId: kullanici?.klinik_id ?? null, rol: kullanici?.rol ?? null };
+/** İzin onay/red/iptal ve manuel girişler yalnız klinik_admin (RPC'ler de içeride aynı kuralı zorlar). */
+async function adminOturumu() {
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag || !y.klinikId || y.ctx.rol !== "klinik_admin") return null;
+  return { bag: y.bag, klinikId: y.klinikId };
 }
 
-async function sonucBildir(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  talepId: string,
-  durum: IzinDurum
-) {
-  const { data: talep } = await supabase
-    .from("personel_izin_talebi")
-    .select("klinik_id, klinik:klinik_id(ad), personel:personel_id(id, ad_soyad, eposta, kullanici:kullanici_id(telefon))")
-    .eq("id", talepId)
-    .maybeSingle<{
-      klinik_id: string;
-      klinik: { ad: string } | null;
-      personel: { id: string; ad_soyad: string; eposta: string | null; kullanici: { telefon: string | null } | null } | null;
-    }>();
-
-  if (!talep?.personel) return;
-
+/** Sonuç bildirimi (en iyi çaba): talebi açan personele; kuyruk yazımı kullanıcının kendi tenant bağlamıyla. */
+async function sonucBildir(bag: TenantBaglami, talepId: string, durum: IzinDurum) {
   try {
-    const adminClient = createAdminClient();
-    await anlikMesajTetikle(adminClient, {
-      klinikId: talep.klinik_id,
-      tetikleyiciKodu: "personel_izin_sonuc",
-      aliciTipi: "personel",
-      aliciId: talep.personel.id,
-      adres: { telefon: talep.personel.kullanici?.telefon ?? null, eposta: talep.personel.eposta },
-      degiskenler: {
-        personel_adi: talep.personel.ad_soyad,
-        izin_durumu: IZIN_DURUM_ETIKETLERI[durum],
-        klinik_adi: talep.klinik?.ad ?? "",
-      },
+    await withTenant(bag, async (tx) => {
+      const t = (
+        await tx
+          .select({ klinikId: sema.personelIzinTalebi.klinikId, personelId: sema.personel.id, adSoyad: sema.personel.adSoyad, eposta: sema.personel.eposta, telefon: sema.kullanici.telefon, klinikAd: sema.klinik.ad })
+          .from(sema.personelIzinTalebi)
+          .innerJoin(sema.personel, eq(sema.personel.id, sema.personelIzinTalebi.personelId))
+          .leftJoin(sema.kullanici, eq(sema.kullanici.id, sema.personel.kullaniciId))
+          .leftJoin(sema.klinik, eq(sema.klinik.id, sema.personelIzinTalebi.klinikId))
+          .where(eq(sema.personelIzinTalebi.id, talepId))
+          .limit(1)
+      )[0];
+      if (!t) return;
+      await anlikMesajTetikle(tx, {
+        klinikId: t.klinikId,
+        tetikleyiciKodu: "personel_izin_sonuc",
+        aliciTipi: "personel",
+        aliciId: t.personelId,
+        adres: { telefon: t.telefon ?? null, eposta: t.eposta },
+        degiskenler: { personel_adi: t.adSoyad, izin_durumu: IZIN_DURUM_ETIKETLERI[durum], klinik_adi: t.klinikAd ?? "" },
+      });
     });
   } catch (e) {
-    console.error("İzin sonucu bildirimi gönderilemedi:", e);
+    console.error("İzin sonucu bildirimi gönderilemedi:", pgHata(e).mesaj);
   }
 }
 
 export async function izinTalebiOnayla(talepId: string): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId || rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
+  if (!UUID.safeParse(talepId).success) return { success: false, message: "Talep bulunamadı." };
 
-  const { error } = await supabase.rpc("personel_izin_talebi_onayla", { p_talep_id: talepId });
-
-  if (error) {
-    console.error("İzin talebi onaylanamadı:", error);
-    const mesaj = error.message?.startsWith("donem_kapali")
-      ? `Onaylanamadı: ${error.message.split(":")[1]?.trim() ?? ""} dönemi kapalı, önce dönemi yeniden açın.`
-      : error.message === "gecersiz_durum_gecisi"
+  try {
+    await withTenant(o.bag, (tx) => rpc(tx, "personel_izin_talebi_onayla", { p_talep_id: talepId }));
+  } catch (e) {
+    const m = pgHata(e).mesaj;
+    console.error("İzin talebi onaylanamadı:", m);
+    const mesaj = m.startsWith("donem_kapali")
+      ? `Onaylanamadı: ${m.split(":")[1]?.trim() ?? ""} dönemi kapalı, önce dönemi yeniden açın.`
+      : m === "gecersiz_durum_gecisi"
         ? "Bu talep artık onaylanamaz (beklemede değil)."
         : "Onaylanamadı, lütfen tekrar deneyin.";
     return { success: false, message: mesaj };
   }
 
-  await sonucBildir(supabase, talepId, "onaylandi");
+  await sonucBildir(o.bag, talepId, "onaylandi");
 
   revalidatePath("/panel/personel/izinler");
   revalidatePath("/panel/personel/izinlerim");
@@ -87,27 +74,23 @@ export async function izinTalebiOnayla(talepId: string): Promise<SonucDurumu> {
 }
 
 export async function izinTalebiReddet(talepId: string, redGerekce: string): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId || rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
+  if (!UUID.safeParse(talepId).success) return { success: false, message: "Talep bulunamadı." };
 
   if (!redGerekce.trim()) {
     return { success: false, message: "Red gerekçesi zorunlu." };
   }
 
-  const { error } = await supabase.rpc("personel_izin_talebi_reddet", {
-    p_talep_id: talepId,
-    p_red_gerekce: redGerekce.trim(),
-  });
-
-  if (error) {
-    console.error("İzin talebi reddedilemedi:", error);
-    const mesaj = error.message === "gecersiz_durum_gecisi" ? "Bu talep artık reddedilemez (beklemede değil)." : "Reddedilemedi, lütfen tekrar deneyin.";
-    return { success: false, message: mesaj };
+  try {
+    await withTenant(o.bag, (tx) => rpc(tx, "personel_izin_talebi_reddet", { p_talep_id: talepId, p_red_gerekce: redGerekce.trim() }));
+  } catch (e) {
+    const m = pgHata(e).mesaj;
+    console.error("İzin talebi reddedilemedi:", m);
+    return { success: false, message: m === "gecersiz_durum_gecisi" ? "Bu talep artık reddedilemez (beklemede değil)." : "Reddedilemedi, lütfen tekrar deneyin." };
   }
 
-  await sonucBildir(supabase, talepId, "reddedildi");
+  await sonucBildir(o.bag, talepId, "reddedildi");
 
   revalidatePath("/panel/personel/izinler");
   revalidatePath("/panel/personel/izinlerim");
@@ -115,19 +98,19 @@ export async function izinTalebiReddet(talepId: string, redGerekce: string): Pro
 }
 
 export async function izinTalebiYoneticiIptalEt(talepId: string): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId || rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
+  if (!UUID.safeParse(talepId).success) return { success: false, message: "Talep bulunamadı." };
 
-  const { error } = await supabase.rpc("personel_izin_talebi_yonetici_iptal", { p_talep_id: talepId });
-
-  if (error) {
-    console.error("Onaylı izin iptal edilemedi:", error);
+  try {
+    await withTenant(o.bag, (tx) => rpc(tx, "personel_izin_talebi_yonetici_iptal", { p_talep_id: talepId }));
+  } catch (e) {
+    const m = pgHata(e).mesaj;
+    console.error("Onaylı izin iptal edilemedi:", m);
     const mesaj =
-      error.message === "izin_baslamis"
+      m === "izin_baslamis"
         ? "İzin zaten başladığı için iptal edilemez."
-        : error.message === "gecersiz_durum_gecisi"
+        : m === "gecersiz_durum_gecisi"
           ? "Bu talep artık iptal edilemez (onaylı değil)."
           : "İptal edilemedi, lütfen tekrar deneyin.";
     return { success: false, message: mesaj };
@@ -150,15 +133,12 @@ const manuelIzinSemasi = z.object({
  * Yönetici bir personel adına doğrudan izin girer — mevcut talep oluştur +
  * onayla RPC'lerini (personel_izin_talep_olustur, personel_izin_talebi_onayla)
  * arka arkaya çağırır, kendi başına onay bekleyecek bir talep bırakmaz.
- * personel_izin_talep_olustur zaten klinik_admin'in KENDİ dışındaki bir
- * personel için talep açmasına izin veriyor (bkz. RPC yetki kontrolü) —
- * ayrı bir "manuel" RPC'ye gerek yok.
+ * Oluşturma ve onay AYRI transaction'lardır (bilinçli): onay "dönem kapalı" ile
+ * başarısız olursa talep beklemede kalır ve yönetici listeden elle onaylar.
  */
 export async function manuelIzinEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId || rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = manuelIzinSemasi.safeParse({
     personel_id: formData.get("personel_id"),
@@ -174,36 +154,47 @@ export async function manuelIzinEkle(_onceki: SonucDurumu, formData: FormData): 
 
   const { personel_id, tip, baslangic_tarih, bitis_tarih, gerekce } = ayristirma.data;
 
-  const { data: talepId, error: olusturHata } = await supabase.rpc("personel_izin_talep_olustur", {
-    p_personel_id: personel_id,
-    p_tip: tip,
-    p_baslangic_tarih: baslangic_tarih,
-    p_bitis_tarih: bitis_tarih,
-    p_gerekce: gerekce ? gerekce : "Yönetici tarafından girildi.",
-    p_belge_url: null,
-  });
-
-  if (olusturHata || !talepId) {
-    console.error("Manuel izin talebi oluşturulamadı:", olusturHata);
+  let talepId: string | undefined;
+  try {
+    const r = await withTenant(o.bag, (tx) =>
+      rpc<{ personel_izin_talep_olustur: string }>(tx, "personel_izin_talep_olustur", {
+        p_personel_id: personel_id,
+        p_tip: tip,
+        p_baslangic_tarih: baslangic_tarih,
+        p_bitis_tarih: bitis_tarih,
+        p_gerekce: gerekce ? gerekce : "Yönetici tarafından girildi.",
+        p_belge_url: null,
+      })
+    );
+    talepId = r[0]?.personel_izin_talep_olustur;
+  } catch (e) {
+    const m = pgHata(e).mesaj;
+    console.error("Manuel izin talebi oluşturulamadı:", m);
     const mesaj =
-      olusturHata?.message === "gun_sayisi_sifir"
+      m === "gun_sayisi_sifir"
         ? "Seçilen tarih aralığında hiç iş günü yok (hafta tatili/resmi tatil)."
-        : olusturHata?.message === "tarih_araligi_gecersiz"
+        : m === "tarih_araligi_gecersiz"
           ? "Bitiş tarihi başlangıçtan önce olamaz."
           : "İzin eklenemedi, lütfen tekrar deneyin.";
     return { success: false, message: mesaj };
   }
+  if (!talepId) return { success: false, message: "İzin eklenemedi, lütfen tekrar deneyin." };
 
-  const { error: onayHata } = await supabase.rpc("personel_izin_talebi_onayla", { p_talep_id: talepId as string });
+  let onayHata: string | null = null;
+  try {
+    await withTenant(o.bag, (tx) => rpc(tx, "personel_izin_talebi_onayla", { p_talep_id: talepId }));
+  } catch (e) {
+    onayHata = pgHata(e).mesaj;
+    console.error("Manuel izin onaylanamadı:", onayHata);
+  }
 
   revalidatePath("/panel/personel/izinler");
   revalidatePath("/panel/personel/izinlerim");
   revalidatePath("/panel/personel/puantaj-cetveli");
 
-  if (onayHata) {
-    console.error("Manuel izin onaylanamadı:", onayHata);
-    const mesaj = onayHata.message?.startsWith("donem_kapali")
-      ? `Talep oluşturuldu ama onaylanamadı: ${onayHata.message.split(":")[1]?.trim() ?? ""} dönemi kapalı — önce dönemi yeniden açın, sonra listeden onaylayın.`
+  if (onayHata !== null) {
+    const mesaj = onayHata.startsWith("donem_kapali")
+      ? `Talep oluşturuldu ama onaylanamadı: ${onayHata.split(":")[1]?.trim() ?? ""} dönemi kapalı — önce dönemi yeniden açın, sonra listeden onaylayın.`
       : "Talep oluşturuldu ama onaylanamadı, aşağıdaki listeden elle onaylayın.";
     return { success: false, message: mesaj };
   }
@@ -222,16 +213,11 @@ const manuelRaporSemasi = z.object({
  * "Raporlu" için izin_talebi benzeri ayrı bir tablo/RPC yok — personel_puantaj
  * satırlarına doğrudan yazıyoruz (RLS zaten klinik_admin + açık dönem şartını
  * uyguluyor, bkz. puantaj-cetveli/actions.ts'teki gunKaydet ile aynı desen).
- * İzin onayının izlediği "hiç yazmadan önce hafta tatili/resmi tatil hariç
- * günleri hesapla" mantığı burada JS'de tekrarlanıyor (kismiAyOrani'nin
- * yanına SQL tarafında genel bir yardımcı YOK, personel_izin_is_gunu_sayisi
- * sadece izin_talebi akışına özel).
+ * Hafta tatili/resmi tatil günleri JS'de elenip hiç yazılmaz; tüm günler TEK ifadede yazılır (kısmi yazma yok).
  */
 export async function manuelRaporEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId || rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await adminOturumu();
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = manuelRaporSemasi.safeParse({
     personel_id: formData.get("personel_id"),
@@ -249,78 +235,60 @@ export async function manuelRaporEkle(_onceki: SonucDurumu, formData: FormData):
   if (bitis_tarih < baslangic_tarih) {
     return { success: false, message: "Bitiş tarihi başlangıçtan önce olamaz." };
   }
-  // İzin talebindeki (personel_izin_is_gunu_sayisi) 366 gün sınırıyla aynı: yanlış girilmiş bir
-  // aralık binlerce puantaj satırı yazmasın.
+  // İzin talebindeki (personel_izin_is_gunu_sayisi) 366 gün sınırıyla aynı: yanlış girilmiş bir aralık binlerce puantaj satırı yazmasın.
   if (Date.parse(`${bitis_tarih}T00:00:00Z`) - Date.parse(`${baslangic_tarih}T00:00:00Z`) > 366 * 86_400_000) {
     return { success: false, message: "Rapor aralığı en fazla 1 yıl olabilir." };
   }
 
-  const { data: personel } = await supabase.from("personel").select("klinik_id").eq("id", personel_id).maybeSingle();
-  if (!personel || personel.klinik_id !== klinikId) {
-    return { success: false, message: "Personel bulunamadı." };
-  }
+  try {
+    const sonuc = await withTenant(o.bag, async (tx) => {
+      const personel = (await tx.select({ klinikId: sema.personel.klinikId }).from(sema.personel).where(eq(sema.personel.id, personel_id)).limit(1))[0];
+      if (!personel || personel.klinikId !== o.klinikId) return { hata: "Personel bulunamadı." };
 
-  const [{ data: klinik }, { data: resmiTatiller }] = await Promise.all([
-    supabase.from("klinik").select("cumartesi_baslangic, pazar_baslangic").eq("id", klinikId).single(),
-    supabase.from("resmi_tatil").select("tarih").gte("tarih", baslangic_tarih).lte("tarih", bitis_tarih),
-  ]);
-  const resmiTatilSet = new Set((resmiTatiller ?? []).map((r) => r.tarih as string));
+      const klinik = (await tx.select({ cumartesi: sema.klinik.cumartesiBaslangic, pazar: sema.klinik.pazarBaslangic }).from(sema.klinik).where(eq(sema.klinik.id, o.klinikId)).limit(1))[0];
+      const resmi = await tx.select({ tarih: sema.resmiTatil.tarih }).from(sema.resmiTatil).where(and(gte(sema.resmiTatil.tarih, baslangic_tarih), lte(sema.resmiTatil.tarih, bitis_tarih)));
+      const resmiTatilSet = new Set(resmi.map((r) => r.tarih));
 
-  const gunler: string[] = [];
-  const cursor = new Date(`${baslangic_tarih}T00:00:00Z`);
-  const bitisDate = new Date(`${bitis_tarih}T00:00:00Z`);
-  while (cursor.getTime() <= bitisDate.getTime()) {
-    const iso = cursor.toISOString().slice(0, 10);
-    const dow = cursor.getUTCDay();
-    const kapaliHaftaSonu = (dow === 0 && !klinik?.pazar_baslangic) || (dow === 6 && !klinik?.cumartesi_baslangic);
-    if (!kapaliHaftaSonu && !resmiTatilSet.has(iso)) gunler.push(iso);
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
+      const gunler: string[] = [];
+      const cursor = new Date(`${baslangic_tarih}T00:00:00Z`);
+      const bitisDate = new Date(`${bitis_tarih}T00:00:00Z`);
+      while (cursor.getTime() <= bitisDate.getTime()) {
+        const iso = cursor.toISOString().slice(0, 10);
+        const dow = cursor.getUTCDay();
+        const kapaliHaftaSonu = (dow === 0 && !klinik?.pazar) || (dow === 6 && !klinik?.cumartesi);
+        if (!kapaliHaftaSonu && !resmiTatilSet.has(iso)) gunler.push(iso);
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+      if (gunler.length === 0) return { hata: "Seçilen tarih aralığında hiç iş günü yok (hafta tatili/resmi tatil)." };
 
-  if (gunler.length === 0) {
-    return { success: false, message: "Seçilen tarih aralığında hiç iş günü yok (hafta tatili/resmi tatil)." };
-  }
+      // İzin talebinden gelen günlerin üzerine sessizce yazılmaz — düzeltme ilgili izin talebi üzerinden yapılmalı.
+      const izinKaynakli = await tx
+        .select({ tarih: sema.personelPuantaj.tarih })
+        .from(sema.personelPuantaj)
+        .where(and(eq(sema.personelPuantaj.personelId, personel_id), eq(sema.personelPuantaj.kaynak, "izin_talebi"), inArray(sema.personelPuantaj.tarih, gunler)));
+      if (izinKaynakli.length > 0) return { hata: "Bu aralıkta onaylı izin günleri var — önce ilgili izin talebi üzerinden düzenleyin." };
 
-  // İzin talebinden gelen günlerin üzerine sessizce yazmıyoruz — kaynak orada
-  // kalmalı, düzeltme ilgili izin talebi üzerinden yapılmalı (izinKaynakli
-  // kilidiyle aynı ilke, bkz. HucreDuzenleDialog).
-  const { data: izinKaynakliGunler } = await supabase
-    .from("personel_puantaj")
-    .select("tarih")
-    .eq("personel_id", personel_id)
-    .eq("kaynak", "izin_talebi")
-    .in("tarih", gunler);
+      await tx
+        .insert(sema.personelPuantaj)
+        .values(gunler.map((tarih) => ({ klinikId: o.klinikId, personelId: personel_id, tarih, durum: "raporlu", kaynak: "manuel", molaDakika: 0, notMetni: not_metni || null, girisSaat: null, cikisSaat: null })))
+        .onConflictDoUpdate({
+          target: [sema.personelPuantaj.personelId, sema.personelPuantaj.tarih],
+          set: { durum: "raporlu", kaynak: "manuel", molaDakika: 0, notMetni: not_metni || null, girisSaat: null, cikisSaat: null },
+        });
+      return { gun: gunler.length };
+    });
+    if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Eklenemedi." };
 
-  if (izinKaynakliGunler && izinKaynakliGunler.length > 0) {
-    return {
-      success: false,
-      message: "Bu aralıkta onaylı izin günleri var — önce ilgili izin talebi üzerinden düzenleyin.",
-    };
-  }
-
-  const satirlar = gunler.map((tarih) => ({
-    personel_id,
-    tarih,
-    durum: "raporlu",
-    kaynak: "manuel",
-    mola_dakika: 0,
-    not_metni: not_metni || null,
-    giris_saat: null,
-    cikis_saat: null,
-  }));
-
-  const { error } = await supabase.from("personel_puantaj").upsert(satirlar, { onConflict: "personel_id,tarih" });
-
-  if (error) {
-    console.error("Manuel rapor eklenemedi:", error);
-    if (error.code === "42501" || error.message?.includes("row-level security")) {
+    revalidatePath("/panel/personel/izinler");
+    revalidatePath("/panel/personel/puantaj-cetveli");
+    revalidatePath(`/panel/personel/${personel_id}`);
+    return { success: true, message: `${sonuc.gun} gün raporlu olarak işlendi.` };
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Manuel rapor eklenemedi:", h.mesaj);
+    if (h.kod === "42501" || h.mesaj.includes("row-level security")) {
       return { success: false, message: "Bu aralıktaki bazı aylar dönem kapalı olduğu için işlenemedi." };
     }
     return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
   }
-
-  revalidatePath("/panel/personel/izinler");
-  revalidatePath("/panel/personel/puantaj-cetveli");
-  revalidatePath(`/panel/personel/${personel_id}`);
-  return { success: true, message: `${gunler.length} gün raporlu olarak işlendi.` };
 }
