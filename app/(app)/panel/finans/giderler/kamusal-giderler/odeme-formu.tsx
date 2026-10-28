@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { useActionState, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,7 @@ export function OdemeFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <div className="flex flex-col gap-1">
         <Label htmlFor={`${idOnEki}-odeme_tipi`}>Ödeme Tipi</Label>
         <Select

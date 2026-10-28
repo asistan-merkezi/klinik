@@ -1,44 +1,22 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { pgHata, sema, withTenant, type TenantBaglami } from "@/lib/db";
+import { finansOturumu } from "@/lib/finans/eylem";
+import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-async function yetkiliMi() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
+/** Muhasebe Sync bağlantı kontrolü: secret kolonu OKUNMAZ, yalnız durum bilgisi. */
+async function baglantiKontrolu(bag: TenantBaglami): Promise<SonucDurumu> {
+  let durum: string | null = null;
+  try {
+    const satir = await withTenant(bag, (tx) => tx.select({ durum: sema.klinikMuhasebeEntegrasyonu.baglantiDurumu }).from(sema.klinikMuhasebeEntegrasyonu).limit(1));
+    durum = satir[0]?.durum ?? null;
+  } catch (e) {
+    console.error("Muhasebe bağlantı durumu okunamadı:", pgHata(e).mesaj);
   }
 
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-
-  if (
-    kullanici?.rol !== "klinik_admin" &&
-    kullanici?.rol !== "muhasebe" &&
-    kullanici?.rol !== "super_admin"
-  ) {
-    return { yetkili: false, supabase } as const;
-  }
-
-  return { yetkili: true, supabase } as const;
-}
-
-async function baglantiKontrolu(supabase: Awaited<ReturnType<typeof createClient>>): Promise<SonucDurumu> {
-  const { data: entegrasyon } = await supabase
-    .from("klinik_muhasebe_entegrasyonu")
-    .select("baglanti_durumu")
-    .maybeSingle();
-
-  if (entegrasyon?.baglanti_durumu !== "baglandi") {
+  if (durum !== "baglandi") {
     return {
       success: false,
       message: "Muhasebe Sync henüz bağlı değil. Ayarlar > Muhasebe Sync'ten Paraşüt bilgilerini girin.",
@@ -49,12 +27,12 @@ async function baglantiKontrolu(supabase: Awaited<ReturnType<typeof createClient
 }
 
 export async function arsiviGuncelle(): Promise<SonucDurumu> {
-  const { yetkili, supabase } = await yetkiliMi();
-  if (!yetkili) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const o = await finansOturumu(["klinik_admin", "muhasebe"]);
+  if (!o) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
-  const baglantiHatasi = await baglantiKontrolu(supabase);
+  const baglantiHatasi = await baglantiKontrolu(o.bag);
   if (baglantiHatasi) {
     return baglantiHatasi;
   }
@@ -68,12 +46,12 @@ export async function arsiviGuncelle(): Promise<SonucDurumu> {
 }
 
 export async function stokFiyatlariniGuncelle(): Promise<SonucDurumu> {
-  const { yetkili, supabase } = await yetkiliMi();
-  if (!yetkili) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const o = await finansOturumu(["klinik_admin", "muhasebe"]);
+  if (!o) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
-  const baglantiHatasi = await baglantiKontrolu(supabase);
+  const baglantiHatasi = await baglantiKontrolu(o.bag);
   if (baglantiHatasi) {
     return baglantiHatasi;
   }

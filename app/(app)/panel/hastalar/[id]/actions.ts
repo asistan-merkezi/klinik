@@ -16,6 +16,9 @@ import { hastaHesabiOlustur, geciciSifreYenile, kimlikHesabiSil } from "@/lib/au
 import { isimBasHarfBuyukYap } from "@/lib/utils";
 import { FATURA_ALAN_ETIKETLERI } from "@/lib/fatura/eksik-bilgi";
 import { revalidateHastaDetay } from "./revalidate";
+import { islemAnahtariniKaydet, islemAnahtariniOku } from "@/lib/finans/idempotans";
+import { negatifOlmayanTutarKurus, pozitifTutarKurus } from "@/lib/finans/tutar";
+import { kurusMetni } from "@/lib/para";
 import { randevuErtele } from "../../randevular/actions";
 
 type SonucDurumu = { success: boolean; message: string } | null;
@@ -46,7 +49,7 @@ const kalemSemasi = z.object({
 
 const satirSemasi = z.object({
   yontem: z.enum(["kredi_karti", "banka_havalesi", "nakit"]),
-  tutar: z.coerce.number().positive(),
+  tutar: pozitifTutarKurus(),
 });
 
 function jsonDizisiSemasi<T extends z.ZodTypeAny>(itemSemasi: T, bosMesaj: string) {
@@ -64,7 +67,7 @@ function jsonDizisiSemasi<T extends z.ZodTypeAny>(itemSemasi: T, bosMesaj: strin
 }
 
 const odemeSemasi = z.object({
-  iskonto_tutari: z.coerce.number().min(0, "İskonto 0'dan küçük olamaz."),
+  iskonto_tutari: negatifOlmayanTutarKurus("İskonto 0'dan küçük olamaz."),
   faturali: z.coerce.boolean().optional(),
   aciklama: z.string().trim().optional(),
   kalemler_json: jsonDizisiSemasi(kalemSemasi, "En az bir ürün eklenmeli."),
@@ -117,16 +120,19 @@ export async function odemeAl(
   const { iskonto_tutari, faturali, aciklama, kalemler_json, satirlar_json } = ayristirma.data;
 
   try {
-    await withTenant(ctx.bag, (tx) =>
-      rpc(tx, "odeme_olustur", {
+    // Tutarlar KURUŞ tamsayıdır (lib/para.ts); RPC'ye iki ondalıklı metin olarak gider. İdempotency anahtarı ödemeyle AYNI transaction'da kaydedilir.
+    const anahtar = islemAnahtariniOku(formData);
+    await withTenant(ctx.bag, async (tx) => {
+      if (!(await islemAnahtariniKaydet(tx, ctx.klinikId, anahtar, "odeme_al", ctx.userId))) return;
+      await rpc(tx, "odeme_olustur", {
         p_hasta_id: hastaId,
-        p_iskonto_tutari: iskonto_tutari,
+        p_iskonto_tutari: kurusMetni(iskonto_tutari),
         p_faturali: faturali ?? false,
         p_aciklama: aciklama ? aciklama : null,
         p_kalemler: kalemler_json,
-        p_satirlar: satirlar_json,
-      })
-    );
+        p_satirlar: (satirlar_json as { yontem: string; tutar: number }[]).map((x) => ({ ...x, tutar: kurusMetni(x.tutar) })),
+      });
+    });
   } catch (e) {
     const h = pgHata(e);
     console.error("Ödeme oluşturulamadı:", h.mesaj);
@@ -152,7 +158,7 @@ const bakiyeHareketSemasi = z.object({
   // action'dan (hastaIadesiVer) girer, yoksa yöntemsiz bir iade satırı
   // Kasa/Banka/Kredi Kartı mutabakatına hiç yansımazdı.
   tur: z.enum(["odeme", "kredi", "borc"]),
-  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
   odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"]).optional().or(z.literal("")),
@@ -206,13 +212,15 @@ export async function bakiyeHareketiEkle(
         const hesap = await tx.select({ id: sema.klinikBankaHesaplari.id }).from(sema.klinikBankaHesaplari).where(eq(sema.klinikBankaHesaplari.id, banka_hesap_id)).limit(1);
         if (hesap.length === 0) return { hata: "Banka hesabı bulunamadı." };
       }
+      // Çift gönderim koruması: aynı istek anahtarı ikinci kez gelirse yazılmaz (ilkinin sonucu geçerli).
+      if (!(await islemAnahtariniKaydet(tx, ctx.klinikId, islemAnahtariniOku(formData), "bakiye_hareketi", ctx.userId))) return { tekrar: true as const };
       const [yeni] = await tx
         .insert(sema.hastaBakiyeHareket)
         .values({
           klinikId: ctx.klinikId,
           hastaId,
           tur,
-          tutar: String(tutar),
+          tutar: kurusMetni(tutar),
           aciklama: aciklama ? aciklama : null,
           createdAt: tarihiSimdikiSaatleUTC(tarih),
           odemeYontemi: tur === "odeme" && odeme_yontemi ? odeme_yontemi : null,
@@ -223,6 +231,7 @@ export async function bakiyeHareketiEkle(
       return { id: yeni.id };
     });
     if ("hata" in sonuc) return { success: false, message: sonuc.hata ?? "Eklenemedi." };
+    if ("tekrar" in sonuc) return { success: true, message: "Ödeme eklendi." };
     eklenenId = sonuc.id;
   } catch (e) {
     const h = pgHata(e);
@@ -232,14 +241,14 @@ export async function bakiyeHareketiEkle(
 
   revalidateHastaDetay(hastaId);
   if (tur === "odeme") {
-    after(() => odemeAlindiMesajiTetikle(ctx.bag, hastaId, tutar, { hareketId: eklenenId }));
+    after(() => odemeAlindiMesajiTetikle(ctx.bag, hastaId, tutar / 100, { hareketId: eklenenId }));
   }
   return { success: true, message: "Ödeme eklendi." };
 }
 
 const iadeSemasi = z
   .object({
-    tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+    tutar: pozitifTutarKurus(),
     tarih: z.string().min(1, "Tarih seçilmeli."),
     aciklama: z.string().trim().optional(),
     odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"], {
@@ -286,11 +295,12 @@ export async function hastaIadesiVer(
         const hesap = await tx.select({ id: sema.klinikBankaHesaplari.id }).from(sema.klinikBankaHesaplari).where(eq(sema.klinikBankaHesaplari.id, banka_hesap_id ?? "")).limit(1);
         if (hesap.length === 0) return { hata: "Banka hesabı bulunamadı." };
       }
+      if (!(await islemAnahtariniKaydet(tx, ctx.klinikId, islemAnahtariniOku(formData), "hasta_iadesi", ctx.userId))) return { tamam: true as const };
       await tx.insert(sema.hastaBakiyeHareket).values({
         klinikId: ctx.klinikId,
         hastaId,
         tur: "iade",
-        tutar: String(tutar),
+        tutar: kurusMetni(tutar),
         aciklama: aciklama ? aciklama : null,
         createdAt: tarihiSimdikiSaatleUTC(tarih),
         odemeYontemi: odeme_yontemi,
@@ -310,7 +320,7 @@ export async function hastaIadesiVer(
 
 const borcDuzenleSemasi = z.object({
   hareket_id: z.string().uuid(),
-  iskonto_tutari: z.coerce.number().min(0, "İskonto 0'dan küçük olamaz."),
+  iskonto_tutari: negatifOlmayanTutarKurus("İskonto 0'dan küçük olamaz."),
   faturali: z.coerce.boolean().optional(),
   aciklama: z.string().trim().optional(),
 });
@@ -376,7 +386,7 @@ export async function borcDuzenle(
       if (!h || h.hastaId !== hastaId) throw new Error("hareket_bulunamadi");
       await rpc(tx, "hasta_bakiye_hareket_borc_duzenle", {
         p_hareket_id: hareket_id,
-        p_iskonto_tutari: iskonto_tutari,
+        p_iskonto_tutari: kurusMetni(iskonto_tutari),
         p_faturali: faturali ?? false,
         p_aciklama: aciklama ? aciklama : null,
       });

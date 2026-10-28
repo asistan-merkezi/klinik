@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { KrediKartiOdemeFormu } from "@/components/panel/kredi-karti-odeme-formu";
 import type { KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import { krediKartiOdemeSil } from "./actions";
+import { tlFark, tlTopla } from "@/lib/para";
 
 export type KartHareketi = {
   kaynak: "gider" | "cari_odeme" | "kart_odemesi";
@@ -56,7 +57,7 @@ export function KartBorclari({
 }) {
   const ozetMap = new Map(ozetler.map((o) => [o.kredi_karti_id, o]));
   const kartsiz = ozetMap.get(null);
-  const toplamBorc = ozetler.reduce((acc, o) => acc + (o.harcama - o.odeme), 0);
+  const toplamBorc = tlTopla(ozetler.map((o) => tlFark(o.harcama, o.odeme)));
 
   if (kartlar.length === 0 && !kartsiz) {
     return (
@@ -155,7 +156,7 @@ function KartSatiri({
   const [odemeFormu, setOdemeFormu] = useState(false);
   const harcama = ozet?.harcama ?? 0;
   const odeme = ozet?.odeme ?? 0;
-  const borc = Math.round((harcama - odeme) * 100) / 100;
+  const borc = tlFark(harcama, odeme);
   const bankaMap = new Map(bankaHesaplari.map((b) => [b.id, b]));
 
   return (

@@ -1,5 +1,7 @@
 "use client";
 
+import { tlFark } from "@/lib/para";
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useId, useState } from "react";
 import { Undo2 } from "lucide-react";
@@ -58,7 +60,7 @@ export function HastaIadesiButonu({
   const birlesikAciklama = aciklamaMetni.trim() ? `${etiketOnEki} — ${aciklamaMetni.trim()}` : etiketOnEki;
 
   const tutar = Number(tutarMetni) || 0;
-  const iadeSonrasiBakiye = guncelBakiye - tutar;
+  const iadeSonrasiBakiye = tlFark(guncelBakiye, tutar);
 
   return (
     <>
@@ -80,6 +82,7 @@ export function HastaIadesiButonu({
             Güncel Bakiye: {paraFormat(guncelBakiye)}
           </p>
           <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
             <input type="hidden" name="aciklama" value={birlesikAciklama} />
             <input type="hidden" name="odeme_yontemi" value={odemeTipi} />
             <input

@@ -69,3 +69,14 @@ Kişisel sayılanlar: `*_adi` (hasta/personel/terapist adı), `tutar`. Sağlık/
 3. Ek (PDF) yasak: `muhasebe_fatura_kesildi` ve `muhasebe_donem_ekstre` yalnız portal bağlantısı verir.
 4. Kliniğin serbest `mesaj_metni`'ni e-postada çalıştırmadan önce sunucuda **doğrulama** (kaydederken + göndermeden hemen önce; kuyruktaki eski satırlar dahil).
 5. Hedefte ilk gönderimden önce merkez/Resend tarafında konu, ek, log ve saklama ayarları doğrulanır.
+
+
+## Muhasebe / Paraşüt entegrasyonu (Modül 4 ilkeleri — gerçek client yazılırken uygulanacak)
+
+Durum: Paraşüt hesabı/API kimliği yok; `faturaTetikle` sabit "bağlantı kurulmadı" döner, `fatura.durum='bekliyor'` kalır. Aşağıdakiler client yazılmadan ÖNCE bağlayıcıdır.
+
+1. **Gizli (client secret) asla istemciye gitmez ve loglanmaz.** `klinik_muhasebe_entegrasyonu.parasut_client_secret` uygulama rolüne SELECT'e kapalıdır (yalnız üretilmiş `parasut_secret_var` boolean okunur, migration 0006); form alanı hiçbir zaman geri doldurulmaz ("boş = değiştirme"). Hata günlüklerinde yalnız `error.message` yazılır (sorgu parametresi taşıyan nesne yazılmaz).
+2. **Veritabanında şifreli saklanır:** `lib/guvenlik/gizli-sifrele.ts` — AES-256-GCM, anahtar yalnız ortam değişkeninden (`GIZLI_VERI_ANAHTARI`), şifreli metin **kliniğe bağlı** (AAD = `klinik_id`: bir kliniğin değeri başka satıra kopyalansa çözülmez), biçim `enc:v1:…` (anahtar döndürme için sürüm öneki). Anahtar yoksa secret **kaydedilmez** (düz yazılmaz). Okuma yalnız dış çağrıyı yapan sunucu kodunda, çağrı süresince bellekte.
+3. **Senkron idempotent ve yeniden denenebilir olacak:** dış sisteme giden her kayıt için sabit bir dış referans (`fatura.id`) gönderilir; aynı referansla ikinci istek yeni fatura yaratmaz (Paraşüt tarafında referans/ek alan denetlenir, yoksa önce arama). Durum makinesi `bekliyor → kesildi | hata`; `hata` satırları Task Scheduler betiğiyle (`bakim_rolu` + klinik başına `withTenant`, Modül 7) sınırlı sayıda ve artan beklemeyle yeniden denenir; her deneme `hata_mesaji`na yalnız hata KODU yazar (gizli/PII yazmaz). `parasut_fatura_no` doluysa tekrar gönderilmez. Kesilmiş (`kesildi`) fatura tutarı değiştirilemez (`fatura_kesilmis`, mevcut kural).
+4. **Dışarı giden veri en aza indirilir (KVKK):** yalnız yasal e-Arşiv alanları — alıcı ad-soyad, T.C. kimlik/VKN, adres, e-posta; satır açıklaması olarak **tıbbi tedavi adı DEĞİL**, `islem_tanimi.muhasebe_hizmet_ismi` (yoksa genel "Hizmet bedeli") gönderilir; tanı, seans notu, anamnez, risk bayrağı, terapist adı, randevu zamanı **gönderilmez**. Paraşüt'ten dönen PDF/URL yalnız `fatura.e_arsiv_pdf_url` olarak saklanır; hastaya mesajla EK olarak iletilmez (bkz. yukarıdaki e-posta/SMS kuralı).
+5. Aktarım kaydı: her başarılı/başarısız dış çağrı `fatura` satırı üzerinden izlenir; ham istek/yanıt gövdesi (PII içerebilir) saklanmaz.

@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parcalara, tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { asc, inArray } from "drizzle-orm";
+import { sema, type Tx } from "@/lib/db";
+import { tl } from "@/lib/para";
 
 /**
  * Bir dönemin hakedişinde kullanılacak sabit maaş — personel.maas GÜNCEL değerdir; geçmiş bir ay
@@ -54,6 +57,25 @@ export async function maasGecmisiGetir(
       liste.push({ gecerlilik_tarihi: s.gecerlilik_tarihi, maas: Number(s.maas), created_at: s.created_at });
       sonuc.set(s.personel_id, liste);
     }
+  }
+  return sonuc;
+}
+
+/** `maasGecmisiGetir`in Drizzle/withTenant karşılığı (RLS'e tabidir). Eski supabase sürümü personel modülü (Modül 5) taşınana kadar kalır. */
+export async function maasGecmisiGetirTx(tx: Tx, personelIdler: string[]): Promise<Map<string, MaasGecmisiSatiri[]>> {
+  const sonuc = new Map<string, MaasGecmisiSatiri[]>();
+  const ids = [...new Set(personelIdler)];
+  if (ids.length === 0) return sonuc;
+  const U = sema.personelUcret;
+  const satirlar = await tx
+    .select({ personel_id: U.personelId, gecerlilik_tarihi: U.gecerlilikTarihi, maas: U.maas, created_at: U.createdAt })
+    .from(U)
+    .where(inArray(U.personelId, ids))
+    .orderBy(asc(U.id));
+  for (const s of satirlar) {
+    const liste = sonuc.get(s.personel_id) ?? [];
+    liste.push({ gecerlilik_tarihi: s.gecerlilik_tarihi, maas: tl(s.maas), created_at: s.created_at });
+    sonuc.set(s.personel_id, liste);
   }
   return sonuc;
 }

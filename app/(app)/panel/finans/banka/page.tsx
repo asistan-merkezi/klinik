@@ -1,74 +1,24 @@
 import { Building2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import { finansDonemiCoz } from "@/lib/finans/donem";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
-import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
+import {
+  aktifPersoneliGetir,
+  araclariGetir,
+  bankaDonemBasiBakiyeleri,
+  bankaHesaplariniGetir,
+  cariOdemeleriniGetir,
+  harcamalariGetir,
+  hastaOdemeleriniGetir,
+  kamusalOdemeleriniGetir,
+  kartOdemeleriniGetir,
+  krediKartlariniGetir,
+  nakitBankaHareketleriniGetir,
+  personelOdemeleriniGetir,
+} from "@/lib/finans/okuma";
 import { BankaClient } from "./banka-client";
-
-type HastaOdemeSatiri = {
-  id: string;
-  created_at: string;
-  tutar: number;
-  banka_hesap_id: string | null;
-  // 'kredi_karti' satırları Şirket Bilgileri'ndeki tahsilat hesabına NET (tutar - komisyon) yazılır.
-  odeme_yontemi: string | null;
-  komisyon_orani: number | null;
-  // tur='iade' satırları (hasta havale iadesi) aynı sorguyla gelir; Banka'da ÇIKIŞ sayılır.
-  tur: string;
-  hasta: { ad_soyad: string } | null;
-};
-type HarcamaSatiri = {
-  id: string;
-  tarih: string;
-  tutar: number;
-  tedarikci_adi: string | null;
-  kategori: string;
-  banka_hesap_id: string | null;
-};
-type CariOdemeSatiri = {
-  id: string;
-  tarih: string;
-  tutar: number;
-  tedarikci_adi: string;
-  aciklama: string | null;
-  banka_hesap_id: string | null;
-};
-type KartOdemeSatiri = {
-  id: string;
-  tarih: string;
-  tutar: number;
-  aciklama: string | null;
-  banka_hesap_id: string | null;
-  kart: { kart_adi: string } | null;
-};
-type PersonelOdemeSatiri = {
-  id: string;
-  tarih: string;
-  tutar: number;
-  tur: string;
-  banka_hesap_id: string | null;
-  personel: { ad_soyad: string } | null;
-};
-// Ödenmiş, havale ile banka hesabından ödenen kamusal ödemeler (vergi/SGK...) — banka_bakiye_once_toplam_tumu ile aynı kaynak.
-type KamusalOdemeSatiri = { id: string; odeme_tarihi: string; tutar: number; odeme_tipi: string; banka_hesap_id: string | null; notlar: string | null };
-
-type NakitBankaSatiri = {
-  id: string;
-  tip: string;
-  kaynak_kasa: boolean;
-  kaynak_banka_hesap_id: string | null;
-  hedef_kasa: boolean;
-  hedef_banka_hesap_id: string | null;
-  odeme_yontemi: string | null;
-  tutar: number;
-  tarih: string;
-  aciklama: string | null;
-  karsi_taraf_adi: string | null;
-  karsi_taraf_banka: string | null;
-  karsi_taraf_iban: string | null;
-};
 
 export default async function BankaSayfasi({
   searchParams,
@@ -78,133 +28,27 @@ export default async function BankaSayfasi({
   const donem = finansDonemiCoz(await searchParams);
 
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
   const duzenlenebilir = kullanici.rol === "klinik_admin";
 
-  // Yalnız SEÇİLİ dönemin satırları, 1000'lik sayfalarla (PostgREST max_rows sessiz kesmesin);
-  // sıralama sabit (tarih + id). Dönem başı bakiye satır çekmeden RPC'den (Postgres SUM) gelir.
-  const [
-    bankaHesabiSonucu,
-    hastaOdemeleri,
-    harcamalar,
-    cariOdemeleri,
-    kartOdemeleri,
-    personelOdemeleri,
-    nakitBankaHareketleri,
-    kamusalOdemeleri,
-    personelListesiSonucu,
-    aracSonucu,
-    kartSonucu,
-    oncekiToplamSonucu,
-  ] = await Promise.all([
-    supabase.from("klinik_banka_hesaplari").select("id, banka_adi, sube, hesap_sahibi").order("sort_order").returns<KlinikBankaHesabi[]>(),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("hasta_bakiye_hareket")
-        .select("id, created_at, tutar, banka_hesap_id, odeme_yontemi, komisyon_orani, tur, hasta:hasta_id(ad_soyad)")
-        .in("tur", ["odeme", "iade"])
-        .in("odeme_yontemi", ["banka_havalesi", "kredi_karti"])
-        .gte("created_at", donem.baslangicTs)
-        .lt("created_at", donem.bitisTs)
-        .order("created_at")
-        .order("id")
-        .range(bas, son)
-        .returns<HastaOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_harcama")
-        .select("id, tarih, tutar, tedarikci_adi, kategori, banka_hesap_id")
-        .eq("odeme_tipi", "havale")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<HarcamaSatiri[]>()
-    ),
+  // Yalnız SEÇİLİ dönemin satırları; sıralama sabit (tarih + id). Dönem başı bakiye satır çekmeden SQL'den (banka_bakiye_once_toplam_tumu) gelir.
+  const v = await withTenant(bag, async (tx) => ({
+    bankaHesaplari: await bankaHesaplariniGetir(tx, true),
+    // Banka'da yöntem 'banka_havalesi' VE 'kredi_karti' (kart tahsilatı tahsilat hesabına NET yazılır); iade satırları ÇIKIŞ sayılır.
+    hastaOdemeleri: await hastaOdemeleriniGetir(tx, donem, ["banka_havalesi", "kredi_karti"]),
+    harcamalar: await harcamalariGetir(tx, donem, "havale"),
     // Tedarikçi cari ödemesi (havale) ve karta yapılan havale ödemesi bankadan ÇIKIŞ olur.
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_cari_odeme")
-        .select("id, tarih, tutar, tedarikci_adi, aciklama, banka_hesap_id")
-        .eq("odeme_tipi", "havale")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<CariOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_kredi_karti_odeme")
-        .select("id, tarih, tutar, aciklama, banka_hesap_id, kart:kredi_karti_id(kart_adi)")
-        .eq("odeme_tipi", "havale")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<KartOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("personel_hesap_hareket")
-        .select("id, tarih, tutar, tur, banka_hesap_id, personel:personel_id(ad_soyad)")
-        .eq("odeme_tipi", "havale")
-        .in("tur", ["odeme", "avans"])
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<PersonelOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("nakit_banka_hareketi")
-        .select(
-          "id, tip, kaynak_kasa, kaynak_banka_hesap_id, hedef_kasa, hedef_banka_hesap_id, odeme_yontemi, tutar, tarih, aciklama, karsi_taraf_adi, karsi_taraf_banka, karsi_taraf_iban"
-        )
-        .or("kaynak_banka_hesap_id.not.is.null,hedef_banka_hesap_id.not.is.null")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<NakitBankaSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("kamusal_odeme")
-        .select("id, odeme_tarihi, tutar, odeme_tipi, banka_hesap_id, notlar")
-        .eq("odeme_yontemi", "havale")
-        .not("odeme_tarihi", "is", null)
-        .gte("odeme_tarihi", donem.baslangic)
-        .lt("odeme_tarihi", donem.bitis)
-        .order("odeme_tarihi")
-        .order("id")
-        .range(bas, son)
-        .returns<KamusalOdemeSatiri[]>()
-    ),
-    supabase.from("personel").select("id, ad_soyad").eq("aktif", true).order("ad_soyad").returns<{ id: string; ad_soyad: string }[]>(),
-    supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
-    supabase
-      .from("klinik_kredi_kartlari")
-      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
-      .order("sort_order")
-      .returns<KlinikKrediKarti[]>(),
-    supabase.rpc("banka_bakiye_once_toplam_tumu", { p_once_tarih: donem.baslangic }),
-  ]);
-  if (oncekiToplamSonucu.error) throw new Error(oncekiToplamSonucu.error.message);
-
-  // Her banka hesabının DÖNEMDEN önceki net toplamı (hesap bazlı "dönem başı bakiye").
-  const oncekiBakiyeMap: Record<string, number> = {};
-  for (const satir of oncekiToplamSonucu.data ?? []) {
-    oncekiBakiyeMap[satir.banka_hesap_id] = Number(satir.toplam);
-  }
+    cariOdemeleri: await cariOdemeleriniGetir(tx, donem, "havale"),
+    kartOdemeleri: await kartOdemeleriniGetir(tx, donem, "havale"),
+    personelOdemeleri: await personelOdemeleriniGetir(tx, donem, "havale"),
+    nakitBankaHareketleri: await nakitBankaHareketleriniGetir(tx, donem, "banka"),
+    kamusalOdemeleri: await kamusalOdemeleriniGetir(tx, donem, "havale"),
+    personelListesi: await aktifPersoneliGetir(tx),
+    araclar: await araclariGetir(tx),
+    kartlar: await krediKartlariniGetir(tx),
+    oncekiBakiyeMap: await bankaDonemBasiBakiyeleri(tx, donem),
+  }));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -212,19 +56,19 @@ export default async function BankaSayfasi({
         <PageHeader title="Banka" description="Banka hesapları bazında havale gelir/gider takibi." icon={Building2} />
 
         <BankaClient
-          bankaHesaplari={bankaHesabiSonucu.data ?? []}
-          hastaOdemeleri={hastaOdemeleri}
-          harcamalar={harcamalar}
-          cariOdemeleri={cariOdemeleri}
-          kartOdemeleri={kartOdemeleri}
-          personelOdemeleri={personelOdemeleri}
-          nakitBankaHareketleri={nakitBankaHareketleri}
-          kamusalOdemeleri={kamusalOdemeleri}
-          personelListesi={personelListesiSonucu.data ?? []}
-          araclar={aracSonucu.data ?? []}
-          kartlar={kartSonucu.data ?? []}
+          bankaHesaplari={v.bankaHesaplari}
+          hastaOdemeleri={v.hastaOdemeleri}
+          harcamalar={v.harcamalar}
+          cariOdemeleri={v.cariOdemeleri}
+          kartOdemeleri={v.kartOdemeleri}
+          personelOdemeleri={v.personelOdemeleri}
+          nakitBankaHareketleri={v.nakitBankaHareketleri}
+          kamusalOdemeleri={v.kamusalOdemeleri}
+          personelListesi={v.personelListesi}
+          araclar={v.araclar}
+          kartlar={v.kartlar}
           duzenlenebilir={duzenlenebilir}
-          oncekiBakiyeMap={oncekiBakiyeMap}
+          oncekiBakiyeMap={v.oncekiBakiyeMap}
           mod={donem.mod}
           yil={donem.yil}
           ay={donem.ay}

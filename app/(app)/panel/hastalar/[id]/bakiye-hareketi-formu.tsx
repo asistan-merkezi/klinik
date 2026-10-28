@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { Plus } from "lucide-react";
@@ -122,6 +123,7 @@ export function BakiyeHareketiEkleButonu({
             Güncel Bakiye: {paraFormat(guncelBakiye)}
           </p>
           <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
             <input type="hidden" name="tur" value="odeme" />
             <input type="hidden" name="aciklama" value={birlesikAciklama} />
             <input type="hidden" name="odeme_yontemi" value={odemeTipi} />

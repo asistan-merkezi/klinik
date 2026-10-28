@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { CikanSecimListesi } from "@/components/panel/cikan-secim-listesi";
 import { useActionState, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck } from "lucide-react";
@@ -43,6 +44,7 @@ function BaslangicTutariFormu({ kasaKontrol }: { kasaKontrol: KasaKontrolBilgisi
 
   return (
     <form action={formAction} className="flex flex-col gap-2 rounded-2xl border border-border p-3">
+<IslemAnahtari sonuc={durum} />
       <Label htmlFor="baslangic_tutari">Kasa Başlangıç Tutarı (₺)</Label>
       <div className="flex items-center gap-2">
         <Input
@@ -83,6 +85,7 @@ function DengelemeFormu({ girenKisi, basariliOlunca }: { girenKisi: string; basa
 
   return (
     <form action={formAction} className="flex flex-col gap-3 rounded-2xl border border-border p-3">
+<IslemAnahtari sonuc={durum} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="dengeleme_tutar">Kasa Dengeleme Bedeli (₺)</Label>
         <Input id="dengeleme_tutar" name="tutar" type="number" step="0.01" required disabled={isPending} />
@@ -165,6 +168,7 @@ function KasayaGirenDialog() {
             <DialogTitle>Kasaya Giren</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
             <div className="flex flex-col gap-1">
               <Label htmlFor="karsi_taraf_adi">Gönderen</Label>
               <Input id="karsi_taraf_adi" name="karsi_taraf_adi" required disabled={isPending} />
@@ -218,6 +222,7 @@ function PersonelOdemeFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="personel_id">Personel</Label>
         <Select
@@ -302,6 +307,7 @@ function HesaplarArasiFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="hedef_banka_hesap_id">Hedef Hesap</Label>
         <Select
@@ -360,6 +366,7 @@ function DigerCikanFormu({ basariliOlunca }: { basariliOlunca: () => void }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="diger_karsi_taraf_adi">Alıcı</Label>
         <Input id="diger_karsi_taraf_adi" name="karsi_taraf_adi" required disabled={isPending} />

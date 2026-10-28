@@ -1,47 +1,50 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { nakitBankaHareketiOlustur, nakitBankaHareketiSil as nakitBankaHareketiSilDb } from "@/lib/finans/nakit-banka-hareketi";
+import { pgHata, rpc, withTenant } from "@/lib/db";
+import { finansOturumu, type FinansOturumu } from "@/lib/finans/eylem";
+import { islemAnahtariniKaydet, islemAnahtariniOku } from "@/lib/finans/idempotans";
+import { nakitBankaHareketiOlustur, type NakitBankaHareketiGirdisi } from "@/lib/finans/nakit-banka-hareketi";
+import { pozitifTutarKurus } from "@/lib/finans/tutar";
+import { kurusMetni } from "@/lib/para";
+import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
+import { nakitBankaHareketiSil as kasaHareketiSil } from "../kasa/actions";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-async function yetkiliBaglantiGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const YETKISIZ: SonucDurumu = { success: false, message: YETKISIZ_MESAJI };
+const adminOturumu = () => finansOturumu(["klinik_admin"]);
 
-  if (!user) {
-    redirect("/giris");
+/** Hareket + idempotency anahtarı AYNI transaction'da (bkz. kasa/actions.ts). Hesap bütünlüğünü DB tetikleyicisi (nakit_banka_hareketi_hesap_butunluk) ayrıca zorlar. */
+async function hareketYaz(o: FinansOturumu, formData: FormData, islem: string, girdi: NakitBankaHareketiGirdisi): Promise<{ error: string | null }> {
+  const anahtar = islemAnahtariniOku(formData);
+  try {
+    await withTenant(o.bag, async (tx) => {
+      if (!(await islemAnahtariniKaydet(tx, o.klinikId, anahtar, islem, o.kullaniciId))) return;
+      const s = await nakitBankaHareketiOlustur(tx, o.klinikId, o.kullaniciId, girdi);
+      if (s.error) throw new Error(s.error);
+    });
+    return { error: null };
+  } catch {
+    return { error: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  return { supabase, user, klinikId: kullanici?.klinik_id ?? null, rol: kullanici?.rol ?? null };
 }
 
 const girenSemasi = z.object({
-  hedef_banka_hesap_id: z.string().trim().min(1, "Hesap seçilmeli."),
+  hedef_banka_hesap_id: z.string().uuid("Hesap seçilmeli."),
   odeme_yontemi: z.enum(["nakit", "banka_havalesi"]),
   karsi_taraf_adi: z.string().trim().min(1, "Gönderen adı girilmeli."),
   karsi_taraf_banka: z.string().trim().optional(),
   karsi_taraf_iban: z.string().trim().optional(),
-  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
 });
 
 export async function bankayaGirenEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, user, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId) return { success: false, message: "Klinik bilgisi bulunamadı." };
-  if (rol !== "klinik_admin") return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const o = await adminOturumu();
+  if (!o) return YETKISIZ;
 
   const ayristirma = girenSemasi.safeParse({
     hedef_banka_hesap_id: formData.get("hedef_banka_hesap_id"),
@@ -58,7 +61,7 @@ export async function bankayaGirenEkle(_onceki: SonucDurumu, formData: FormData)
   }
   const veri = ayristirma.data;
 
-  const { error } = await nakitBankaHareketiOlustur(supabase, klinikId, user!.id, {
+  const { error } = await hareketYaz(o, formData, "banka_giren", {
     tip: "gelen",
     kaynakKasa: false,
     kaynakBankaHesapId: null,
@@ -69,7 +72,7 @@ export async function bankayaGirenEkle(_onceki: SonucDurumu, formData: FormData)
     karsiTarafBanka: veri.odeme_yontemi === "banka_havalesi" && veri.karsi_taraf_banka ? veri.karsi_taraf_banka : null,
     karsiTarafIban: veri.odeme_yontemi === "banka_havalesi" && veri.karsi_taraf_iban ? veri.karsi_taraf_iban : null,
     aciklama: veri.aciklama ? veri.aciklama : null,
-    tutar: veri.tutar,
+    tutarKurus: veri.tutar,
     tarih: veri.tarih,
   });
   if (error) return { success: false, message: error };
@@ -79,19 +82,18 @@ export async function bankayaGirenEkle(_onceki: SonucDurumu, formData: FormData)
 }
 
 const cikanDigerSemasi = z.object({
-  kaynak_banka_hesap_id: z.string().trim().min(1, "Hesap seçilmeli."),
+  kaynak_banka_hesap_id: z.string().uuid("Hesap seçilmeli."),
   karsi_taraf_adi: z.string().trim().min(1, "Alıcı adı girilmeli."),
   karsi_taraf_banka: z.string().trim().optional(),
   karsi_taraf_iban: z.string().trim().optional(),
-  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
 });
 
 export async function bankadanDigerCikanEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, user, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId) return { success: false, message: "Klinik bilgisi bulunamadı." };
-  if (rol !== "klinik_admin") return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const o = await adminOturumu();
+  if (!o) return YETKISIZ;
 
   const ayristirma = cikanDigerSemasi.safeParse({
     kaynak_banka_hesap_id: formData.get("kaynak_banka_hesap_id"),
@@ -107,7 +109,7 @@ export async function bankadanDigerCikanEkle(_onceki: SonucDurumu, formData: For
   }
   const veri = ayristirma.data;
 
-  const { error } = await nakitBankaHareketiOlustur(supabase, klinikId, user!.id, {
+  const { error } = await hareketYaz(o, formData, "banka_cikan", {
     tip: "giden",
     kaynakKasa: false,
     kaynakBankaHesapId: veri.kaynak_banka_hesap_id,
@@ -118,7 +120,7 @@ export async function bankadanDigerCikanEkle(_onceki: SonucDurumu, formData: For
     karsiTarafBanka: veri.karsi_taraf_banka ? veri.karsi_taraf_banka : null,
     karsiTarafIban: veri.karsi_taraf_iban ? veri.karsi_taraf_iban : null,
     aciklama: veri.aciklama ? veri.aciklama : null,
-    tutar: veri.tutar,
+    tutarKurus: veri.tutar,
     tarih: veri.tarih,
   });
   if (error) return { success: false, message: error };
@@ -128,17 +130,16 @@ export async function bankadanDigerCikanEkle(_onceki: SonucDurumu, formData: For
 }
 
 const transferSemasi = z.object({
-  kaynak_banka_hesap_id: z.string().trim().min(1, "Kaynak hesap seçilmeli."),
+  kaynak_banka_hesap_id: z.string().uuid("Kaynak hesap seçilmeli."),
   hedef: z.string().trim().min(1, "Hedef seçilmeli."), // "kasa" veya bir banka_hesap_id
-  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
 });
 
 export async function bankadanTransferEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, user, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId) return { success: false, message: "Klinik bilgisi bulunamadı." };
-  if (rol !== "klinik_admin") return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const o = await adminOturumu();
+  if (!o) return YETKISIZ;
 
   const ayristirma = transferSemasi.safeParse({
     kaynak_banka_hesap_id: formData.get("kaynak_banka_hesap_id"),
@@ -152,8 +153,11 @@ export async function bankadanTransferEkle(_onceki: SonucDurumu, formData: FormD
   }
   const veri = ayristirma.data;
   const hedefKasa = veri.hedef === "kasa";
+  if (!hedefKasa && !z.string().uuid().safeParse(veri.hedef).success) {
+    return { success: false, message: "Hedef seçilmeli." };
+  }
 
-  const { error } = await nakitBankaHareketiOlustur(supabase, klinikId, user!.id, {
+  const { error } = await hareketYaz(o, formData, "banka_transfer", {
     tip: "hesaplar_arasi",
     kaynakKasa: false,
     kaynakBankaHesapId: veri.kaynak_banka_hesap_id,
@@ -164,7 +168,7 @@ export async function bankadanTransferEkle(_onceki: SonucDurumu, formData: FormD
     karsiTarafBanka: null,
     karsiTarafIban: null,
     aciklama: veri.aciklama ? veri.aciklama : null,
-    tutar: veri.tutar,
+    tutarKurus: veri.tutar,
     tarih: veri.tarih,
   });
   if (error) return { success: false, message: error };
@@ -174,34 +178,24 @@ export async function bankadanTransferEkle(_onceki: SonucDurumu, formData: FormD
   return { success: true, message: "Transfer kaydedildi." };
 }
 
+/** Kasa ile aynı tablo/kural: silme tek yerde (kasa/actions.ts). */
 export async function nakitBankaHareketiSil(id: string): Promise<SonucDurumu> {
-  const { supabase, rol } = await yetkiliBaglantiGetir();
-  if (rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
-
-  const { error } = await nakitBankaHareketiSilDb(supabase, id);
-  if (error) return { success: false, message: error };
-
-  revalidatePath("/panel/finans/banka");
-  revalidatePath("/panel/finans/kasa");
-  return { success: true, message: "Hareket silindi." };
+  return kasaHareketiSil(id);
 }
 
 const personelOdemeSemasi = z.object({
-  personel_id: z.string().trim().min(1, "Personel seçilmeli."),
-  banka_hesap_id: z.string().trim().min(1, "Hesap seçilmeli."),
+  personel_id: z.string().uuid("Personel seçilmeli."),
+  banka_hesap_id: z.string().uuid("Hesap seçilmeli."),
   tur: z.enum(["odeme", "avans"]),
-  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
 });
 
-/** Kasa'daki kasaPersonelOdemesiEkle'nin banka karşılığı — bkz. oradaki not (hesapHareketiEkle reuse edilmiyor). */
+/** Kasa'daki kasaPersonelOdemesiEkle'nin banka karşılığı — bkz. oradaki not. RPC rol + tenant + hesap bütünlüğünü kendisi doğrular. */
 export async function bankaPersonelOdemesiEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId) return { success: false, message: "Klinik bilgisi bulunamadı." };
-  if (rol !== "klinik_admin") return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const o = await adminOturumu();
+  if (!o) return YETKISIZ;
 
   const ayristirma = personelOdemeSemasi.safeParse({
     personel_id: formData.get("personel_id"),
@@ -216,18 +210,22 @@ export async function bankaPersonelOdemesiEkle(_onceki: SonucDurumu, formData: F
   }
 
   const { personel_id, banka_hesap_id, tur, tutar, tarih, aciklama } = ayristirma.data;
-  const { error } = await supabase.rpc("personel_hesap_hareket_ekle", {
-    p_personel_id: personel_id,
-    p_tur: tur,
-    p_tutar: tutar,
-    p_tarih: tarih,
-    p_aciklama: aciklama ? aciklama : null,
-    p_odeme_tipi: "havale",
-    p_banka_hesap_id: banka_hesap_id,
-  });
-
-  if (error) {
-    console.error("Personel ödemesi eklenemedi:", error);
+  const anahtar = islemAnahtariniOku(formData);
+  try {
+    await withTenant(o.bag, async (tx) => {
+      if (!(await islemAnahtariniKaydet(tx, o.klinikId, anahtar, "banka_personel_odemesi", o.kullaniciId))) return;
+      await rpc(tx, "personel_hesap_hareket_ekle", {
+        p_personel_id: personel_id,
+        p_tur: tur,
+        p_tutar: kurusMetni(tutar),
+        p_tarih: tarih,
+        p_aciklama: aciklama ? aciklama : null,
+        p_odeme_tipi: "havale",
+        p_banka_hesap_id: banka_hesap_id,
+      });
+    });
+  } catch (e) {
+    console.error("Personel ödemesi eklenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Eklenemedi, lütfen tekrar deneyin." };
   }
 

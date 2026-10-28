@@ -134,3 +134,12 @@ Sıra: hız sınırı (IP+kod, **fail-closed**) → kısa kod → klinik (`tanim
 ## Canlı olaylar (SSE + LISTEN/NOTIFY)
 
 Sunucu: tabloya `canli_olay_bildir()` tetikleyicisi ekle (yeni migration) + `lib/realtime/olay.ts > CANLI_TABLOLAR`'a adı yaz. Yük yalnız `{t,i,k}`; veri taşıma. İstemci: `useCanliOlaylar({ tablolar: ["randevu"], onOlay, onSenkron, etkin })` — `onOlay`/`onSenkron` içinde veriyi normal yetkili yoldan (sunucu eylemi/route, `withTenant`) yeniden çek; ilk yüklemede `onSenkron` çağrılmaz. Dönen `baglanti` ("baglaniyor" | "bagli" | "kopuk") çevrimdışı rozeti için kullanılır. Route: `app/api/canli/route.ts` (tenant yalnız oturumdan). Caddy'de bu yolda `flush_interval -1` şart (`docs/sunucu-kurulum.md` §3b3).
+
+
+## Para ve mali yazma kılavuzu (Modül 4)
+
+- **Tutar = kuruş (tamsayı).** `lib/para.ts` tek kaynaktır: `kurus()` (metin/sayı → kuruş, 3. ondalıktan yarım yukarı), `kurusMetni()` (DB'ye yazılacak "125.50"), `tl()`/`tlTopla()`/`tlFark()` (istemciye giden ≤2 ondalıklı sayılarla toplama/çıkarma), `yuzdeKurus()`/`yuzdeDus()` (komisyon), `kdvAyristir()`. Drizzle `numeric` metin döner; JS `+ - * /` ile para ASLA toplanmaz.
+- **Girdi doğrulama:** `lib/finans/tutar.ts` (`pozitifTutarKurus`, `negatifOlmayanTutarKurus`, `sifirdanFarkliTutarKurus`) zod ile formdan gelen tutarı kuruşa çevirir; 3+ ondalık, harf, sıfır/negatif reddedilir.
+- **Mali yazma kalıbı:** `finansOturumu([roller])` (`lib/finans/eylem.ts`) → `withTenant(bag, tx => { if (!(await islemAnahtariniKaydet(tx, klinikId, anahtar, "ad", kullaniciId))) return; …yaz… })`. Anahtar formdan `islem_anahtari` gizli alanıyla gelir (`<IslemAnahtari sonuc={durum}/>`, `components/panel/islem-anahtari.tsx`); aynı anahtar ikinci kez gelirse yazım atlanır. Yeni bir mali form eklerken bileşeni forma koy.
+- **Okuma:** sayfa verileri `lib/finans/okuma.ts` (Kasa/Banka/Kart), `lib/fatura/sorgular.ts` (Kesilen Faturalar), `lib/raporlar/hesaplamalar.ts` (Raporlar; toplamlar SQL RPC'sinden). Dönem başı bakiyeler yalnız SQL RPC'lerinden.
+- **Yeni tablo erişimi:** kullanım tarayıcısı (`kullanim-tara.mjs`) `sema.<tablo>` doğrudan yazımını görür; `const T = sema; T.tablo` gibi takma adlar tarayıcıdan GİZLENİR (yetki üretiminden düşer) — her zaman `sema.tablo` yaz. Ham SQL ile erişilen yeni tabloların (örn. `islem_anahtari`) yetkileri migration'da elle yazılır.

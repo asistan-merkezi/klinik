@@ -1,4 +1,5 @@
 import type { SabitPersonelMaliyeti, TerapistPrimSatiri } from "@/types/raporlar";
+import { kurus } from "@/lib/para";
 
 /**
  * Raporlar'ın personel gideri — saf toplama (test: personel-maliyeti.test.ts).
@@ -21,7 +22,8 @@ export type DefterSatiri = { personel_id: string; tur: string; tutar: number; ka
 export type DonemTahmini = { personelId: string; taban: number; prim: number; seans: number };
 export type PersonelBilgisi = { id: string; ad_soyad: string; terapistMi: boolean };
 
-const yuvarla = (n: number) => Math.round(n * 100) / 100;
+// Tüm toplamlar KURUŞ (tamsayı) olarak biriktirilir (lib/para.ts); çıktıya TL sayısı olarak çevrilir.
+const kr = (n: number | string | null | undefined) => kurus(n) ?? 0;
 
 export function personelMaliyetiniTopla(
   personeller: PersonelBilgisi[],
@@ -40,15 +42,15 @@ export function personelMaliyetiniTopla(
   };
 
   for (const s of defter) {
-    const tutar = Number(s.tutar) || 0;
+    const tutar = kr(s.tutar);
     if (s.tur === "hakedis") kisi(s.personel_id).tabanKesin += tutar;
     else if (s.tur === "prim" && s.kaynak_id) kisi(s.personel_id).primKesin += tutar;
     else if (["prim", "yol", "yemek", "mesai"].includes(s.tur)) kisi(s.personel_id).ekstra += tutar;
   }
   for (const t of tahminler) {
     const k = kisi(t.personelId);
-    k.tabanTahmini += t.taban;
-    k.primTahmini += t.prim;
+    k.tabanTahmini += kr(t.taban);
+    k.primTahmini += kr(t.prim);
     k.seans += t.seans;
     k.tahminiAy += 1;
   }
@@ -59,8 +61,8 @@ export function personelMaliyetiniTopla(
   const personelById = new Map(personeller.map((p) => [p.id, p]));
 
   for (const [id, k] of kisiler) {
-    const taban = yuvarla(k.tabanKesin + k.tabanTahmini);
-    const prim = yuvarla(k.primKesin + k.primTahmini);
+    const taban = k.tabanKesin + k.tabanTahmini;
+    const prim = k.primKesin + k.primTahmini;
     sabitToplam += taban + prim;
     ekstraToplam += k.ekstra;
 
@@ -72,19 +74,17 @@ export function personelMaliyetiniTopla(
       terapistPrimleri.push({
         personelId: id,
         adSoyad: p.ad_soyad,
-        taban,
-        prim,
-        ekstraToplam: yuvarla(k.ekstra),
-        toplam: yuvarla(taban + prim + k.ekstra),
+        taban: taban / 100,
+        prim: prim / 100,
+        ekstraToplam: k.ekstra / 100,
+        toplam: (taban + prim + k.ekstra) / 100,
         aciklama: parcalar.join(" · ") || "—",
       });
     }
   }
 
   terapistPrimleri.sort((a, b) => a.adSoyad.localeCompare(b.adSoyad, "tr"));
-  sabitToplam = yuvarla(sabitToplam);
-  ekstraToplam = yuvarla(ekstraToplam);
-  return { toplamMaas: yuvarla(sabitToplam + ekstraToplam), sabitToplam, ekstraToplam, terapistPrimleri };
+  return { toplamMaas: (sabitToplam + ekstraToplam) / 100, sabitToplam: sabitToplam / 100, ekstraToplam: ekstraToplam / 100, terapistPrimleri };
 }
 
 /** [baslangicTarih, bitisTarih) dönemindeki aylar ("YYYY-MM"), bugünün ayından SONRAKİLER hariç. */

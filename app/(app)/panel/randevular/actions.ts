@@ -1,5 +1,7 @@
 "use server";
 
+import { negatifOlmayanTutarKurus, pozitifTutarKurus } from "@/lib/finans/tutar";
+import { kurusMetni } from "@/lib/para";
 import { after } from "next/server";
 import { randevuOlayMesajiTetikle } from "@/lib/mesaj/randevu-mesaji";
 import { odemeAlindiMesajiTetikle } from "@/lib/mesaj/hasta-mesaji";
@@ -60,7 +62,7 @@ const randevuSemasi = z.object({
    * ile bakiyeye işlenirken (randevu_seans_bedelini_isle) oluşan borç satırına
    * uygulanan, önceden planlanmış iskonto; bkz. randevu-formu.tsx.
    */
-  planlanan_iskonto_tutari: z.coerce.number().min(0, "İskonto negatif olamaz.").optional(),
+  planlanan_iskonto_tutari: negatifOlmayanTutarKurus("İskonto negatif olamaz.").optional(),
 });
 
 /**
@@ -139,7 +141,7 @@ export async function randevuOlustur(
           baslangic: baslangicIso,
           bitis: bitisIso,
           olusturanKullaniciId: y.userId,
-          planlananIskontoTutari: planlanan_iskonto_tutari ? String(planlanan_iskonto_tutari) : null,
+          planlananIskontoTutari: planlanan_iskonto_tutari ? kurusMetni(planlanan_iskonto_tutari) : null,
         })
         .returning({ id: sema.randevu.id });
       return { id: yeni.id };
@@ -364,7 +366,7 @@ export async function randevuGelisIsaretle(
 }
 
 const seansBedelOdemeSemasi = z.object({
-  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tutar: pozitifTutarKurus(),
   tarih: z.string().min(1, "Tarih seçilmeli."),
   aciklama: z.string().trim().optional(),
   odeme_yontemi: z.enum(["nakit", "kredi_karti", "banka_havalesi"]),
@@ -448,7 +450,7 @@ export async function randevuSeansOdemesiEkle(
       (
         await rpc<{ randevu_seans_bedelini_isle: typeof sonuc }>(tx, "randevu_seans_bedelini_isle", {
           p_randevu_id: randevuId,
-          p_odeme_tutari: tutar,
+          p_odeme_tutari: kurusMetni(tutar),
           p_odeme_yontemi: odeme_yontemi,
           p_banka_hesap_id: banka_hesap_id || null,
           p_aciklama: aciklama ? aciklama : null,
@@ -489,7 +491,7 @@ export async function randevuSeansOdemesiEkle(
 
   if (sonuc?.hasta_id) {
     const hastaId = sonuc.hasta_id;
-    after(() => odemeAlindiMesajiTetikle(y.bag, hastaId, tutar, { randevuId }));
+    after(() => odemeAlindiMesajiTetikle(y.bag, hastaId, tutar / 100, { randevuId }));
   }
   return { success: true, message: "Ödeme kaydedildi." };
 }

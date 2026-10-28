@@ -1,35 +1,20 @@
-import { redirect } from "next/navigation";
 import { Percent } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import type { IskontoOranlari } from "@/types/iskonto-oranlari";
 import { IskontoOranlariFormu } from "./iskonto-oranlari-formu";
 
 export default async function IskontoOranlariSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-
-  const { data: oranlar } = await supabase
-    .from("iskonto_oranlari")
-    .select("vita_pct, plus_pct, elit_pct, prime_pct")
-    .eq("klinik_id", kullanici?.klinik_id ?? "")
-    .maybeSingle<IskontoOranlari>();
+  const satir = (await withTenant(bag, (tx) => tx.select().from(sema.iskontoOranlari).where(eq(sema.iskontoOranlari.klinikId, bag.tenantId)).limit(1)))[0];
+  const oranlar: IskontoOranlari | null = satir
+    ? { vita_pct: Number(satir.vitaPct), plus_pct: Number(satir.plusPct), elit_pct: Number(satir.elitPct), prime_pct: Number(satir.primePct) }
+    : null;
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

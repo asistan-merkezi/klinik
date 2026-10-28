@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DONEM_AY_SECENEKLERI } from "@/types/kamusal-odeme";
 import type { DonemModu } from "@/lib/finans/donem";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
+import { tlTopla, tlFark } from "@/lib/para";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 const ayEtiket = (ay: number) => DONEM_AY_SECENEKLERI.find((s) => s.value === ay)?.label ?? String(ay);
@@ -118,8 +119,8 @@ export function LedgerView({
         };
         map.set(anahtar, grup);
       }
-      if (k.yon === "gelen") grup.gelen += k.tutar;
-      else grup.giden += k.tutar;
+      if (k.yon === "gelen") grup.gelen = tlTopla([grup.gelen, k.tutar]);
+      else grup.giden = tlTopla([grup.giden, k.tutar]);
       grup.kalemler.push(k);
     }
 
@@ -130,16 +131,16 @@ export function LedgerView({
     // .map() yerine for-of: kapanmış değişkeni her iterasyonda yeniden atayan .map()
     // callback'i react-hooks/immutability kuralına takılıyor.
     for (const g of sirali) {
-      kosan += g.gelen - g.giden;
+      kosan = tlTopla([kosan, tlFark(g.gelen, g.giden)]);
       g.bakiye = kosan;
       g.kalemler.sort((a, b) => a.tarih.localeCompare(b.tarih));
-      gelen += g.gelen;
-      giden += g.giden;
+      gelen = tlTopla([gelen, g.gelen]);
+      giden = tlTopla([giden, g.giden]);
     }
     return { gruplar: sirali, gelenToplam: gelen, gidenToplam: giden };
   }, [gelenRows, gidenRows, mod, openingBalance]);
 
-  const donemSonuBakiye = openingBalance + gelenToplam - gidenToplam;
+  const donemSonuBakiye = tlFark(tlTopla([openingBalance, gelenToplam]), gidenToplam);
   const onEkMetni = onEk ? `${onEk} ` : "";
   const silmeSutunu = Boolean(onSil) && gruplar.some((g) => g.kalemler.some((k) => k.sil));
 

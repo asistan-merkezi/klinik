@@ -1,6 +1,8 @@
-import { redirect } from "next/navigation";
 import { PackageOpen, Archive } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tl } from "@/lib/para";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -11,41 +13,37 @@ import { YeniPaketDialog } from "./yeni-paket-dialog";
 import { PaketSatiri } from "./paket-satiri";
 
 export default async function PaketlerSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
+  const satisYapabilir = ctx.rol === "klinik_admin" || ctx.rol === "resepsiyon";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
+  let islemTanimlari: SecenekSatir[] = [];
+  let paketler: PaketSatir[] = [];
+  let hata = false;
+  try {
+    const v = await withTenant(bag, async (tx) => ({
+      islemler: await tx.select({ id: sema.islemTanimi.id, ad: sema.islemTanimi.ad, aktif: sema.islemTanimi.aktif }).from(sema.islemTanimi).orderBy(asc(sema.islemTanimi.ad)),
+      paketler: await tx.select().from(sema.paket).orderBy(asc(sema.paket.ad)),
+    }));
+    islemTanimlari = v.islemler.filter((i) => i.aktif).map((i) => ({ id: i.id, ad: i.ad }));
+    const adlar = new Map(v.islemler.map((i) => [i.id, i.ad]));
+    paketler = v.paketler.map((p) => ({
+      id: p.id,
+      ad: p.ad,
+      seans_sayisi: p.seansSayisi,
+      satis_bitis_tarihi: p.satisBitisTarihi,
+      fiyat: tl(p.fiyat),
+      kdv_orani: Number(p.kdvOrani),
+      aktif: p.aktif,
+      tekrar_sayisi: p.tekrarSayisi,
+      kisi_kotasi: p.kisiKotasi,
+      islem_tanimi: adlar.has(p.islemTanimiId) ? { ad: adlar.get(p.islemTanimiId)! } : null,
+    }));
+  } catch (e) {
+    console.error("Paketler çekilemedi:", e);
+    hata = true;
   }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-  const satisYapabilir = kullanici?.rol === "klinik_admin" || kullanici?.rol === "resepsiyon";
-
-  const [islemTanimiSonucu, paketSonucu] = await Promise.all([
-    supabase.from("islem_tanimi").select("id, ad").eq("aktif", true).order("ad"),
-    supabase
-      .from("paket")
-      .select(
-        "id, ad, seans_sayisi, satis_bitis_tarihi, fiyat, kdv_orani, aktif, tekrar_sayisi, kisi_kotasi, islem_tanimi(ad)"
-      )
-      .order("ad")
-      .returns<PaketSatir[]>(),
-  ]);
-
-  const islemTanimlari: SecenekSatir[] = (islemTanimiSonucu.data ?? []).map((i) => ({
-    id: i.id,
-    ad: i.ad,
-  }));
-  const paketler = paketSonucu.data ?? [];
+  const paketSonucu = { error: hata };
   const guncelPaketler = paketler.filter((p) => !paketArsivdeMi(p));
   const arsivPaketler = paketler.filter((p) => paketArsivdeMi(p));
 

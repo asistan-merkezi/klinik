@@ -1,7 +1,9 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { pgHata, rpc, withTenant } from "@/lib/db";
+import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { turkceSayiyiCevir, tarihSaatiIsoyaCevir } from "@/lib/ice-aktarma/normallestir";
+import { kurus, kurusMetni } from "@/lib/para";
 import type { ArsivSonucSatiri } from "@/components/panel/ice-aktarma/onizleme-tablosu";
 
 type SonucDurumu = { success: boolean; message: string; sonuclar?: ArsivSonucSatiri[] };
@@ -16,12 +18,20 @@ const TUR_ESLEME: Record<string, string> = {
   borç: "borc",
 };
 
+/** Dosyadaki tutar → en çok iki ondalıklı metin (para kuralı lib/para.ts); okunamayan/negatif/sıfır tutar null kalır, RPC satırı "tutar_gecersiz" ile reddeder. */
+function tutarMetni(ham: string | undefined): string | null {
+  if (!ham) return null;
+  const sayi = turkceSayiyiCevir(ham);
+  const k = sayi === null ? null : kurus(sayi);
+  return k === null ? null : kurusMetni(k);
+}
+
 function bakiyeKaydiniNormallestir(kayit: Record<string, string>) {
   const turHam = (kayit.tur ?? "").trim().toLocaleLowerCase("tr");
   return {
     hasta_id: kayit.hasta_id || null,
     tur: TUR_ESLEME[turHam] ?? null,
-    tutar: kayit.tutar ? turkceSayiyiCevir(kayit.tutar) : null,
+    tutar: tutarMetni(kayit.tutar),
     tarih: kayit.tarih ? tarihSaatiIsoyaCevir(kayit.tarih) : null,
     aciklama: kayit.aciklama?.trim() || null,
   };
@@ -29,33 +39,32 @@ function bakiyeKaydiniNormallestir(kayit: Record<string, string>) {
 
 // odeme_olustur'un AKSİNE fatura kuyruğuna satır eklemez — bkz. migration
 // 20260804090000_arsiv_ice_aktarma.sql'deki hasta_bakiye_hareket_arsiv_ekle notu.
+// RPC rol (yalnız klinik_admin) + tenant + hasta sahipliğini kendisi doğrular; tenant oturumdan gelir.
 export async function bakiyeHareketleriniArsivdenIceAktar(
   kayitlar: Record<string, string>[],
   baslangicSatirNo: number
 ): Promise<SonucDurumu> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Oturum bulunamadı." };
-  }
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag) return { success: false, message: YETKISIZ_MESAJI };
 
   const normallestirilmis = kayitlar.map(bakiyeKaydiniNormallestir);
 
-  const { data, error } = await supabase.rpc("hasta_bakiye_hareket_arsiv_ekle", { p_kayitlar: normallestirilmis });
-
-  if (error) {
-    console.error("Bakiye hareketi arşiv içe aktarma hatası:", error);
-    if (error.message === "yetkisiz") {
+  let data: ArsivSonucSatiri[];
+  try {
+    data = await withTenant(y.bag, async (tx) => {
+      const satir = (await rpc<Record<string, ArsivSonucSatiri[] | null>>(tx, "hasta_bakiye_hareket_arsiv_ekle", { p_kayitlar: normallestirilmis }))[0];
+      return satir?.hasta_bakiye_hareket_arsiv_ekle ?? [];
+    });
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Bakiye hareketi arşiv içe aktarma hatası:", h.mesaj);
+    if (h.mesaj === "yetkisiz") {
       return { success: false, message: "Bu işlem için yetkiniz yok (sadece klinik yöneticisi kullanabilir)." };
     }
     return { success: false, message: "İçe aktarma başarısız oldu, lütfen tekrar deneyin." };
   }
 
-  const sonuclar = ((data ?? []) as ArsivSonucSatiri[]).map((s) => ({
+  const sonuclar = data.map((s) => ({
     ...s,
     satir_no: s.satir_no + baslangicSatirNo - 1,
   }));
@@ -77,35 +86,30 @@ export async function paketSatislariniArsivdenIceAktar(
   kayitlar: Record<string, string>[],
   baslangicSatirNo: number
 ): Promise<SonucDurumu> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Oturum bulunamadı." };
-  }
+  const y = await eylemYetkisi(["klinik_admin"]);
+  if (!y.yetkili || !y.bag) return { success: false, message: YETKISIZ_MESAJI };
 
   const normallestirilmis = kayitlar.map(paketSatisKaydiniNormallestir);
 
-  const { data, error } = await supabase.rpc("paket_satis_arsiv_ekle", {
-    p_paket_id: paketId,
-    p_kayitlar: normallestirilmis,
-  });
-
-  if (error) {
-    console.error("Paket satış arşiv içe aktarma hatası:", error);
-    if (error.message === "yetkisiz") {
+  let data: ArsivSonucSatiri[];
+  try {
+    data = await withTenant(y.bag, async (tx) => {
+      const satir = (await rpc<Record<string, ArsivSonucSatiri[] | null>>(tx, "paket_satis_arsiv_ekle", { p_paket_id: paketId, p_kayitlar: normallestirilmis }))[0];
+      return satir?.paket_satis_arsiv_ekle ?? [];
+    });
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Paket satış arşiv içe aktarma hatası:", h.mesaj);
+    if (h.mesaj === "yetkisiz") {
       return { success: false, message: "Bu işlem için yetkiniz yok (sadece klinik yöneticisi kullanabilir)." };
     }
-    if (error.message === "paket_bulunamadi") {
+    if (h.mesaj === "paket_bulunamadi") {
       return { success: false, message: "Seçilen paket bulunamadı." };
     }
     return { success: false, message: "İçe aktarma başarısız oldu, lütfen tekrar deneyin." };
   }
 
-  const sonuclar = ((data ?? []) as ArsivSonucSatiri[]).map((s) => ({
+  const sonuclar = data.map((s) => ({
     ...s,
     satir_no: s.satir_no + baslangicSatirNo - 1,
   }));

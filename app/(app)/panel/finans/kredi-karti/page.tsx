@@ -1,19 +1,23 @@
 import { CreditCard } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import { finansDonemiCoz } from "@/lib/finans/donem";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
-import type { KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
+import {
+  bankaHesaplariniGetir,
+  cariOdemeleriniGetir,
+  harcamalariGetir,
+  hastaOdemeleriniGetir,
+  kartBorcOzetleriniGetir,
+  kartHareketleriniGetir,
+  krediKartiDonemBasiBakiyesi,
+  krediKartlariniGetir,
+} from "@/lib/finans/okuma";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KrediKartiLedger } from "./kredi-karti-ledger";
-import { KartBorclari, type KartHareketi, type KartOzeti } from "./kart-borclari";
-
-// tur='iade' satırları (hasta kart iadesi) aynı sorguyla gelir; burada ÇIKIŞ sayılır.
-type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; tur: string; hasta: { ad_soyad: string } | null };
-type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string };
-type CariOdemeSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string; aciklama: string | null };
+import { KartBorclari } from "./kart-borclari";
 
 /**
  * Kredi kartı üçüncü bir ödeme rayı (nakit/havale'nin yanında) ama Kasa
@@ -35,90 +39,25 @@ export default async function KrediKartiSayfasi({
   const tumZamanlar = sp.tum === "1";
 
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
   const duzenlenebilir = kullanici.rol === "klinik_admin";
-  const klinikId = kullanici.klinik_id ?? "";
+  const { bag } = await panelBaglami();
 
   // Kart hareket listesi varsayılan SON 12 AY (yıllar sonra da hafif); borç her zaman tüm zamanlar (SQL toplamı).
   const [bugunYil, bugunAy, bugunGun] = bugunIstanbulTarihi().split("-");
   const hareketBaslangici = `${Number(bugunYil) - 1}-${bugunAy}-${bugunGun}`;
 
-  // Her liste 1000'lik sayfalarla okunur (PostgREST max_rows sessiz kesmesin); sıralama sabit (tarih + id).
-  const [
-    hastaOdemeleri,
-    harcamalar,
-    cariOdemeleri,
-    oncekiToplamSonucu,
-    kartSonucu,
-    bankaSonucu,
-    ozetSonucu,
-    kartHareketleri,
-  ] = await Promise.all([
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("hasta_bakiye_hareket")
-        .select("id, created_at, tutar, tur, hasta:hasta_id(ad_soyad)")
-        .in("tur", ["odeme", "iade"])
-        .eq("odeme_yontemi", "kredi_karti")
-        .gte("created_at", donem.baslangicTs)
-        .lt("created_at", donem.bitisTs)
-        .order("created_at")
-        .order("id")
-        .range(bas, son)
-        .returns<HastaOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_harcama")
-        .select("id, tarih, tutar, tedarikci_adi, kategori")
-        .eq("odeme_tipi", "kredi_karti")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<HarcamaSatiri[]>()
-    ),
+  const v = await withTenant(bag, async (tx) => ({
+    hastaOdemeleri: await hastaOdemeleriniGetir(tx, donem, ["kredi_karti"]),
+    harcamalar: await harcamalariGetir(tx, donem, "kredi_karti"),
     // Kartla yapılan cari ödemesi de (kartla yapılan gider gibi) bu rayda çıkıştır.
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_cari_odeme")
-        .select("id, tarih, tutar, tedarikci_adi, aciklama")
-        .eq("odeme_tipi", "kredi_karti")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<CariOdemeSatiri[]>()
-    ),
-    supabase.rpc("kredi_karti_bakiye_once_toplam", { p_once_tarih: donem.baslangic }),
-    supabase
-      .from("klinik_kredi_kartlari")
-      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
-      .order("sort_order")
-      .returns<KlinikKrediKarti[]>(),
-    supabase
-      .from("klinik_banka_hesaplari")
-      .select("id, banka_adi, sube")
-      .order("sort_order")
-      .returns<KlinikBankaHesabi[]>(),
-    supabase.rpc("kredi_karti_borc_ozetleri", { p_klinik_id: klinikId }),
-    tumSayfalariOku((bas, son) => {
-      let sorgu = supabase
-        .from("klinik_kredi_karti_hareketleri")
-        .select("kaynak, id, kredi_karti_id, tarih, tip, tutar, ad, detay, yontem, banka_hesap_id");
-      if (!tumZamanlar) sorgu = sorgu.gte("tarih", hareketBaslangici);
-      return sorgu
-        .order("tarih", { ascending: false })
-        .order("kaynak")
-        .order("id")
-        .range(bas, son)
-        .returns<KartHareketi[]>();
-    }),
-  ]);
-  if (oncekiToplamSonucu.error) throw new Error(oncekiToplamSonucu.error.message);
-  if (ozetSonucu.error) throw new Error(ozetSonucu.error.message);
+    cariOdemeleri: await cariOdemeleriniGetir(tx, donem, "kredi_karti"),
+    oncekiToplam: await krediKartiDonemBasiBakiyesi(tx, donem),
+    kartlar: await krediKartlariniGetir(tx),
+    bankaHesaplari: await bankaHesaplariniGetir(tx),
+    ozetler: await kartBorcOzetleriniGetir(tx, bag.tenantId),
+    kartHareketleri: await kartHareketleriniGetir(tx, tumZamanlar ? null : hareketBaslangici),
+  }));
+  const { hastaOdemeleri, harcamalar, cariOdemeleri } = v;
 
   const gelenRows: LedgerSatiri[] = hastaOdemeleri
     .filter((h) => h.tur === "odeme")
@@ -168,14 +107,10 @@ export default async function KrediKartiSayfasi({
         />
 
         <KartBorclari
-          kartlar={kartSonucu.data ?? []}
-          ozetler={((ozetSonucu.data ?? []) as KartOzeti[]).map((o) => ({
-            kredi_karti_id: o.kredi_karti_id,
-            harcama: Number(o.harcama),
-            odeme: Number(o.odeme),
-          }))}
-          hareketler={kartHareketleri.map((h) => ({ ...h, tutar: Number(h.tutar) }))}
-          bankaHesaplari={bankaSonucu.data ?? []}
+          kartlar={v.kartlar}
+          ozetler={v.ozetler}
+          hareketler={v.kartHareketleri}
+          bankaHesaplari={v.bankaHesaplari}
           duzenlenebilir={duzenlenebilir}
           tumZamanlar={tumZamanlar}
         />
@@ -183,7 +118,7 @@ export default async function KrediKartiSayfasi({
         <KrediKartiLedger
           gelenRows={gelenRows}
           gidenRows={gidenRows}
-          openingBalance={Number(oncekiToplamSonucu.data ?? 0)}
+          openingBalance={v.oncekiToplam}
           mod={donem.mod}
           yil={donem.yil}
           ay={donem.ay}

@@ -1,36 +1,19 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { pgHata, sema, withTenant } from "@/lib/db";
+import { finansOturumu } from "@/lib/finans/eylem";
+import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
-async function yetkiliKlinikAdminGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  if (kullanici?.rol !== "klinik_admin" || !kullanici.klinik_id) {
-    return { supabase, klinikId: null as string | null, yetkisiz: true as const };
-  }
-
-  return { supabase, klinikId: kullanici.klinik_id, yetkisiz: false as const };
-}
-
-const yuzdeSemasi = z.coerce.number().min(0, "0-100 arasında olmalı.").max(100, "0-100 arasında olmalı.");
+// Yüzde oranı (para değil): en çok iki ondalık, 0-100. DB numeric(5,2) ve CHECK ile aynı aralık.
+const yuzdeSemasi = z.coerce
+  .number()
+  .min(0, "0-100 arasında olmalı.")
+  .max(100, "0-100 arasında olmalı.")
+  .refine((n) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6, "En fazla iki ondalık basamak girilebilir.");
 
 const oranlarSemasi = z.object({
   vita_pct: yuzdeSemasi,
@@ -43,9 +26,9 @@ export async function iskontoOranlariGuncelle(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId, yetkisiz } = await yetkiliKlinikAdminGetir();
-  if (yetkisiz || !klinikId) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  const o = await finansOturumu(["klinik_admin"]);
+  if (!o) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
 
   const ayristirma = oranlarSemasi.safeParse({
@@ -59,12 +42,14 @@ export async function iskontoOranlariGuncelle(
     return { success: false, message: ayristirma.error.issues[0]?.message ?? "Girdi hatalı." };
   }
 
-  const { error } = await supabase
-    .from("iskonto_oranlari")
-    .upsert({ klinik_id: klinikId, ...ayristirma.data }, { onConflict: "klinik_id" });
-
-  if (error) {
-    console.error("İskonto oranları güncellenemedi:", error);
+  const d = ayristirma.data;
+  const degerler = { vitaPct: d.vita_pct.toFixed(2), plusPct: d.plus_pct.toFixed(2), elitPct: d.elit_pct.toFixed(2), primePct: d.prime_pct.toFixed(2) };
+  try {
+    await withTenant(o.bag, (tx) =>
+      tx.insert(sema.iskontoOranlari).values({ klinikId: o.klinikId, ...degerler }).onConflictDoUpdate({ target: sema.iskontoOranlari.klinikId, set: degerler })
+    );
+  } catch (e) {
+    console.error("İskonto oranları güncellenemedi:", pgHata(e).mesaj);
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 

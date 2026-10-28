@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { useActionState, useId, useState } from "react";
 import { cariBakiyeGetir, type CariBakiyeBilgisi } from "./tedarikciler/actions";
@@ -93,6 +94,7 @@ export function GiderFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <input type="hidden" name="odeme_tipi" value={odemeTipi ?? ""} />
 
       <div className="flex flex-col gap-1">

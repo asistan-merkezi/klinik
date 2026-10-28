@@ -1,11 +1,16 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { and, eq } from "drizzle-orm";
+import { pgHata, sema, withTenant } from "@/lib/db";
 import { ARAC_GEREKTIREN_TIPLER } from "@/types/kamusal-odeme";
 import { bankaHesabiHatasiniCevir } from "@/lib/finans/banka-hesabi-kurali";
+import { finansOturumu } from "@/lib/finans/eylem";
+import { islemAnahtariniKaydet, islemAnahtariniOku } from "@/lib/finans/idempotans";
+import { pozitifTutarKurus } from "@/lib/finans/tutar";
+import { kurusMetni } from "@/lib/para";
+import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -25,7 +30,7 @@ const odemeSemasi = z.object({
     "gecici_vergi",
     "kurumlar_vergisi",
   ]),
-  tutar: z.coerce.number().positive("Tutar 0'dan büyük olmalı."),
+  tutar: pozitifTutarKurus(),
   donem_ay: z.coerce.number().int().min(1, "Dönem ayı seçilmeli.").max(12, "Dönem ayı seçilmeli."),
   donem_yil: z.coerce.number().int().min(2000, "Dönem yılı geçersiz.").max(2100, "Dönem yılı geçersiz."),
   vade_tarihi: z.string().min(1, "Vade tarihi seçilmeli."),
@@ -35,25 +40,6 @@ const odemeSemasi = z.object({
   odeme_yontemi: z.enum(["nakit", "havale"]).optional().or(z.literal("")),
   banka_hesap_id: z.string().trim().optional(),
 });
-
-async function yetkiliBaglantiGetir() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
-  }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("klinik_id, rol")
-    .eq("id", user.id)
-    .single();
-
-  return { supabase, user, klinikId: kullanici?.klinik_id ?? null, rol: kullanici?.rol ?? null };
-}
 
 function formVerisiOku(formData: FormData) {
   return odemeSemasi.safeParse({
@@ -79,7 +65,7 @@ function odemeBilgisiCoz(veri: z.infer<typeof odemeSemasi>):
   | { odeme_yontemi: "nakit" | "havale" | null; banka_hesap_id: string | null } {
   if (!veri.odeme_tarihi) return { odeme_yontemi: null, banka_hesap_id: null };
   if (!veri.odeme_yontemi) return { hata: "Ödeme tarihi girildiyse ödeme yöntemi (Nakit/Havale) seçilmeli." };
-  if (veri.odeme_yontemi === "havale" && !veri.banka_hesap_id) return { hata: "Havale için banka hesabı seçilmeli." };
+  if (veri.odeme_yontemi === "havale" && !z.string().uuid().safeParse(veri.banka_hesap_id).success) return { hata: "Havale için banka hesabı seçilmeli." };
   return {
     odeme_yontemi: veri.odeme_yontemi,
     banka_hesap_id: veri.odeme_yontemi === "havale" ? veri.banka_hesap_id ?? null : null,
@@ -94,13 +80,8 @@ function finansSayfalariniYenile() {
 }
 
 export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData): Promise<SonucDurumu> {
-  const { supabase, user, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
-  if (rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await finansOturumu(["klinik_admin"]);
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
 
   const ayristirma = formVerisiOku(formData);
   if (!ayristirma.success) {
@@ -112,30 +93,43 @@ export async function kamusalOdemeEkle(_onceki: SonucDurumu, formData: FormData)
   if (ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && !arac_id) {
     return { success: false, message: "Bu ödeme tipi için araç seçilmeli." };
   }
+  const aracId = ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null;
+  if (aracId && !z.string().uuid().safeParse(aracId).success) return { success: false, message: "Seçilen araç bulunamadı." };
 
   const odemeBilgisi = odemeBilgisiCoz(ayristirma.data);
   if ("hata" in odemeBilgisi) {
     return { success: false, message: odemeBilgisi.hata };
   }
 
-  const { error } = await supabase.from("kamusal_odeme").insert({
-    klinik_id: klinikId,
-    odeme_tipi,
-    tutar,
-    donem_ay,
-    donem_yil,
-    vade_tarihi,
-    odeme_tarihi: odeme_tarihi ? odeme_tarihi : null,
-    notlar: notlar ? notlar : null,
-    arac_id: ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null,
-    odeme_yontemi: odemeBilgisi.odeme_yontemi,
-    banka_hesap_id: odemeBilgisi.banka_hesap_id,
-    olusturan_kullanici_id: user!.id,
-  });
-
-  if (error) {
-    console.error("Kamusal ödeme kaydedilemedi:", error);
-    return { success: false, message: bankaHesabiHatasiniCevir(error.message) ?? "Ödeme kaydedilemedi, lütfen tekrar deneyin." };
+  const anahtar = islemAnahtariniOku(formData);
+  try {
+    const hata = await withTenant(o.bag, async (tx) => {
+      if (aracId) {
+        const arac = await tx.select({ id: sema.klinikArac.id }).from(sema.klinikArac).where(and(eq(sema.klinikArac.id, aracId), eq(sema.klinikArac.klinikId, o.klinikId))).limit(1);
+        if (arac.length === 0) return "Seçilen araç bulunamadı.";
+      }
+      if (!(await islemAnahtariniKaydet(tx, o.klinikId, anahtar, "kamusal_odeme_ekle", o.kullaniciId))) return null;
+      await tx.insert(sema.kamusalOdeme).values({
+        klinikId: o.klinikId,
+        odemeTipi: odeme_tipi,
+        tutar: kurusMetni(tutar),
+        donemAy: donem_ay,
+        donemYil: donem_yil,
+        vadeTarihi: vade_tarihi,
+        odemeTarihi: odeme_tarihi ? odeme_tarihi : null,
+        notlar: notlar ? notlar : null,
+        aracId,
+        odemeYontemi: odemeBilgisi.odeme_yontemi,
+        bankaHesapId: odemeBilgisi.banka_hesap_id,
+        olusturanKullaniciId: o.kullaniciId,
+      });
+      return null;
+    });
+    if (hata) return { success: false, message: hata };
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Kamusal ödeme kaydedilemedi:", h.mesaj);
+    return { success: false, message: bankaHesabiHatasiniCevir(h.mesaj) ?? "Ödeme kaydedilemedi, lütfen tekrar deneyin." };
   }
 
   finansSayfalariniYenile();
@@ -147,13 +141,9 @@ export async function kamusalOdemeGuncelle(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const { supabase, klinikId, rol } = await yetkiliBaglantiGetir();
-  if (!klinikId) {
-    return { success: false, message: "Klinik bilgisi bulunamadı." };
-  }
-  if (rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await finansOturumu(["klinik_admin"]);
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, message: "Ödeme bulunamadı." };
 
   const ayristirma = formVerisiOku(formData);
   if (!ayristirma.success) {
@@ -165,31 +155,43 @@ export async function kamusalOdemeGuncelle(
   if (ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && !arac_id) {
     return { success: false, message: "Bu ödeme tipi için araç seçilmeli." };
   }
+  const aracId = ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null;
+  if (aracId && !z.string().uuid().safeParse(aracId).success) return { success: false, message: "Seçilen araç bulunamadı." };
 
   const odemeBilgisi = odemeBilgisiCoz(ayristirma.data);
   if ("hata" in odemeBilgisi) {
     return { success: false, message: odemeBilgisi.hata };
   }
 
-  const { error } = await supabase
-    .from("kamusal_odeme")
-    .update({
-      odeme_tipi,
-      tutar,
-      donem_ay,
-      donem_yil,
-      vade_tarihi,
-      odeme_tarihi: odeme_tarihi ? odeme_tarihi : null,
-      notlar: notlar ? notlar : null,
-      arac_id: ARAC_GEREKTIREN_TIPLER.includes(odeme_tipi) && arac_id ? arac_id : null,
-      odeme_yontemi: odemeBilgisi.odeme_yontemi,
-      banka_hesap_id: odemeBilgisi.banka_hesap_id,
-    })
-    .eq("id", id);
-
-  if (error) {
-    console.error("Kamusal ödeme güncellenemedi:", error);
-    return { success: false, message: bankaHesabiHatasiniCevir(error.message) ?? "Ödeme güncellenemedi, lütfen tekrar deneyin." };
+  try {
+    const hata = await withTenant(o.bag, async (tx) => {
+      if (aracId) {
+        const arac = await tx.select({ id: sema.klinikArac.id }).from(sema.klinikArac).where(and(eq(sema.klinikArac.id, aracId), eq(sema.klinikArac.klinikId, o.klinikId))).limit(1);
+        if (arac.length === 0) return "Seçilen araç bulunamadı.";
+      }
+      const g = await tx
+        .update(sema.kamusalOdeme)
+        .set({
+          odemeTipi: odeme_tipi,
+          tutar: kurusMetni(tutar),
+          donemAy: donem_ay,
+          donemYil: donem_yil,
+          vadeTarihi: vade_tarihi,
+          odemeTarihi: odeme_tarihi ? odeme_tarihi : null,
+          notlar: notlar ? notlar : null,
+          aracId,
+          odemeYontemi: odemeBilgisi.odeme_yontemi,
+          bankaHesapId: odemeBilgisi.banka_hesap_id,
+        })
+        .where(eq(sema.kamusalOdeme.id, id))
+        .returning({ id: sema.kamusalOdeme.id });
+      return g.length === 0 ? "Ödeme bulunamadı." : null;
+    });
+    if (hata) return { success: false, message: hata };
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Kamusal ödeme güncellenemedi:", h.mesaj);
+    return { success: false, message: bankaHesabiHatasiniCevir(h.mesaj) ?? "Ödeme güncellenemedi, lütfen tekrar deneyin." };
   }
 
   finansSayfalariniYenile();
@@ -197,15 +199,15 @@ export async function kamusalOdemeGuncelle(
 }
 
 export async function kamusalOdemeSil(id: string): Promise<SonucDurumu> {
-  const { supabase, rol } = await yetkiliBaglantiGetir();
-  if (rol !== "klinik_admin") {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
-  }
+  const o = await finansOturumu(["klinik_admin"]);
+  if (!o) return { success: false, message: YETKISIZ_MESAJI };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, message: "Ödeme bulunamadı." };
 
-  const { error } = await supabase.from("kamusal_odeme").delete().eq("id", id);
-
-  if (error) {
-    console.error("Kamusal ödeme silinemedi:", error);
+  try {
+    const silinen = await withTenant(o.bag, (tx) => tx.delete(sema.kamusalOdeme).where(eq(sema.kamusalOdeme.id, id)).returning({ id: sema.kamusalOdeme.id }));
+    if (silinen.length === 0) return { success: false, message: "Ödeme bulunamadı." };
+  } catch (e) {
+    console.error("Kamusal ödeme silinemedi:", pgHata(e).mesaj);
     return { success: false, message: "Ödeme silinemedi, lütfen tekrar deneyin." };
   }
 

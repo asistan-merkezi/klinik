@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import Link from "next/link";
 import { ChevronLeft, Receipt } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { borcSatirlariniGetir } from "@/lib/fatura/sorgular";
+import { netTutar, kurus } from "@/lib/para";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,48 +18,22 @@ import { EksikBilgiDialog } from "./eksik-bilgi-dialog";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 
-type BorcDetaySatiri = {
-  id: string;
-  hasta_id: string;
-  tutar: number;
-  iskonto_tutari: number;
-  aciklama: string | null;
-  created_at: string;
-  hasta: {
-    ad_soyad: string;
-    eposta: string | null;
-    hasta_hassas: { kimlik_no: string | null; kimlik_no_tipi: string | null; adres: string | null } | null;
-  } | null;
-  randevu: {
-    islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null; kdv_orani: number } | null;
-  } | null;
-};
-
 export default async function FaturaDetaySayfasi({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansFatura);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
   // Fatura kesme yetkisi RPC'de de ayrıca zorlanıyor (bkz. migration
   // 20260927160000) — burası sadece Fatura Kes butonunu göstermeye karar verir.
   const duzenlenebilir = (ROL_GRUPLARI.finansFatura as readonly string[]).includes(kullanici.rol);
 
-  const { data: hareket } = await supabase
-    .from("hasta_bakiye_hareket")
-    .select(
-      "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
-        "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, kimlik_no_tipi, adres)), " +
-        "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani))"
-    )
-    .eq("id", id)
-    .eq("tur", "borc")
-    .maybeSingle<BorcDetaySatiri>();
+  const hareket = z.string().uuid().safeParse(id).success ? (await withTenant(bag, (tx) => borcSatirlariniGetir(tx, { id })))[0] : undefined;
 
   if (!hareket) {
     notFound();
   }
 
-  const hassas = hareket.hasta?.hasta_hassas ?? null;
+  const hassas = hareket.hassas;
 
   const faturaBilgisi: FaturaBilgisiKontrol = {
     adSoyad: hareket.hasta?.ad_soyad ?? null,
@@ -72,9 +50,9 @@ export default async function FaturaDetaySayfasi({ params }: { params: Promise<{
   const tamamlanabilirEksikVar = eksikAlanlar.some((a) => ["eposta", "kimlik_no", "adres"].includes(a));
 
   const islemAdi =
-    hareket.randevu?.islem_tanimi?.muhasebe_hizmet_ismi ?? hareket.randevu?.islem_tanimi?.ad ?? hareket.aciklama ?? "Borç";
-  const toplamTutar = Math.max(hareket.tutar - hareket.iskonto_tutari, 0);
-  const kdvOrani = hareket.randevu?.islem_tanimi?.kdv_orani ?? 0;
+    hareket.islem?.muhasebe_hizmet_ismi ?? hareket.islem?.ad ?? hareket.aciklama ?? "Borç";
+  const toplamTutar = netTutar(kurus(hareket.tutar) ?? 0, kurus(hareket.iskonto_tutari) ?? 0) / 100;
+  const kdvOrani = Number(hareket.islem?.kdv_orani ?? 0);
   const { matrah, kdvTutari } = kdvAyristir(toplamTutar, kdvOrani);
 
   return (

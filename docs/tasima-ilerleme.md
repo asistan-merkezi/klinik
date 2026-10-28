@@ -4,6 +4,8 @@
 
 ## NEREDEN DEVAM EDİLECEK (bir sonraki oturum için)
 
+**Durum (2026-10-28):** Modül 1–4 BİTTİ (Modül 3 muayene, **Modül 4 ödeme/cari/finans/paket/işlem tanımları**). Sıradaki: **Modül 5 (personel ve puantaj, QR puantaj; `lib/qr/{klinik-bilgisi,qr-kod-aktif-mi}.ts` sarmalayıcıları burada silinecek; `lib/personel/{donem-maasi,seans-sayisi}.ts` içindeki eski supabase sürümleri + `hakedis` kuruş aritmetiği)**. Modül 4 karar bekleyen maddeler: docs/tasima-ilerleme.md Modül 4 §8 (iade sınırı, ödeme iptali/ters kayıt, terapist cari defter SELECT, silinebilen yönetim kayıtları). Yeni ortak parçalar: `lib/para.ts` (tüm para aritmetiği), `lib/finans/{okuma,eylem,idempotans,tutar}.ts`, `components/panel/islem-anahtari.tsx` (mali formlara gizli idempotency anahtarı), migration **0012**, `GIZLI_VERI_ANAHTARI` ortam değişkeni (Paraşüt secret şifreleme; adı `docs/sunucu-kurulum.md`te). Modül 7 bakım betiği: `islem_anahtari` 2 günden eski satır temizliği (klinik başına `withTenant`).
+
 **Durum (2026-10-27, oturum 2):** Aşama 4 ön adımları tamam. **Tenant DB'de türetme (Seçenek A, 0007) UYGULANDI** (`kullanici_tenant` eşlemesi; `app.tenant_id` yalnız super_admin/klinik_anonim/bakım/süper kullanıcı oturumunda geçerli; 13 yeni test, performans farkı ölçüm gürültüsünde — `docs/tasima-plani.md`). **Modül 2a (realtime altyapısı) BİTTİ**: `lib/realtime/` + `/api/canli` SSE + `useCanliOlaylar` + 0008 NOTIFY tetikleyicileri; 3 tüketici Supabase realtime'sız (veri çekimleri hâlâ supabase-js — Modül 2'de sunucuya taşınacak). **Modül 1 BİTTİ** (kalıntı: `lib/auth/eylem-yetkisi.ts` 8 çağıran bitene kadar, `lib/supabase/*` en sonda). **Modül 2 (hasta ve randevu) BİTTİ.** Sıradaki: **Modül 3 (muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto)** — belge/foto yükleme Modül 2'de büyük ölçüde yapıldı. (Eski not:) — `lib/randevu/queries.ts` + `RANDEVU_SELECT` Drizzle karşılığı (canli-cizelge/tablet-ekrani/randevu-bildirimleri'ndeki `createClient()` veri çekimlerini sunucu eylemi/route'a taşı; `useCanliOlaylar`'ın `onOlay/onSenkron` geri çağrıları bu yeni çekimi tetikler), QR kayıt/anket (gizli `klinik_id` kaldır, `anonimUcCalistir`), `lib/qr/hiz-siniri.ts` sil.
 **Yöntem:** `eylemYetkisiGetir` (eski, supabase döndürür) taşınmamış modüller için KALIYOR; taşınan modüller `lib/auth/yetki.ts > eylemYetkisi` (bağlam döndürür) kullanır. Sayfalarda `oturumBaglami()` + `tenantGerekli(ctx)` + `withTenant`. Tenant türetme Seçenek A uygulandı; Seçenek B (oturum jetonunu DB'de doğrulama) üretim öncesi karar noktası.
 **Test yöntemi:** her modül için `tests/db/modul-<ad>.test.ts` (izolasyon + rol + gerçek yazma). Eylemler Next istek bağlamı istediğinden testler eylemlerin kullandığı Drizzle ifadelerini birebir sınar.
@@ -16,11 +18,11 @@
 | 1 | Kullanıcı/profil, klinik ayarları, ortak yardımcılar | **bitti** | 12 / 18 | 6 |
 | 2 | Hasta ve randevu (portal, QR kayıt/anket, canlı çizelge dahil) | **bitti** | 48 / 49 | 1 |
 | 3 | Muayene: tablet, tedavi protokolleri, kaynaklar, belge/foto | **bitti** | 10 / 10 | 0 |
-| 4 | Ödeme / cari / finans / paket / işlem tanımları | **bekliyor** | 1 / 31 | 30 |
+| 4 | Ödeme / cari / finans / paket / işlem tanımları | **bitti** | 31 / 31 | 0 |
 | 5 | Personel ve puantaj (QR akışı dahil) | **bekliyor** | 1 / 20 | 19 |
 | 6 | Kalan modüller (destek, yönetim, vb.) | **bekliyor** | 2 / 10 | 8 |
 | 7 | Çıkış uçları: PDF, e-posta/mesaj, cron/arka plan, chatbot | **bekliyor** | 1 / 17 | 16 |
-| | **Toplam** | | 75 / 155 | **80** |
+| | **Toplam** | | 105 / 155 | **50** |
 
 Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-baslangic.txt`, 155 dosya); sayım `@supabase`, `@/lib/supabase` ve `createAdminClient` kullanan dosyaları kapsar. `lib/supabase/*` en sonda silinir.
 
@@ -51,38 +53,9 @@ Not: "Toplam" taşıma başlangıcındaki dosya listesidir (`scripts/dev/tasima-
 
 ## Modül 4 — Ödeme / cari / finans / paket / işlem tanımları
 
-- Durum: **bekliyor**
-- Kalan dosyalar (30):
-  - `app/(app)/panel/ayarlar/arsiv-ice-aktarma/odeme-paket/actions.ts`
-  - `app/(app)/panel/ayarlar/arsiv-ice-aktarma/odeme-paket/page.tsx`
-  - `app/(app)/panel/finans/banka/actions.ts`
-  - `app/(app)/panel/finans/banka/page.tsx`
-  - `app/(app)/panel/finans/gelirler-takibi/cari-alacaklar/page.tsx`
-  - `app/(app)/panel/finans/gelirler-takibi/faturalar/actions.ts`
-  - `app/(app)/panel/finans/gelirler-takibi/faturalar/page.tsx`
-  - `app/(app)/panel/finans/gelirler-takibi/faturalar/[id]/page.tsx`
-  - `app/(app)/panel/finans/gelirler-takibi/page.tsx`
-  - `app/(app)/panel/finans/giderler/actions.ts`
-  - `app/(app)/panel/finans/giderler/gelen-faturalar/actions.ts`
-  - `app/(app)/panel/finans/giderler/gelen-faturalar/page.tsx`
-  - `app/(app)/panel/finans/giderler/kamusal-giderler/actions.ts`
-  - `app/(app)/panel/finans/giderler/kamusal-giderler/page.tsx`
-  - `app/(app)/panel/finans/giderler/page.tsx`
-  - `app/(app)/panel/finans/giderler/tedarikciler/actions.ts`
-  - `app/(app)/panel/finans/giderler/tedarikciler/page.tsx`
-  - `app/(app)/panel/finans/kasa/actions.ts`
-  - `app/(app)/panel/finans/kasa/page.tsx`
-  - `app/(app)/panel/finans/kategori-iskonto-oranlari/actions.ts`
-  - `app/(app)/panel/finans/kategori-iskonto-oranlari/page.tsx`
-  - `app/(app)/panel/finans/kredi-karti/actions.ts`
-  - `app/(app)/panel/finans/kredi-karti/page.tsx`
-  - `app/(app)/panel/finans/page.tsx`
-  - `app/(app)/panel/finans/raporlar/page.tsx`
-  - `app/(app)/panel/islemler/page.tsx`
-  - `app/(app)/panel/islemler/tanimlamalar/page.tsx`
-  - `app/(app)/panel/paketler/page.tsx`
-  - `lib/finans/nakit-banka-hareketi.ts`
-  - `lib/raporlar/hesaplamalar.ts`
+- Durum: **bitti**
+- Not: Taşındı: Kasa/Banka/Kredi Kartı, Giderler (4 sekme), Gelirler Takibi/Faturalar, Raporlar, kategori-iskonto, paketler, tedavi tanımları, ödeme-paket arşiv sihirbazı. Yeni: lib/para.ts (kuruş aritmetiği, tek yuvarlama kuralı), mali eylemlerde idempotency (0012 islem_anahtari), defter CHECK'leri, islem_tanimi_kaydet tenant doğrulaması, Paraşüt secret şifreleme. Ayrıntı ve KARAR BEKLEYEN maddeler (§8) aşağıda.
+- Kalan dosyalar (0): —
 
 ## Modül 5 — Personel ve puantaj (QR akışı dahil)
 

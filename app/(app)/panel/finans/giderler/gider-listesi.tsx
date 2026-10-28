@@ -15,6 +15,7 @@ import { HARCAMA_KATEGORI_ETIKET, HARCAMA_ODEME_TIPI_ETIKET, type KlinikHarcamaS
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { GiderFormu } from "./gider-formu";
 import { giderGuncelle, giderSil } from "./actions";
+import { tlTopla } from "@/lib/para";
 
 const paraFormat = (tutar: number) => tutar.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 const tarihFormat = (tarih: string) => new Date(tarih).toLocaleDateString("tr-TR");
@@ -65,7 +66,7 @@ export function GiderListesi({
       .sort((a, b) => (a.tarih < b.tarih ? 1 : -1));
   }, [satirlar, donemModu, yil, ay, gun]);
 
-  const donemToplami = filtreliSatirlar.reduce((acc, s) => acc + s.tutar, 0);
+  const donemToplami = tlTopla(filtreliSatirlar.map((s) => s.tutar));
   const duzenlenenSatir = satirlar.find((s) => s.id === duzenlenenId) ?? null;
   const aracMap = new Map(araclar.map((a) => [a.id, a]));
   const bankaMap = new Map(bankaHesaplari.map((b) => [b.id, b]));

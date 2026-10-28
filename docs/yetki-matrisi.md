@@ -27,7 +27,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | is_basvurusu | I |
 | seans_degerlendirme | I |
 
-## klinik_uygulama (79 tablo/görünüm)
+## klinik_uygulama (80 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
@@ -54,6 +54,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | is_basvurusu | S,I,U |
 | iskonto_oranlari | S,I,U |
 | islem_adimi_sablonu | S,I,U |
+| islem_anahtari | S,I,D |
 | islem_kontrendikasyon | S |
 | islem_tanimi | S,U |
 | islem_tanimi_adim | S |
@@ -111,7 +112,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | v_personel_hesap_bakiye | S |
 | v_personel_izin_bakiye | S |
 
-## klinik_yedek (101 tablo/görünüm)
+## klinik_yedek (102 tablo/görünüm)
 
 | Tablo | Yetki |
 |---|---|
@@ -144,6 +145,7 @@ Kaynak: `db/kontrol/yetki-matrisi.sql`, `scripts/dev/kontrol-calistir.mjs`. S=SE
 | is_basvurusu | S |
 | iskonto_oranlari | S |
 | islem_adimi_sablonu | S |
+| islem_anahtari | S |
 | islem_kategori | S |
 | islem_kontrendikasyon | S |
 | islem_tanimi | S |

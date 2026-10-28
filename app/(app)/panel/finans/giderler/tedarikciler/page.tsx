@@ -1,10 +1,12 @@
 import { Truck } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { and, asc, desc, isNotNull, ne } from "drizzle-orm";
+import { rpc, sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tl, tlFark, tlTopla } from "@/lib/para";
+import { bankaHesaplariniGetir, krediKartlariniGetir } from "@/lib/finans/okuma";
 import { tedarikciAnahtari } from "@/lib/finans/tedarikci-anahtari";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
-import type { KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { KlinikHarcamaSatir } from "@/types/klinik-harcama";
 import { GiderlerSekmeCubugu } from "../giderler-sekme-cubugu";
 import { TedarikciListesi, type TedarikciHareketi, type TedarikciOzeti } from "./tedarikci-listesi";
@@ -45,51 +47,42 @@ type BakiyeSatiri = { anahtar: string; borc: number; odenen: number };
  */
 export default async function TedarikcilerSayfasi() {
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
   const duzenlenebilir = kullanici.rol === "klinik_admin";
-  const klinikId = kullanici.klinik_id ?? "";
 
-  const [bankaSonucu, kartSonucu, satirlar, cariOdemeleri, bakiyeSatirlari] = await Promise.all([
-    supabase
-      .from("klinik_banka_hesaplari")
-      .select("id, banka_adi, sube")
-      .order("sort_order")
-      .returns<KlinikBankaHesabi[]>(),
-    supabase
-      .from("klinik_kredi_kartlari")
-      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
-      .order("sort_order")
-      .returns<KlinikKrediKarti[]>(),
-    // Sayfalı: tek sorgu 1000 kayıtta sessizce kesilir.
-    tumSayfalariOku<HarcamaSatiri>((bas, son) =>
-      supabase
-        .from("klinik_harcama")
-        .select("id, tarih, tutar, kategori, aciklama, tedarikci_adi, odeme_tipi, banka_hesap_id, kredi_karti_id, fatura_no")
-        .not("tedarikci_adi", "is", null)
-        .neq("tedarikci_adi", "")
-        .order("tarih", { ascending: false })
-        .order("id")
-        .range(bas, son)
-        .returns<HarcamaSatiri[]>()
-    ),
-    tumSayfalariOku<CariOdemeSatiri>((bas, son) =>
-      supabase
-        .from("klinik_cari_odeme")
-        .select("id, tedarikci_adi, tutar, tarih, odeme_tipi, banka_hesap_id, kredi_karti_id, aciklama")
-        .order("tarih", { ascending: false })
-        .order("id")
-        .range(bas, son)
-        .returns<CariOdemeSatiri[]>()
-    ),
-    // RPC de PostgREST 1000 satır sınırına tabidir → sayfalı.
-    tumSayfalariOku<BakiyeSatiri>(async (bas, son) => {
-      const sonuc = await supabase
-        .rpc("klinik_cari_bakiyeler", { p_klinik_id: klinikId })
-        .order("anahtar")
-        .range(bas, son);
-      return { data: sonuc.data as BakiyeSatiri[] | null, error: sonuc.error };
-    }),
-  ]);
+  const v = await withTenant(bag, async (tx) => {
+    const H = sema.klinikHarcama;
+    const O = sema.klinikCariOdeme;
+    const harcamalar = await tx
+      .select({
+        id: H.id,
+        tarih: H.tarih,
+        tutar: H.tutar,
+        kategori: H.kategori,
+        aciklama: H.aciklama,
+        tedarikci_adi: H.tedarikciAdi,
+        odeme_tipi: H.odemeTipi,
+        banka_hesap_id: H.bankaHesapId,
+        kredi_karti_id: H.krediKartiId,
+        fatura_no: H.faturaNo,
+      })
+      .from(H)
+      .where(and(isNotNull(H.tedarikciAdi), ne(H.tedarikciAdi, "")))
+      .orderBy(desc(H.tarih), asc(H.id));
+    const cari = await tx
+      .select({ id: O.id, tedarikci_adi: O.tedarikciAdi, tutar: O.tutar, tarih: O.tarih, odeme_tipi: O.odemeTipi, banka_hesap_id: O.bankaHesapId, kredi_karti_id: O.krediKartiId, aciklama: O.aciklama })
+      .from(O)
+      .orderBy(desc(O.tarih), asc(O.id));
+    const bakiye = await rpc<{ anahtar: string; borc: string; odenen: string }>(tx, "klinik_cari_bakiyeler", { p_klinik_id: bag.tenantId });
+    return {
+      bankaHesaplari: await bankaHesaplariniGetir(tx),
+      kartlar: await krediKartlariniGetir(tx),
+      satirlar: harcamalar.map((r) => ({ ...r, tutar: tl(r.tutar) })) as HarcamaSatiri[],
+      cariOdemeleri: cari.map((r) => ({ ...r, tutar: tl(r.tutar) })) as CariOdemeSatiri[],
+      bakiyeSatirlari: bakiye.map((r) => ({ anahtar: r.anahtar, borc: tl(r.borc), odenen: tl(r.odenen) })) as BakiyeSatiri[],
+    };
+  });
+  const { satirlar, cariOdemeleri, bakiyeSatirlari } = v;
 
   const bakiyeler = new Map(bakiyeSatirlari.map((b) => [b.anahtar, b]));
   const gruplar = new Map<string, TedarikciOzeti>();
@@ -100,8 +93,8 @@ export default async function TedarikcilerSayfasi() {
     if (!grup) {
       // Satırlar tarihe göre azalan geldiği için ilk görülen yazım en güncel olanıdır.
       const b = bakiyeler.get(anahtar);
-      const borc = Number(b?.borc ?? 0);
-      const odenen = Number(b?.odenen ?? 0);
+      const borc = b?.borc ?? 0;
+      const odenen = b?.odenen ?? 0;
       grup = {
         anahtar,
         ad: ad.trim(),
@@ -109,7 +102,7 @@ export default async function TedarikcilerSayfasi() {
         sonTarih: tarih,
         borc,
         odenen,
-        bakiye: Math.round((borc - odenen) * 100) / 100,
+        bakiye: tlFark(borc, odenen),
         hareketler: [],
       };
       gruplar.set(anahtar, grup);
@@ -122,7 +115,7 @@ export default async function TedarikcilerSayfasi() {
     const ad = (s.tedarikci_adi ?? "").trim();
     if (!ad) continue;
     const grup = grubuGetir(ad, s.tarih);
-    grup.toplamHarcama += s.tutar;
+    grup.toplamHarcama = tlTopla([grup.toplamHarcama, s.tutar]);
     grup.hareketler.push({
       tur: s.odeme_tipi === "cari" ? "cari_gider" : s.odeme_tipi ? "odenmis_gider" : "bekleyen_gider",
       id: s.id,
@@ -168,7 +161,7 @@ export default async function TedarikcilerSayfasi() {
 
   // Borçlular (en yüksek bakiye) önce, sonra toplam harcamaya göre.
   const tedarikciler = [...gruplar.values()].sort(
-    (a, b) => b.bakiye - a.bakiye || b.toplamHarcama - a.toplamHarcama
+    (a, b) => tlFark(b.bakiye, a.bakiye) || tlFark(b.toplamHarcama, a.toplamHarcama)
   );
 
   return (
@@ -184,8 +177,8 @@ export default async function TedarikcilerSayfasi() {
 
         <TedarikciListesi
           tedarikciler={tedarikciler}
-          bankaHesaplari={bankaSonucu.data ?? []}
-          kartlar={kartSonucu.data ?? []}
+          bankaHesaplari={v.bankaHesaplari}
+          kartlar={v.kartlar}
           duzenlenebilir={duzenlenebilir}
         />
       </div>

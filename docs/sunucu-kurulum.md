@@ -45,7 +45,7 @@ Karar: bakim_rolu BYPASSRLS DEĞİL; bakım işi de RLS'ten geçer (klinik baş�
 | `svc-klinik-bakim` | Task Scheduler görevleri (`scripts/*.mjs`) | `C:\klinik\gizli\bakim.env` |
 | `svc-klinik-yedek` | `yedek.ps1` | `C:\klinik\gizli\yedek.env` |
 
-**`uygulama.env`**: `DATABASE_URL` (klinik_uygulama) · `KIMLIK_DATABASE_URL` (kimlik_rolu — Better Auth; uygulama süreci iki bağlantı havuzu kullanır) · `BETTER_AUTH_SECRET` · `BETTER_AUTH_URL` · `DOSYA_KOKU` · `CHROMIUM_PATH` · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` · `DESTEK_CHATBOT_ACIK` (varsayılan kapalı).
+**`uygulama.env`**: `DATABASE_URL` (klinik_uygulama) · `KIMLIK_DATABASE_URL` (kimlik_rolu — Better Auth; uygulama süreci iki bağlantı havuzu kullanır) · `BETTER_AUTH_SECRET` · `BETTER_AUTH_URL` · `DOSYA_KOKU` · `CHROMIUM_PATH` · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` · `DESTEK_CHATBOT_ACIK` (varsayılan kapalı) · `GIZLI_VERI_ANAHTARI` (32 bayt, base64; veritabanında saklanan dış servis gizlilerini — Paraşüt client secret — şifreler; **yedekten AYRI saklanmalı**: yedek + anahtar birlikte ele geçirilirse gizliler çözülür; anahtar kaybolursa kayıtlı gizliler yeniden girilmelidir).
 **`bakim.env`**: `BAKIM_DATABASE_URL` (bakim_rolu) · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` (kuyruk işçisi ve kredi senkronu için). **`DATABASE_URL` ve `BETTER_AUTH_SECRET` burada YOKTUR.**
 **`yedek.env`**: `YEDEK_DATABASE_URL` (klinik_yedek; yalnız localhost) · `YEDEK_HEDEF_KLASOR` · `YEDEK_ALICI_ANAHTARI` (age ortak anahtarı) · `YEDEK_GUNLUK_SAKLAMA_GUN` (30) · `YEDEK_AYLIK_SAKLAMA_AY` (12) · `YEDEK_DIS_KOPYA_HEDEFI`.
 

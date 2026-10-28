@@ -1,4 +1,6 @@
-import type { HastaKategori } from "@/types/hasta";
+// Etkin fiyat (kategoriye göre kademeli fiyat + iskonto) kuralının TEK doğruluk kaynağı SQL'dir: `islem_tanimi_etkin_fiyat()` (SECURITY DEFINER).
+// Eskiden burada aynı kuralın float'lı bir JS kopyası da vardı (hiçbir yerden çağrılmıyordu) — Modül 4'te kaldırıldı; fiyat/iskonto istemcide HESAPLANMAZ,
+// istemci yalnız RPC sonucunu gösterir. Burada yalnız veri şekilleri kaldı.
 
 export type KademeliFiyat = {
   vita_fiyat: number;
@@ -12,30 +14,3 @@ export type IskontoOranlariYuzde = {
   elit_pct: number;
   prime_pct: number;
 };
-
-/**
- * Sunucudaki islem_tanimi_etkin_fiyat() SQL fonksiyonuyla birebir aynı mantık —
- * burası sadece ödeme ekranındaki toplamları önceden göstermek için (RPC zaten
- * kendi içinde bu hesabı bağımsızca tekrarlayıp otoriter fiyatı belirliyor).
- */
-export function etkinFiyatHesapla(
-  urun: KademeliFiyat,
-  kategori: HastaKategori,
-  oranlar: IskontoOranlariYuzde | null
-): number {
-  if (kategori === "vita") return urun.vita_fiyat;
-
-  const override =
-    kategori === "plus" ? urun.plus_fiyat : kategori === "elit" ? urun.elit_fiyat : urun.prime_fiyat;
-  if (override !== null) return override;
-
-  const pct = oranlar
-    ? kategori === "plus"
-      ? oranlar.plus_pct
-      : kategori === "elit"
-        ? oranlar.elit_pct
-        : oranlar.prime_pct
-    : 0;
-
-  return Math.round(urun.vita_fiyat * (1 - pct / 100) * 100) / 100;
-}

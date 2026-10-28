@@ -1,9 +1,11 @@
 import { Wallet } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { desc, asc } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tl } from "@/lib/para";
+import { araclariGetir, bankaHesaplariniGetir, krediKartlariniGetir } from "@/lib/finans/okuma";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { PageHeader } from "@/components/ui/page-header";
-import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { KlinikHarcamaSatir } from "@/types/klinik-harcama";
 import { YeniGiderButonu } from "./yeni-gider-butonu";
 import { GiderListesi } from "./gider-listesi";
@@ -11,43 +13,40 @@ import { GiderlerSekmeCubugu } from "./giderler-sekme-cubugu";
 
 export default async function GiderlerSayfasi() {
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
   const duzenlenebilir = kullanici.rol === "klinik_admin";
 
-  // Dönem filtresi (Aylık/Yıllık) GiderListesi içinde tamamen client-side
-  // yapılıyor — bu yüzden tüm kayıtlar tek seferde çekiliyor, dönem
-  // değişince sunucuya round-trip yok.
-  const [harcamaSonucu, aracSonucu, bankaSonucu, kartSonucu] = await Promise.all([
-    // Sayfalı: tek sorgu 1000 kayıtta sessizce kesilir, eski dönemler boş görünürdü.
-    tumSayfalariOku<KlinikHarcamaSatir>((bas, son) =>
-      supabase
-        .from("klinik_harcama")
-        .select(
-          "id, tarih, tutar, kategori, aciklama, tedarikci_adi, arac_id, odeme_tipi, banka_hesap_id, kredi_karti_id, is_faturali, fatura_no"
-        )
-        .order("tarih", { ascending: false })
-        .order("id")
-        .range(bas, son)
-        .returns<KlinikHarcamaSatir[]>()
-    ).then((data) => ({ data })),
-    supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
-    supabase
-      .from("klinik_banka_hesaplari")
-      .select("id, banka_adi, sube")
-      .order("sort_order")
-      .returns<KlinikBankaHesabi[]>(),
-    supabase
-      .from("klinik_kredi_kartlari")
-      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
-      .order("sort_order")
-      .returns<KlinikKrediKarti[]>(),
-  ]);
+  // Dönem filtresi (Aylık/Yıllık) GiderListesi içinde tamamen client-side yapılıyor — bu yüzden tüm kayıtlar tek seferde çekiliyor,
+  // dönem değişince sunucuya round-trip yok.
+  const v = await withTenant(bag, async (tx) => {
+    const H = sema.klinikHarcama;
+    const satirlar = await tx
+      .select({
+        id: H.id,
+        tarih: H.tarih,
+        tutar: H.tutar,
+        kategori: H.kategori,
+        aciklama: H.aciklama,
+        tedarikci_adi: H.tedarikciAdi,
+        arac_id: H.aracId,
+        odeme_tipi: H.odemeTipi,
+        banka_hesap_id: H.bankaHesapId,
+        kredi_karti_id: H.krediKartiId,
+        is_faturali: H.isFaturali,
+        fatura_no: H.faturaNo,
+      })
+      .from(H)
+      .orderBy(desc(H.tarih), asc(H.id));
+    return {
+      giderler: satirlar.map((g) => ({ ...g, tutar: tl(g.tutar) })) as KlinikHarcamaSatir[],
+      araclar: await araclariGetir(tx),
+      bankaHesaplari: await bankaHesaplariniGetir(tx),
+      kartlar: await krediKartlariniGetir(tx),
+    };
+  });
 
-  const giderler = harcamaSonucu.data ?? [];
-  const araclar = aracSonucu.data ?? [];
-  const bankaHesaplari = bankaSonucu.data ?? [];
-  const kartlar = kartSonucu.data ?? [];
+  const { giderler, araclar, bankaHesaplari, kartlar } = v;
   // Tedarikçi önerileri: aynı tedarikçi farklı yazılıp cariyi bölmesin (anahtar: Türkçe küçük harf, tek boşluk).
   const tedarikciAdlari = [
     ...new Map(

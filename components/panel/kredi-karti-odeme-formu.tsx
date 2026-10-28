@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ export function KrediKartiOdemeFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={sonuc} />
       <input type="hidden" name="odeme_tipi" value={yontem} />
       {sabitKartId && <input type="hidden" name="kredi_karti_id" value={sabitKartId} />}
       {sabitBankaHesapId && yontem === "havale" && (

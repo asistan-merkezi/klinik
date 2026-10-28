@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Receipt } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,16 +21,10 @@ export default async function GelenFaturalarSayfasi({
   searchParams: Promise<{ yil?: string; ay?: string }>;
 }) {
   const { yil: yilParam, ay: ayParam } = await searchParams;
-  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
+  await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
+  const { bag } = await panelBaglami();
 
-  const klinikId = kullanici.klinik_id ?? "";
-
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("created_at")
-    .eq("id", klinikId)
-    .maybeSingle<{ created_at: string }>();
+  const klinik = await withTenant(bag, async (tx) => (await tx.select({ created_at: sema.klinik.createdAt }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0]);
 
   const simdi = new Date();
   const buYil = simdi.getFullYear();

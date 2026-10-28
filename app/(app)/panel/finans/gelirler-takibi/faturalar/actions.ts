@@ -2,14 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { pgHata, rpc, sema, snakeKolonlari, withTenant } from "@/lib/db";
+import { finansOturumu } from "@/lib/finans/eylem";
+import { negatifOlmayanTutarKurus } from "@/lib/finans/tutar";
+import { kurusMetni } from "@/lib/para";
+import { YETKISIZ_MESAJI } from "@/lib/auth/yetki";
 import { FATURA_ALAN_ETIKETLERI } from "@/lib/fatura/eksik-bilgi";
 import { revalidateHastaDetay } from "@/app/(app)/panel/hastalar/[id]/revalidate";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
 const borcDuzenleSemasi = z.object({
-  iskonto_tutari: z.coerce.number().min(0, "İskonto 0'dan küçük olamaz."),
+  iskonto_tutari: negatifOlmayanTutarKurus("İskonto 0'dan küçük olamaz."),
   faturali: z.coerce.boolean().optional(),
   aciklama: z.string().trim().optional(),
 });
@@ -56,25 +61,12 @@ export async function finansBorcDuzenle(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Oturum bulunamadı." };
+  const o = await finansOturumu(["klinik_admin", "resepsiyon", "muhasebe"]);
+  if (!o) {
+    return { success: false, message: YETKISIZ_MESAJI };
   }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-
-  const yetkili =
-    kullanici?.rol === "klinik_admin" ||
-    kullanici?.rol === "resepsiyon" ||
-    kullanici?.rol === "muhasebe" ||
-    kullanici?.rol === "super_admin";
-
-  if (!yetkili) {
-    return { success: false, message: "Bu işlem için yetkiniz yok." };
+  if (!z.string().uuid().safeParse(hareketId).success) {
+    return { success: false, message: "Bakiye hareketi bulunamadı." };
   }
 
   const ayristirma = borcDuzenleSemasi.safeParse({
@@ -89,16 +81,20 @@ export async function finansBorcDuzenle(
 
   const { iskonto_tutari, faturali, aciklama } = ayristirma.data;
 
-  const { error } = await supabase.rpc("hasta_bakiye_hareket_borc_duzenle", {
-    p_hareket_id: hareketId,
-    p_iskonto_tutari: iskonto_tutari,
-    p_faturali: faturali ?? false,
-    p_aciklama: aciklama ? aciklama : null,
-  });
-
-  if (error) {
-    console.error("Borç düzenlenemedi:", error);
-    return { success: false, message: hataMesajiCevir(error.message) };
+  try {
+    // RPC rol (klinik_admin/resepsiyon/muhasebe) + tenant + hareket sahipliğini kendisi doğrular.
+    await withTenant(o.bag, (tx) =>
+      rpc(tx, "hasta_bakiye_hareket_borc_duzenle", {
+        p_hareket_id: hareketId,
+        p_iskonto_tutari: kurusMetni(iskonto_tutari),
+        p_faturali: faturali ?? false,
+        p_aciklama: aciklama ? aciklama : null,
+      })
+    );
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Borç düzenlenemedi:", h.mesaj);
+    return { success: false, message: hataMesajiCevir(h.mesaj) };
   }
 
   revalidatePath("/panel/finans/gelirler-takibi/faturalar");
@@ -134,18 +130,12 @@ export async function faturaHastaBilgisiTamamla(
   _onceki: SonucDurumu,
   formData: FormData
 ): Promise<SonucDurumu> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Oturum bulunamadı." };
-  }
-
-  const { data: kullanici } = await supabase.from("kullanici").select("rol").eq("id", user.id).single();
-  if (kullanici?.rol !== "klinik_admin" && kullanici?.rol !== "resepsiyon" && kullanici?.rol !== "super_admin") {
+  const o = await finansOturumu(["klinik_admin", "resepsiyon"]);
+  if (!o) {
     return { success: false, message: "Hasta bilgilerini düzenleme yetkiniz yok." };
+  }
+  if (!z.string().uuid().safeParse(hastaId).success) {
+    return { success: false, message: "Hasta bulunamadı." };
   }
 
   const alan = (ad: string) => {
@@ -170,37 +160,26 @@ export async function faturaHastaBilgisiTamamla(
     return { success: false, message: "Tamamlanacak bir bilgi girilmedi." };
   }
 
-  // RLS kapsamında hasta görünmüyorsa (başka klinik/yok) sessizce başarılı dönmesin.
-  const { data: hasta } = await supabase.from("hasta").select("id").eq("id", hastaId).maybeSingle();
-  if (!hasta) {
-    return { success: false, message: "Hasta bulunamadı." };
-  }
-
-  if (eposta) {
-    const { error } = await supabase.from("hasta").update({ eposta }).eq("id", hastaId);
-    if (error) {
-      console.error("Hasta e-postası güncellenemedi:", error);
-      return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
-    }
-  }
-
-  if (kimlik_no || adres) {
-    const { error } = await supabase.from("hasta_hassas").upsert(
-      {
-        hasta_id: hastaId,
-        ...(kimlik_no ? { kimlik_no, kimlik_no_tipi: kimlik_no_tipi ?? "tc" } : {}),
-        ...(adres ? { adres } : {}),
-      },
-      { onConflict: "hasta_id" }
-    );
-    if (error) {
-      console.error("Hasta fatura bilgisi güncellenemedi:", error);
-      return {
-        success: false,
-        message:
-          error.code === "23505" ? "Bu kimlik no başka bir hastada kayıtlı." : "Kaydedilemedi, lütfen tekrar deneyin.",
-      };
-    }
+  try {
+    // hasta + hasta_hassas TEK transaction; RLS kapsamında hasta görünmüyorsa (başka klinik/yok) sessizce başarılı dönmez.
+    const bulundu = await withTenant(o.bag, async (tx) => {
+      const hasta = await tx.select({ id: sema.hasta.id }).from(sema.hasta).where(eq(sema.hasta.id, hastaId)).limit(1);
+      if (hasta.length === 0) return false;
+      if (eposta) await tx.update(sema.hasta).set({ eposta }).where(eq(sema.hasta.id, hastaId));
+      if (kimlik_no || adres) {
+        const degerler = snakeKolonlari(sema.hastaHassas, {
+          ...(kimlik_no ? { kimlik_no, kimlik_no_tipi: kimlik_no_tipi ?? "tc" } : {}),
+          ...(adres ? { adres } : {}),
+        });
+        await tx.insert(sema.hastaHassas).values({ hastaId, klinikId: o.klinikId, ...degerler }).onConflictDoUpdate({ target: sema.hastaHassas.hastaId, set: degerler });
+      }
+      return true;
+    });
+    if (!bulundu) return { success: false, message: "Hasta bulunamadı." };
+  } catch (e) {
+    const h = pgHata(e);
+    console.error("Hasta fatura bilgisi güncellenemedi:", h.mesaj);
+    return { success: false, message: h.kod === "23505" ? "Bu kimlik no başka bir hastada kayıtlı." : "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 
   revalidateHastaDetay(hastaId);

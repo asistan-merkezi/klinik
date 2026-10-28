@@ -1,46 +1,31 @@
 import { Banknote } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { formatDateForInput } from "@/lib/datetime";
 import { finansDonemiCoz } from "@/lib/finans/donem";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { tlTopla } from "@/lib/para";
+import {
+  aktifPersoneliGetir,
+  araclariGetir,
+  bankaHesaplariniGetir,
+  cariOdemeleriniGetir,
+  dengelemeleriGetir,
+  harcamalariGetir,
+  hastaOdemeleriniGetir,
+  kamusalOdemeleriniGetir,
+  kartOdemeleriniGetir,
+  kasaDonemBasiBakiyesi,
+  krediKartlariniGetir,
+  nakitBankaHareketleriniGetir,
+  personelOdemeleriniGetir,
+  type DengelemeSatiri,
+} from "@/lib/finans/okuma";
 import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
 import { PageHeader } from "@/components/ui/page-header";
-import type { KlinikArac, KlinikBankaHesabi, KlinikKrediKarti } from "@/types/klinik";
 import type { LedgerSatiri } from "@/types/nakit-banka-hareketi";
 import { KasaClient, type KasaKontrolBilgisi } from "./kasa-client";
-
-// tur='iade' satırları (hasta nakit iadesi) aynı sorguyla gelir; Kasa'da ÇIKIŞ sayılır.
-type HastaOdemeSatiri = { id: string; created_at: string; tutar: number; tur: string; hasta: { ad_soyad: string } | null };
-type HarcamaSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string | null; kategori: string };
-type CariOdemeSatiri = { id: string; tarih: string; tutar: number; tedarikci_adi: string; aciklama: string | null };
-type KartOdemeSatiri = {
-  id: string;
-  tarih: string;
-  tutar: number;
-  aciklama: string | null;
-  kart: { kart_adi: string } | null;
-};
-type PersonelOdemeSatiri = {
-  id: string;
-  tarih: string;
-  tutar: number;
-  tur: string;
-  personel: { ad_soyad: string } | null;
-};
-type NakitBankaSatiri = {
-  id: string;
-  tip: string;
-  kaynak_kasa: boolean;
-  hedef_kasa: boolean;
-  tutar: number;
-  tarih: string;
-  aciklama: string | null;
-  karsi_taraf_adi: string | null;
-};
-// Ödenmiş, nakit ödenen kamusal ödemeler — kasa_bakiye_once_toplam ile aynı kaynak.
-type KamusalOdemeSatiri = { id: string; odeme_tarihi: string; tutar: number; odeme_tipi: string; notlar: string | null };
-type DengelemeSatiri = { id: string; tutar: number; aciklama: string | null; ekleyen_ad: string; created_at: string };
 
 type KasaAyari = { baslangic_tutari?: number; baslangic_zamani?: string; baslangic_giren?: string };
 
@@ -52,141 +37,31 @@ export default async function KasaSayfasi({
   const donem = finansDonemiCoz(await searchParams);
 
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
   const duzenlenebilir = kullanici.rol === "klinik_admin";
-  const klinikId = kullanici.klinik_id;
 
-  // Yalnız SEÇİLİ dönemin satırları, 1000'lik sayfalarla (PostgREST max_rows sessiz kesmesin);
-  // sıralama sabit (tarih + id). Dönem başı bakiye satır çekmeden RPC'den (Postgres SUM) gelir.
-  const [
-    ayarSonucu,
-    hastaOdemeleri,
-    harcamalar,
-    cariOdemeleri,
-    kartOdemeleri,
-    personelOdemeleri,
-    nakitBankaHareketleri,
-    kamusalOdemeleri,
-    dengelemeler,
-    bankaHesabiSonucu,
-    personelListesiSonucu,
-    aracSonucu,
-    kartSonucu,
-    oncekiToplamSonucu,
-  ] = await Promise.all([
-    supabase.from("klinik_ayarlar").select("ayarlar").eq("klinik_id", klinikId ?? "").maybeSingle(),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("hasta_bakiye_hareket")
-        .select("id, created_at, tutar, tur, hasta:hasta_id(ad_soyad)")
-        .in("tur", ["odeme", "iade"])
-        .eq("odeme_yontemi", "nakit")
-        .gte("created_at", donem.baslangicTs)
-        .lt("created_at", donem.bitisTs)
-        .order("created_at")
-        .order("id")
-        .range(bas, son)
-        .returns<HastaOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_harcama")
-        .select("id, tarih, tutar, tedarikci_adi, kategori")
-        .eq("odeme_tipi", "nakit")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<HarcamaSatiri[]>()
-    ),
+  // Yalnız SEÇİLİ dönemin satırları; sıralama sabit (tarih + id). Dönem başı bakiye satır çekmeden SQL'den (kasa_bakiye_once_toplam) gelir.
+  const v = await withTenant(bag, async (tx) => ({
+    ayarlar: (await tx.select({ ayarlar: sema.klinikAyarlar.ayarlar }).from(sema.klinikAyarlar).where(eq(sema.klinikAyarlar.klinikId, bag.tenantId)).limit(1))[0]?.ayarlar,
+    hastaOdemeleri: await hastaOdemeleriniGetir(tx, donem, ["nakit"]),
+    harcamalar: await harcamalariGetir(tx, donem, "nakit"),
     // Tedarikçi cari ödemesi (nakit) ve karta yapılan nakit ödeme kasadan ÇIKIŞ olur.
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_cari_odeme")
-        .select("id, tarih, tutar, tedarikci_adi, aciklama")
-        .eq("odeme_tipi", "nakit")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<CariOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("klinik_kredi_karti_odeme")
-        .select("id, tarih, tutar, aciklama, kart:kredi_karti_id(kart_adi)")
-        .eq("odeme_tipi", "nakit")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<KartOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("personel_hesap_hareket")
-        .select("id, tarih, tutar, tur, personel:personel_id(ad_soyad)")
-        .eq("odeme_tipi", "nakit")
-        .in("tur", ["odeme", "avans"])
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<PersonelOdemeSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("nakit_banka_hareketi")
-        .select("id, tip, kaynak_kasa, hedef_kasa, tutar, tarih, aciklama, karsi_taraf_adi")
-        .or("kaynak_kasa.eq.true,hedef_kasa.eq.true")
-        .gte("tarih", donem.baslangic)
-        .lt("tarih", donem.bitis)
-        .order("tarih")
-        .order("id")
-        .range(bas, son)
-        .returns<NakitBankaSatiri[]>()
-    ),
-    tumSayfalariOku((bas, son) =>
-      supabase
-        .from("kamusal_odeme")
-        .select("id, odeme_tarihi, tutar, odeme_tipi, notlar")
-        .eq("odeme_yontemi", "nakit")
-        .not("odeme_tarihi", "is", null)
-        .gte("odeme_tarihi", donem.baslangic)
-        .lt("odeme_tarihi", donem.bitis)
-        .order("odeme_tarihi")
-        .order("id")
-        .range(bas, son)
-        .returns<KamusalOdemeSatiri[]>()
-    ),
-    dengelemeleriOku(supabase, donem.baslangicTs, donem.bitisTs),
-    supabase
-      .from("klinik_banka_hesaplari")
-      .select("id, banka_adi, sube")
-      .order("sort_order")
-      .returns<KlinikBankaHesabi[]>(),
-    supabase
-      .from("personel")
-      .select("id, ad_soyad")
-      .eq("aktif", true)
-      .order("ad_soyad")
-      .returns<{ id: string; ad_soyad: string }[]>(),
-    supabase.from("klinik_arac").select("id, marka, model, plaka").order("plaka").returns<KlinikArac[]>(),
-    supabase
-      .from("klinik_kredi_kartlari")
-      .select("id, kart_tipi, kart_adi, banka_adi, kart_sahibi, son_dort_hane")
-      .order("sort_order")
-      .returns<KlinikKrediKarti[]>(),
-    supabase.rpc("kasa_bakiye_once_toplam", { p_once_tarih: donem.baslangic }),
-  ]);
-  if (oncekiToplamSonucu.error) throw new Error(oncekiToplamSonucu.error.message);
+    cariOdemeleri: await cariOdemeleriniGetir(tx, donem, "nakit"),
+    kartOdemeleri: await kartOdemeleriniGetir(tx, donem, "nakit"),
+    personelOdemeleri: await personelOdemeleriniGetir(tx, donem, "nakit"),
+    nakitBankaHareketleri: await nakitBankaHareketleriniGetir(tx, donem, "kasa"),
+    kamusalOdemeleri: await kamusalOdemeleriniGetir(tx, donem, "nakit"),
+    dengelemeler: await dengelemeleriGetir(tx, donem),
+    bankaHesaplari: await bankaHesaplariniGetir(tx),
+    personelListesi: await aktifPersoneliGetir(tx),
+    araclar: await araclariGetir(tx),
+    kartlar: await krediKartlariniGetir(tx),
+    oncekiToplam: await kasaDonemBasiBakiyesi(tx, donem),
+  }));
+  const { hastaOdemeleri, harcamalar, cariOdemeleri, kartOdemeleri, personelOdemeleri, nakitBankaHareketleri, kamusalOdemeleri, dengelemeler } = v;
 
-  const kasaAyari = (ayarSonucu.data?.ayarlar as { kasa?: KasaAyari } | null)?.kasa ?? {};
+  const kasaAyari = (v.ayarlar as { kasa?: KasaAyari } | null | undefined)?.kasa ?? {};
   const baslangicTutari = kasaAyari.baslangic_tutari ?? 0;
   const baslangicZamani = kasaAyari.baslangic_zamani ?? null;
   const baslangicGunu = baslangicZamani ? formatDateForInput(baslangicZamani) : null;
@@ -194,11 +69,11 @@ export default async function KasaSayfasi({
   // Başlangıç tutarı: giriş zamanı YOKSA (eski kayıt) her dönemin açılışıdır. Zamanı varsa
   // girildiği günden itibaren sayılır — o günden önceki dönemlerde 0, o dönemde "Kasa Başlangıç"
   // hareketi, sonraki dönemlerde açılış bakiyesine dahil.
-  let donemBaslangicBakiyesi = Number(oncekiToplamSonucu.data ?? 0);
+  let donemBaslangicBakiyesi = v.oncekiToplam;
   let baslangicHareketi: LedgerSatiri | null = null;
   if (baslangicTutari > 0) {
     if (!baslangicGunu || baslangicGunu < donem.baslangic) {
-      donemBaslangicBakiyesi += baslangicTutari;
+      donemBaslangicBakiyesi = tlTopla([donemBaslangicBakiyesi, baslangicTutari]);
     } else if (baslangicGunu < donem.bitis) {
       baslangicHareketi = {
         id: "kasa-baslangic",
@@ -328,10 +203,10 @@ export default async function KasaSayfasi({
           ay={donem.ay}
           gelenRows={gelenRows}
           gidenRows={gidenRows}
-          bankaHesaplari={bankaHesabiSonucu.data ?? []}
-          personelListesi={personelListesiSonucu.data ?? []}
-          araclar={aracSonucu.data ?? []}
-          kartlar={kartSonucu.data ?? []}
+          bankaHesaplari={v.bankaHesaplari}
+          personelListesi={v.personelListesi}
+          araclar={v.araclar}
+          kartlar={v.kartlar}
           duzenlenebilir={duzenlenebilir}
         />
       </div>
@@ -349,36 +224,4 @@ function dengelemeSatiri(d: DengelemeSatiri, tutar: number): LedgerSatiri {
     aciklama: d.aciklama ?? undefined,
     sil: { hedef: "kasa_dengeleme", id: d.id },
   };
-}
-
-/**
- * kasa_dengeleme tablosu 20261005090000 migration'ıyla gelir. Migration henüz uygulanmadan bu kod
- * deploy edilirse tablo yok hatası TÜM Kasa sayfasını düşürmesin — o zaman yalnız dengeleme
- * satırları boş sayılır (başka her hata yine fırlatır).
- */
-async function dengelemeleriOku(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  baslangicTs: string,
-  bitisTs: string
-): Promise<DengelemeSatiri[]> {
-  try {
-    return await tumSayfalariOku((bas, son) =>
-      supabase
-        .from("kasa_dengeleme")
-        .select("id, tutar, aciklama, ekleyen_ad, created_at")
-        .gte("created_at", baslangicTs)
-        .lt("created_at", bitisTs)
-        .order("created_at")
-        .order("id")
-        .range(bas, son)
-        .returns<DengelemeSatiri[]>()
-    );
-  } catch (hata) {
-    const mesaj = hata instanceof Error ? hata.message : "";
-    if (mesaj.includes("kasa_dengeleme")) {
-      console.error("kasa_dengeleme tablosu okunamadı (migration uygulanmamış olabilir):", mesaj);
-      return [];
-    }
-    throw hata;
-  }
 }

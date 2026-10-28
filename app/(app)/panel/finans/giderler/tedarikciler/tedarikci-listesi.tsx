@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { ChevronDown, ChevronRight, CirclePlus, Pencil, Trash2, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ import {
 import { giderOdemeBilgisiGuncelle } from "../actions";
 import { cariOdemeEkle, cariOdemeSil } from "./actions";
 import { useBasariOlunca } from "@/lib/use-basari-olunca";
+import { tlTopla } from "@/lib/para";
 
 export type TedarikciHareketi = {
   /** cari_gider: "Cariye Ekle" (borç) · odenmis_gider: nakit/havale/kart (borç+ödeme, net 0) ·
@@ -81,8 +83,8 @@ export function TedarikciListesi({
   }, [tedarikciler, arama]);
 
   const borclular = tedarikciler.filter((t) => t.bakiye > 0);
-  const toplamBorc = borclular.reduce((acc, t) => acc + t.bakiye, 0);
-  const toplamHarcama = tedarikciler.reduce((acc, t) => acc + t.toplamHarcama, 0);
+  const toplamBorc = tlTopla(borclular.map((t) => t.bakiye));
+  const toplamHarcama = tlTopla(tedarikciler.map((t) => t.toplamHarcama));
   const bekleyenSayisi = tedarikciler.reduce(
     (acc, t) => acc + t.hareketler.filter((h) => h.tur === "bekleyen_gider").length,
     0
@@ -243,9 +245,9 @@ function yuruyenBakiyeli(hareketler: TedarikciHareketi[]) {
   const sonuc: { h: TedarikciHareketi; yuruyen: number }[] = [];
   let toplam = 0;
   for (const h of hareketler) {
-    if (h.tur === "cari_gider") toplam += h.tutar;
-    else if (h.tur === "cari_odeme") toplam -= h.tutar;
-    sonuc.push({ h, yuruyen: Math.round(toplam * 100) / 100 });
+    if (h.tur === "cari_gider") toplam = tlTopla([toplam, h.tutar]);
+    else if (h.tur === "cari_odeme") toplam = tlTopla([toplam, -h.tutar]);
+    sonuc.push({ h, yuruyen: toplam });
   }
   return sonuc;
 }
@@ -476,6 +478,7 @@ function CariOdemeFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
+<IslemAnahtari sonuc={sonuc} />
       <input type="hidden" name="tedarikci_adi" value={tedarikciAdi} />
       <input type="hidden" name="odeme_tipi" value={tip} />
 

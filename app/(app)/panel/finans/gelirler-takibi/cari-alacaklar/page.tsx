@@ -1,5 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
+import { asc, desc } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tl } from "@/lib/para";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,18 +18,17 @@ type CariOzetSatiri = {
 
 export default async function CariAlacaklarTakibiSayfasi() {
   await sayfaYetkisiIste(ROL_GRUPLARI.finansFatura);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
-  const satirlar = await tumSayfalariOku<CariOzetSatiri>((bas, son) =>
-    supabase
-      .from("v_hasta_cari_ozet")
-      .select("hasta_id, ad_soyad, toplam_bakiye, tahsil_edilen, kalan_bakiye")
-      .order("kalan_bakiye", { ascending: false })
-      .order("toplam_bakiye", { ascending: false })
-      .order("hasta_id")
-      .range(bas, son)
-      .returns<CariOzetSatiri[]>()
-  );
+  // v_hasta_cari_ozet (SQL view) — cari bakiye kuralının TEK kaynağı; yalnız net borcu (kalan_bakiye > 0) olan hastalar gelir.
+  const satirlar: CariOzetSatiri[] = await withTenant(bag, async (tx) => {
+    const V = sema.vHastaCariOzet;
+    const r = await tx
+      .select({ hasta_id: V.hastaId, ad_soyad: V.adSoyad, toplam_bakiye: V.toplamBakiye, tahsil_edilen: V.tahsilEdilen, kalan_bakiye: V.kalanBakiye })
+      .from(V)
+      .orderBy(desc(V.kalanBakiye), desc(V.toplamBakiye), asc(V.hastaId));
+    return r.map((x) => ({ hasta_id: x.hasta_id as string, ad_soyad: x.ad_soyad as string, toplam_bakiye: tl(x.toplam_bakiye), tahsil_edilen: tl(x.tahsil_edilen), kalan_bakiye: tl(x.kalan_bakiye) }));
+  });
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

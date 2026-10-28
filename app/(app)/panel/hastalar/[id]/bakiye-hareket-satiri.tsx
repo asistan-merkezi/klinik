@@ -1,5 +1,6 @@
 "use client";
 
+import { tlFark } from "@/lib/para";
 import { useActionState, useId, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -159,7 +160,7 @@ function BorcDuzenleDialog({
   useBasariOlunca(durum, () => onOpenChange(false));
 
   const iskonto = Number(iskontoMetni) || 0;
-  const netToplam = Math.max(hareket.tutar - iskonto, 0);
+  const netToplam = Math.max(tlFark(hareket.tutar, iskonto), 0);
   const eksikAlanlar = faturaEksikAlanlariBul(faturaBilgisi);
   const faturaEngelli = faturali && eksikAlanlar.length > 0;
 

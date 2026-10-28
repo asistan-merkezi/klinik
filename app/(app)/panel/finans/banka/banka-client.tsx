@@ -1,5 +1,6 @@
 "use client";
 
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { ODEME_TIPI_ETIKET, type OdemeTipi } from "@/types/kamusal-odeme";
 import { CikanSecimListesi } from "@/components/panel/cikan-secim-listesi";
 import { useActionState, useMemo, useState } from "react";
@@ -29,6 +30,7 @@ import {
   nakitBankaHareketiSil,
 } from "./actions";
 import { useBasariOlunca } from "@/lib/use-basari-olunca";
+import { kurus, yuzdeKurus } from "@/lib/para";
 
 function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
@@ -130,6 +132,7 @@ function BankayaGirenDialog({ selectedId }: { selectedId: string }) {
             <DialogTitle>Bankaya Giren</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
             <input type="hidden" name="hedef_banka_hesap_id" value={selectedId} />
             <div className="flex flex-col gap-1">
               <Label>Ödeme Şekli</Label>
@@ -215,6 +218,7 @@ function PersonelOdemeFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <input type="hidden" name="banka_hesap_id" value={selectedId} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_personel_id">Personel</Label>
@@ -284,6 +288,7 @@ function HesaplarArasiFormu({
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <input type="hidden" name="kaynak_banka_hesap_id" value={selectedId} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_hedef">Hedef</Label>
@@ -337,6 +342,7 @@ function DigerCikanFormu({ selectedId, basariliOlunca }: { selectedId: string; b
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
       <input type="hidden" name="kaynak_banka_hesap_id" value={selectedId} />
       <div className="flex flex-col gap-1">
         <Label htmlFor="b_diger_karsi_taraf_adi">Alıcı</Label>
@@ -527,12 +533,14 @@ export function BankaClient({
         }
         // Kredi kartı tahsilatı: hesaba komisyon düşülmüş NET tutar yatar (SQL'deki round(tutar*oran/100, 2) ile aynı kural).
         const oran = h.komisyon_orani ?? 0;
-        const komisyon = Math.round(h.tutar * oran) / 100;
+        const brutKurus = kurus(h.tutar) ?? 0;
+        const komisyonKurus = yuzdeKurus(brutKurus, oran);
+        const komisyon = komisyonKurus / 100;
         const para = (n: number) => n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return {
           id: h.id,
           tarih: formatDateForInput(h.created_at),
-          tutar: Math.round((h.tutar - komisyon) * 100) / 100,
+          tutar: (brutKurus - komisyonKurus) / 100,
           etiket: "Hasta ödemesi (Kredi Kartı)",
           taraf: h.hasta?.ad_soyad ?? "Hasta",
           aciklama: `Brüt ${para(h.tutar)} ₺ − komisyon ${para(komisyon)} ₺ (%${oran.toLocaleString("tr-TR")})`,

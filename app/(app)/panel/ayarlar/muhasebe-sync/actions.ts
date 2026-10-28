@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { sema, withTenant } from "@/lib/db";
 import { eylemYetkisi, YETKISIZ_MESAJI } from "@/lib/auth/yetki";
+import { GizliAnahtarYok, gizliSifrele } from "@/lib/guvenlik/gizli-sifrele";
 
 type SonucDurumu = { success: boolean; message: string } | null;
 
@@ -56,7 +57,8 @@ export async function muhasebeSyncGuncelle(_onceki: SonucDurumu, formData: FormD
       const baglandiMi = Boolean(parasut_client_id && parasut_company_id && secretVar);
       const degerler = {
         parasutClientId: parasut_client_id,
-        ...(parasut_client_secret ? { parasutClientSecret: parasut_client_secret } : {}),
+        // Secret veritabanına DÜZ yazılmaz: uygulama anahtarıyla (GIZLI_VERI_ANAHTARI) kliniğe bağlı AES-256-GCM; anahtar yoksa kayıt reddedilir.
+        ...(parasut_client_secret ? { parasutClientSecret: gizliSifrele(parasut_client_secret, klinikId) } : {}),
         parasutCompanyId: parasut_company_id,
         baglantiDurumu: baglandiMi ? "baglandi" : "bekliyor",
       };
@@ -66,7 +68,11 @@ export async function muhasebeSyncGuncelle(_onceki: SonucDurumu, formData: FormD
         .onConflictDoUpdate({ target: sema.klinikMuhasebeEntegrasyonu.klinikId, set: degerler });
     });
   } catch (error) {
-    console.error("Muhasebe Sync ayarları kaydedilemedi:", error);
+    if (error instanceof GizliAnahtarYok) {
+      return { success: false, message: "Sunucuda gizli veri şifreleme anahtarı tanımlı değil; Paraşüt gizli anahtarı kaydedilemez. Sistem yöneticisine bildirin." };
+    }
+    // Hata nesnesi gizli değer içerebilecek sorgu parametrelerini taşıyabilir → yalnız mesajı logla.
+    console.error("Muhasebe Sync ayarları kaydedilemedi:", error instanceof Error ? error.message : "bilinmeyen hata");
     return { success: false, message: "Kaydedilemedi, lütfen tekrar deneyin." };
   }
 

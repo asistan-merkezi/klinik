@@ -1,7 +1,8 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ListChecks } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -11,39 +12,40 @@ import { YeniIslemSablonuDialog } from "../yeni-islem-sablonu-dialog";
 import { SablonListesi } from "./sablon-listesi";
 
 export default async function IslemTanimlamalarSayfasi() {
-  const supabase = await createClient();
+  const { ctx, bag } = await panelBaglami();
+  const duzenlenebilir = ctx.rol === "klinik_admin";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/giris");
+  let pozisyonlar: SecenekSatir[] = [];
+  let cihazlar: SecenekSatir[] = [];
+  let sablonlar: IslemAdimiSablonuListSatir[] = [];
+  let hata = false;
+  try {
+    const v = await withTenant(bag, async (tx) => ({
+      pozisyon: await tx.select({ id: sema.pozisyonlar.id, ad: sema.pozisyonlar.ad }).from(sema.pozisyonlar).where(eq(sema.pozisyonlar.aktif, true)).orderBy(asc(sema.pozisyonlar.sira)),
+      cihaz: await tx.select({ id: sema.cihaz.id, ad: sema.cihaz.ad }).from(sema.cihaz).where(eq(sema.cihaz.aktif, true)).orderBy(asc(sema.cihaz.ad)),
+      tumPozisyon: await tx.select({ id: sema.pozisyonlar.id, ad: sema.pozisyonlar.ad }).from(sema.pozisyonlar),
+      tumCihaz: await tx.select({ id: sema.cihaz.id, ad: sema.cihaz.ad }).from(sema.cihaz),
+      sablon: await tx.select().from(sema.islemAdimiSablonu).orderBy(asc(sema.islemAdimiSablonu.ad)),
+    }));
+    pozisyonlar = v.pozisyon;
+    cihazlar = v.cihaz;
+    const cihazAdi = new Map(v.tumCihaz.map((c) => [c.id, c.ad]));
+    const pozisyonAdi = new Map(v.tumPozisyon.map((p) => [p.id, p.ad]));
+    sablonlar = v.sablon.map((x) => ({
+      id: x.id,
+      ad: x.ad,
+      uygulayici_pozisyon_id: x.uygulayiciPozisyonId,
+      gerekli_cihaz_id: x.gerekliCihazId,
+      sure_dakika: x.sureDakika,
+      aktif: x.aktif,
+      pozisyon: x.uygulayiciPozisyonId ? { ad: pozisyonAdi.get(x.uygulayiciPozisyonId) ?? "—" } : null,
+      cihaz: x.gerekliCihazId ? { ad: cihazAdi.get(x.gerekliCihazId) ?? "—" } : null,
+    }));
+  } catch (e) {
+    console.error("İşlem tanımları çekilemedi:", e);
+    hata = true;
   }
-
-  const { data: kullanici } = await supabase
-    .from("kullanici")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-
-  const duzenlenebilir = kullanici?.rol === "klinik_admin";
-
-  const [pozisyonSonucu, cihazSonucu, sablonSonucu] = await Promise.all([
-    supabase.from("pozisyonlar").select("id, ad").eq("aktif", true).order("sira"),
-    supabase.from("cihaz").select("id, ad").eq("aktif", true).order("ad"),
-    supabase
-      .from("islem_adimi_sablonu")
-      .select(
-        "id, ad, uygulayici_pozisyon_id, gerekli_cihaz_id, sure_dakika, aktif, pozisyon:uygulayici_pozisyon_id(ad), cihaz:gerekli_cihaz_id(ad)"
-      )
-      .order("ad")
-      .returns<IslemAdimiSablonuListSatir[]>(),
-  ]);
-
-  const pozisyonlar: SecenekSatir[] = (pozisyonSonucu.data ?? []).map((p) => ({ id: p.id, ad: p.ad }));
-  const cihazlar: SecenekSatir[] = (cihazSonucu.data ?? []).map((c) => ({ id: c.id, ad: c.ad }));
-  const sablonlar = sablonSonucu.data ?? [];
+  const sablonSonucu = { error: hata };
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">

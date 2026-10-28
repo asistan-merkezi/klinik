@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Receipt, HandCoins } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
 import { MenuGrubuSayfasi } from "@/components/panel/menu-grubu-sayfasi";
 import type { MenuGrubu } from "@/lib/panel/menu-gruplari";
 
@@ -19,13 +19,9 @@ const GRUP: MenuGrubu = {
 };
 
 export default async function GelirlerTakibiSayfasi() {
-  const supabase = await createClient();
+  const ctx = await oturumBaglami();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!ctx || ctx.tur !== "personel") {
     redirect("/giris");
   }
 

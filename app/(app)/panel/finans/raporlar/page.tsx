@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { BarChart3 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant, type TenantBaglami } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tlFark, tlTopla } from "@/lib/para";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -43,16 +46,10 @@ export default async function RaporlarSayfasi({
   searchParams: Promise<{ gorunum?: string; yil?: string; ay?: string; tarih?: string }>;
 }) {
   const { gorunum: gorunumParam, yil: yilParam, ay: ayParam, tarih: tarihParam } = await searchParams;
-  const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
+  await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
+  const { bag } = await panelBaglami();
 
-  const klinikId = kullanici.klinik_id ?? "";
-
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("created_at")
-    .eq("id", klinikId)
-    .maybeSingle<{ created_at: string }>();
+  const klinik = await withTenant(bag, async (tx) => (await tx.select({ created_at: sema.klinik.createdAt }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0]);
 
   const simdi = new Date();
   const buYil = simdi.getFullYear();
@@ -231,11 +228,11 @@ export default async function RaporlarSayfasi({
         </header>
 
         {gorunum === "gunluk" ? (
-          <GunlukGorunum supabase={supabase} klinikId={klinikId} tarih={tarih} />
+          <GunlukGorunum bag={bag} tarih={tarih} />
         ) : gorunum === "aylik" ? (
-          <AylikGorunum supabase={supabase} klinikId={klinikId} yil={yil} ay={ay} />
+          <AylikGorunum bag={bag} yil={yil} ay={ay} />
         ) : (
-          <YillikGorunum supabase={supabase} klinikId={klinikId} yil={yil} />
+          <YillikGorunum bag={bag} yil={yil} />
         )}
       </div>
     </div>
@@ -243,27 +240,25 @@ export default async function RaporlarSayfasi({
 }
 
 async function AylikGorunum({
-  supabase,
-  klinikId,
+  bag,
   yil,
   ay,
 }: {
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  klinikId: string;
+  bag: TenantBaglami;
   yil: number;
   ay: number;
 }) {
   const donem = raporAyDonemi(yil, ay);
 
-  const [sabitPersonel, donemOzeti, gunlukDokum] = await Promise.all([
-    hesaplaSabitPersonelMaliyeti(supabase, klinikId, donem),
-    hesaplaDonemOzeti(supabase, klinikId, donem),
-    hesaplaGunlukDokum(supabase, klinikId, donem),
-  ]);
+  // Tek transaction, sıralı okuma (aynı bağlantı): toplamlar SQL'den (rapor_donem_ozeti), kalem listesi ve personel gideri ayrı sorgular.
+  const { sabitPersonel, donemOzeti, gunlukDokum } = await withTenant(bag, async (tx) => ({
+    sabitPersonel: await hesaplaSabitPersonelMaliyeti(tx, donem),
+    donemOzeti: await hesaplaDonemOzeti(tx, donem),
+    gunlukDokum: await hesaplaGunlukDokum(tx, donem),
+  }));
   const { isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu } = donemOzeti;
 
-  const toplamGider =
-    isletmeGideri + faturaliGiderler + muhasebeGideri + digerGiderler + sabitPersonel.toplamMaas;
+  const toplamGider = tlTopla([isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, sabitPersonel.toplamMaas]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -291,25 +286,22 @@ async function AylikGorunum({
 }
 
 async function YillikGorunum({
-  supabase,
-  klinikId,
+  bag,
   yil,
 }: {
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  klinikId: string;
+  bag: TenantBaglami;
   yil: number;
 }) {
   const donem = raporYilDonemi(yil);
 
-  const [aylar, sabitPersonel, donemOzeti] = await Promise.all([
-    hesaplaYillikOzet(supabase, klinikId, yil),
-    hesaplaSabitPersonelMaliyeti(supabase, klinikId, donem),
-    hesaplaDonemOzeti(supabase, klinikId, donem),
-  ]);
+  const { aylar, sabitPersonel, donemOzeti } = await withTenant(bag, async (tx) => ({
+    aylar: await hesaplaYillikOzet(tx, yil),
+    sabitPersonel: await hesaplaSabitPersonelMaliyeti(tx, donem),
+    donemOzeti: await hesaplaDonemOzeti(tx, donem),
+  }));
   const { isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu } = donemOzeti;
 
-  const toplamGider =
-    isletmeGideri + faturaliGiderler + muhasebeGideri + digerGiderler + sabitPersonel.toplamMaas;
+  const toplamGider = tlTopla([isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, sabitPersonel.toplamMaas]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -346,20 +338,18 @@ async function YillikGorunum({
 }
 
 async function GunlukGorunum({
-  supabase,
-  klinikId,
+  bag,
   tarih,
 }: {
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  klinikId: string;
+  bag: TenantBaglami;
   tarih: string;
 }) {
   const donem = raporGunDonemi(tarih);
 
-  const [donemOzeti, gunlukDokum] = await Promise.all([
-    hesaplaDonemOzeti(supabase, klinikId, donem),
-    hesaplaGunlukDokum(supabase, klinikId, donem),
-  ]);
+  const { donemOzeti, gunlukDokum } = await withTenant(bag, async (tx) => ({
+    donemOzeti: await hesaplaDonemOzeti(tx, donem),
+    gunlukDokum: await hesaplaGunlukDokum(tx, donem),
+  }));
   const { isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler, gelir, randevuDurumu } = donemOzeti;
 
   // hesaplaGunlukDokum tek günlük bir dönem için en fazla 1 eleman döner —
@@ -368,7 +358,7 @@ async function GunlukGorunum({
 
   // Toplam gider burada sabit personel maliyeti İÇERMEZ (bkz. GiderKalemleriKarti
   // ve hesaplaGunlukDokum'daki aynı gerekçe: maaş tek bir güne ait değil).
-  const toplamGider = isletmeGideri + faturaliGiderler + muhasebeGideri + digerGiderler;
+  const toplamGider = tlTopla([isletmeGideri, faturaliGiderler, muhasebeGideri, digerGiderler]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -410,7 +400,7 @@ function IstatistikKartlari({
   toplamGider: number;
   tamamlananSayisi: number;
 }) {
-  const netKar = toplamGelir - toplamGider;
+  const netKar = tlFark(toplamGelir, toplamGider);
   const marj = toplamGelir > 0 ? (netKar / toplamGelir) * 100 : 0;
   const ortSeansGeliri = tamamlananSayisi > 0 ? toplamGelir / tamamlananSayisi : 0;
 
@@ -603,7 +593,7 @@ function GiderKalemleriKarti({
 }
 
 function NetKarZararKarti({ gelir, gider }: { gelir: number; gider: number }) {
-  const netKar = gelir - gider;
+  const netKar = tlFark(gelir, gider);
   const marj = gelir > 0 ? (netKar / gelir) * 100 : 0;
   const pozitif = netKar >= 0;
 

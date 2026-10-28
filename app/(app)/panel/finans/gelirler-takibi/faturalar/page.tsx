@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { borcSatirlariniGetir } from "@/lib/fatura/sorgular";
+import { netTutar, kurus } from "@/lib/para";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -8,29 +12,9 @@ import { Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { bugunIstanbulTarihi, formatDateForInput } from "@/lib/datetime";
 import { raporAyDonemi, raporGunDonemi, raporYilDonemi, type RaporDonemi } from "@/lib/raporlar/donem";
-import type { FaturaSatir } from "@/types/odeme";
 import type { FaturaBilgisiKontrol } from "@/lib/fatura/eksik-bilgi";
 import { kdvAyristir } from "@/lib/fatura/kdv-hesapla";
-import { tumSayfalariOku } from "@/lib/supabase/sayfali-okuma";
 import { FinansBorcSatiriBileseni, type FinansBorcSatiri } from "./borc-satiri";
-
-type BorcSorguSatiri = {
-  id: string;
-  hasta_id: string;
-  tutar: number;
-  iskonto_tutari: number;
-  aciklama: string | null;
-  created_at: string;
-  hasta: {
-    ad_soyad: string;
-    eposta: string | null;
-    hasta_hassas: { kimlik_no: string | null; adres: string | null } | null;
-  } | null;
-  randevu: {
-    islem_tanimi: { ad: string; muhasebe_hizmet_ismi: string | null; kdv_orani: number } | null;
-  } | null;
-  odeme: { fatura: FaturaSatir[] } | null;
-};
 
 /** Saf "YYYY-MM-DD" takvim tarihine gün ekler — raporlar/page.tsx'teki aynı yardımcının birebir aynısı. */
 function gunEkle(tarih: string, delta: number): string {
@@ -50,18 +34,14 @@ export default async function FaturalarSayfasi({
 }) {
   const { gorunum: gorunumParam, yil: yilParam, ay: ayParam, tarih: tarihParam } = await searchParams;
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansFatura);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
   // Fatura kesme yetkisi RPC'de de ayrıca zorlanıyor (bkz. migration
   // 20260927160000) — burası sadece dialogu göstermeye karar veriyor.
   // (super_admin sayfaya girer ama fatura kesme butonu görmez — eski davranış.)
   const duzenlenebilir = (ROL_GRUPLARI.finansFatura as readonly string[]).includes(kullanici.rol);
 
-  const { data: klinik } = await supabase
-    .from("klinik")
-    .select("created_at")
-    .eq("id", kullanici.klinik_id ?? "")
-    .maybeSingle<{ created_at: string }>();
+  const klinik = await withTenant(bag, async (tx) => (await tx.select({ created_at: sema.klinik.createdAt }).from(sema.klinik).where(eq(sema.klinik.id, bag.tenantId)).limit(1))[0]);
 
   const simdi = new Date();
   const buYil = simdi.getFullYear();
@@ -111,38 +91,13 @@ export default async function FaturalarSayfasi({
           ? raporGunDonemi(tarih)
           : null;
 
-  const borcSorgusu = () =>
-    supabase
-      .from("hasta_bakiye_hareket")
-      .select(
-        "id, hasta_id, tutar, iskonto_tutari, aciklama, created_at, " +
-          // hasta_hassas embed'le aynı sorguda (1-1, PK = hasta_id) — önceden
-          // ayrı bir .in("hasta_id", [...]) sorgusuydu; Yıllık görünümde (limit
-          // yok) yüzlerce id GET URL'sini şişirip sorguyu düşürüyor ve her satır
-          // "eksik bilgi" görünüyordu.
-          "hasta(ad_soyad, eposta, hasta_hassas(kimlik_no, adres)), " +
-          "randevu(islem_tanimi(ad, muhasebe_hizmet_ismi, kdv_orani)), " +
-          "odeme(fatura(id, durum, hata_mesaji, e_arsiv_pdf_url))"
-      )
-      .eq("tur", "borc");
-
-  // Dönem seçiliyse dönemin TÜM satırları 1000'lik sayfalarla okunur (tek sorgu PostgREST
-  // max_rows'ta sessizce kesilirdi — yoğun bir klinikte yıllık borç satırı binleri aşar).
-  // "Tümü"nde son 200 kayıt.
-  const borclar: BorcSorguSatiri[] = donem
-    ? await tumSayfalariOku((bas, son) =>
-        borcSorgusu()
-          .gte("created_at", donem.baslangic)
-          .lt("created_at", donem.bitis)
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .range(bas, son)
-          .returns<BorcSorguSatiri[]>()
-      )
-    : ((await borcSorgusu().order("created_at", { ascending: false }).limit(200).returns<BorcSorguSatiri[]>()).data ?? []);
+  // Dönem seçiliyse dönemin TÜM satırları; "Tümü"nde son 200 kayıt (Drizzle'da PostgREST'in 1000 satır sınırı yoktur).
+  const borclar = await withTenant(bag, (tx) =>
+    donem ? borcSatirlariniGetir(tx, { baslangic: donem.baslangic, bitis: donem.bitis }) : borcSatirlariniGetir(tx, { limit: 200 })
+  );
 
   const satirlar: FinansBorcSatiri[] = borclar.map((b) => {
-    const hassas = b.hasta?.hasta_hassas;
+    const hassas = b.hassas;
     const faturaBilgisi: FaturaBilgisiKontrol = {
       adSoyad: b.hasta?.ad_soyad ?? null,
       eposta: b.hasta?.eposta ?? null,
@@ -154,21 +109,21 @@ export default async function FaturalarSayfasi({
     // RPC'sindeki v_net_toplam. Tutar/KDV bundan geriye doğru ayrıştırılır
     // (kdvAyristir), tedavinin islem_tanimi.kdv_orani'na göre; randevusuz
     // (ör. paket) borçlarda oran bilinmediği için 0 kabul edilir.
-    const toplamTutar = Math.max(b.tutar - b.iskonto_tutari, 0);
-    const kdvOrani = b.randevu?.islem_tanimi?.kdv_orani ?? 0;
+    const toplamTutar = netTutar(kurus(b.tutar) ?? 0, kurus(b.iskonto_tutari) ?? 0) / 100;
+    const kdvOrani = b.islem?.kdv_orani ?? 0;
     const { matrah, kdvTutari } = kdvAyristir(toplamTutar, kdvOrani);
     return {
       id: b.id,
       hastaAdSoyad: b.hasta?.ad_soyad ?? "—",
       islemAdi:
-        b.randevu?.islem_tanimi?.muhasebe_hizmet_ismi ?? b.randevu?.islem_tanimi?.ad ?? b.aciklama ?? "Borç",
+        b.islem?.muhasebe_hizmet_ismi ?? b.islem?.ad ?? b.aciklama ?? "Borç",
       tutar: b.tutar,
       iskontoTutari: b.iskonto_tutari,
       matrah,
       kdvTutari,
       toplamTutar,
       createdAt: b.created_at,
-      fatura: b.odeme?.fatura?.[0] ?? null,
+      fatura: b.fatura,
       faturaBilgisi,
     };
   });

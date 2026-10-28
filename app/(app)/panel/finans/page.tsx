@@ -1,16 +1,12 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { oturumBaglami } from "@/lib/auth/gecerli-kullanici";
 import { MenuGrubuSayfasi } from "@/components/panel/menu-grubu-sayfasi";
 import { MENU_GRUPLARI } from "@/lib/panel/menu-gruplari";
 
 export default async function MuhasebeSayfasi() {
-  const supabase = await createClient();
+  const ctx = await oturumBaglami();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!ctx || ctx.tur !== "personel") {
     redirect("/giris");
   }
 

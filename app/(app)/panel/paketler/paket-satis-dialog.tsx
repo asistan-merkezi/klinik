@@ -1,5 +1,7 @@
 "use client";
 
+import { tlFark } from "@/lib/para";
+import { IslemAnahtari } from "@/components/panel/islem-anahtari";
 import { useActionState, useId, useState } from "react";
 import { ShoppingCart, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,7 +45,7 @@ export function PaketSatisDialog({
 
   const iskontoSayi = iskontoMetni.trim() === "" ? 0 : Number(iskontoMetni);
   const iskontoGecerli = Number.isFinite(iskontoSayi) && iskontoSayi >= 0 && iskontoSayi <= paket.fiyat;
-  const netTutar = iskontoGecerli ? paket.fiyat - iskontoSayi : paket.fiyat;
+  const netTutar = iskontoGecerli ? tlFark(paket.fiyat, iskontoSayi) : paket.fiyat;
 
   const kalemlerJson = JSON.stringify([{ tur: "paket", ref_id: paket.id, miktar: 1 }]);
   // odemeAl'ın satirlar_json zorunluluğunu karşılamak için gönderiliyor —
@@ -79,6 +81,7 @@ export function PaketSatisDialog({
             <DialogTitle>{mod === "yenile" ? "Paketi Yenile" : "Paket Sat"}: {paket.ad}</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="flex flex-col gap-3">
+<IslemAnahtari sonuc={durum} />
             <input type="hidden" name="kalemler_json" value={kalemlerJson} />
             <input type="hidden" name="satirlar_json" value={satirlarJson} />
 

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Wallet } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
 import { sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -8,9 +10,9 @@ import { OdemePaketSihirbazi } from "./sihirbaz";
 
 export default async function OdemePaketArsivIceAktarmaSayfasi() {
   await sayfaYetkisiIste(["klinik_admin"], { yetkisizHedef: "/panel/ayarlar/arsiv-ice-aktarma" });
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
-  const { data: paketler } = await supabase.from("paket").select("id, ad").eq("aktif", true).order("ad");
+  const paketler = await withTenant(bag, (tx) => tx.select({ id: sema.paket.id, ad: sema.paket.ad }).from(sema.paket).where(eq(sema.paket.aktif, true)).orderBy(asc(sema.paket.ad)));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
@@ -31,7 +33,7 @@ export default async function OdemePaketArsivIceAktarmaSayfasi() {
             <CardTitle>Ödeme &amp; Paket İçe Aktarma</CardTitle>
           </CardHeader>
           <CardContent>
-            <OdemePaketSihirbazi paketler={paketler ?? []} />
+            <OdemePaketSihirbazi paketler={paketler} />
           </CardContent>
         </Card>
       </div>

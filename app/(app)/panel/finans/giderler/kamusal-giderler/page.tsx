@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { Landmark } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { and, asc, eq } from "drizzle-orm";
+import { sema, withTenant } from "@/lib/db";
+import { panelBaglami } from "@/lib/auth/yetki";
+import { tl, tlTopla } from "@/lib/para";
+import { araclariGetir, bankaHesaplariniGetir } from "@/lib/finans/okuma";
 import { ROL_GRUPLARI, sayfaYetkisiIste } from "@/lib/auth/sayfa-yetkisi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +13,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ayAraligi } from "@/lib/utils";
 import { bugunIstanbulTarihi } from "@/lib/datetime";
 import { kamusalOdemeDurumHesapla, type KamusalOdemeSatir } from "@/types/kamusal-odeme";
-import type { KlinikArac, KlinikBankaHesabi } from "@/types/klinik";
 import { YeniOdemeButonu } from "./yeni-odeme-butonu";
 import { OdemeTablosu } from "./odeme-tablosu";
 import { GiderlerSekmeCubugu } from "../giderler-sekme-cubugu";
@@ -43,7 +46,7 @@ function OzetKarti({
       <Card>
         <CardContent className="flex flex-col gap-1">
           <p className="text-sm text-muted-foreground">{baslik} — Toplam</p>
-          <p className="text-xl font-semibold">{paraFormat(odenen + bekleyen)}</p>
+          <p className="text-xl font-semibold">{paraFormat(tlTopla([odenen, bekleyen]))}</p>
         </CardContent>
       </Card>
     </div>
@@ -57,56 +60,54 @@ export default async function KamusalGiderlerSayfasi({
 }) {
   const { ay: ayParam } = await searchParams;
   const { kullanici } = await sayfaYetkisiIste(ROL_GRUPLARI.finansYonetim);
-  const supabase = await createClient();
+  const { bag } = await panelBaglami();
 
   const yonetici = kullanici.rol === "klinik_admin";
-  const klinikId = kullanici.klinik_id ?? "";
   const ay = ayAraligi(ayParam);
   const [donemYil, donemAy] = ay.param.split("-").map(Number);
 
-  const [ayKayitlariSonuc, yilKayitlariSonuc, araclarSonuc, bankaHesaplariSonuc] = await Promise.all([
-    supabase
-      .from("kamusal_odeme")
-      .select("id, odeme_tipi, tutar, donem_ay, donem_yil, vade_tarihi, odeme_tarihi, notlar, arac_id, odeme_yontemi, banka_hesap_id")
-      .eq("klinik_id", klinikId)
-      .eq("donem_yil", donemYil)
-      .eq("donem_ay", donemAy)
-      .order("vade_tarihi", { ascending: true })
-      .returns<KamusalOdemeSatir[]>(),
-    supabase
-      .from("kamusal_odeme")
-      .select("tutar, odeme_tarihi")
-      .eq("klinik_id", klinikId)
-      .eq("donem_yil", donemYil)
-      .returns<{ tutar: number; odeme_tarihi: string | null }[]>(),
-    supabase
-      .from("klinik_arac")
-      .select("id, marka, model, plaka")
-      .eq("klinik_id", klinikId)
-      .order("plaka")
-      .returns<KlinikArac[]>(),
-    supabase
-      .from("klinik_banka_hesaplari")
-      .select("id, banka_adi, sube")
-      .order("sort_order")
-      .returns<KlinikBankaHesabi[]>(),
-  ]);
+  const v = await withTenant(bag, async (tx) => {
+    const K = sema.kamusalOdeme;
+    const ayKayitlari = await tx
+      .select({
+        id: K.id,
+        odeme_tipi: K.odemeTipi,
+        tutar: K.tutar,
+        donem_ay: K.donemAy,
+        donem_yil: K.donemYil,
+        vade_tarihi: K.vadeTarihi,
+        odeme_tarihi: K.odemeTarihi,
+        notlar: K.notlar,
+        arac_id: K.aracId,
+        odeme_yontemi: K.odemeYontemi,
+        banka_hesap_id: K.bankaHesapId,
+      })
+      .from(K)
+      .where(and(eq(K.donemYil, donemYil), eq(K.donemAy, donemAy)))
+      .orderBy(asc(K.vadeTarihi), asc(K.id));
+    const yilKayitlari = await tx.select({ tutar: K.tutar, odeme_tarihi: K.odemeTarihi }).from(K).where(eq(K.donemYil, donemYil));
+    return {
+      ayKayitlari: ayKayitlari.map((r) => ({ ...r, tutar: tl(r.tutar) })) as KamusalOdemeSatir[],
+      yilKayitlari: yilKayitlari.map((r) => ({ tutar: tl(r.tutar), odeme_tarihi: r.odeme_tarihi })),
+      araclar: await araclariGetir(tx),
+      bankaHesaplari: await bankaHesaplariniGetir(tx),
+    };
+  });
 
-  const araclar = araclarSonuc.data ?? [];
-  const bankaHesaplari = bankaHesaplariSonuc.data ?? [];
+  const { araclar, bankaHesaplari } = v;
 
   const bugun = bugunIstanbulTarihi();
-  const ayKayitlari = (ayKayitlariSonuc.data ?? []).map((satir) => ({
+  const ayKayitlari = v.ayKayitlari.map((satir) => ({
     ...satir,
     durum: kamusalOdemeDurumHesapla(satir, bugun),
   }));
 
-  const ayOdenen = ayKayitlari.filter((s) => s.durum === "odendi").reduce((acc, s) => acc + s.tutar, 0);
-  const ayBekleyen = ayKayitlari.filter((s) => s.durum !== "odendi").reduce((acc, s) => acc + s.tutar, 0);
+  const ayOdenen = tlTopla(ayKayitlari.filter((s) => s.durum === "odendi").map((s) => s.tutar));
+  const ayBekleyen = tlTopla(ayKayitlari.filter((s) => s.durum !== "odendi").map((s) => s.tutar));
 
-  const yilKayitlari = yilKayitlariSonuc.data ?? [];
-  const yilOdenen = yilKayitlari.filter((s) => s.odeme_tarihi).reduce((acc, s) => acc + s.tutar, 0);
-  const yilBekleyen = yilKayitlari.filter((s) => !s.odeme_tarihi).reduce((acc, s) => acc + s.tutar, 0);
+  const yilKayitlari = v.yilKayitlari;
+  const yilOdenen = tlTopla(yilKayitlari.filter((s) => s.odeme_tarihi).map((s) => s.tutar));
+  const yilBekleyen = tlTopla(yilKayitlari.filter((s) => !s.odeme_tarihi).map((s) => s.tutar));
 
   return (
     <div className="flex-1 bg-background p-4 sm:p-8">
