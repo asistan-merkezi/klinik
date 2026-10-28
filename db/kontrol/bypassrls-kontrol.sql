@@ -1,5 +1,6 @@
 -- RLS'i atlayabilen ROL/FONKSİYON denetimi. Hatada (HATA satırı varsa) EXCEPTION fırlatır; psql -v ON_ERROR_STOP=1 ile kurulum durur.
--- İzinli istisnalar (başka hiçbiri): `postgres` (kurulum süper kullanıcısı; uygulama/betikler bağlanmaz) ve `klinik_yedek` (yalnız pg_dump).
+-- İzinli istisnalar (başka hiçbiri): `postgres` (kurulum süper kullanıcısı; yalnız ilk kurulum/PG bakımı, uygulama ve betikler bağlanmaz) ve `klinik_yedek` (yalnız pg_dump).
+-- klinik_migrasyon süper kullanıcı/BYPASSRLS DEĞİLDİR (6c).
 -- bakim_rolu BYPASSRLS DEĞİLDİR; burada bulunursa HATA'dır.
 \set ON_ERROR_STOP 1
 CREATE TEMP TABLE kontrol_sonuc (kontrol text, durum text, ayrinti text);
@@ -45,20 +46,32 @@ INSERT INTO kontrol_sonuc
 SELECT 'uygulama_sahip', 'HATA', c.relname FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner
 WHERE r.rolname IN ('klinik_uygulama', 'bakim_rolu', 'klinik_anonim', 'kimlik_rolu', 'klinik_tanima') AND c.relnamespace = 'public'::regnamespace;
 
--- 6b) klinik_yedek (tek izinli BYPASSRLS rolü): giriş kuralı yalnız localhost'tan olmalı (pg_hba), süper kullanıcı/yazma üyeliği olmamalı
-INSERT INTO kontrol_sonuc
-SELECT 'yedek_hba_uzak', 'HATA', 'satır ' || line_number || ': ' || coalesce(address, '(yerel soket)')
-FROM pg_hba_file_rules
-WHERE 'klinik_yedek' = ANY (user_name) AND address IS NOT NULL AND address NOT IN ('127.0.0.1', '::1', 'localhost');
-INSERT INTO kontrol_sonuc
-SELECT 'hba_genel_uzak', 'UYARI', 'satır ' || line_number || ': tüm kullanıcılar için ' || address || ' (elle gözden geçir)'
-FROM pg_hba_file_rules
-WHERE 'all' = ANY (user_name) AND address IS NOT NULL AND address NOT IN ('127.0.0.1', '::1', 'localhost')
-  AND NOT ('klinik_yedek' = ANY (user_name));
+-- 6b) pg_hba kuralları: yalnız localhost + parola yöntemi. pg_hba_file_rules süper kullanıcıya (ya da GRANT edilene) açıktır; migration uygulayıcı
+--     (klinik_migrasyon) okuyamaz → o durumda bu blok atlanır ve BILGI satırı yazılır (kurulum.ps1 aynı doğrulamayı dosyadan ayrıca yapar).
+DO $$
+BEGIN
+  IF has_table_privilege(current_user, 'pg_catalog.pg_hba_file_rules', 'SELECT') THEN
+    INSERT INTO kontrol_sonuc
+    SELECT 'hba_uzak_adres', 'HATA', 'satır ' || line_number || ': ' || coalesce(address, '(yerel soket)') || ' (' || array_to_string(user_name, ',') || ', ' || auth_method || ')'
+    FROM pg_hba_file_rules
+    WHERE type LIKE 'host%' AND auth_method <> 'reject' AND (address IS NULL OR address NOT IN ('127.0.0.1', '::1', 'localhost'));
+    INSERT INTO kontrol_sonuc
+    SELECT 'hba_zayif_yontem', 'UYARI', 'satır ' || line_number || ': ' || auth_method || ' (üretimde scram-sha-256 olmalı)'
+    FROM pg_hba_file_rules
+    WHERE type LIKE 'host%' AND auth_method NOT IN ('scram-sha-256', 'reject');
+  ELSE
+    INSERT INTO kontrol_sonuc VALUES ('hba_kontrolu', 'BILGI', 'pg_hba_file_rules okunamadı (yetki yok): kurulum.ps1 dosya doğrulamasına bakın');
+  END IF;
+END $$;
 INSERT INTO kontrol_sonuc
 SELECT 'yedek_super_veya_yazma', 'HATA', rolname FROM pg_roles WHERE rolname = 'klinik_yedek' AND (rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication);
 INSERT INTO kontrol_sonuc
 SELECT 'yedek_sahip_nesne', 'HATA', c.relname FROM pg_class c WHERE c.relowner = 'klinik_yedek'::regrole;
+
+-- 6c) klinik_migrasyon: süper kullanıcı/BYPASSRLS/rol-DB oluşturma/replikasyon YOK; yalnız klinik_sahip üyeliği (yetki-matrisi.sql üyeliği ayrıca denetler)
+INSERT INTO kontrol_sonuc
+SELECT 'migrasyon_ayricalikli', 'HATA', rolname FROM pg_roles
+WHERE rolname = 'klinik_migrasyon' AND (rolsuper OR rolbypassrls OR rolcreaterole OR rolcreatedb OR rolreplication);
 
 -- 7) Bilgi: izinli istisnalar
 INSERT INTO kontrol_sonuc

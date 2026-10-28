@@ -63,3 +63,90 @@ function KilitAl([string]$Yol) {
     return $akis
   } catch { return $null }
 }
+
+# Postgres URL'sini (postgres://kullanici:parola@host:port/veritabani) PG* ortam değişkenlerine açar: parola komut satırında görünmez.
+# Yalnız localhost'a izin verir. Çağıran süreç sonunda `Remove-Item Env:PGPASSWORD` yapmalı.
+function PgUrlAyarla([string]$Url) {
+  $u = [uri]$Url
+  if ($u.Host -notin "localhost", "127.0.0.1", "::1", "[::1]") { throw "Veritabani baglantisi yalniz localhost olabilir." }
+  $kim = $u.UserInfo.Split(":", 2)
+  $env:PGHOST = $u.Host; $env:PGPORT = "$(if ($u.Port -gt 0) { $u.Port } else { 5432 })"
+  $env:PGUSER = [uri]::UnescapeDataString($kim[0]); $env:PGPASSWORD = [uri]::UnescapeDataString($kim[1])
+  $env:PGDATABASE = $u.AbsolutePath.TrimStart("/")
+}
+
+function HesapCozulur([string]$Ad) {
+  try { $nt = New-Object System.Security.Principal.NTAccount($Ad); [void]$nt.Translate([System.Security.Principal.SecurityIdentifier]); return $true } catch { return $false }
+}
+
+# NTFS izinleri (docs/sunucu-kurulum.md §3). Servis hesapları SANAL hesaplardır (NT SERVICE\<servis>) ve ancak servis kurulduktan sonra
+# çözülür: çözülemeyen hesabın izni atlanır (uyarı), servis-kur.ps1 sonunda bu fonksiyon yeniden çağrılır. Bakım/yedek hesapları yerel kullanıcıdır.
+function GizliIzinleriUygula([string]$Kok) {
+  $uyg = "NT SERVICE\klinik-uygulama"; $cad = "NT SERVICE\klinik-caddy"
+  $bak = "$env:COMPUTERNAME\svc-klinik-bakim"; $yed = "$env:COMPUTERNAME\svc-klinik-yedek"
+  function Ver([string]$Yol, [string[]]$Haklar) {   # Haklar: "hesap|izin"
+    & icacls $Yol /inheritance:r | Out-Null
+    & icacls $Yol /grant:r "SYSTEM:(OI)(CI)F" "BUILTIN\Administrators:(OI)(CI)F" | Out-Null
+    foreach ($h in $Haklar) {
+      $hesap, $izin = $h.Split("|")
+      if (HesapCozulur $hesap) { & icacls $Yol /grant:r "${hesap}:$izin" | Out-Null } else { Yazdir "  (atlandi: '$hesap' henuz yok) $Yol" }
+    }
+  }
+  Ver (Join-Path $Kok "gizli") @("$uyg|(X)", "$bak|(X)", "$yed|(X)")
+  Ver (Join-Path $Kok "surumler") @("$uyg|(OI)(CI)RX", "$bak|(OI)(CI)RX")      # uygulama kodu: SALT OKUNUR (bakım betikleri guncel\scripts'ten çalışır)
+  Ver (Join-Path $Kok "indirme") @()                                           # indirilen paket: yalnız yönetici/SYSTEM
+  Ver (Join-Path $Kok "log") @("$uyg|(OI)(CI)M", "$cad|(OI)(CI)M", "$bak|(OI)(CI)M")
+  Ver (Join-Path $Kok "dosya") @("$uyg|(OI)(CI)M", "$yed|(OI)(CI)RX")          # DOSYA_KOKU: uygulama yazar, yedek okur
+  Ver (Join-Path $Kok "yedek") @("$yed|(OI)(CI)M")
+  Ver (Join-Path $Kok "caddy-veri") @("$cad|(OI)(CI)M")
+  # Gizli dosyalar: yalnız ilgili hesap OKUR; diğer hesaplara açık Deny. deploy.env (GitHub jetonu + migration parolası) yalnız yöneticiler/SYSTEM.
+  $dosyalar = @(
+    @{ ad = "uygulama.env"; oku = $uyg; red = @($bak, $yed, $cad) },
+    @{ ad = "bakim.env";    oku = $bak; red = @($uyg, $yed, $cad) },
+    @{ ad = "yedek.env";    oku = $yed; red = @($uyg, $bak, $cad) },
+    @{ ad = "deploy.env";   oku = $null; red = @($uyg, $bak, $yed, $cad) }
+  )
+  foreach ($d in $dosyalar) {
+    $yol = Join-Path $Kok "gizli\$($d.ad)"
+    if (-not (Test-Path $yol)) { continue }
+    & icacls $yol /inheritance:r | Out-Null
+    & icacls $yol /grant:r "SYSTEM:F" "BUILTIN\Administrators:F" | Out-Null
+    if ($d.oku -and (HesapCozulur $d.oku)) { & icacls $yol /grant:r "$($d.oku):R" | Out-Null }
+    foreach ($r in $d.red) { if (HesapCozulur $r) { & icacls $yol /deny "${r}:(R,RX)" | Out-Null } }
+    Yazdir "Izinler uygulandi: $($d.ad)"
+  }
+}
+
+# GitHub API/yayın eki indirme. Jeton YALNIZ api.github.com'a gider; yönlendirilen depolama adresine (S3/CDN) JETON GÖNDERİLMEZ.
+# $HedefDosya verilirse gövde dosyaya yazılır, yoksa metin döner. Hata iletilerinde jeton yer almaz.
+function GitHubGetir([string]$Url, [string]$Jeton, [string]$Kabul, [string]$HedefDosya = "") {
+  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+  Add-Type -AssemblyName System.Net.Http
+  if ($Url -notmatch '^https://api\.github\.com/') { throw "Yalniz https://api.github.com adresleri kabul edilir." }
+  $isleyici = New-Object System.Net.Http.HttpClientHandler
+  $isleyici.AllowAutoRedirect = $false
+  $istemci = New-Object System.Net.Http.HttpClient($isleyici)
+  $istemci.Timeout = [TimeSpan]::FromMinutes(30)
+  $yanit = $null
+  try {
+    $istek = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $Url)
+    [void]$istek.Headers.TryAddWithoutValidation("Authorization", "Bearer $Jeton")
+    [void]$istek.Headers.TryAddWithoutValidation("Accept", $Kabul)
+    [void]$istek.Headers.TryAddWithoutValidation("User-Agent", "klinik-guncelle")
+    [void]$istek.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28")
+    $yanit = $istemci.SendAsync($istek).GetAwaiter().GetResult()
+    if ([int]$yanit.StatusCode -ge 300 -and [int]$yanit.StatusCode -lt 400) {
+      $konum = $yanit.Headers.Location.AbsoluteUri
+      if ($konum -notmatch '^https://') { throw "Beklenmeyen yonlendirme" }
+      $yanit.Dispose()
+      $istek2 = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $konum)   # Authorization YOK
+      [void]$istek2.Headers.TryAddWithoutValidation("User-Agent", "klinik-guncelle")
+      $yanit = $istemci.SendAsync($istek2).GetAwaiter().GetResult()
+    }
+    if (-not $yanit.IsSuccessStatusCode) { throw "GitHub istegi basarisiz: HTTP $([int]$yanit.StatusCode)" }
+    if ($HedefDosya) {
+      $akis = [System.IO.File]::Create($HedefDosya)
+      try { $yanit.Content.CopyToAsync($akis).GetAwaiter().GetResult() } finally { $akis.Dispose() }
+    } else { return $yanit.Content.ReadAsStringAsync().GetAwaiter().GetResult() }
+  } finally { if ($yanit) { $yanit.Dispose() }; $istemci.Dispose() }
+}

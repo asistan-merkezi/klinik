@@ -1,0 +1,78 @@
+# Derleme + sürüm paketi. Sunucuda derleme YAPILMAZ: sunucu bu iş akışının ürettiği zip'i indirir (deploy/windows/guncelle.ps1).
+# - Her push / PR: npm ci, lint, test, next build (standalone) → paket (artifact olarak da yüklenir).
+# - `v*` etiketi: ayrıca GitHub sürümü açılır; klinik-<etiket>.zip ve klinik-<etiket>.zip.sha256 ek olarak yüklenir, SHA256 sürüm notuna yazılır.
+# Not: üçüncü taraf eylemler etiketle sabitlendi (v4); sıkı sürüm güvencesi için tam commit SHA'sına sabitlenmesi önerilir.
+# Not: `npm run test:db` (gömülü Postgres) bu iş akışına DAHİL DEĞİL; yerelde ve sunucu provasında çalıştırılır (docs/sunucu-kurulum.md "Prova planı").
+name: derle
+
+on:
+  push:
+    branches: [main, tasima/windows-postgres]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: derle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  derle:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc   # Node LTS (22); yerel geliştirmeyle aynı sürüm
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build   # next build, output: standalone (tip denetimi dahil)
+
+      - name: Sürüm paketi
+        shell: pwsh
+        run: |
+          $etiket = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "dev-$($env:GITHUB_SHA.Substring(0,7))" }
+          ./deploy/windows/paketle.ps1 -Surum $etiket -Commit $env:GITHUB_SHA -Cikis dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klinik-paket
+          path: |
+            dist/klinik-*.zip
+            dist/klinik-*.zip.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+  yayinla:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: derle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # yalnız sürüm oluşturmak için; derleme işi salt-okunur
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: klinik-paket
+          path: dist
+
+      - name: GitHub sürümü + ekler
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ETIKET: ${{ github.ref_name }}
+          DEPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ozet="$(cut -d' ' -f1 "dist/klinik-${ETIKET}.zip.sha256")"
+          gh release create "${ETIKET}" "dist/klinik-${ETIKET}.zip" "dist/klinik-${ETIKET}.zip.sha256" \
+            --repo "${DEPO}" --title "${ETIKET}" \
+            --notes "SHA256 (klinik-${ETIKET}.zip): \`${ozet}\`"

@@ -105,6 +105,14 @@ Tenant izolasyonu `current_klinik_id()` + RLS, kritik tablolarda `klinik_id`; po
 - **Form başarı callback'i**: başarıda ÜST bileşenin callback'ini render sırasında ÇAĞIRMA ("Cannot update a component while rendering…") → `lib/use-basari-olunca.ts > useBasariOlunca(sonuc, geriCagri)`. Yerel state güncellemesi render'da kalabilir.
 - **Tarih/saat**: tüm "bugün" varsayılanları `bugunIstanbulTarihi()`, dönem sınırları İstanbul; UTC `slice(0,10)` KULLANMA.
 
+## Migration kuralları
+- **Geriye dönük uyumlu yaz (genişlet → taşı → daralt).** Yeni sürüm kodu yeni şemaya, ESKİ sürüm kodu da yeni şemaya karşı çalışabilmeli; çünkü `guncelle.ps1` önce migration'ı uygular, sonra kodu değiştirir ve sağlık kontrolü başarısızsa kodu eski sürüme döndürür (migration geri ALINMAZ). Sütun/tablo/kısıt kaldırma ve yeniden adlandırma tek sürümde yapılmaz: 1. sürüm ekler ve kodu geçirir, sonraki sürüm eskiyi kaldırır. Yeni `NOT NULL` kolon varsayılanla eklenir; eski kodun yazdığı INSERT'ler kırılmamalı. Fonksiyon imzası değişirse önce `DROP FUNCTION eski(imza)` (eski kodun çağırdığı biçim bir sürüm boyunca korunacaksa yeni ad kullan).
+- **Geri alma = yedekten dönme.** Down migration YOKTUR. Uyumsuz bir migration kaçınılmazsa bakım penceresi açılır; geri dönüş `guncelleme-oncesi` yedeğinden yapılır (`docs/sunucu-kurulum.md` §11) ve yedekten sonraki yazımlar kaybolur.
+- **Dosya başına tek transaction, ileri yönlü, değiştirilmez.** `migrasyon-uygula.ps1` her dosyayı `psql -1` ile atomik çalıştırır ve `migrasyon.kayit`'e sha256 ile işler; uygulanmış dosya düzenlenmez (özet uyuşmazlığı uyarı verir) — düzeltme yeni numaralı dosyadır. Transaction dışı ifadeler (`CREATE INDEX CONCURRENTLY`, `VACUUM`) migration'a konmaz.
+- **Migration rol/veritabanı/eklenti OLUŞTURMAZ.** Migration `klinik_migrasyon` ile (süper kullanıcı değil, `SET ROLE klinik_sahip`) çalışır. Bunlar `db/kurulum/` altında yeni numaralı dosya olur ve süper kullanıcıyla elle, bir kez uygulanır.
+- **Yeni migration'ın yan işleri**: yeni tablo/fonksiyon için GRANT'ler `scripts/dev/kullanim-tara.mjs`/`yeniden-uret.mjs` akışıyla üretilir; `yeniden-uret` sonrası `kontrol-calistir` (`bypassrls-kontrol` + `yetki-matrisi`) temiz olmalı — aynı kontroller üretimde her migration sonrası otomatik çalışır ve HATA verirse güncelleme başarısız olur. `scripts/db-kur.ps1` ve test düzeneği migration'ları `db/migrations/*.sql` ad sırasıyla bulur (elle liste yok); yalnız dosya adı sıralanabilir numarayla başlamalı (`00NN_ad.sql`).
+- Uygulama kodu yeni migration'a bağlıysa migration canlıya UYGULANMADAN push etme kuralı (bkz. memory `migration_before_push`) yeni hatta şöyle karşılanır: aynı sürüm paketi migration'ı ve kodu birlikte taşır, migration önce uygulanır; kod her zaman bir önceki şemayla da çalışacak biçimde yazılır.
+
 ## Tasarım Sistemi
 Panelin tüm ekranları `docs/DESIGN.md`'ye geçirildi. Yeni ekranda `/panel/tasarim-galerisi`'ni referans al.
 
@@ -166,7 +174,7 @@ Dal: `tasima/windows-postgres` (main'e dokunulmaz). Plan ve aşama kriterleri: `
 - **Cron / arka plan işleri**: HTTP route DEĞİL. `scripts/` altında Node betikleri, Windows Task Scheduler çağırır; `bakim_rolu` ile bağlanır (yalnız `klinik` üzerinde SELECT + bakım fonksiyonlarına EXECUTE), klinik başına iş `withTenant` ile. `/api/cron/*` route'ları ve `CRON_SECRET` kaldırılacak. Hiçbir BYPASSRLS'li fonksiyon yazılmaz.
 - **Cloudflare**: klinik alan adı için **proxy KAPALI (yalnız DNS)**. KVKK notu: proxy açık olursa TLS Cloudflare'de sonlanır, sağlık verisi yurt dışında çözülmüş hâlde geçer.
 - **PDF**: sistem Chrome/Edge, yolu `CHROMIUM_PATH` ortam değişkeninden.
-- **Deploy**: pull tabanlı (sunucudan dışarı bağlanır), sunucuya gelen yönetim bağlantısı yok.
+- **Deploy**: pull tabanlı, **sunucuda derleme yok**: CI (`.github/workflows/derle.yml`) sürüm paketini (zip + SHA256) üretir; `deploy/windows/guncelle.ps1` salt-okunur jetonla indirir, doğrular, ön uçuş + migration (`klinik_migrasyon`) + geçiş yapar, hata olursa eski sürüme döner. Sunucuya gelen yönetim bağlantısı yok; çıkış yalnız GitHub 443. Servisler `NT SERVICE\<servis>` sanal hesaplarıyla çalışır. Ayrıntı: `docs/sunucu-kurulum.md` §8–§12.
 - **KVKK**: kişisel veri yurt dışı servislere (e-posta, LLM) gönderilmeyecek ya da maskelenecek; **SMS/WhatsApp/e-posta mesaj içeriğinde kişisel/sağlık verisi olmayacak** (aynı kural, bkz. `docs/kvkk-aktarim.md`); erişim logu tutulacak; yedekler şifreli; yedeğin dış kopyası önce Türkiye içinde, yurt dışı şifreli depolama hukuk onayına bağlı.
 - **Gizli değerler** hiçbir dosyaya yazılmaz, sadece değişken adları belgelenir.
 

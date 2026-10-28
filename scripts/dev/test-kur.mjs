@@ -1,10 +1,12 @@
 // İki klinikli deneme düzeneği: db/ dosyalarından (Supabase katmanı OLMADAN) boş bir Postgres'e kurar ve iki kliniğe örnek veri yazar.
 // Kullanım (kontrol-calistir.mjs içinden): const duzenek = await testKumesiKur();
-import { kumeBaslat, sqlHazirla, oku } from "./kume.mjs";
+import fs from "node:fs";
+import path from "node:path";
+import { kumeBaslat, sqlHazirla, oku, KOK } from "./kume.mjs";
 
-export const SIFRELER = { uygulama_sifre: "u-deneme", kimlik_sifre: "k-deneme", bakim_sifre: "b-deneme", yedek_sifre: "y-deneme" };
+export const SIFRELER = { uygulama_sifre: "u-deneme", kimlik_sifre: "k-deneme", bakim_sifre: "b-deneme", yedek_sifre: "y-deneme", migrasyon_sifre: "m-deneme" };
 export const PORT_TEST = Number(process.env.DEV_TEST_PORT ?? 54331);
-const SIFRE_ROL = { klinik_uygulama: SIFRELER.uygulama_sifre, kimlik_rolu: SIFRELER.kimlik_sifre, bakim_rolu: SIFRELER.bakim_sifre, klinik_yedek: SIFRELER.yedek_sifre };
+const SIFRE_ROL = { klinik_uygulama: SIFRELER.uygulama_sifre, kimlik_rolu: SIFRELER.kimlik_sifre, bakim_rolu: SIFRELER.bakim_sifre, klinik_yedek: SIFRELER.yedek_sifre, klinik_migrasyon: SIFRELER.migrasyon_sifre };
 
 const K = {
   k1: { klinik: "11111111-1111-4111-8111-111111111111", kullanici: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", ad: "klinikbir" },
@@ -19,8 +21,9 @@ export async function testKumesiKur() {
   await root.end();
   const sup = await kume.baglan("klinik");
   await sup.query(oku("db/kurulum/02_eklentiler.sql"));
+  await sup.query(oku("db/kurulum/03_migrasyon_kaydi.sql"));
   await sup.query("SET ROLE klinik_sahip");
-  for (const f of ["db/migrations/0001_kimlik_ve_baglam.sql", "db/migrations/0002_temel_sema.sql", "db/migrations/0003_baglam_politikalari.sql", "db/migrations/0004_tanima_ve_definer_sertlestirme.sql", "db/migrations/0005_kimlik_baglantilari_ve_anonim_kapatma.sql", "db/migrations/0006_muhasebe_secret_var.sql", "db/migrations/0007_tenant_turetme.sql", "db/migrations/0008_canli_olaylar.sql", "db/migrations/0009_terapist_uygunluk.sql", "db/migrations/0010_hasta_kullanici_ekleme.sql", "db/migrations/0011_mesaj_kuyruk_yazma.sql", "db/migrations/0012_islem_anahtari.sql", "db/migrations/0013_iade_siniri.sql", "db/migrations/0014_izin_bildirim_alicilari.sql", "db/seed/0001_referans_veri.sql"]) await sup.query(oku(f));
+  for (const f of [...fs.readdirSync(path.join(KOK, "db/migrations")).filter((x) => x.endsWith(".sql")).sort().map((x) => `db/migrations/${x}`), "db/seed/0001_referans_veri.sql"]) await sup.query(oku(f));
   await sup.query("select audit_log_bolum_olustur(3)");
   await sup.end();
 

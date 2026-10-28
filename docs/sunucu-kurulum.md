@@ -1,9 +1,9 @@
 # Sunucu Kurulumu (Windows Server VM)
 
-Durum: tasarım + **dağıtım betikleri yazıldı (`deploy/windows/`), Windows Server'da HİÇ ÇALIŞTIRILMADI** (sunucu yok; PowerShell sözdizimi ayrıştırıldı, `next build` standalone çıktısı ve `/api/saglik` yerelde denendi). §8–§11 adımları ilk kurulumda sırayla denenip düzeltilecek. **Gizli değer yazılmaz**, yalnız değişken adları.
+Durum: tasarım + **dağıtım betikleri yazıldı (`deploy/windows/`), CI iş akışı yazıldı (`.github/workflows/derle.yml`); Windows Server'da HİÇ ÇALIŞTIRILMADI** (sunucu yok; PowerShell sözdizimi ayrıştırıldı, paketleme ve `next build` standalone çıktısı, `/api/saglik`, `klinik_migrasyon` rolü ve kontrol SQL'leri yerelde denendi). §8–§12 adımları **§12 Prova planı** ile ilk kurulumda sırayla denenip düzeltilecek. **Gizli değer yazılmaz**, yalnız değişken adları.
 
 ## 1. Bileşenler
-Node.js LTS · PostgreSQL (aynı VM, yalnız `localhost`) · NSSM (uygulama servisi) · Caddy (TLS, alan adı) · sistem Chrome/Edge (`CHROMIUM_PATH`) · Git (pull deploy) · `age` (yedek şifreleme, yalnız ortak anahtar tarafı).
+Node.js LTS (yalnız çalıştırma; **sunucuda `npm`/derleme yok**) · PostgreSQL (aynı VM, yalnız `localhost`) · NSSM (servisler) · Caddy (TLS, alan adı; yönetim API'si kapalı) · sistem Chrome/Edge (`CHROMIUM_PATH`) · `age` (yedek şifreleme, yalnız ortak anahtar tarafı). Derleme GitHub Actions'ta; sunucu hazır sürüm paketini indirir (§10). Git gerekmez.
 
 ## 2. Veritabanı rolleri
 
@@ -15,6 +15,7 @@ Node.js LTS · PostgreSQL (aynı VM, yalnız `localhost`) · NSSM (uygulama serv
 | **`bakim_rolu`** | evet | **tabi (BYPASSRLS DEĞİL)** | `klinik` üzerinde **yalnız SELECT**; bakım fonksiyonlarına EXECUTE; `klinik_uygulama` rolüne üyelik (`SET LOCAL ROLE klinik_uygulama` ile klinik başına iş `withTenant` altında yapılır) | **Yalnız** `scripts/` altındaki bakım betikleri (`BAKIM_DATABASE_URL`). Uygulama süreci bu bilgiyi hiç almaz |
 | `kimlik_rolu` | evet | tabi | **Yalnız** `kimlik_kullanici`, `kimlik_hesap`, `oturum`, `kimlik_dogrulama` (Better Auth bağlantısı). Başka hiçbir tabloda/fonksiyonda yetkisi yok; `klinik_uygulama`, `klinik_anonim`, `bakim_rolu` bu tablolarda HİÇBİR yetkiye sahip değil | Better Auth (`KIMLIK_DATABASE_URL`) |
 | `klinik_tanima` | hayır (`NOLOGIN`) | tabi | Yalnız `klinik(id, ad, qr_kisa_kod)` ve `randevu(id, klinik_id)` kolonlarını okuyabilir; `tanima` şemasındaki iki DEFINER fonksiyonun sahibi | Giriş öncesi tenant'sız çözümleme (kısa kod → klinik, randevu → klinik) |
+| **`klinik_migrasyon`** | evet | **tabi (BYPASSRLS DEĞİL)** | Kendi başına **hiçbir** tablo/şema yetkisi yok; tek yetkisi `klinik_sahip` rolüne `SET ROLE` (`GRANT klinik_sahip TO klinik_migrasyon WITH INHERIT FALSE, SET TRUE`). Süper kullanıcı/rol-DB oluşturma/replikasyon yok | **Yalnız** `migrasyon-uygula.ps1` (`deploy.env > MIGRASYON_DATABASE_URL`). Süper kullanıcının yerine geçer; tenant verisini göremez (FORCE RLS) |
 | `klinik_yedek` | evet | **BYPASSRLS** (tek istisna, **ONAYLANDI 2026-10-27**) | **Yalnız SELECT** (`pg_read_all_data`; başka rol üyeliği, yazma, CREATE yok). `pg_hba.conf`'ta yalnız `127.0.0.1/32` ve `::1/128` | Yalnız `yedek.ps1` (parolası yalnız `svc-klinik-yedek` hesabının okuyabildiği `yedek.env`'de) |
 
 **klinik_yedek istisnası (onaylandı):** FORCE RLS altında `pg_dump` BYPASSRLS'siz tabloyu tam okuyamaz; süper kullanıcı yerine yalnız-okuma yetkili dar bir rol seçildi. Koşullar: (1) yalnız SELECT, yazma/DDL yetkisi yok, hiçbir nesnenin sahibi değil; (2) giriş yalnız localhost'tan (aşağıdaki `pg_hba.conf` satırları); (3) parola yalnız yedek hesabının okuyabildiği `yedek.env` dosyasında; (4) `db/kontrol/bypassrls-kontrol.sql` izin listesinde adıyla yer alır (başka hiçbir rol BYPASSRLS olamaz) ve `yetki-matrisi.sql` yazma yetkisini ve rol üyeliklerini denetler; (5) pg_dump kimlik tablolarını da (parola hash'leri dahil) okur — bu yüzden yedek şifreli saklanır ve `klinik_yedek` kimlik tablolarında yetki matrisinin tek izinli istisnasıdır (yalnız SELECT).
@@ -26,10 +27,14 @@ host  klinik  klinik_yedek     ::1/128       scram-sha-256
 host  klinik  klinik_uygulama  127.0.0.1/32  scram-sha-256
 host  klinik  kimlik_rolu      127.0.0.1/32  scram-sha-256
 host  klinik  bakim_rolu       127.0.0.1/32  scram-sha-256
+host  klinik  klinik_migrasyon 127.0.0.1/32 scram-sha-256
+host  klinik  postgres         127.0.0.1/32  scram-sha-256   (+ ::1 karşılıkları; yalnız ilk kurulum/PG bakımı)
 host  all     all              0.0.0.0/0     reject
 host  all     all              ::/0          reject
 ```
-(`listen_addresses = 'localhost'` ayrıca.) Kontrol: `bypassrls-kontrol.sql` `pg_hba_file_rules` üzerinden `klinik_yedek` için uzak adres bulursa HATA verir.
+(`listen_addresses = 'localhost'` ayrıca.) **Bu dosya elle yazılmaz: `kurulum.ps1` yazar ve DOĞRULAR** (her `host` satırı loopback + `scram-sha-256` ya da `reject`; dinleyen adresler yalnız `127.0.0.1`/`::1`; 5432 için açık gelen güvenlik duvarı kuralı yok; yedek dosyaları `.bak-<zaman>`). Ek kontrol: `bypassrls-kontrol.sql` (süper kullanıcıyla çalışınca) `pg_hba_file_rules`'ta loopback dışı, `reject` olmayan `host` satırı bulursa HATA, `scram-sha-256` dışı yöntemde UYARI verir; migration uygulayıcı bu görünümü okuyamadığından o blok atlanır (BILGI satırı).
+
+**Süper kullanıcı (`postgres`) yalnız ilk kurulumda** (`00_roller`, `01_veritabani`, `02_eklentiler`, `03_migrasyon_kaydi`) ve PostgreSQL bakımında kullanılır; hiçbir env dosyasında ve `pgpass.conf`'ta bulunmaz. Migration'lar `klinik_migrasyon` ile uygulanır (§10c). `migrasyon` şeması (`migrasyon.kayit`) ayrı şemadır, sahibi `klinik_sahip`, hiçbir uygulama rolüne yetki yok (`yetki-matrisi.sql` kural 9 + `tests/db/migrasyon-rolu.test.ts`).
 
 Karar: bakim_rolu BYPASSRLS DEĞİL; bakım işi de RLS'ten geçer (klinik başına `app.tenant_id`). Böylece "sistem işi" bile başka kliniğin verisini bir transaction'da karıştıramaz. Sistem bağlamı RPC'lerde `session_user = 'bakim_rolu'` ile tanınır (bkz. `docs/service-role-siniflama.md`).
 
@@ -41,27 +46,24 @@ Karar: bakim_rolu BYPASSRLS DEĞİL; bakım işi de RLS'ten geçer (klinik baş�
 
 | Windows hesabı | Ne çalıştırır | Okuyabildiği gizli dosya |
 |---|---|---|
-| `svc-klinik-uygulama` | NSSM servisi (Next.js) | `C:\klinik\gizli\uygulama.env` |
-| `svc-klinik-bakim` | Task Scheduler görevleri (`scripts/*.mjs`) | `C:\klinik\gizli\bakim.env` |
-| `svc-klinik-yedek` | `yedek.ps1` | `C:\klinik\gizli\yedek.env` |
+| `NT SERVICE\klinik-uygulama` (sanal servis hesabı, parolasız) | NSSM servisi (Next.js) | `C:\klinik\gizli\uygulama.env` |
+| `NT SERVICE\klinik-caddy` (sanal servis hesabı, parolasız) | NSSM servisi (Caddy) | — (gizli dosya yok) |
+| `svc-klinik-bakim` (yerel kullanıcı) | Task Scheduler görevleri (`scripts/*.mjs`) | `C:\klinik\gizli\bakim.env` |
+| `svc-klinik-yedek` (yerel kullanıcı) | `yedek.ps1` | `C:\klinik\gizli\yedek.env` |
+| Deploy hesabı (yönetici) | `guncelle.ps1` (Task Scheduler), `migrasyon-uygula.ps1` | `C:\klinik\gizli\deploy.env` (yalnız `SYSTEM`/`Administrators`) |
 
 **`uygulama.env`**: `DATABASE_URL` (klinik_uygulama) · `KIMLIK_DATABASE_URL` (kimlik_rolu — Better Auth; uygulama süreci iki bağlantı havuzu kullanır) · `BETTER_AUTH_SECRET` · `BETTER_AUTH_URL` · `DOSYA_KOKU` · `CHROMIUM_PATH` · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` · `DESTEK_CHATBOT_ACIK` (varsayılan kapalı) · `GIZLI_VERI_ANAHTARI` (32 bayt, base64; veritabanında saklanan dış servis gizlilerini — Paraşüt client secret — şifreler; **yedekten AYRI saklanmalı**: yedek + anahtar birlikte ele geçirilirse gizliler çözülür; anahtar kaybolursa kayıtlı gizliler yeniden girilmelidir).
 **`bakim.env`**: `BAKIM_DATABASE_URL` (bakim_rolu) · `MESAJ_MERKEZ_BASE_URL` · `MESAJ_MERKEZ_API_KEY` (kuyruk işçisi ve kredi senkronu için). **`DATABASE_URL` ve `BETTER_AUTH_SECRET` burada YOKTUR.**
+**`deploy.env`**: `GITHUB_REPO` (`sahip/depo`) · `GITHUB_DEPLOY_TOKEN` (fine-grained, yalnız Contents:Read) · `MIGRASYON_DATABASE_URL` (klinik_migrasyon; yalnız localhost). Uygulama/bakım/yedek/caddy hesaplarına Deny (§10a).
 **`yedek.env`**: `YEDEK_DATABASE_URL` (klinik_yedek; yalnız localhost) · `YEDEK_HEDEF_KLASOR` · `YEDEK_ALICI_ANAHTARI` (age ortak anahtarı) · `YEDEK_GUNLUK_SAKLAMA_GUN` (30) · `YEDEK_AYLIK_SAKLAMA_AY` (12) · `YEDEK_DIS_KOPYA_HEDEFI`.
 
-### NTFS izinleri (tasarım — Aşama 1'de uygulanıp doğrulanacak)
-Miras kapatılır, yalnız ilgili hesap OKUR, çapraz hesaplara açık **Deny** yazılır:
-```
-icacls C:\klinik\gizli /inheritance:r
-icacls C:\klinik\gizli /grant:r "SYSTEM:(OI)(CI)F" "BUILTIN\Administrators:(OI)(CI)F"
-icacls C:\klinik\gizli\bakim.env    /grant:r "KLINIK\svc-klinik-bakim:R"
-icacls C:\klinik\gizli\bakim.env    /deny    "KLINIK\svc-klinik-uygulama:(R,RX)"
-icacls C:\klinik\gizli\uygulama.env /grant:r "KLINIK\svc-klinik-uygulama:R"
-icacls C:\klinik\gizli\uygulama.env /deny    "KLINIK\svc-klinik-bakim:(R,RX)"
-icacls C:\klinik\gizli\yedek.env    /grant:r "KLINIK\svc-klinik-yedek:R"
-```
-**Doğrulama (bitti kriteri)**: `svc-klinik-uygulama` hesabıyla (`runas`) `type C:\klinik\gizli\bakim.env` → "Erişim engellendi"; uygulama sürecinin ortamında `BAKIM_DATABASE_URL` görünmüyor. Yönetici hesabı dosyaları okuyabilir (sunucu yöneticisine güven varsayılır; Administrators grubunun üyeleri ayrıca belgelenir).
-Betikler `node --env-file=C:\klinik\gizli\bakim.env scripts\<is>.mjs` ile başlar ve env değerlerini loga yazmaz. Aynı Windows hesabının süreçleri birbirinin ortamını okuyabildiğinden ayrım **hesap** düzeyindedir (bu yüzden üç ayrı hesap).
+### NTFS izinleri
+Miras kapalı, yalnız ilgili hesap; çapraz hesaplara açık **Deny**. Tek kaynak: `deploy/windows/ortak.ps1 > GizliIzinleriUygula` (`kurulum.ps1` ve `servis-kur.ps1` çağırır; servis sanal hesapları ancak servis kurulunca çözülür, bu yüzden iki kez):
+- `gizli`: yalnız SYSTEM/Administrators; hesaplara yalnız gezinme `(X)`. Dosya bazında: `uygulama.env` → `NT SERVICE\klinik-uygulama` R; `bakim.env` → `svc-klinik-bakim` R; `yedek.env` → `svc-klinik-yedek` R; `deploy.env` → kimseye (yalnız yönetici). Her dosyada diğer hesaplara `deny (R,RX)`.
+- `surumler`: uygulama + bakım hesabı RX (kod **salt-okunur**); `indirme`: yalnız yönetici; `log`: uygulama/caddy/bakım Modify; `dosya`: uygulama Modify, yedek RX; `yedek`: yedek Modify; `caddy-veri`: caddy Modify.
+
+**Doğrulama (bitti kriteri)**: `svc-klinik-bakim` ile (`runas`) `type C:\klinik\gizli\uygulama.env` → "Erişim engellendi"; uygulama sürecinin ortamında `BAKIM_DATABASE_URL`/`MIGRASYON_DATABASE_URL` görünmüyor; `icacls C:\klinik\guncel\server.js` uygulama hesabı için yalnız `RX`. Yönetici hesapları dosyaları okuyabilir (sunucu yöneticisine güven varsayılır; Administrators üyeleri ayrıca belgelenir).
+Betikler `node --env-file=C:\klinik\gizli\bakim.env C:\klinik\guncel\scripts\<is>.mjs` ile başlar (bakım betiklerinin paketlenmesi Modül 7) ve env değerlerini loga yazmaz. Aynı Windows hesabının süreçleri birbirinin ortamını okuyabildiğinden ayrım **hesap** düzeyindedir.
 
 ## 3b. Zamanlanmış işler (Task Scheduler)
 
@@ -121,7 +123,7 @@ Yedek, geri yüklenip doğrulanmadıkça yedek sayılmaz. Kurulumda ve sonra **h
 6. **Bitti kriteri**: yukarıdaki 4. maddenin tamamı geçti ve kayıt tutuldu; aynı süre sonunda anahtar yokken sunucudaki dosyanın açılamadığı denendi.
 
 ## 6. Sıra
-§8–§11 dağıtım betiklerini içerir. Denenmemiş komut "denendi" diye işaretlenmez: ilk sunucu kurulumunda her adımın yanına tarih/sonuç yazılır.
+§8–§12 dağıtım, güncelleme, yedekten dönme ve prova planını içerir. Denenmemiş komut "denendi" diye işaretlenmez: ilk sunucu kurulumunda her adımın yanına tarih/sonuç yazılır.
 
 ## 7. GIZLI_VERI_ANAHTARI — saklama ve rotasyon
 
@@ -140,63 +142,80 @@ Veritabanında saklanan dış servis gizlilerini (şu an Paraşüt `client_secre
 
 ## 8. Dağıtım dosyaları ve klasör düzeni (`deploy/windows/`)
 
+**İlke:** sunucuda derleme YOK. Sürüm paketi GitHub Actions'ta (`.github/workflows/derle.yml`) üretilir; sunucu hazır paketi indirir, özetini doğrular, açar ve çalıştırır. Sunucuda `git`, `npm ci`, `next build` çalışmaz; yalnız Node (server.js + bakım betikleri), PostgreSQL araçları, Caddy, NSSM, age, Chrome/Edge gerekir.
+
 | Dosya | Görev |
 |---|---|
-| `kurulum.ps1` | Saat dilimi, araç denetimi (Node ≥22, Git, PostgreSQL araçları, Caddy, NSSM, age, Chrome/Edge), klasörler + NTFS izinleri, 3 servis hesabı, güvenlik duvarı (yalnız 80/443), olay günlüğü kaynakları. İdempotent. `-Indir` varsa winget ile eksikleri kurar. |
-| `servis-kur.ps1` | `klinik-uygulama` (düşük yetkili `svc-klinik-uygulama`, otomatik başlar, çökünce 5 sn sonra yeniden başlar, log 10 MB/günlük döner) ve `klinik-caddy` NSSM servisleri. |
-| `Caddyfile` | Alan adı → `localhost:3000`, otomatik HTTPS, güvenlik başlıkları, proxy zaman aşımı 90–120 sn, SSE (`/api/canli`) arabelleksiz, erişim logu döner. Cloudflare IP kısıtı **pasif not** (§3c: proxy kapalı). |
-| `guncelle.ps1` | Pull tabanlı deploy + otomatik geri dönüş (§10). Task Scheduler ile (`-GorevKaydet`). |
-| `migrasyon-uygula.ps1` | `db/migrations` için kayıtlı, dosya başına atomik migration uygulayıcı (`migrasyon.kayit`). |
-| `yedek.ps1` | Günlük şifreli yedek + saklama + ayrı diske kopya (§4 tasarımı; §11 geri yükleme). |
-| `ortak.ps1` | Betiklerin ortak yardımcıları. |
-| `env.production.ornek` | Yalnız değişken adları (3 ayrı gizli dosya bölümü). Eski Vercel adları (`AUTH_SECRET`→`BETTER_AUTH_SECRET`, `STORAGE_DIR`→`DOSYA_KOKU`) karşılıklarıyla notlu; `CRON_SECRET` yoktur. |
+| `.github/workflows/derle.yml` | `windows-latest`, Node LTS (`.nvmrc`): `npm ci` → lint → test → `next build` (standalone) → `paketle.ps1`. `v*` etiketinde GitHub sürümü + `klinik-<etiket>.zip` + `.zip.sha256` ekleri, SHA256 sürüm notunda. Derleme işi salt-okunur izinli; yalnız yayın işi `contents: write` ister. |
+| `paketle.ps1` | Standalone çıktı + `.next/static` + `public` + `db/{migrations,kontrol,kurulum,seed}` + `deploy/windows` + `scripts/db-kur.ps1` + `SURUM.txt` → zip + `.sha256`. Pakette `.env*`, `*.pem`, `deploy.env` varsa başarısız olur. |
+| `kurulum.ps1` | Saat dilimi, araç denetimi, klasörler + NTFS izinleri, bakım/yedek yerel hesapları, **PostgreSQL sertleştirme + doğrulama**, güvenlik duvarı (yalnız 80/443). İdempotent. `-Indir` winget ile eksikleri kurar. |
+| `servis-kur.ps1` | `klinik-uygulama` ve `klinik-caddy` NSSM servisleri, **`NT SERVICE\<servis>` sanal hesaplarıyla** (parola yok); izinleri tamamlar; Caddy yönetim uç noktasının kapalı olduğunu doğrular. |
+| `Caddyfile` | Global `admin off`; alan adı → `localhost:3000`, otomatik HTTPS, güvenlik başlıkları, proxy zaman aşımı 90–120 sn, SSE (`/api/canli`) arabelleksiz, erişim logu döner. Cloudflare IP kısıtı **pasif not** (§3c: proxy kapalı). |
+| `guncelle.ps1` | Paket indir → SHA256 doğrula → aç → ön uçuş → migration → geçiş → sağlık → hata olursa önceki sürüme dön (§10). Task Scheduler ile. |
+| `migrasyon-uygula.ps1` | `db/migrations` için kayıtlı, dosya başına atomik uygulayıcı; **`klinik_migrasyon`** ile (süper kullanıcı değil). |
+| `yedek.ps1` | Günlük şifreli yedek + saklama + ayrı diske kopya (§4; geri yükleme §11). |
+| `ortak.ps1` | Ortak yardımcılar (NTFS izinleri, GitHub indirme, env okuma). |
+| `env.production.ornek` | Yalnız değişken adları: `uygulama.env`, `bakim.env`, `yedek.env`, `deploy.env`. |
 
-Betikler UTF-8 **BOM'lu** kaydedilir (Windows PowerShell 5.1 BOM'suz dosyayı ANSI okuyup Türkçe/uzun tire karakterlerinde sözdizimi hatası verir); düzenlerken BOM'u koruyun.
+Betikler UTF-8 **BOM'lu** kaydedilir (Windows PowerShell 5.1 BOM'suz dosyayı ANSI okur, Türkçe karakterde sözdizimi hatası verir); düzenlerken BOM'u koruyun.
 
-Klasörler (`C:\klinik`): `kaynak` (git deposu, yalnız derleme) · `surumler\<tarih>-<sha>` (çalışan paketler, uygulama hesabına salt-okunur) · `guncel` (junction → çalışan sürüm) · `gizli` · `log` · `dosya` (`DOSYA_KOKU`) · `yedek` · `caddy-veri`. Bakım betikleri (`scripts\*.mjs`) `kaynak` içinden çalışır (`svc-klinik-bakim` okur); `guncelle.ps1` `npm ci` sırasında `node_modules`'ü kısa süre yeniler — o dakikalarda başlayan bir bakım görevi hata verebilir, sonraki çalışmada telafi olur.
+Klasörler (`C:\klinik`): `surumler\<etiket>-<zaman>` (çalışan paketler; uygulama hesabına **salt-okunur**) · `guncel` (junction → çalışan sürüm; NSSM `AppDirectory`) · `indirme` (geçici zip; yalnız yönetici) · `gizli` · `log` · `dosya` (`DOSYA_KOKU`) · `yedek` · `caddy-veri`. Bakım betikleri (`scripts\*.mjs`, Modül 7) `guncel` içinden çalışacaktır; **bakım betiklerinin pakete nasıl girdiği (esbuild ile tek dosya) Modül 7'de netleşir** — şimdilik pakette yalnız `scripts\db-kur.ps1` vardır.
 
-`CHROMIUM_PATH` ortam değişkeni `lib/pdf/browser.ts` tarafından okunur (eski `PUPPETEER_EXECUTABLE_PATH` yedek olarak durur). `next.config.ts` `output: "standalone"`; `next build` sonrası `.next/standalone/server.js` çıkar, `guncelle.ps1` `.next/static` ve `public` klasörlerini sürüm klasörüne kopyalar. Build sunucuda, yönetici hakkı olan hesapla çalışır (Windows'ta standalone izleme dosya bağlantısı oluşturabilir; yetkisiz hesapta `EPERM` verebilir).
+`CHROMIUM_PATH` ortam değişkeni `lib/pdf/browser.ts` tarafından okunur (eski `PUPPETEER_EXECUTABLE_PATH` yedek olarak durur). `next.config.ts` `output: "standalone"`.
+
+### 8a. Servis hesapları — `NT SERVICE\<servis>` (sanal hesaplar)
+`klinik-uygulama` ve `klinik-caddy` servisleri, Windows'un servis adından türettiği **sanal servis hesaplarıyla** çalışır: `NT SERVICE\klinik-uygulama`, `NT SERVICE\klinik-caddy`. Parolası yoktur → parola oluşturma, saklama, rotasyon ve süre dolması riski yoktur; hesap yalnız o servise aittir ve ağda makine hesabı kimliğiyle görünür (yerel kaynaklara erişimde sorun değil; uygulama yalnız localhost'a bağlanır).
+- **NSSM:** `nssm set klinik-uygulama ObjectName "NT SERVICE\klinik-uygulama"` (parola argümanı verilmez). `servis-kur.ps1` bunu uygular ve `sc.exe qc klinik-uygulama` çıktısında `SERVICE_START_NAME : NT SERVICE\klinik-uygulama` görmeyi **doğrular**; NSSM kabul etmezse yedek yol `sc.exe config klinik-uygulama obj= "NT SERVICE\klinik-uygulama"` (parolasız) kullanılır. Sunucuda denenecek.
+- **NTFS:** servis kurulmadan hesap çözülemez; bu yüzden izinler `ortak.ps1 > GizliIzinleriUygula` ile hem `kurulum.ps1`'de (çözülebilenler) hem `servis-kur.ps1` sonunda (hepsi) uygulanır. Uygulama: `surumler` RX (kod salt-okunur), `dosya` + `log` Modify, `gizli\uygulama.env` Read. Caddy: `caddy-veri` + `log` Modify. Uygulama hesabına `bakim.env`/`yedek.env`/`deploy.env` için açık Deny konur.
+- Bakım ve yedek Task Scheduler görevleri için **yerel kullanıcılar** (`svc-klinik-bakim`, `svc-klinik-yedek`) kalır (Task Scheduler sanal servis hesabı kullanamaz); parolaları yalnız oluşturma anında sorulur ve yöneticinin parola yöneticisindedir.
 
 ## 9. Adım adım ilk kurulum
 
-Yönetici PowerShell (5.1 ya da 7). Her adımdan sonra çıktıyı kontrol edin.
+Yönetici PowerShell (5.1 ya da 7). Her adımdan sonra çıktıyı kontrol edin. Ayrıntılı, beklenen çıktılı tam zincir: **§12 Prova planı**.
 
-1. **Hazırlık:** `git clone <depo> C:\klinik\kaynak` (deploy için salt-okunur anahtar/jeton) → `cd C:\klinik\kaynak\deploy\windows` → `.\kurulum.ps1 -Indir`. Eksik araç listesi çıkarsa elle kurup tekrar çalıştırın. Çıktıdaki Chrome/Edge yolunu not edin.
-2. **Veritabanı:** PostgreSQL kurulu, `pg_hba.conf`/`listen_addresses` §2'deki gibi. `KLINIK_UYGULAMA_SIFRE`, `KLINIK_KIMLIK_SIFRE`, `KLINIK_BAKIM_SIFRE`, `KLINIK_YEDEK_SIFRE` ortam değişkenlerini oturumluk verip `C:\klinik\kaynak\scripts\db-kur.ps1` çalıştırın. Hemen ardından **bir kez** `.\migrasyon-uygula.ps1 -KaydaIsle` (kurulan migration'ları "uygulandı" olarak kaydeder; sonrası `guncelle.ps1` yönetir).
-3. **Gizli dosyalar:** `env.production.ornek` bölümlerini `C:\klinik\gizli\uygulama.env`, `bakim.env`, `yedek.env` olarak (değerleri doldurarak) oluşturun; `kurulum.ps1`'i **tekrar çalıştırın** (env dosya izinleri + çapraz Deny uygulanır). §3 doğrulamasını yapın (`runas` ile uygulama hesabı `bakim.env`'i okuyamamalı).
-4. **İlk sürüm:** `.\guncelle.ps1 -IlkKurulum` (derler, `surumler\...` oluşturur, `guncel` bağlantısını kurar; servis henüz yok).
-5. **Servisler:** `.\servis-kur.ps1 -AlanAdi klinik.firma.com.tr` (uygulama hesabının parolasını sorar). DNS A kaydı sunucunun genel IP'sine (Cloudflare **gri bulut**) işaret etmeli ve 80/443 dışarıdan erişilebilir olmalı; Caddy sertifikayı kendisi alır.
-6. **Zamanlanmış işler:** §3b tablosundaki bakım görevleri (`svc-klinik-bakim`), `yedek.ps1` (`svc-klinik-yedek`, günlük gece), `guncelle.ps1` (`.\guncelle.ps1 -GorevKaydet -GorevSaati 04:00 -GorevHesabi <yönetici hesap>`). Hepsinde "çalışan örnek varken yenisini başlatma".
-7. **Sağlık + duman testi:** §9a; tarayıcıdan giriş, bir PDF, bir canlı çizelge güncellemesi.
-8. **Yedek:** `yedek.ps1`'i elle bir kez çalıştırın, çıktı dosyalarını ve dış kopyayı kontrol edin, **§11 geri yükleme testini yapın** (kurulum bitti kriteri).
+1. **İlk paket (elle):** GitHub sürümünden `klinik-<etiket>.zip` ve `.zip.sha256` dosyalarını (tarayıcı/`gh release download`, başka makineden) sunucuya `C:\klinik\ilk\` altına alın. `(Get-FileHash -Algorithm SHA256 .\klinik-<etiket>.zip).Hash` değeri `.sha256` ile eşleşmeli. `tar -xf klinik-<etiket>.zip -C C:\klinik\ilk\paket`.
+2. **Hazırlık:** `C:\klinik\ilk\paket\deploy\windows\kurulum.ps1 -Indir`. PostgreSQL kurulu olmalı (kurulum.ps1 `pg_hba.conf` + `listen_addresses` sertleştirir ve doğrular). Çıktıdaki Chrome/Edge yolunu not edin.
+3. **Veritabanı (süper kullanıcı YALNIZ burada):** oturumluk `PGPASSWORD` (postgres) ve `KLINIK_UYGULAMA_SIFRE`, `KLINIK_KIMLIK_SIFRE`, `KLINIK_BAKIM_SIFRE`, `KLINIK_YEDEK_SIFRE`, `KLINIK_MIGRASYON_SIFRE` ortam değişkenleriyle `C:\klinik\ilk\paket\scripts\db-kur.ps1`. Betik roller → veritabanı → eklentiler → `migrasyon` şeması → migration'lar → kontroller (`bypassrls-kontrol`, `yetki-matrisi`) → `migrasyon.kayit` kaydını işler. Bitince `Remove-Item Env:PGPASSWORD`, varsa `pgpass.conf`'tan `postgres` satırı silinir; üretim işletiminde süper kullanıcı parolası parola yöneticisindedir (PostgreSQL yükseltmesi/felaket durumu için).
+4. **Gizli dosyalar:** `env.production.ornek` bölümlerini `C:\klinik\gizli\uygulama.env`, `bakim.env`, `yedek.env`, `deploy.env` olarak oluşturun (§10a). `kurulum.ps1`'i tekrar çalıştırın (izinler uygulanır).
+5. **İlk sürüm:** `.\guncelle.ps1 -IlkKurulum -YerelPaket C:\klinik\ilk\klinik-<etiket>.zip` (özet doğrulanır, `surumler\...` açılır, ön uçuş, `guncel` kurulur). Sonraki güncellemeler GitHub'dan gelir.
+6. **Servisler:** `C:\klinik\guncel\deploy\windows\servis-kur.ps1 -AlanAdi klinik.firma.com.tr`. DNS A kaydı sunucunun genel IP'sine (Cloudflare **gri bulut**); 80/443 dışarıdan erişilebilir olmalı; Caddy sertifikayı kendisi alır.
+7. **Zamanlanmış işler:** §3b bakım görevleri; `yedek.ps1` (`svc-klinik-yedek`, günlük gece); `guncelle.ps1 -GorevKaydet -GorevSaati 04:00 -GorevHesabi <deploy hesabı>`. Hepsinde "çalışan örnek varken yenisini başlatma".
+8. **Sağlık + duman testi:** §9a; tarayıcıdan giriş, bir PDF, bir canlı çizelge güncellemesi.
+9. **Yedek:** `yedek.ps1`'i elle bir kez çalıştırın, çıktıları ve dış kopyayı kontrol edin, **§11 geri yükleme testini yapın** (kurulum bitti kriteri).
 
 ### 9a. Sağlık kontrolü — `GET /api/saglik`
 Oturumsuz, tenant bağlamsız. `200` = sağlıklı ya da disk uyarısı, `503` = veritabanına ulaşılamıyor (`select 1`) ya da `DOSYA_KOKU` diski kritik/okunamıyor. Eşikler: boş alan < 5 GB uyarı, < 1 GB kritik.
-- Dışarıdan: `{"durum":"ok|uyari|hata"}` (yalnız durum; ayrıntı sızdırılmaz).
-- Yerelden (`curl http://127.0.0.1:3000/api/saglik`, `X-Real-IP` başlığı yok): ayrıca `db`, `db_ms`, `disk`, `disk_bos_gb`. Caddy her istekte `X-Real-IP` ekler, bu yüzden internetten gelen istek ayrıntıyı hiç görmez.
+- Dışarıdan: `{"durum":"ok|uyari|hata"}` (yalnız durum).
+- Yerelden (`curl http://127.0.0.1:3000/api/saglik`, `X-Real-IP` başlığı yok): ayrıca `db`, `db_ms`, `disk`, `disk_bos_gb`. Caddy her istekte `X-Real-IP` ekler; internetten gelen istek ayrıntıyı görmez.
 - `guncelle.ps1` ön uçuşta (3999 portu) ve geçişten sonra bunu çağırır. Dış izleme için `https://<alan>/api/saglik` yeterlidir.
 - Denendi (2026-10-28, geliştirici makinesi, standalone çıktı): `DATABASE_URL` yokken 503 + ayrıntı yerelde görünür, `X-Real-IP` ile yalnız `{"durum":"hata"}`. Gerçek veritabanıyla 200 yolu sunucuda denenecek.
 
-## 10. Güncelleme ve geri alma
+## 10. Güncelleme (GitHub sürüm paketi) ve geri alma
 
-`guncelle.ps1` (Task Scheduler, günlük; yeni commit yoksa çıkar):
-`git fetch` → depo temiz mi → `merge --ff-only` → `npm ci` → `npm run build` → `surumler\<tarih>-<sha>` paketi → **ön uçuş** (yeni paket 3999 portunda açılır, `/api/saglik` 200 olmalı; canlıya dokunulmaz) → bekleyen migration varsa **güncelleme öncesi yedek** (`yedek.ps1 -Etiket guncelleme-oncesi`) + `migrasyon-uygula.ps1` → `guncel` bağlantısı yeni sürüme → `Restart-Service klinik-uygulama` → `/api/saglik` (90 sn).
+### 10a. Jeton, ağ çıkışı, `deploy.env`
+- **Jeton:** GitHub **fine-grained personal access token**, yalnız bu depo, izin **Contents: Read-only** (sürüm eklerini indirir; yazma yok). Süre sonu ayarlanır (örn. 90 gün) ve takvime işlenir; süre dolunca `guncelle.ps1` "HTTP 401" ile hata verir ve **canlı sürüm değişmez**. Sürüm ekleri depo özel olduğundan yalnız jetonla iner (deploy anahtarı yetmez).
+- **Saklama:** `C:\klinik\gizli\deploy.env` içinde `GITHUB_REPO=sahip/depo`, `GITHUB_DEPLOY_TOKEN=…`, `MIGRASYON_DATABASE_URL=…` (klinik_migrasyon). NTFS: miras kapalı, yalnız `SYSTEM` + `Administrators`; uygulama/bakım/yedek/caddy hesaplarına açık **Deny** (`GizliIzinleriUygula`). Dürüst sınır: görevi çalıştıran deploy hesabı yönetici olduğundan "yalnız deploy hesabı okur" = yalnız yöneticiler okur; sunucu yöneticilerine güven varsayılır. Jeton hiçbir loga/olay günlüğüne/komut satırına yazılmaz (`GitHubGetir` hatalarında yer almaz; yönlendirilen depolama adresine **gönderilmez**).
+- **Ağ çıkışı:** sunucudan yalnız **GitHub'a 443** çıkışı gerekir: `api.github.com` (sürüm sorgusu ve ek indirme) ve eklerin yönlendirildiği depolama adresi (`*.githubusercontent.com` — GitHub bu adı değiştirebilir). Windows güvenlik duvarı IP tabanlıdır, FQDN süzemez; bu yüzden çıkış kısıtı **bulut sağlayıcı/ağ güvenlik duvarı ya da çıkış vekili** katmanında alan adı bazında yapılmalı (Vodafone Cloud tarafında bir karar maddesi). Caddy/Let's Encrypt için ayrıca ACME çıkışı (`acme-v02.api.letsencrypt.org` 443) ve mesaj merkezi adresi gerekir. Başka hiçbir çıkış açılmaz.
+- **Bütünlük:** `.sha256` aynı sürüm ekinde yayınlanır ve sürüm notunda tekrarlanır. Bu, bozuk/eksik indirmeyi yakalar; GitHub hesabının ele geçirilmesine karşı korumaz (saldırgan hem zip'i hem özeti değiştirebilir). Ek önlem adayları: etiketler için korumalı dal/etiket kuralları, 2FA, derleme *attestation* (artifact attestations) doğrulaması — sonraki iş.
 
-**Hata nerede olursa:**
+### 10b. `guncelle.ps1` akışı
+`GET /repos/<repo>/releases/latest` (ya da `-Surum <etiket>`) → `SURUM.txt` aynıysa çık → `.zip` + `.sha256` indir (`indirme\`) → boyut + **SHA256 doğrula** (uyuşmazsa paket KULLANILMAZ) → `surumler\<etiket>-<zaman>` altına `tar -xf` → paket denetimi (server.js, SURUM.txt, db/, deploy/, `.next/static`; gizli dosya benzeri dosya yok) → **ön uçuş** (yeni paket 3999 portunda açılır, `/api/saglik` 200; canlıya dokunulmaz) → bekleyen migration varsa **güncelleme öncesi yedek** (`yedek.ps1 -Etiket guncelleme-oncesi`) + yeni paketin `migrasyon-uygula.ps1`'i → `guncel` bağlantısı yeni sürüme → `Restart-Service klinik-uygulama` → `/api/saglik` (90 sn).
 
-| Aşama | Sonuç |
+| Hata aşaması | Sonuç |
 |---|---|
-| git / `npm ci` / build / paket / ön uçuş | Canlı DEĞİŞMEDİ. `git reset --hard` ile eski commit'e dönülür, yarım paket silinir. Çıkış 1. |
-| Yedek ya da migration | Canlı DEĞİŞMEDİ (migration dosya başına atomik). Önceki dosyalar uygulanmış kalabilir (kayıtlıdır). Çıkış 1. |
-| Geçiş sonrası sağlık | Bağlantı eski sürüme çevrilir, servis yeniden başlar, sağlık doğrulanır, git eski commit'e alınır. Çıkış 1; geri dönüş de sağlıksızsa **çıkış 2 = elle müdahale**. |
+| sürüm sorgusu / indirme / özet / açma / paket denetimi / ön uçuş | Canlı DEĞİŞMEDİ; yarım klasör silinir. Çıkış 1. |
+| yedek ya da migration | Canlı DEĞİŞMEDİ (migration dosya başına atomik; önceki dosyalar uygulanmış kalabilir, kayıtlıdır). Çıkış 1. |
+| geçiş sonrası sağlık | Bağlantı eski sürüme çevrilir, servis yeniden başlar, sağlık doğrulanır. Çıkış 1; geri dönüş de sağlıksızsa **çıkış 2 = elle müdahale**. |
 
-Olay günlüğü (Application, kaynak `KlinikGuncelle`, olay 3000) ve `C:\klinik\log\guncelle-*.log` kaydı tutulur. En yeni 5 sürüm saklanır. Ön uçuş yeni paketi `uygulama.env` ile açtığı için gerçek veritabanına bağlanır ama yalnız `select 1` çalıştırır.
+Olay günlüğü (Application, `KlinikGuncelle`, olay 3000) ve `C:\klinik\log\guncelle-*.log` kaydı tutulur. En yeni 5 sürüm + çalışan + önceki saklanır.
 
-**Sınır:** migration'lar ileri yönlüdür; kod geri dönse de veritabanı yeni şemada kalır. Bu yüzden migration'lar **geriye dönük uyumlu** yazılır (önce kolon/tablo ekle, kod geçsin, sonraki sürümde eskiyi kaldır). Uyumsuz bir migration geri dönüşü bozarsa §11'e göre güncelleme öncesi yedekten dönülür (veri kaybı: yedek ile o an arasındaki yazımlar — uyumsuz migration'dan önce bakım penceresi açın).
+**Elle sürüme geçme/geri dönme:** `.\guncelle.ps1 -Surum v1.4.1` (eski etiket de olur; migration'lar ileri yönlü olduğundan §10c sınırı geçerli). GitHub'a erişilemiyorsa: paketi elle indirip `-YerelPaket <zip>` (yanında `.sha256` şart). Hızlı geri dönüş (saniyeler): `cmd /c rmdir C:\klinik\guncel`, `New-Item -ItemType Junction -Path C:\klinik\guncel -Target C:\klinik\surumler\<eski>`, `Restart-Service klinik-uygulama`, `/api/saglik`.
 
-**Elle geri alma** (bir sürüm sonradan sorunlu çıkarsa): `Get-ChildItem C:\klinik\surumler` → `cmd /c rmdir C:\klinik\guncel` + `New-Item -ItemType Junction -Path C:\klinik\guncel -Target <eski sürüm klasörü>` → `Restart-Service klinik-uygulama` → `/api/saglik`. Ardından depoda sorunlu commit'i geri alın (`git revert`); aksi hâlde `guncelle.ps1` bir sonraki çalışmada aynı commit'i yeniden dağıtır.
-
-**Açık karar:** migration için süper kullanıcı kimlik bilgisi deploy hesabının `pgpass.conf` dosyasında durur (parola repoda/env'de yok). Daha dar bir `klinik_migrasyon` giriş rolü (`klinik_sahip` üyesi, yalnız localhost) tanımlanabilir; ayrı onay gerektirir, şimdilik uygulanmadı. Ayrıca `migrasyon` şeması `yetki-matrisi.sql` / `bypassrls-kontrol.sql` ile ilk kurulumda birlikte denenmeli (şema `public` dışında, uygulama rollerine yetkisiz).
+### 10c. Migration rolü ve kuralları
+- **Rol:** `klinik_migrasyon` (LOGIN, süper kullanıcı değil, BYPASSRLS yok, rol/DB oluşturamaz). Tek yetkisi `klinik_sahip` rolüne `SET ROLE` etmek (`INHERIT FALSE`); kendi başına hiçbir tablo/şema yetkisi yok. Bu yüzden tenant verisini görmez (FORCE RLS). Bağlantısı `deploy.env > MIGRASYON_DATABASE_URL`; `pg_hba`'da yalnız localhost.
+- **Süper kullanıcı** (`postgres`) yalnız ilk kurulumda (roller, veritabanı, eklentiler, `migrasyon` şeması) ve PostgreSQL bakımında kullanılır; **pgpass.conf'ta ve hiçbir env dosyasında bulunmaz**. Migration'lar rol/veritabanı/eklenti OLUŞTURAMAZ; böyle bir ihtiyaç `db/kurulum/` altına yeni numaralı dosya olarak eklenir ve süper kullanıcıyla elle, bir kez uygulanır.
+- **Takip:** `migrasyon.kayit` (dosya, sha256, uygulandı). Ayrı şema; hiçbir uygulama rolüne yetki yok (`yetki-matrisi.sql` denetler, testi `tests/db/migrasyon-rolu.test.ts`). Her migration sonrası `bypassrls-kontrol.sql` ve `yetki-matrisi.sql` çalışır; HATA varsa güncelleme başarısız olur ve canlı sürüm değişmez.
+- **Kurallar:** CLAUDE.md "Migration kuralları" (geriye dönük uyumlu: genişlet → taşı → daralt; geri alma = yedekten dönme). Uygulanmış migration dosyası düzenlenmez (özet uyuşmazsa uyarı).
 
 ## 11. Yedekten dönme prosedürü
 
@@ -205,12 +224,40 @@ Olay günlüğü (Application, kaynak `KlinikGuncelle`, olay 3000) ve `C:\klinik
 **Geri yükleme (test makinesi ya da felaket sonrası yeni sunucu):**
 1. Yedek ve `.sha256` dosyalarını (dış kopyadan) alın. `(Get-FileHash -Algorithm SHA256 <dosya>.age).Hash` değeri `.sha256` ile eşleşmeli.
 2. Özel anahtarı kasadan **geçici** olarak getirin; `age -d -i <ozel-anahtar.txt> -o klinik.dump <tarih>-gunluk.dump.age`. (Dosya arşivi için `age -d … -o dosya.tar`, sonra `tar -xf dosya.tar -C <DOSYA_KOKU>`.)
-3. Yeni sunucuda önce `scripts\db-kur.ps1` yalnız **roller + boş veritabanı** için gerekir; şema dump'tan gelecek. Süper kullanıcıyla: `pg_restore --no-owner --role=klinik_sahip -d klinik --clean --if-exists klinik.dump`. Roller dump'ta yoktur, bu yüzden rol oluşturma adımı (`db/kurulum/00_roller.sql`) önce çalışmış olmalı.
-4. `migrasyon-uygula.ps1 -Kontrol`: bekleyen migration varsa kod sürümüne göre uygulayın (dump `migrasyon.kayit` tablosunu da taşır).
-5. Doğrulama (§5 madde 4): tablo satır sayıları, Kasa/Banka bakiyesi, `v_hasta_cari_ozet` toplamı, bir hasta belgesi, klinik admin girişi, tenant bağlamsız sorguda 0 satır. `db\kontrol\bypassrls-kontrol.sql` HATA vermemeli.
+3. Yeni sunucuda roller + boş veritabanı için `db/kurulum/00_roller.sql`, `01_veritabani.sql`, `02_eklentiler.sql` (süper kullanıcıyla; `scripts\db-kur.ps1`'in ilk üç adımı) çalışmış olmalı; şema dump'tan gelir. Süper kullanıcıyla: `pg_restore --no-owner --role=klinik_sahip -d klinik --clean --if-exists klinik.dump`. Dump `migrasyon.kayit`'i de taşır.
+4. `migrasyon-uygula.ps1 -Kontrol`: bekleyen migration varsa kod sürümüne göre uygulayın.
+5. Doğrulama (§5 madde 4): tablo satır sayıları, Kasa/Banka bakiyesi, `v_hasta_cari_ozet` toplamı, bir hasta belgesi, klinik admin girişi, tenant bağlamsız sorguda 0 satır. `bypassrls-kontrol.sql` ve `yetki-matrisi.sql` HATA vermemeli.
 6. Canlıya alma: `Start-Service klinik-uygulama, klinik-caddy`, `/api/saglik` 200, gerekiyorsa DNS'i yönlendirin.
 7. Özel anahtarı ve açık dump/tar dosyalarını güvenli silin; olayı (tarih, yedek adı, geçen süre, sonuç) kayda geçirin.
 
-**Yalnız `guncelleme-oncesi` yedeğinden dönüş:** önce `Stop-Service klinik-uygulama`; dump'ı yukarıdaki gibi **mevcut veritabanının yerine** yükleyin (`--clean --if-exists`); `guncel` bağlantısını eski sürüme çevirin; servisi başlatın. Yedekten sonraki yazımlar kaybolur — kullanıcılara bildirin.
+**Yalnız `guncelleme-oncesi` yedeğinden dönüş (uyumsuz migration sonrası):** `Stop-Service klinik-uygulama`; dump'ı yukarıdaki gibi **mevcut veritabanının yerine** yükleyin (`--clean --if-exists`); `guncel` bağlantısını eski sürüme çevirin (§10b); servisi başlatın. Yedekten sonraki yazımlar kaybolur — kullanıcılara bildirin.
 
-**Denenmedi:** `pg_restore --clean` ile FORCE RLS / rol sahipliklerinin birebir geri geldiği ve `--no-owner --role` birleşiminin bu şemada sorunsuz çalıştığı doğrulanmadı; §5'teki aylık geri yükleme testi bunu ilk kez kanıtlayacak.
+**Denenmedi:** `pg_restore --clean` ile FORCE RLS / rol sahipliklerinin birebir geri geldiği ve `--no-owner --role` birleşiminin bu şemada sorunsuz çalıştığı doğrulanmadı; §12 prova planı bunu ilk kez kanıtlayacak.
+
+## 12. Prova planı (üretim öncesi ZORUNLU)
+
+Amaç: üretim sunucusuna dokunmadan, **temiz bir Windows makinesinde** (Hyper-V VM'si, Windows Sandbox ya da yerel PC; PowerShell yönetici) tüm zincirin çalıştığını kanıtlamak. Her adımda "beklenen" sütunu tutmuyorsa DUR, nedeni düzeltilmeden ilerlenmez; sonuç (tarih, adım, geçti/kaldı) kayda geçirilir. Prova makinesinde gerçek veri YOK; alan adı/sertifika gerektiren adımlar (Caddy HTTPS) yerelde `localhost` ile yapılır.
+
+**Hazırlık (prova makinesine):** PostgreSQL 18 (EDB kurulumu, `postgres` parolası belirlenir), Node 22 LTS, Chrome/Edge. Paket: `gh release download` ya da CI artifact'ı; dosyalar `C:\klinik\ilk\` altında. (Windows Sandbox'ta her açılışta temiz başlar; `C:\klinik\ilk` paylaşımlı klasörden bağlanır.)
+
+| # | Adım | Komut | Beklenen çıktı |
+|---|---|---|---|
+| 1 | Paket bütünlüğü | `Get-FileHash -Algorithm SHA256 C:\klinik\ilk\klinik-<s1>.zip` ; `Get-Content …sha256` | Özetler **birebir aynı**. `tar -xf … -C C:\klinik\ilk\paket` sorunsuz; `paket\server.js`, `paket\db\migrations`, `paket\deploy\windows` var. |
+| 2 | Sunucu hazırlığı | `paket\deploy\windows\kurulum.ps1` (bakım/yedek hesap parolaları sorulur) | `PostgreSQL dogrulamasi TAMAM: yalniz localhost dinliyor…`; "Tum araclar mevcut" (eksikse listelenir); `C:\klinik\{gizli,surumler,indirme,log,dosya,yedek,caddy-veri}` oluşur; hata/`throw` YOK. Elle doğrula: `Get-NetTCPConnection -State Listen -LocalPort 5432` → yalnız `127.0.0.1` ve `::1`; `Get-Content <veri>\pg_hba.conf` → yalnız `127.0.0.1/32`, `::1/128` + son iki `reject` satırı, yöntem `scram-sha-256`; `postgresql.conf` sonunda `listen_addresses = 'localhost'`. |
+| 3 | Veritabanı kurulumu | `$env:PGPASSWORD=<postgres>`; `KLINIK_*_SIFRE` (5 adet) ver; `paket\scripts\db-kur.ps1` | Sırayla `>> db/kurulum/00…03`, `>> db/migrations/0001…00NN`; sonda `bypassrls-kontrol: temiz`, `yetki-matrisi: temiz`, `N migration 'uygulandi' olarak kaydedildi.`, `Kurulum tamam.` Hata satırı YOK. Sonra `Remove-Item Env:PGPASSWORD`. |
+| 4 | Kontrolleri ayrıca çalıştır | `psql -h localhost -U postgres -d klinik -f paket\db\kontrol\bypassrls-kontrol.sql` ; `… yetki-matrisi.sql` | `NOTICE: bypassrls-kontrol: temiz …`, `NOTICE: yetki-matrisi: temiz`; `HATA` satırı yok; `hba_zayif_yontem` UYARI satırı yok. `klinik_yedek` dışında BYPASSRLS rol yok. |
+| 5 | Migration rolü | `deploy.env`'e `MIGRASYON_DATABASE_URL` yaz; `paket\deploy\windows\migrasyon-uygula.ps1 -Kontrol` | `Bekleyen migration yok.` (çıkış 0). `psql -U klinik_migrasyon -d klinik -c "select count(*) from hasta"` → `permission denied`. `select * from migrasyon.kayit` (SET ROLE klinik_sahip sonrası) → paketteki tüm dosyalar listelenir. |
+| 6 | Gizli dosyalar | `uygulama.env`, `bakim.env`, `yedek.env`, `deploy.env` oluştur (değerler prova değerleri); `kurulum.ps1`'i tekrar çalıştır | `Izinler uygulandi: …`; `NT SERVICE` hesapları için "atlandi (henuz yok)" uyarısı normal. `runas /user:svc-klinik-bakim "cmd /c type C:\klinik\gizli\uygulama.env"` → **Erişim engellendi**. |
+| 7 | İlk sürüm | `paket\deploy\windows\guncelle.ps1 -IlkKurulum -YerelPaket C:\klinik\ilk\klinik-<s1>.zip` | `SHA256 dogrulandi.` → `On ucus tamam.` → `Bekleyen migration yok.` → `Ilk surum hazir: C:\klinik\surumler\<s1>-…`. `C:\klinik\guncel` junction'ı `SURUM.txt` ilk satırı `<s1>`. |
+| 8 | Servisler | `C:\klinik\guncel\deploy\windows\servis-kur.ps1 -AlanAdi localhost` | `klinik-uygulama hesabi: NT SERVICE\klinik-uygulama`, `klinik-caddy hesabi: NT SERVICE\klinik-caddy`; `Saglik kontrolu: TAMAM`; `Caddy yonetim uc noktasi kapali`. `sc.exe qc klinik-uygulama` → `SERVICE_START_NAME : NT SERVICE\klinik-uygulama`. `Get-Service klinik-*` → Running. `curl http://127.0.0.1:3000/api/saglik` → `{"durum":"ok",…,"db":"ok"}` (200). Uygulama hesabı kodu değiştiremez: `icacls C:\klinik\guncel\server.js` → uygulama hesabı yalnız `(RX)`. |
+| 9 | Uygulama duman testi | Tarayıcı `http://localhost`, klinik oluştur/giriş, PDF indir | Giriş çalışır, PDF üretilir, `/api/canli` bağlanır (canlı çizelge). |
+| 10 | Yedek | `$env:...`/`yedek.env` hazır; `C:\klinik\guncel\deploy\windows\yedek.ps1` (svc-klinik-yedek ya da yönetici) | `Yedek tamam: <tarih>-gunluk`; `YEDEK_HEDEF_KLASOR`'de `.dump.age`, `.dosya.tar.age`, `.sha256`, ayın `…-aylik.*` kopyası; `.gecici` boş; dış kopya klasöründe aynı dosyalar. Çıkış 0, olay günlüğünde `Yedek tamam`. |
+| 11 | Temiz veritabanına geri yükleme | Başka isimli boş küme/VM'de adım 2–3'ün **yalnız ilk üç SQL'i** (00/01/02), sonra `age -d … ; pg_restore --no-owner --role=klinik_sahip -d klinik --clean --if-exists klinik.dump` | `pg_restore` hata vermez (uyarı: yalnız "does not exist, skipping"). Satır sayıları kaynakla aynı; `migrasyon.kayit` dolu. |
+| 12 | Kontroller yeniden | Adım 4'ün iki `.sql`'ini geri yüklenen veritabanında çalıştır | **Yine temiz.** FORCE RLS korunmuş: `select count(*) from hasta` (tenant bağlamsız, `klinik_uygulama` ile) → 0. Bozuk çıkarsa §11 "Denenmedi" maddesi gerçek sorundur → düzeltilir. |
+| 13 | Yükseltme | Yeni etiket `<s2>` üret (içinde **en az bir yeni, geriye dönük uyumlu migration**); `guncelle.ps1 -YerelPaket …\klinik-<s2>.zip` (GitHub varsa `-YerelPaket`siz) | `SHA256 dogrulandi.` → `On ucus tamam.` → `Bekleyen migration var → guncelleme oncesi yedek aliniyor.` → `>> 00NN_….sql` → `1 migration uygulandi; yetki kontrolleri temiz.` → `Guncelleme basarili: <s2>`. `SURUM.txt` = `<s2>`; `/api/saglik` 200; `surumler\` altında iki sürüm; yedek klasöründe `…-guncelleme-oncesi.*`. |
+| 14 | Bozuk özet reddi | `.sha256` dosyasının bir karakterini değiştir, `guncelle.ps1 -YerelPaket … -Zorla` | `HATA (dogrulama): SHA256 UYUSMUYOR` , çıkış 1; `guncel` değişmedi; yeni klasör açılmadı. |
+| 15 | Geri dönüş (otomatik) | Sağlıksız bir paket üret (örn. `uygulama.env`'de olmayan bir değişken isteyen ya da `/api/saglik`'i 503 yapan sürüm `<s3>`; ön uçuşu geçmesi için sağlık yalnız geçişten sonra bozulacak şekilde ya da ön uçuşu kapatarak `uygulama.env`'i geçici taşıyıp) ve `guncelle.ps1 -YerelPaket …<s3>` | Ön uçuş yakalarsa: `HATA (on-ucus)`, canlı değişmez, çıkış 1. Geçiş sonrası bozulursa: `HATA (gecis)` → `Onceki surume donuluyor` → `Geri donus basarili.`, çıkış 1; `SURUM.txt` yine `<s2>`; `/api/saglik` 200; olay günlüğünde `Error` kaydı. |
+| 16 | Elle geri dönüş + eski şema | `guncelle.ps1 -Surum <s1>` GitHub ile ya da `-YerelPaket …<s1>` ile eski paket | Eski kod, yeni (genişletilmiş) şemada çalışır (`/api/saglik` 200, giriş çalışır) → geriye dönük uyum kuralının kanıtı. Çalışmazsa o migration kural dışıdır; §11 `guncelleme-oncesi` yedeğinden dönüş uygulanır ve adımı yeniden yazarsınız. |
+| 17 | Servis dayanıklılığı | `Stop-Process -Name node -Force` (uygulama) ; 10 sn bekle | NSSM servisi yeniden başlatır; `/api/saglik` 200'e döner. Yedek hesabının `bakim.env`'i okuyamadığı doğrulanır. |
+
+**Prova tamam kriteri:** 1–17 geçti, sapmalar bu belgeye ve betiklere işlendi, tarih/ortam kaydedildi. Bu yapılmadan üretim kurulumuna geçilmez. Denenmeyen/geçmeyen her adım "denendi" diye işaretlenmez.

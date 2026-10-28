@@ -8,13 +8,14 @@
 --  4) klinik_uygulama: TRUNCATE/REFERENCES/TRIGGER yetkisi yok.
 --  5) klinik_anonim: yalnız INSERT (ve gerekli SELECT politikası olanlar) — izinli tablo listesi dışında yetki yok.
 --  6) klinik_yedek: yalnız SELECT (yazma yetkisi yok); bakim_rolu: yalnız izinli (klinik SELECT, resmi_tatil yazma).
+--  9) klinik_migrasyon: kendi başına HİÇ tablo yetkisi yok; tek üyeliği klinik_sahip (INHERIT yok, yalnız SET); migrasyon şemasına hiçbir uygulama rolü erişemez.
 \set ON_ERROR_STOP 1
 CREATE TEMP TABLE yetki_hata (kural text, ayrinti text);
 
 -- 1) kimlik tabloları
 INSERT INTO yetki_hata
 SELECT 'kimlik_tablosu_baska_rol', r.rolname || ' -> ' || t.t || ' (' || p.p || ')'
-FROM (VALUES ('klinik_uygulama'), ('klinik_anonim'), ('bakim_rolu'), ('klinik_tanima')) r(rolname)
+FROM (VALUES ('klinik_uygulama'), ('klinik_anonim'), ('bakim_rolu'), ('klinik_tanima'), ('klinik_migrasyon')) r(rolname)
 CROSS JOIN (VALUES ('kimlik_kullanici'), ('oturum'), ('kimlik_hesap'), ('kimlik_dogrulama')) t(t)
 CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) p(p)
 WHERE has_table_privilege(r.rolname, 'public.' || t.t, p.p)
@@ -90,6 +91,42 @@ CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'),
 WHERE has_table_privilege(r.rolname, 'public.kullanici_tenant', p.p) OR (p.p IN ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES') AND has_any_column_privilege(r.rolname, 'public.kullanici_tenant', p.p));
 INSERT INTO yetki_hata
 SELECT 'kullanici_tenant_rls_var', 'kullanici_tenant' FROM pg_class WHERE relname = 'kullanici_tenant' AND relrowsecurity;  -- RLS olmamalı: özyineleme çözümünün dayanağı
+
+-- 9) klinik_migrasyon (migration uygulayıcı): yetkisi yalnız klinik_sahip'e SET ROLE; doğrudan hiçbir tablo/fonksiyon yetkisi yok
+INSERT INTO yetki_hata
+SELECT 'migrasyon_dogrudan_tablo_yetkisi', c.relname || ' (' || p.p || ')'
+FROM pg_class c CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) p(p)
+WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p', 'v', 'm') AND has_table_privilege('klinik_migrasyon', c.oid, p.p);
+INSERT INTO yetki_hata
+SELECT 'migrasyon_dogrudan_fonksiyon_yetkisi', p.proname FROM pg_proc p
+WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('klinik_migrasyon', p.oid, 'EXECUTE')
+  AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e');
+INSERT INTO yetki_hata
+SELECT 'migrasyon_rol_uyeligi', m.roleid::regrole::text || ' (inherit=' || m.inherit_option || ', set=' || m.set_option || ')' FROM pg_auth_members m
+WHERE m.member = 'klinik_migrasyon'::regrole AND NOT (m.roleid = 'klinik_sahip'::regrole AND NOT m.inherit_option AND m.set_option);
+INSERT INTO yetki_hata
+SELECT 'migrasyon_ayricalikli_rol', rolname FROM pg_roles
+WHERE rolname = 'klinik_migrasyon' AND (rolsuper OR rolbypassrls OR rolcreaterole OR rolcreatedb OR rolreplication);
+INSERT INTO yetki_hata
+SELECT 'migrasyon_sahip_nesne', c.relname FROM pg_class c WHERE c.relowner = 'klinik_migrasyon'::regrole;
+
+-- 9b) migrasyon şeması (uygulanmış migration kaydı): var, sahibi klinik_sahip, hiçbir uygulama rolü göremez/okuyamaz
+INSERT INTO yetki_hata
+SELECT 'migrasyon_sema_yok', 'migrasyon.kayit (db/kurulum/03_migrasyon_kaydi.sql çalışmamış)' WHERE to_regclass('migrasyon.kayit') IS NULL;
+INSERT INTO yetki_hata
+SELECT 'migrasyon_kayit_sahibi', pg_get_userbyid(c.relowner) FROM pg_class c WHERE c.oid = to_regclass('migrasyon.kayit') AND pg_get_userbyid(c.relowner) <> 'klinik_sahip';
+INSERT INTO yetki_hata
+SELECT 'migrasyon_sema_erisimi', r.rolname || ' (' || p.p || ')'
+FROM (VALUES ('klinik_uygulama'), ('klinik_anonim'), ('bakim_rolu'), ('kimlik_rolu'), ('klinik_tanima'), ('klinik_migrasyon')) r(rolname)
+CROSS JOIN (VALUES ('USAGE'), ('CREATE')) p(p)
+WHERE to_regnamespace('migrasyon') IS NOT NULL AND has_schema_privilege(r.rolname, 'migrasyon', p.p);
+INSERT INTO yetki_hata
+SELECT 'migrasyon_kayit_tablo_erisimi', r.rolname || ' (' || p.p || ')'
+FROM (VALUES ('klinik_uygulama'), ('klinik_anonim'), ('bakim_rolu'), ('kimlik_rolu'), ('klinik_tanima'), ('klinik_migrasyon')) r(rolname)
+CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) p(p)
+WHERE to_regclass('migrasyon.kayit') IS NOT NULL AND has_table_privilege(r.rolname, 'migrasyon.kayit', p.p);
+INSERT INTO yetki_hata
+SELECT 'migrasyon_kayit_public', 'migrasyon.kayit' FROM pg_class c, aclexplode(c.relacl) a WHERE c.oid = to_regclass('migrasyon.kayit') AND a.grantee = 0;
 
 -- Matris (bilgi): rol x tablo -> yetkiler
 SELECT r.rolname AS rol, c.relname AS tablo,

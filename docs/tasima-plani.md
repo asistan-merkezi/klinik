@@ -14,11 +14,14 @@ Hepsi kapanmadan canlı geçiş YAPILMAZ. Durum güncel tutulur (son: 2026-10-28
 | 3 | **Modül 4c** — terapistin finans tablolarına RLS okumasının kapatılması (dar görünümler) | tasarım hazır; **Aşama 7b'nin ilk hedefi** |
 | 4 | **Modül 4a** — iade sınırı (ödemeden büyük iade reddi) | **KAPANDI 2026-10-28** (0013: bağlantılı iade + yönetici istisnası, gerekçe zorunlu) |
 | 5 | **KDV yuvarlama mali müşavir teyidi** — kural: `docs/tasima-ilerleme.md` Modül 4 §1 | teyit bekliyor |
-| 6 | `db-kur.ps1` gerçek **Windows** üzerinde test | yapılmadı |
+| 6 | `db-kur.ps1` + tüm `deploy/windows` betiklerinin gerçek **Windows** üzerinde provası (`docs/sunucu-kurulum.md` §12, 17 adım) | betikler yazıldı, **hiç çalıştırılmadı** |
 | 7 | **E-posta göndericisi** bağlanması (şablon verisi KVKK uyumu dahil, `docs/kvkk-aktarim.md`) | açık |
 | 8 | **SSE oturum kontrolü** (`/api/canli` oturum/tenant yenileme ve iptal davranışı) | açık |
 | 9 | **Yedek dış kopya hedefi** (Türkiye içi sağlayıcı/konum, anahtar saklama sorumluları) | açık |
 | 10 | **Hukuk onayları**: yedek saklama süreleri, yurt dışı şifreli depolama, mesaj şablonlarının KVKK sınıflandırması, `audit_log` saklama/arşiv süresi | açık |
+| 12 | **GitHub jetonu + ağ çıkış kısıtı**: fine-grained salt-okunur jeton, süre sonu takvimi; çıkışın yalnız GitHub (api + ek depolama) / ACME / mesaj merkezine alan adı bazında kısıtlanması (Vodafone Cloud katmanı; Windows güvenlik duvarı FQDN süzemez) | açık (`docs/sunucu-kurulum.md` §10a) |
+| 13 | **NSSM + `NT SERVICE\<servis>` sanal hesapları** davranışının sunucuda doğrulanması (`nssm set ObjectName`, yedek yol `sc.exe config obj=`) | doğrulanmadı |
+| 14 | **Sürüm paketi bütünlüğü**: özet aynı ekten gelir (bozulmayı yakalar, hesap ele geçirilmesine karşı korumaz) → etiket koruması / derleme attestation doğrulaması | açık, sonraki iş |
 | 11 | `GIZLI_VERI_ANAHTARI` üretimi ve saklaması (rotasyon prosedürü `docs/sunucu-kurulum.md` §7) | prosedür yazıldı; anahtar üretimi canlı kurulumda |
 
 ## Alınan kararlar (2026-10-26)
@@ -122,9 +125,11 @@ Her aşama `npx tsc --noEmit` + `npm run lint` + `next build` temiz bitmeli. Giz
 - Yedek: `docs/sunucu-kurulum.md` tasarımı (age ortak anahtarı sunucuda, özel anahtar dışarıda; günlük 30 gün + aylık 12 ay, parametre; sunucu dışı kopya **önce Türkiye içi**). Erişim logu (kim hangi hasta verisine baktı; log dosyalarında kişisel veri yok; döndürme). Sertleştirme: gelen yönetim portu yok, ortam değişkenleri yalnız servis hesabına, Cloudflare **proxy kapalı** (yalnız DNS; KVKK nedeniyle), bu yüzden WAF/DDoS yerine sunucu güvenlik duvarı + Caddy hız sınırı. İzleme: servis, disk/Postgres doluluğu, uptime.
 - **Bitti kriteri**: sunucu kurulum dokümanındaki **geri yükleme testi** boş makinede yapıldı, rakamlar kaynakla tutuyor ve kayıt tutuldu; sunucuda özel anahtar yok (dosya/env/kayıt taraması) ve yedek anahtarsız açılamıyor; saklama parametreleri değiştirilince temizlik davranışı değişiyor (iki değerle denendi); dışarıdan yalnız 80/443 açık (port taraması); gizli değer repo ve loglarda yok.
 
-### Aşama 9 — Deploy hattı (pull tabanlı)
-- Sunucu etiket/dalı kendisi çeker (salt-okunur deploy anahtarı — dosyada yok), `npm ci` + `next build`, NSSM yeniden başlatma, başarısızlıkta önceki sürüme dönüş. Migration adımı ayrı, `bakim_rolu` ile, onaylı.
-- **Bitti kriteri**: etiket atılınca sunucu kendisi yayınlıyor; bilerek bozuk sürümde otomatik geri dönüş çalıştı; sunucuya gelen yönetim bağlantısı olmadan tüm akış tamamlandı.
+### Aşama 9 — Deploy hattı (pull tabanlı, sunucuda DERLEME YOK) — 🟡 betikler yazıldı (2026-10-28), sunucuda denenmedi
+- **Derleme CI'da**: `.github/workflows/derle.yml` (windows-latest, Node LTS): `npm ci` → lint → test → `next build` (standalone) → `deploy/windows/paketle.ps1` → `v*` etiketinde GitHub sürümü + `klinik-<etiket>.zip` + `.sha256`.
+- **Sunucu paketi çeker**: `guncelle.ps1` salt-okunur jetonla son sürümü indirir, SHA256 doğrular, `surumler\<etiket>-<zaman>` altına açar, ön uçuş (ayrı port, `/api/saglik`), `migrasyon-uygula.ps1` (**`klinik_migrasyon`**, süper kullanıcı değil; bekleyen varsa önce yedek), `guncel` junction'ı, servis yeniden başlatma, sağlıksızsa önceki sürüme dönüş. Sunucuda `git`/`npm ci`/`next build` yok. Sunucuya gelen yönetim bağlantısı yok; çıkış yalnız GitHub 443 (+ACME, mesaj merkezi).
+- Servisler `NT SERVICE\<servis>` sanal hesaplarıyla (parolasız); PostgreSQL `listen_addresses='localhost'` + `pg_hba` yalnız localhost/scram (kurulum.ps1 doğrular); Caddy yönetim API'si kapalı. Migration kuralı: geriye dönük uyumlu, geri alma = yedekten dönme (CLAUDE.md).
+- **Bitti kriteri**: `docs/sunucu-kurulum.md` §12 Prova planı 17 adımı temiz makinede geçti; etiket atılınca sunucu kendisi yayınlıyor; bilerek bozuk sürümde otomatik geri dönüş çalıştı; sunucuya gelen yönetim bağlantısı olmadan tüm akış tamamlandı.
 
 ### Aşama 10 — Veri göçü ve geçiş
 - Kesinti penceresi: Supabase'te yazma kapat → dump → yükle → doğrulama (satır sayıları, finans toplamları, bakiye view'ları, dosya sayısı, **canlı katalog ↔ envanter farkı kapalı**) → kullanıcılara şifre belirleme bağlantıları → DNS geçişi. Önce prova (staging kopyası). Geri dönüş: DNS'i eski Vercel'e çevirme + aradaki yazmaları elle aktarma planı.
