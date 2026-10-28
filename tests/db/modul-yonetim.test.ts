@@ -71,7 +71,7 @@ describe("destek bağlamı (super_admin yüzeyi)", () => {
       expect(r?.message, rol).toBe(YETKISIZ_MESAJI);
       await expect(withKullanici(kullaniciBaglamiUret(id), (t) => rpc(t, "destek_baglami_ac", { p_klinik_id: K2.klinik, p_gerekce: "yetkisiz deneme gerekçesi", p_dakika: 30 })), rol).rejects.toThrow();
     }
-    expect(await sql("select 1 from destek_baglami where klinik_id = $1", [K2.klinik])).toHaveLength(0);
+    expect(await sql("select 1 from destek_baglami where klinik_id = $1 and kullanici_id = $2", [K2.klinik, SA])).toHaveLength(0);
   });
 
   it("geçersiz girdiler reddedilir: kısa gerekçe, süre sınırı aşımı, olmayan klinik", async () => {

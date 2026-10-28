@@ -1,21 +1,15 @@
 import { INTER_LATIN_BASE64, INTER_LATIN_EXT_BASE64 } from "@/lib/pdf/fonts/inter-base64";
+import { logoBul } from "@/lib/dosya/logo";
 
 /**
- * Klinik logosu gibi Supabase Storage'daki public URL'leri base64 data
- * URI'ye çevirir — page.setContent() ile render edilen belgede göreli/harici
- * URL'ler yüklenmez, görsel data URI olarak gömülü olmalı.
+ * Klinik logosu DOSYA_KOKU'dan (lib/dosya/logo.ts) okunur ve data URI'ye çevrilir — AĞ İSTEĞİ YOK (eski sürüm `fetch(url)` yapıyordu: SSRF yüzeyi).
+ * Logo yoksa belge görselsiz üretilir.
  */
-export async function gorseliDataUriyeCevir(url: string | null): Promise<string | null> {
-  if (!url) return null;
+export async function klinikLogosuDataUri(klinikId: string): Promise<string | null> {
   try {
-    const yanit = await fetch(url);
-    if (!yanit.ok) return null;
-    const mime = yanit.headers.get("content-type") ?? "image/png";
-    const buffer = Buffer.from(await yanit.arrayBuffer());
-    return `data:${mime};base64,${buffer.toString("base64")}`;
+    const logo = await logoBul(klinikId);
+    return logo ? `data:${logo.tip};base64,${logo.veri.toString("base64")}` : null;
   } catch {
-    // Görsel indirilemezse form görselsiz üretilir — PDF'in tamamının
-    // başarısız olmasına gerek yok.
     return null;
   }
 }
@@ -23,9 +17,8 @@ export async function gorseliDataUriyeCevir(url: string | null): Promise<string 
 /**
  * Elle doldurulacak (Hasta Kayıt Formu, İş Başvuru Formu vb.) PDF şablonları
  * için ortak doctype/font/print-CSS sarmalayıcısı — Inter fontu (Türkçe
- * karakterler dahil) base64 gömülü, @sparticuz/chromium'un Lambda ortamında
- * sistem fontu bulamama riskini bertaraf ediyor (bkz. Kayıt Formu PDF
- * geçmişindeki font notu). Sadece Regular (400) gömülü, kalın metinler
+ * karakterler dahil) base64 gömülü: sunucudaki sistem fontlarına bağımlı değil
+ * (Windows Server'da Türkçe karakterli font eksikliği riskini bertaraf eder). Sadece Regular (400) gömülü, kalın metinler
  * Chromium'un sentetik kalınlaştırmasına bırakılıyor.
  */
 export function pdfBelgesiOlustur(icerikHtml: string): string {
@@ -33,6 +26,7 @@ export function pdfBelgesiOlustur(icerikHtml: string): string {
 <html lang="tr">
 <head>
 <meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'" />
 <style>
   @font-face {
     font-family: 'Inter';

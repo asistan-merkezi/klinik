@@ -1,14 +1,13 @@
 import { isBasvuruFormuIcerikHtml } from "@/lib/pdf/is-basvuru-formu-sablon";
-import { gorseliDataUriyeCevir, pdfBelgesiOlustur } from "@/lib/pdf/pdf-yardimcilari";
+import { pdfBelgesiOlustur } from "@/lib/pdf/pdf-yardimcilari";
 
-export async function isBasvuruFormuHtmlOlustur({
+export function isBasvuruFormuHtmlOlustur({
   klinikAdi,
-  logoUrl,
+  logoDataUri,
 }: {
   klinikAdi: string;
-  logoUrl: string | null;
-}): Promise<string> {
-  const logoDataUri = await gorseliDataUriyeCevir(logoUrl);
+  logoDataUri: string | null;
+}): string {
   const icerikHtml = isBasvuruFormuIcerikHtml({ klinikAdi, logoDataUri });
   return pdfBelgesiOlustur(icerikHtml);
 }
