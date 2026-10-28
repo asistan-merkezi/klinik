@@ -55,6 +55,8 @@ md += `| | **Toplam** | | ${tb - tk} / ${tb} | **${tk}** |\n\n`;
 md += `Not: "Toplam" taşıma başlangıcındaki dosya listesidir (\`scripts/dev/tasima-baslangic.txt\`, ${baslangic.length} dosya); sayım \`@supabase\`, \`@/lib/supabase\` ve \`createAdminClient\` kullanan dosyaları kapsar. \`lib/supabase/*\` en sonda silinir.\n\n`;
 for (const s of satirlar) {
   md += `## Modül ${s.id} — ${s.ad}\n\n- Durum: **${s.durum}**${s.not ? `\n- Not: ${s.not}` : ""}\n- Kalan dosyalar (${s.kalan}):${s.kalan ? "\n" + s.kalanDosyalar.map((d) => `  - \`${d}\``).join("\n") : " —"}\n\n`;
+  const ayrinti = path.join(KOK, `scripts/dev/modul-${s.id}-ayrinti.md`);
+  if (fs.existsSync(ayrinti)) md += `${fs.readFileSync(ayrinti, "utf8")}\n\n`;
 }
 md += `## Taşırken temizlenecekler (takip)\n\nBkz. \`scripts/dev/devam-notu.md\` ve bu dosyanın modül notları. Temizlik kalemleri: QR formundaki gizli \`klinik_id\` alanı (tenant yalnız kısa koddan), \`lib/qr/hiz-siniri.ts\` (fail-closed), \`ScheduledLogout\`, tek oturum kilidi dosyaları (\`lib/auth/oturum-kilidi.ts\`, \`giris-hiz-siniri.ts\`), \`lib/supabase/*\`, \`vercel.json\`, \`@supabase/*\` paketleri.\n`;
 fs.writeFileSync(path.join(KOK, "docs/tasima-ilerleme.md"), md, "utf8");
