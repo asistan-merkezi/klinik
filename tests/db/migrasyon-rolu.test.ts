@@ -94,11 +94,22 @@ describe("kontrol SQL'leri: yeni kurallar ihlali yakalar", () => {
     try {
       await s.query("BEGIN");
       for (const q of once) await s.query(q);
+      await s.query("SAVEPOINT kontrol_once");
       try {
         await s.query(kontrolSql(dosya));
         return "";
       } catch (e) {
-        return (e as Error).message;
+        // Hangi satırın ihlal sayıldığı hata mesajında görünsün (CI'da psql çıktısı yok): son DO bloğunu atlayıp HATA satırlarını oku.
+        let ek = "";
+        try {
+          await s.query("ROLLBACK TO SAVEPOINT kontrol_once");
+          await s.query(kontrolSql(dosya).replace(/DO \$\$\s*DECLARE[\s\S]*$/, ""));
+          const satirlar = (await s.query("select kontrol, ayrinti from kontrol_sonuc where durum = 'HATA'")).rows;
+          ek = ` | HATA satırları: ${JSON.stringify(satirlar)}`;
+        } catch {
+          /* ayrıntı alınamazsa asıl mesaj yeter */
+        }
+        return (e as Error).message + ek;
       }
     } finally {
       await s.query("ROLLBACK").catch(() => {});
