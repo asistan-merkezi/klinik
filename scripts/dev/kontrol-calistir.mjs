@@ -15,6 +15,8 @@ let basarisiz = 0;
 const bolum = (b) => console.log(`\n=== ${b} ===`);
 try {
   const sup = await duzenek.baglanSuper();
+  // Geçici dış küme (CI Postgres konteyneri) her adresten bağlantı kabul eder; pg_hba denetimi yalnız orada atlanır (üretimde ayarlanmaz).
+  if (process.env.TEST_PG_DIS_PORT) await sup.query("SET klinik.hba_kontrol = 'atla'");
 
   bolum("bypassrls-kontrol.sql");
   const r1 = await sup.query(sqlHazirla(oku("db/kontrol/bypassrls-kontrol.sql"))).then((x) => x, (e) => e);

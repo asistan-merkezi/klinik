@@ -50,7 +50,10 @@ WHERE r.rolname IN ('klinik_uygulama', 'bakim_rolu', 'klinik_anonim', 'kimlik_ro
 --     (klinik_migrasyon) okuyamaz → o durumda bu blok atlanır ve BILGI satırı yazılır (kurulum.ps1 aynı doğrulamayı dosyadan ayrıca yapar).
 DO $$
 BEGIN
-  IF has_table_privilege(current_user, 'pg_catalog.pg_hba_file_rules', 'SELECT') THEN
+  IF coalesce(current_setting('klinik.hba_kontrol', true), '') = 'atla' THEN
+    -- YALNIZ geçici test kümesi (CI Postgres konteyneri her adresten bağlantı kabul eder): test düzeneği SET klinik.hba_kontrol='atla' verir. Üretimde AYARLANMAZ.
+    INSERT INTO kontrol_sonuc VALUES ('hba_kontrolu', 'BILGI', 'ATLANDI (klinik.hba_kontrol=atla, yalnız test kümesi)');
+  ELSIF has_table_privilege(current_user, 'pg_catalog.pg_hba_file_rules', 'SELECT') THEN
     INSERT INTO kontrol_sonuc
     SELECT 'hba_uzak_adres', 'HATA', 'satır ' || line_number || ': ' || coalesce(address, '(yerel soket)') || ' (' || array_to_string(user_name, ',') || ', ' || auth_method || ')'
     FROM pg_hba_file_rules

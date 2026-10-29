@@ -93,6 +93,8 @@ describe("kontrol SQL'leri: yeni kurallar ihlali yakalar", () => {
     const s = await superBaglan();
     try {
       await s.query("BEGIN");
+      // CI'daki geçici Postgres konteyneri her adresten bağlantı kabul eder; pg_hba denetimi yalnız orada atlanır.
+      if (process.env.TEST_PG_DIS_PORT) await s.query("SET LOCAL klinik.hba_kontrol = 'atla'");
       for (const q of once) await s.query(q);
       await s.query("SAVEPOINT kontrol_once");
       try {
