@@ -11,6 +11,9 @@ import { listeEkVerisiGetir } from "@/lib/hasta/liste-sorgular";
 import { hastaAktifPaketleriGetir } from "@/app/(app)/panel/randevular/veri-actions";
 import { oturumAc } from "./oturum-durumu";
 
+// Rastgele UUID'ler tesadüfen "900"/"1500" gibi rakam dizileri içerebilir (hex); tutar araması UUID'ler çıkarıldıktan sonra yapılır.
+const uuidsiz = (v: unknown) => JSON.stringify(v).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "");
+
 let K1: Record<string, string>;
 let K2: Record<string, string>;
 let admin: string, resepsiyon: string, muhasebe: string, terapist: string, admin2: string;
@@ -112,7 +115,7 @@ describe("dar görünümler: yalnız durum/adet, tutar YOK", () => {
     expect(h.get(R_ACIK)).toMatchObject({ islendi: false, kapanisSekli: null });
     const kolonlar = (await sql<{ column_name: string }>("select column_name from information_schema.columns where table_name = 'v_randevu_kapanis' order by ordinal_position")).map((c) => c.column_name);
     expect(kolonlar).toEqual(["randevu_id", "klinik_id", "islendi", "kapanis_sekli", "paket_kalan_adet", "paket_ad"]);
-    expect(JSON.stringify(satirlar)).not.toMatch(/1500|900/);
+    expect(uuidsiz(satirlar)).not.toMatch(/1500|900/);
   });
 
   it("tenant ve personel kapısı: başka kliniğin yöneticisi ve hasta portalı bu görünümlerden satır GÖREMEZ", async () => {
@@ -142,7 +145,7 @@ describe("çizelge ve listeler terapist oturumunda ÇALIŞIR", () => {
     const bayrak = (s: typeof ter) => Object.fromEntries(s.map((r) => [r.id, [(r.hasta_bakiye_hareket ?? []).some((h) => h.tur === "borc"), r.paket_satis?.kalan_adet ?? null, r.paket_satis?.paket?.ad ?? null]]));
     expect(bayrak(ter)).toEqual(bayrak(yon));
     expect(bayrak(ter)).toMatchObject({ [R_BORC]: [true, null, null], [R_TAHSIL]: [true, null, null], [R_PAKET]: [false, 7, "Paket 10"], [R_ACIK]: [false, null, null] });
-    expect(JSON.stringify(ter)).not.toMatch(/1500|900\.00/);
+    expect(uuidsiz(ter)).not.toMatch(/1500|900\.00/);
     const gercekId = (await sql<{ id: string }>("select id from hasta_bakiye_hareket where randevu_id = $1 and tur = 'borc'", [R_BORC]))[0].id;
     expect(JSON.stringify(ter)).not.toContain(gercekId);
   });
