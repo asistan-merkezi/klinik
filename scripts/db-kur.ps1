@@ -20,7 +20,7 @@ $baglanti = @("-h", $Sunucu, "-p", $Port, "-U", $SuperKullanici, "-v", "ON_ERROR
 
 function Psql([string]$Veritabani, [string]$Dosya, [string[]]$Ek = @()) {
   Write-Host ">> $Dosya ($Veritabani)"
-  & psql @baglanti -d $Veritabani @Ek -f (Join-Path $kok $Dosya)
+  & psql.exe @baglanti -d $Veritabani @Ek -f (Join-Path $kok $Dosya)
   if ($LASTEXITCODE -ne 0) { throw "psql başarısız: $Dosya" }
 }
 
@@ -41,16 +41,16 @@ $dosyalar = @(Get-ChildItem (Join-Path $kok "db\migrations") -Filter "*.sql" | S
 foreach ($f in $dosyalar) {
   $gecici = New-TemporaryFile
   try {
-    "SET ROLE klinik_sahip;" | Set-Content -Path $gecici -Encoding utf8
-    Get-Content (Join-Path $kok $f) -Raw -Encoding utf8 | Add-Content -Path $gecici -Encoding utf8
+    # BOM'suz UTF-8: Windows PowerShell 5.1 "Set-Content -Encoding utf8" dosyanın başına BOM yazar ve psql ilk komutu okuyamaz.
+    [System.IO.File]::WriteAllText($gecici.FullName, "SET ROLE klinik_sahip;`r`n" + (Get-Content (Join-Path $kok $f) -Raw -Encoding UTF8), (New-Object System.Text.UTF8Encoding($false)))
     Write-Host ">> $f"
-    & psql @baglanti -d klinik -f $gecici
+    & psql.exe @baglanti -d klinik -f $gecici
     if ($LASTEXITCODE -ne 0) { throw "psql başarısız: $f" }
   } finally { Remove-Item $gecici -Force -ErrorAction SilentlyContinue }
 }
 
 # 3) Aylık audit_log bölümleri (3 ay ileri)
-& psql @baglanti -d klinik -c "SET ROLE klinik_sahip; SELECT audit_log_bolum_olustur(3);"
+& psql.exe @baglanti -d klinik -c "SET ROLE klinik_sahip; SELECT audit_log_bolum_olustur(3);"
 if ($LASTEXITCODE -ne 0) { throw "audit_log bölümleri açılamadı" }
 
 # 4) RLS atlayan rol/fonksiyon denetimi (hata varsa kurulum başarısız sayılır)

@@ -37,7 +37,7 @@ if ($KaydaIsle) {
   PgUrlAyarla $url
   $baglanti = @("-v", "ON_ERROR_STOP=1", "-X", "-q", "-w")
 }
-function Psql([string[]]$Arg) { & psql @baglanti @Arg; if ($LASTEXITCODE -ne 0) { throw "psql basarisiz" } }
+function Psql([string[]]$Arg) { & psql.exe @baglanti @Arg; if ($LASTEXITCODE -ne 0) { throw "psql basarisiz" } }
 function PsqlSahipOlarak([string]$Dosya, [string[]]$Ek = @()) {   # SET ROLE klinik_sahip + dosya içeriği (+ isteğe bağlı sonek) tek geçici dosyada
   $gecici = New-TemporaryFile
   try {
@@ -48,13 +48,13 @@ function PsqlSahipOlarak([string]$Dosya, [string[]]$Ek = @()) {   # SET ROLE kli
 }
 
 try {
-  $var = (& psql @baglanti -tA -c "SET ROLE klinik_sahip; SELECT to_regclass('migrasyon.kayit') IS NOT NULL" | Out-String).Trim()
+  $var = (& psql.exe @baglanti -tA -c "SET ROLE klinik_sahip; SELECT to_regclass('migrasyon.kayit') IS NOT NULL" | Out-String).Trim()
   if ($LASTEXITCODE -ne 0) { throw "psql basarisiz (baglanti/parola?)" }
   if ($var -ne "t") { throw "migrasyon.kayit yok: db/kurulum/03_migrasyon_kaydi.sql (ilk kurulum) uygulanmamis." }
 
   $dosyalar = Get-ChildItem -Path (Join-Path $KokDizin "db\migrations") -Filter "*.sql" | Sort-Object Name
   $kayitlar = @{}
-  foreach ($satir in (& psql @baglanti -tA -F "|" -c "SET ROLE klinik_sahip; SELECT dosya, sha256 FROM migrasyon.kayit")) { if ($satir -and $satir.Contains("|")) { $p = $satir.Split("|"); $kayitlar[$p[0]] = $p[1] } }
+  foreach ($satir in (& psql.exe @baglanti -tA -F "|" -c "SET ROLE klinik_sahip; SELECT dosya, sha256 FROM migrasyon.kayit")) { if ($satir -and $satir.Contains("|")) { $p = $satir.Split("|"); $kayitlar[$p[0]] = $p[1] } }
 
   if ($KaydaIsle) {
     if ($kayitlar.Count -gt 0) { throw "migrasyon.kayit bos degil; -KaydaIsle yalnizca ilk kurulumda, bir kez kullanilir." }
@@ -90,7 +90,7 @@ try {
     $gecici = New-TemporaryFile
     try {
       [System.IO.File]::WriteAllText($gecici.FullName, "SET ROLE klinik_sahip;`r`n" + (Get-Content $yol -Raw -Encoding UTF8), (New-Object System.Text.UTF8Encoding($false)))
-      & psql @baglanti -f $gecici.FullName | Out-Null
+      & psql.exe @baglanti -f $gecici.FullName | Out-Null
       if ($LASTEXITCODE -ne 0) { throw "$k basarisiz (yetki ihlali)" }
     } finally { Remove-Item $gecici.FullName -Force -ErrorAction SilentlyContinue }
   }
