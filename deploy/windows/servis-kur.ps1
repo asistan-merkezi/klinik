@@ -78,7 +78,8 @@ if (-not $CaddyAtla) {
   $caddyfile = Join-Path $KokDizin "Caddyfile"
   if (-not (Test-Path $caddyfile)) {
     if (-not $AlanAdi) { throw "Caddyfile yok: -AlanAdi verin (or. klinik.firma.com.tr)." }
-    (Get-Content (Join-Path $PSScriptRoot "Caddyfile") -Raw -Encoding UTF8).Replace("klinik.ornek.com.tr", $AlanAdi).Replace("localhost:3000", "127.0.0.1:$Port") | Set-Content -Path $caddyfile -Encoding UTF8
+    $icerik = (Get-Content (Join-Path $PSScriptRoot "Caddyfile") -Raw -Encoding UTF8).Replace("klinik.ornek.com.tr", $AlanAdi).Replace("localhost:3000", "127.0.0.1:$Port")
+    [System.IO.File]::WriteAllText($caddyfile, $icerik, (New-Object System.Text.UTF8Encoding($false)))   # PS 5.1: Set-Content -Encoding UTF8 BOM yazar
     Yazdir "Caddyfile olusturuldu: $caddyfile"
   } else { Yazdir "Mevcut Caddyfile korundu: $caddyfile (sablon degistiyse elle birlestirin)." }
   Calistir "caddy" @("validate", "--config", $caddyfile, "--adapter", "caddyfile") "caddy validate"
