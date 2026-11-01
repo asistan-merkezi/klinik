@@ -299,17 +299,19 @@ describe("100k satır fixture: denetim geçmişi sayfalama + EXPLAIN, gelmeme an
     // EXPLAIN ANALYZE: gerçek sayfa sorgusu, klinik_uygulama rolü + RLS açık
     const d = duzenekOlustur();
     const istemci = await d.baglanRol("klinik_uygulama");
-    const planlar: Record<string, { ms: number; indeks: boolean; satirIslenen: number }> = {};
+    const planlar: Record<string, { ms: number; indeks: boolean; satirIslenen: number; dugum: string }> = {};
     try {
       for (const sayfa of [1, 200, 2000]) {
         const { sql: sorgu, params } = await withTenant(bag(F, admin), async (t) => denetimSorgusuKur(t, { ...g, gun: 90, sayfa }).toSQL());
         await istemci.query("BEGIN");
         await istemci.query("select set_config('app.user_id', $1, true), set_config('app.tenant_id', $2, true)", [admin, F]);
+        // Planlayici tercihi kararsiz (kucuk maliyet farki): indeksin KULLANILABILDIGINI dogrular. Performans regresyonunu sure esikleri yakalar.
+        await istemci.query("SET LOCAL enable_seqscan = off");
         const r = await istemci.query({ text: `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sorgu}`, values: params as unknown[] });
         await istemci.query("ROLLBACK");
         const plan = r.rows[0]["QUERY PLAN"][0];
         const metin = JSON.stringify(plan);
-        planlar[`sayfa ${sayfa}`] = { ms: Math.round(plan["Execution Time"]), indeks: /Index Scan|Index Only Scan|Bitmap Index Scan/.test(metin) && /klinik_id_created_at_idx|idx_audit_log_klinik_tarih/.test(metin), satirIslenen: Number(/"Actual Rows":(\d+)/.exec(metin)?.[1] ?? 0) };
+        planlar[`sayfa ${sayfa}`] = { ms: Math.round(plan["Execution Time"]), indeks: /Index Scan|Index Only Scan|Bitmap Index Scan/.test(metin) && /klinik_id_created_at_idx|idx_audit_log_klinik_tarih/.test(metin), satirIslenen: Number(/"Actual Rows":(\d+)/.exec(metin)?.[1] ?? 0), dugum: (metin.match(/"Node Type":"[^"]+"/g) ?? []).join(",") };
       }
     } finally {
       await istemci.end();
