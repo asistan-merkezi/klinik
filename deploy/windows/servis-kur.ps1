@@ -94,7 +94,7 @@ GizliIzinleriUygula $KokDizin
 
 foreach ($s in "klinik-uygulama", $(if (-not $CaddyAtla) { "klinik-caddy" })) {
   if (-not $s) { continue }
-  if ((Get-Service $s).Status -eq "Running") { Restart-Service $s } else { Start-Service $s }
+  if ((Get-Service $s).Status -eq "Running") { Restart-Service $s -Force } else { Start-Service $s }
 }
 if (-not (SaglikBekle "http://127.0.0.1:$Port/api/saglik" 90)) { Yazdir "UYARI: /api/saglik 90 sn icinde 200 donmedi — $log\klinik-uygulama.hata.log dosyasina bakin."; exit 1 }
 Yazdir "Saglik kontrolu: TAMAM"

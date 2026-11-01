@@ -99,6 +99,12 @@ function JunctionAyarla([string]$Hedef) {
   if (Test-Path $guncel) { & cmd.exe /c rmdir "`"$guncel`"" | Out-Null }   # yalnız bağlantıyı siler, hedefe dokunmaz
   New-Item -ItemType Junction -Path $guncel -Target $Hedef | Out-Null
 }
+function UygulamaYenidenBaslat {
+  # Caddy bu servise bagimli: -Force bagimlilari da durdurur; calisanlari geri baslat.
+  $bag = @((Get-Service $servis).DependentServices | Where-Object { $_.Status -eq "Running" } | ForEach-Object { $_.Name })
+  Restart-Service $servis -Force
+  foreach ($b in $bag) { Start-Service $b }
+}
 function MevcutSurum {
   $d = Join-Path $guncel "SURUM.txt"
   if (Test-Path $d) { return (Get-Content $d -TotalCount 1).Trim() }
@@ -214,7 +220,7 @@ try {
   $guncelDegisti = $true
   JunctionAyarla $yeniSurum
   if ($IlkKurulum) { Yazdir "Ilk surum hazir: $yeniSurum. Siradaki: servis-kur.ps1"; OlayYaz "Information" "Ilk kurulum surumu: $etiket"; exit 0 }
-  Restart-Service $servis
+  UygulamaYenidenBaslat
   if (-not (SaglikBekle $saglik 90)) { throw "Yeni surum saglik kontrolunden gecmedi ($saglik)." }
 
   Yazdir "Guncelleme basarili: $etiket ($yeniSurum)"
@@ -240,7 +246,7 @@ catch {
     Yazdir "Onceki surume donuluyor: $onceki"
     try {
       JunctionAyarla $onceki
-      Restart-Service $servis
+      UygulamaYenidenBaslat
       if (SaglikBekle $saglik 90) { Yazdir "Geri donus basarili." } else { Yazdir "GERI DONUS SAGLIKSIZ — elle mudahale edin."; $cikis = 2 }
     } catch { Yazdir "Geri donus BASARISIZ: $($_.Exception.Message)"; $cikis = 2 }
   }
