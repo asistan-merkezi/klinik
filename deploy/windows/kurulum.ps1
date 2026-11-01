@@ -16,6 +16,7 @@ param(
   [string]$PgVeriDizini = "",
   [switch]$Indir,
   [switch]$ParolaSifirla,
+  [ValidateRange(12, 64)][int]$ParolaUzunlugu = 16,   # elle yazilacagi icin 16 (hesaplar yalniz batch logon)
   [switch]$PgSertlestirAtla
 )
 . "$PSScriptRoot\ortak.ps1"
@@ -62,7 +63,7 @@ if ($chrome) { Yazdir "VAR   Chrome/Edge: $chrome  (uygulama.env > CHROMIUM_PATH
 # 3) Klasörler
 foreach ($k in "gizli", "surumler", "indirme", "anahtarlar", "durum", "log", "dosya", "yedek", "yedek\.gecici", "caddy-veri") { New-Item -ItemType Directory -Force -Path (Join-Path $KokDizin $k) | Out-Null }
 
-# 4) Yerel hesaplar: bakım ve yedek (Task Scheduler). PAROLA kurulum betiği tarafından UZUN RASTGELE üretilir (40 karakter, kriptografik RNG);
+# 4) Yerel hesaplar: bakım ve yedek (Task Scheduler). PAROLA kurulum betiği tarafından UZUN RASTGELE üretilir (varsayilan 16 karakter, -ParolaUzunlugu ile degisir; kriptografik RNG);
 #    yalnız bu çıktıda BİR KEZ gösterilir, hiçbir dosyaya/loga yazılmaz (bu betik için Start-Transcript KULLANMAYIN). Görev kaydı sırasında bir kez girilir;
 #    kaybolursa -ParolaSifirla ile yenilenir ve görev yeniden kaydedilir. Servis hesapları burada YOK: NT SERVICE\klinik-uygulama / klinik-caddy sanal hesaplardır.
 #    Haklar (LSA): "Toplu iş olarak oturum aç" VERİLİR; "Yerel olarak oturum açmayı reddet" ve "Uzak Masaüstü Hizmetleri ile oturum açmayı reddet" EKLENİR. Doğrulanır.
@@ -71,7 +72,7 @@ foreach ($ad in "svc-klinik-bakim", "svc-klinik-yedek") {
   $varMi = [bool](Get-LocalUser -Name $ad -ErrorAction SilentlyContinue)
   if ($varMi -and -not $ParolaSifirla) { Yazdir "VAR   hesap $ad" }
   else {
-    $duz = RastgeleParola 40
+    $duz = RastgeleParola $ParolaUzunlugu
     $guvenli = ConvertTo-SecureString $duz -AsPlainText -Force
     if ($varMi) { Set-LocalUser -Name $ad -Password $guvenli; Yazdir "SIFIRLANDI hesap $ad" }
     else { New-LocalUser -Name $ad -Password $guvenli -PasswordNeverExpires -UserMayNotChangePassword -Description "Klinik Asistani zamanlanmis is hesabi" | Out-Null; Yazdir "OLUSTU hesap $ad" }
