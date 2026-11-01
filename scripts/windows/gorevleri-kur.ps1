@@ -63,7 +63,7 @@ function TetikleyiciUret($g) {
     "aylik"  { return AylikTetikleyici $g.Saat }
     "gunluk" { return New-ScheduledTaskTrigger -Daily -At $g.Saat }
     "sik"    {
-      $t = New-ScheduledTaskTrigger -Once -At $g.Saat -RepetitionInterval (New-TimeSpan -Minutes $g.Aralik)
+      $t = New-ScheduledTaskTrigger -Once -At $g.Saat -RepetitionInterval (New-TimeSpan -Minutes $g.Aralik) -RepetitionDuration (New-TimeSpan -Days 3650)
       return $t
     }
   }
@@ -111,8 +111,18 @@ foreach ($g in $Gorevler) {
     Write-Host "           $NodeYolu $arguman"
     continue
   }
+  if ($g.Tur -eq "aylik") {
+    # PS 5.1: New-ScheduledTask elle uretilmis CIM tetikleyiciyi kabul etmiyor (0x80041002); aylik gorev XML ile kaydedilir.
+    $hh = [int]$g.Saat.Split(":")[0]; $mm = [int]$g.Saat.Split(":")[1]
+    $ilk = (Get-Date -Day 1 -Hour $hh -Minute $mm -Second 0 -Millisecond 0).AddMonths(1).ToString("yyyy-MM-ddTHH:mm:ss")
+    $kom = [Security.SecurityElement]::Escape($NodeYolu); $arg = [Security.SecurityElement]::Escape($arguman); $wd = [Security.SecurityElement]::Escape((Split-Path -Parent $BetikKlasoru))
+    $xml = "<?xml version=`"1.0`" encoding=`"UTF-16`"?><Task version=`"1.2`" xmlns=`"http://schemas.microsoft.com/windows/2004/02/mit/task`"><Triggers><CalendarTrigger><StartBoundary>$ilk</StartBoundary><Enabled>true</Enabled><ScheduleByMonth><DaysOfMonth><Day>1</Day></DaysOfMonth><Months><January/><February/><March/><April/><May/><June/><July/><August/><September/><October/><November/><December/></Months></ScheduleByMonth></CalendarTrigger></Triggers><Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable><ExecutionTimeLimit>PT$($g.Sinir)M</ExecutionTimeLimit><Enabled>true</Enabled></Settings><Actions Context=`"Author`"><Exec><Command>$kom</Command><Arguments>$arg</Arguments><WorkingDirectory>$wd</WorkingDirectory></Exec></Actions></Task>"
+    Register-ScheduledTask -TaskPath $GorevKlasoru -TaskName $g.Ad -Xml $xml -User $kullanici -Password $parolaDuz -Force | Out-Null
+    Write-Host "Kaydedildi: $GorevKlasoru$($g.Ad)"
+    continue
+  }
   $gorev = New-ScheduledTask -Action $eylem -Trigger $tetik -Settings $ayar
-  Register-ScheduledTask -TaskPath $GorevKlasoru -TaskName $g.Ad -InputObject $gorev -User $kullanici -Password $parolaDuz -RunLevel Limited -Force | Out-Null
+  Register-ScheduledTask -TaskPath $GorevKlasoru -TaskName $g.Ad -InputObject $gorev -User $kullanici -Password $parolaDuz -Force | Out-Null
   Write-Host "Kaydedildi: $GorevKlasoru$($g.Ad)"
 }
 $parolaDuz = $null

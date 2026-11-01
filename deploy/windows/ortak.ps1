@@ -93,7 +93,7 @@ function GizliIzinleriUygula([string]$Kok) {
     }
   }
   Ver (Join-Path $Kok "gizli") @("$uyg|(X)", "$bak|(X)", "$yed|(X)")
-  Ver (Join-Path $Kok "surumler") @("$uyg|(OI)(CI)RX", "$bak|(OI)(CI)RX")      # uygulama kodu: SALT OKUNUR (bakım betikleri guncel\scripts'ten çalışır)
+  Ver (Join-Path $Kok "surumler") @("$uyg|(OI)(CI)RX", "$bak|(OI)(CI)RX", "$yed|(OI)(CI)RX")      # uygulama kodu: SALT OKUNUR (bakım betikleri guncel\scripts'ten çalışır)
   Ver (Join-Path $Kok "indirme") @()                                           # indirilen paket: yalnız yönetici/SYSTEM
   Ver (Join-Path $Kok "anahtarlar") @()                                        # güvenilen yayın açık anahtarları (minisign .pub): yalnız yönetici/SYSTEM yazar-okur
   Ver (Join-Path $Kok "durum") @("$uyg|(OI)(CI)R")                             # guncelle.ps1 durum dosyası (jeton süresi): yönetici yazar, uygulama SALT OKUR (/api/saglik)
